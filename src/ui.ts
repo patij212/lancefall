@@ -30,6 +30,7 @@ export interface GameOverInfo {
   daily: boolean;
   highScore: number;
   shardsEarned: number;
+  dailyBest: number;
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
@@ -394,7 +395,7 @@ export class UI {
       stat('wave', String(info.wave)),
       stat('time', formatTime(info.time)),
       stat('◆ shards', `+${info.shardsEarned}`),
-      stat('high score', info.highScore.toLocaleString()),
+      stat(info.daily ? 'daily best' : 'high score', (info.daily ? info.dailyBest : info.highScore).toLocaleString()),
     );
     this.show('gameover');
     // animate score count-up
@@ -457,7 +458,9 @@ export class UI {
       const segStamina = Math.max(0, Math.min(per, world.player.stamina - i * per));
       const fill = this.staminaSegs[i];
       fill.style.width = (segStamina / per) * 100 + '%';
-      fill.parentElement!.classList.toggle('empty', world.player.stamina < per);
+      // Flash ALL segments red exactly when you can't afford a dash (total < one
+      // segment) — a deliberate "you can't escape" warning, not per-segment state.
+      fill.parentElement!.classList.toggle('empty', world.player.stamina < TUNE.stamina.dashCost);
     }
 
     this.grazeEl.textContent = world.grazeCount > 0 ? `GRAZE ${world.grazeCount}` : '';

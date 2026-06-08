@@ -46,7 +46,7 @@ export function updatePlayer(
   if (p.hitFlash > 0) p.hitFlash = Math.max(0, p.hitFlash - dt);
 
   if (p.phase === 'dashing') {
-    advanceDash(p, dt, ev);
+    advanceDash(p, dt, stats, ev);
   } else {
     // ── movement (drift) ──
     const moveMul = p.phase === 'charging' ? TUNE.player.chargeMoveMul : 1;
@@ -144,13 +144,13 @@ function fireDash(
   p.killsThisDash = 0;
   p.iframe = iframeFor(len);
   p.stamina -= TUNE.stamina.dashCost;
-  p.regenDelay = TUNE.stamina.regenDelay;
+  p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout
   p.charge = 0;
   ev.dashFired = true;
   ev.dashLen = len;
 }
 
-function advanceDash(p: Player, dt: number, ev: PlayerEvents): void {
+function advanceDash(p: Player, dt: number, stats: RunStats, ev: PlayerEvents): void {
   p.dashTime += dt;
   const t = clamp(p.dashTime / p.dashDuration, 0, 1);
   p.x = p.dashFromX + (p.dashToX - p.dashFromX) * t;
@@ -159,7 +159,7 @@ function advanceDash(p: Player, dt: number, ev: PlayerEvents): void {
     p.phase = 'idle';
     p.vx = p.dashDirX * TUNE.dash.carrySpeed;
     p.vy = p.dashDirY * TUNE.dash.carrySpeed;
-    p.regenDelay = TUNE.stamina.regenDelay;
+    p.regenDelay = stats.regenDelay;
     ev.landed = true;
   }
 }

@@ -174,6 +174,8 @@ export class Game {
     this.state = 'playing';
     this.ui.show('playing');
     this.audio.duckMusic(false);
+    // brief protection so you're not killed the instant you unpause
+    this.world.player.iframe = Math.max(this.world.player.iframe, 1);
   }
 
   private pause(): void {
@@ -336,7 +338,7 @@ export class Game {
       w.particles.trail(w.player.x, w.player.y, 5, comboColor(w.combo));
       // Nova Dash: detonate a shockwave at the launch point
       if (this.ev.dashFired && w.stats.dashNovaRadius > 0) {
-        this.chainExplode(w.player.dashFromX, w.player.dashFromY, w.stats.dashNovaRadius, 1);
+        this.chainExplode(w.player.dashFromX, w.player.dashFromY, w.stats.dashNovaRadius, 1, true);
       }
       this.resolveDashHits();
     }
@@ -527,13 +529,14 @@ export class Game {
 
     w.enemies.release(e);
 
-    // chain reaction
+    // chain reaction (preserve the originating context so graze-triggered
+    // chains don't count as dash-kills)
     if (w.stats.chainRadius > 0) {
-      this.chainExplode(x, y, w.stats.chainRadius, w.stats.chainDmg);
+      this.chainExplode(x, y, w.stats.chainRadius, w.stats.chainDmg, fromDash);
     }
   }
 
-  private chainExplode(x: number, y: number, radius: number, dmg: number): void {
+  private chainExplode(x: number, y: number, radius: number, dmg: number, fromDash: boolean): void {
     const w = this.world;
     w.particles.ring(x, y, radius, '#ec4899', 0.35);
     this.audio.explosion(0.7);
@@ -541,7 +544,7 @@ export class Game {
     // snapshot to avoid mutating while iterating (the dash-hit loop owns `candidates`)
     const hits = this.chainBuf.filter((e) => e.active && !e.isBoss && circleHit(x, y, radius, e.x, e.y, e.radius));
     for (const e of hits) {
-      if (e.active) this.damageEnemy(e, dmg, true);
+      if (e.active) this.damageEnemy(e, dmg, fromDash);
     }
   }
 
@@ -550,8 +553,9 @@ export class Game {
     const bonus = 500 * Math.max(1, e.bossWave);
     w.score += Math.round(bonus * comboMultiplier(w.combo));
     w.particles.burst(e.x, e.y, 90, '#ffffff');
-    w.particles.ring(e.x, e.y, 220, '#ff3b6b', 0.5);
-    w.particles.floatText(e.x, e.y - 40, 'WARDEN DOWN', '#fbbf24', 1.4);
+    w.particles.ring(e.x, e.y, 220, e.color, 0.5);
+    w.particles.floatText(e.x, e.y - 40, `${bossName(e.kind).replace('THE ', '')} DOWN`, '#fbbf24', 1.4);
+    this.renderer.flash('#ffffff', 0.45);
     this.audio.explosion(1.4);
     this.audio.bossWarn();
     this.shake.add(0.9);
@@ -684,6 +688,7 @@ export class Game {
     this.dyingTimer = 0.85;
     this.audio.endCharge(); // kill the charge tone if we died mid-charge
     this.audio.death();
+    this.renderer.flash('#ef4444', 0.5);
     this.audio.duckMusic(true);
     this.shake.add(TUNE.juice.traumaDeath);
     this.scheduler.requestHitstop(TUNE.juice.hitstopDeath);
@@ -723,6 +728,7 @@ export class Game {
       daily: this.daily,
       highScore: this.save.highScore,
       shardsEarned: w.shards,
+      dailyBest: this.save.dailyBest,
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
@@ -746,6 +752,7 @@ export class Game {
     const boss = spawnBoss(w, this.director.bossCount);
     this.audio.bossWarn();
     this.shake.add(TUNE.juice.traumaBossSpawn);
+    this.renderer.flash(boss?.kind === 'weaver' ? '#a855f7' : '#ff3b6b', 0.3);
     this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
   }
 

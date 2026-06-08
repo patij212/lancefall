@@ -44,6 +44,9 @@ describe('ship stat profiles', () => {
     expect(s.maxSpeed).toBeLessThan(TUNE.player.maxSpeed);
     expect(s.dashLenMul).toBeLessThan(1);
     expect(s.regenPerSec).toBeGreaterThan(TUNE.stamina.regenPerSec);
+    // shorter post-dash regen lockout (this field is now actually read by player.ts)
+    expect(s.regenDelay).toBeLessThan(TUNE.stamina.regenDelay);
+    expect(s.regenDelay).toBeCloseTo(TUNE.stamina.regenDelay * 0.7);
   });
 
   it('ship profile composes with perks (ship first, then perks stack)', () => {

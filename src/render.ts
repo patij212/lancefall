@@ -33,6 +33,8 @@ export class Renderer {
   dpr = 1;
   w = 1280;
   h = 720;
+  private flashColor = '#ffffff';
+  private flashAlpha = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.screen = canvas;
@@ -41,6 +43,12 @@ export class Renderer {
     this.bctx = this.buf.getContext('2d')!;
     this.tint = document.createElement('canvas');
     this.tctx = this.tint.getContext('2d')!;
+  }
+
+  /** Trigger a brief full-screen flash (respects reduce-flashing at draw time). */
+  flash(color: string, strength = 0.4): void {
+    this.flashColor = color;
+    this.flashAlpha = Math.max(this.flashAlpha, strength);
   }
 
   resize(w: number, h: number, dpr: number): void {
@@ -508,7 +516,17 @@ export class Renderer {
     grad.addColorStop(1, `rgba(0,0,0,${edge})`);
     sctx.fillStyle = grad;
     sctx.fillRect(0, 0, W, H);
-    void opts;
+
+    // full-screen flash (skipped entirely under reduce-flashing)
+    if (this.flashAlpha > 0.01) {
+      if (!opts.reduceFlashing) {
+        sctx.globalAlpha = this.flashAlpha;
+        sctx.fillStyle = this.flashColor;
+        sctx.fillRect(0, 0, W, H);
+        sctx.globalAlpha = 1;
+      }
+      this.flashAlpha *= 0.86;
+    }
   }
 }
 

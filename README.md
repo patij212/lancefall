@@ -23,12 +23,13 @@ You don't shoot. You **dash**.
 ## Features
 
 - ⚔️ **Charge-dash combat** — swept-capsule spear collision, i-frames, momentum carry, commit-on-release routing.
-- 💀 **4 enemy archetypes + 1 mini-boss**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, and the two-phase Warden.
-- 🌀 **The juice stack** — trauma screen-shake, hitstop, time-dilation slow-mo on big chains, additive bloom, channel-split chromatic aberration, dash-trail ribbons, particle storms, floating combo numbers, velocity-lean camera, punch-zoom.
+- 💀 **4 enemy archetypes + 2 mini-bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, the two-phase **Warden** (spiral + aimed fans) and the **Weaver** (pinwheel + safe-lane pulse rings), which alternate as the run escalates.
+- 🚀 **3-ship roster (meta-progression)** — bank shards across runs to unlock **Lance** (balanced), **Glaive** (glass cannon: long dash, 2 stamina) and **Bastion** (tank: 4 stamina, fast regen). Each is a genuinely different playstyle.
+- 🃏 **In-run perk draft** — 3-of-**10** stacking upgrades (Long Lance, Second Wind, Graze Burn, Chain Reaction, Afterimage, Time Thief, Heavy Lance, Siphon, Slipstream, Nova Dash) that compound into wild builds.
+- 🌀 **The juice stack** — trauma screen-shake, hitstop, time-dilation slow-mo on big chains, additive bloom, channel-split chromatic aberration, dash-trail ribbons, particle storms, floating combo numbers, velocity-lean camera, punch-zoom, and boss-spawn/death screen flashes.
 - 🔊 **Fully-synthesized reactive audio** (Web Audio, no asset files) — a bass *thunk* that pitches **up** with your combo so a clean run literally plays an ascending scale, a charging arpeggio, graze ticks, and an adaptive drone that layers more voices as the wave heats up.
 - 🎲 **Endless escalating wave director** driven by a single intensity scalar, plus a **daily-seed** mode (deterministic for everyone, no backend) and a copyable score-brag string.
-- 🃏 **In-run perk draft** — 3-of-6 stacking upgrades, Slay-the-Spire style.
-- 🏆 **localStorage** high score, best combo, shards, and daily best.
+- 🏆 **localStorage** high score, best combo, shards, unlocked ships, and daily best.
 - 🎮 **Keyboard + mouse, gamepad, and touch** (twin virtual sticks on phones).
 - ♿ **Accessibility** — reduce-flashing, reduce-motion, colorblind shapes, screen-shake slider, HUD scale, and full volume controls.
 
@@ -77,10 +78,10 @@ npm run preview
 ## Test
 
 ```bash
-npm test         # 81 unit tests on the pure simulation
+npm test         # 92 unit tests on the pure simulation
 ```
 
-Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 6-perk draft (stacking + max-stack exclusion), and the wave-director intensity curve.
+Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 10-perk draft (stacking + max-stack exclusion), ship stat profiles, and the wave-director intensity curve.
 
 ## Monetization
 
