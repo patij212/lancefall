@@ -26,6 +26,8 @@ export class AudioEngine {
   private drone: { osc: OscillatorNode; gain: GainNode }[] = [];
   private droneFilter: BiquadFilterNode | null = null;
   private droneOn = false;
+  // boss tension layer
+  private bossVoice: { osc: OscillatorNode; gain: GainNode } | null = null;
 
   get ready(): boolean {
     return this.ctx !== null;
@@ -470,9 +472,67 @@ export class AudioEngine {
     this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(targets[i] ?? 0.0001, t, 0.5));
   }
 
+  /** Layer in a dissonant tritone voice while a boss is alive (and remove it). */
+  bossMusic(on: boolean): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (on) {
+      if (this.bossVoice || !this.droneFilter) return;
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 55 * Math.pow(2, 6 / 12); // tritone above the root — tension
+      osc.detune.value = 5;
+      const g = ctx.createGain();
+      g.gain.value = 0.0001;
+      osc.connect(g);
+      g.connect(this.droneFilter);
+      osc.start(t);
+      g.gain.setTargetAtTime(0.06, t, 0.4);
+      this.bossVoice = { osc, gain: g };
+    } else {
+      if (!this.bossVoice) return;
+      const v = this.bossVoice;
+      this.bossVoice = null;
+      v.gain.gain.setTargetAtTime(0.0001, t, 0.2);
+      v.osc.stop(t + 0.6);
+      v.osc.onended = () => {
+        v.osc.disconnect();
+        v.gain.disconnect();
+      };
+    }
+  }
+
+  /** Triumphant rising chord when a boss is felled. */
+  bossStinger(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const freqs = [440, 554, 659, 880];
+    freqs.forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = f;
+      const g = ctx.createGain();
+      const st = t + i * 0.05;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.16, st + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.5);
+      osc.connect(g);
+      g.connect(this.sfxBus);
+      osc.start(st);
+      osc.stop(st + 0.55);
+      osc.onended = () => {
+        osc.disconnect();
+        g.disconnect();
+      };
+    });
+  }
+
   stopDrone(): void {
     const ctx = this.ctx;
     if (!ctx || !this.droneOn) return;
+    this.bossMusic(false);
     const t = ctx.currentTime;
     for (const v of this.drone) {
       v.gain.gain.setTargetAtTime(0.0001, t, 0.1);

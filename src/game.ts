@@ -624,8 +624,9 @@ export class Game {
     w.particles.ring(e.x, e.y, 220, e.color, 0.5);
     w.particles.floatText(e.x, e.y - 40, `${bossName(e.kind).replace('THE ', '')} DOWN`, '#fbbf24', 1.4);
     this.renderer.flash('#ffffff', 0.45);
+    this.audio.bossMusic(false);
+    this.audio.bossStinger();
     this.audio.explosion(1.4);
-    this.audio.bossWarn();
     this.shake.add(0.9);
     this.scheduler.requestHitstop(0.18);
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
@@ -766,6 +767,7 @@ export class Game {
     this.dying = true;
     this.dyingTimer = 0.85;
     this.audio.endCharge(); // kill the charge tone if we died mid-charge
+    this.audio.bossMusic(false);
     this.audio.death();
     this.renderer.flash('#ef4444', 0.5);
     this.audio.duckMusic(true);
@@ -854,6 +856,7 @@ export class Game {
     const w = this.world;
     const boss = spawnBoss(w, this.director.bossCount);
     this.audio.bossWarn();
+    this.audio.bossMusic(true);
     this.shake.add(TUNE.juice.traumaBossSpawn);
     this.renderer.flash(boss?.kind === 'weaver' ? '#a855f7' : '#ff3b6b', 0.3);
     this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
