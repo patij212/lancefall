@@ -99,6 +99,8 @@ export class Director {
   bossCount = 0;
   /** displayed wave number (1-based) */
   wave = 1;
+  /** active biome enemy-mix bias (multiplicative weights) */
+  biomeBias: Partial<Record<EnemyKind, number>> = {};
   // scripted state
   private waveIndex = 0;
   private spawnedThisWave = 0;
@@ -155,7 +157,7 @@ export class Director {
         const room = maxConcurrent(I) - concurrent;
         if (room > 0) {
           const n = Math.min(room, enemiesPerSpawn(I));
-          const weights = enemyWeights(this.t, I);
+          const weights = enemyWeights(this.t, I).map((w) => ({ v: w.v, w: w.w * (this.biomeBias[w.v] ?? 1) }));
           for (let i = 0; i < n; i++) d.spawn.push(rng.weighted(weights));
         }
       }

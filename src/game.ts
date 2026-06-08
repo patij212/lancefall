@@ -30,6 +30,7 @@ import { createRng, seedFromDate } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES } from './modes';
 import type { RunConfig } from './modes';
+import { BIOMES, biomeAt } from './biomes';
 import {
   loadSave,
   saveSave,
@@ -71,6 +72,9 @@ export class Game {
   private seed = 1;
   private winning = false;
   private winTimer = 0;
+  private biomeIndex = -1;
+  private biomeSpeedMul = 1;
+  private biomeShield = 0;
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -178,6 +182,8 @@ export class Game {
     this.applySettings(this.settings);
     this.director.configure(cfg);
     this.winning = false;
+    this.biomeIndex = -1;
+    this.setBiome(0, false); // first biome, no banner at run start
     // clear any lingering juice/input state so a run never starts frozen,
     // mid-slow-mo, mid-charge-tone, or auto-charging from a held key
     this.scheduler.reset();
@@ -227,6 +233,7 @@ export class Game {
     this.state = 'title';
     this.ui.show('title');
     this.ui.refreshTitle(this.save);
+    this.renderer.setBiomeTint(null); // restore the cosmetic theme nebula on menus
     this.audio.endCharge();
     this.audio.stopDrone();
   }
@@ -359,6 +366,12 @@ export class Game {
       if (this.intensityTimer <= 0) {
         this.intensityTimer = 0.4;
         this.audio.setIntensity(intensity(this.world.time));
+      }
+
+      // biome cycling
+      if (!this.dying && !this.winning) {
+        const bi = biomeAt(this.world.time).index;
+        if (bi !== this.biomeIndex) this.setBiome(bi, true);
       }
 
       if (this.dying) {
@@ -914,9 +927,10 @@ export class Game {
   private applyDirector(spawn: EnemyKind[]): void {
     const w = this.world;
     const I = intensity(w.time) * this.mode.intensityMul;
-    const sMul = enemySpeedMul(I) + this.mode.speedBonus;
-    const bMul = bulletSpeedMul(I) + this.mode.speedBonus;
-    const shield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
+    const sMul = (enemySpeedMul(I) + this.mode.speedBonus) * this.biomeSpeedMul;
+    const bMul = (bulletSpeedMul(I) + this.mode.speedBonus) * this.biomeSpeedMul;
+    const baseShield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
+    const shield = Math.min(0.7, baseShield + this.biomeShield);
     for (const kind of spawn) {
       const pt = w.edgeSpawn();
       if (kind === 'wisp') {
@@ -942,6 +956,19 @@ export class Game {
     const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : '#ff3b6b';
     this.renderer.flash(col, 0.3);
     this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
+  }
+
+  private setBiome(index: number, announce: boolean): void {
+    this.biomeIndex = index;
+    const b = BIOMES[index];
+    this.director.biomeBias = b.bias;
+    this.renderer.setBiomeTint(b.nebula);
+    this.biomeSpeedMul = b.speedMul;
+    this.biomeShield = b.shieldBonus;
+    if (announce) {
+      this.ui.announce(`⟐ ${b.name}`, b.accent);
+      this.renderer.flash(b.accent, 0.12);
+    }
   }
 
   private winRun(): void {

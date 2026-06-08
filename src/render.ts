@@ -40,9 +40,15 @@ export class Renderer {
   private stars: { x: number; y: number; z: number; phase: number; tw: number }[] = [];
   private bgT = 0;
   private theme: ThemeDef = themeById('neon');
+  private biomeTint: [string, string, string] | null = null;
 
   setTheme(t: ThemeDef): void {
     this.theme = t;
+  }
+
+  /** Override the nebula tint during a run (biome stage); null = use theme. */
+  setBiomeTint(c: [string, string, string] | null): void {
+    this.biomeTint = c;
   }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -149,8 +155,8 @@ export class Renderer {
     ctx.globalCompositeOperation = 'lighter';
     const heat = 1 + Math.min(combo, 40) * 0.012;
 
-    // drifting nebula clouds (very low alpha, tinted by the active theme)
-    const nb = this.theme.nebula;
+    // drifting nebula clouds (biome tint during a run, else the cosmetic theme)
+    const nb = this.biomeTint ?? this.theme.nebula;
     const blobs: [number, number, string, number][] = [
       [0.26, 0.32, nb[0], 0.9],
       [0.72, 0.34, nb[1], 1.3],
