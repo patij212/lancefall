@@ -21,6 +21,10 @@ export interface SaveData {
   unlockedShips: string[];
   /** currently-selected ship id */
   selectedShip: string;
+  /** cosmetic theme ids the player has unlocked */
+  unlockedThemes: string[];
+  /** currently-selected theme id */
+  selectedTheme: string;
 }
 
 export interface Settings {
@@ -55,6 +59,8 @@ export function defaultSave(): SaveData {
     shards: 0,
     unlockedShips: ['lance'],
     selectedShip: 'lance',
+    unlockedThemes: ['neon'],
+    selectedTheme: 'neon',
   };
 }
 

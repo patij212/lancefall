@@ -7,6 +7,7 @@ import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
+import { THEMES } from './themes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
 
@@ -20,6 +21,8 @@ export interface UICallbacks {
   onSettingsChange: (s: Settings) => void;
   onSelectShip: (id: string) => void;
   onUnlockShip: (id: string) => void;
+  onSelectTheme: (id: string) => void;
+  onUnlockTheme: (id: string) => void;
 }
 
 export interface GameOverInfo {
@@ -84,6 +87,7 @@ export class UI {
   // title refs
   private titleBest!: HTMLElement;
   private shipRow!: HTMLElement;
+  private themeRow!: HTMLElement;
   private shardLine!: HTMLElement;
 
   // gameover refs
@@ -181,6 +185,8 @@ export class UI {
     this.shardLine = el('div', { class: 'title-shards' }, '');
     this.shipRow = el('div', { class: 'ship-row' });
     const shipSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'SHIP'), this.shipRow);
+    this.themeRow = el('div', { class: 'theme-row' });
+    const themeSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'PALETTE'), this.themeRow);
     this.soundHint = el('div', { class: 'sound-hint' }, '♪ click PLAY to enable sound');
 
     const legend = el(
@@ -201,6 +207,7 @@ export class UI {
       row,
       this.dailyCaption,
       shipSection,
+      themeSection,
       legend,
       this.titleBest,
       this.shardLine,
@@ -380,6 +387,22 @@ export class UI {
         else this.cb.onUnlockShip(ship.id);
       });
       this.shipRow.append(chip);
+    }
+
+    this.themeRow.replaceChildren();
+    for (const theme of THEMES) {
+      const unlocked = save.unlockedThemes.includes(theme.id);
+      const selected = save.selectedTheme === theme.id;
+      const sw = el('button', { class: 'theme-sw' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
+      sw.style.setProperty('--a', theme.accent);
+      sw.style.setProperty('--b', theme.accent2);
+      sw.title = unlocked ? theme.name : `${theme.name} — ◆ ${theme.unlockShards}`;
+      sw.append(el('span', { class: 'theme-name' }, unlocked ? theme.name : `◆${theme.unlockShards}`));
+      sw.addEventListener('click', () => {
+        if (unlocked) this.cb.onSelectTheme(theme.id);
+        else this.cb.onUnlockTheme(theme.id);
+      });
+      this.themeRow.append(sw);
     }
   }
 

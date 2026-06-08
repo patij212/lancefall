@@ -1,0 +1,25 @@
+// Cosmetic palette themes — shard-unlockable reskins. A theme retints the
+// "neutral" surfaces (player ship, UI accent, nebula backdrop). Enemy and
+// bullet colors are deliberately NOT themed so the swarm stays readable and
+// colorblind-friendly.
+
+export interface ThemeDef {
+  id: string;
+  name: string;
+  unlockShards: number;
+  accent: string; // primary — UI accent + ship glow
+  accent2: string; // ship outline / secondary
+  nebula: [string, string, string]; // background cloud tints
+}
+
+export const THEMES: ThemeDef[] = [
+  { id: 'neon', name: 'NEON', unlockShards: 0, accent: '#22d3ee', accent2: '#5beaff', nebula: ['#103040', '#241046', '#2e1030'] },
+  { id: 'sunset', name: 'SUNSET', unlockShards: 800, accent: '#fb923c', accent2: '#fbbf24', nebula: ['#3a1810', '#3a1020', '#2a1030'] },
+  { id: 'toxic', name: 'TOXIC', unlockShards: 800, accent: '#34d399', accent2: '#a3e635', nebula: ['#0e3024', '#1a3a10', '#103020'] },
+  { id: 'vapor', name: 'VAPOR', unlockShards: 1500, accent: '#f472b6', accent2: '#c084fc', nebula: ['#2a1040', '#3a1030', '#101a40'] },
+  { id: 'mono', name: 'MONO', unlockShards: 1500, accent: '#e2e8f0', accent2: '#94a3b8', nebula: ['#1a1f2a', '#15151a', '#202028'] },
+];
+
+export function themeById(id: string): ThemeDef {
+  return THEMES.find((t) => t.id === id) ?? THEMES[0];
+}

@@ -6,6 +6,8 @@ import { TUNE, COMBO_COLORS } from './tune';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
+import type { ThemeDef } from './themes';
+import { themeById } from './themes';
 
 export interface Camera {
   leanX: number;
@@ -37,6 +39,11 @@ export class Renderer {
   private flashAlpha = 0;
   private stars: { x: number; y: number; z: number; phase: number; tw: number }[] = [];
   private bgT = 0;
+  private theme: ThemeDef = themeById('neon');
+
+  setTheme(t: ThemeDef): void {
+    this.theme = t;
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.screen = canvas;
@@ -142,11 +149,12 @@ export class Renderer {
     ctx.globalCompositeOperation = 'lighter';
     const heat = 1 + Math.min(combo, 40) * 0.012;
 
-    // drifting nebula clouds (very low alpha, tinted, soft)
+    // drifting nebula clouds (very low alpha, tinted by the active theme)
+    const nb = this.theme.nebula;
     const blobs: [number, number, string, number][] = [
-      [0.26, 0.32, '#103040', 0.9],
-      [0.72, 0.34, '#241046', 1.3],
-      [0.5, 0.74, '#2e1030', 1.1],
+      [0.26, 0.32, nb[0], 0.9],
+      [0.72, 0.34, nb[1], 1.3],
+      [0.5, 0.74, nb[2], 1.1],
     ];
     const R = Math.max(this.w, this.h) * 0.42;
     for (const [fx, fy, col, sp] of blobs) {
@@ -478,7 +486,7 @@ export class Renderer {
     // ship glow
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const glow = this.getGlow(p.hitFlash > 0 ? '#ffffff' : '#22d3ee');
+    const glow = this.getGlow(p.hitFlash > 0 ? '#ffffff' : this.theme.accent);
     const gs = TUNE.player.spriteRadius * 2.6;
     ctx.globalAlpha = p.phase === 'charging' ? 0.5 + p.charge * 0.4 : 0.55;
     ctx.drawImage(glow, p.x - gs, p.y - gs, gs * 2, gs * 2);
@@ -491,7 +499,7 @@ export class Renderer {
     const sr = TUNE.player.spriteRadius * (p.phase === 'charging' ? 1 + 0.06 * Math.sin(p.charge * 30) : 1);
     const invuln = p.iframe > 0 && Math.floor(p.iframe * 40) % 2 === 0;
     ctx.fillStyle = p.hitFlash > 0 ? '#ffffff' : '#0a0b0f';
-    ctx.strokeStyle = invuln ? '#ffffff' : '#5beaff';
+    ctx.strokeStyle = invuln ? '#ffffff' : this.theme.accent2;
     ctx.lineWidth = 2.5;
     poly(ctx, [
       [sr, 0],

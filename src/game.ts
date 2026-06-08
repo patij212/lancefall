@@ -23,6 +23,7 @@ import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, sho
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import type { PerkDef } from './perks';
 import { SHIPS, shipById } from './ships';
+import { THEMES, themeById } from './themes';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate } from './rng';
 import {
@@ -97,6 +98,8 @@ export class Game {
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
+      onSelectTheme: (id) => this.selectTheme(id),
+      onUnlockTheme: (id) => this.unlockTheme(id),
     });
 
     this.resize();
@@ -111,7 +114,14 @@ export class Game {
       }
     });
     this.applySettings(this.settings);
+    this.applyTheme();
     this.ui.refreshTitle(this.save);
+  }
+
+  private applyTheme(): void {
+    const t = themeById(this.save.selectedTheme);
+    this.renderer.setTheme(t);
+    document.documentElement.style.setProperty('--cyan', t.accent);
   }
 
   boot(): void {
@@ -247,6 +257,30 @@ export class Game {
     this.save.selectedShip = id;
     saveSave(this.save);
     this.ui.toast(`${ship.name} unlocked!`);
+    this.ui.refreshTitle(this.save);
+  }
+
+  private selectTheme(id: string): void {
+    if (!this.save.unlockedThemes.includes(id)) return;
+    this.save.selectedTheme = id;
+    saveSave(this.save);
+    this.applyTheme();
+    this.ui.refreshTitle(this.save);
+  }
+
+  private unlockTheme(id: string): void {
+    const theme = THEMES.find((t) => t.id === id);
+    if (!theme || this.save.unlockedThemes.includes(id)) return;
+    if (this.save.shards < theme.unlockShards) {
+      this.ui.toast(`Need ${theme.unlockShards - this.save.shards} more shards`);
+      return;
+    }
+    this.save.shards -= theme.unlockShards;
+    this.save.unlockedThemes.push(id);
+    this.save.selectedTheme = id;
+    saveSave(this.save);
+    this.applyTheme();
+    this.ui.toast(`${theme.name} theme unlocked!`);
     this.ui.refreshTitle(this.save);
   }
 
