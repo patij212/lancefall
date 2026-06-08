@@ -749,6 +749,7 @@ function perkGlyph(g: PerkDef['glyph']): string {
     wraith: '⟁',
     inferno: '🔥',
     juggernaut: '⬢',
+    aegis: '❖',
   };
   return map[g];
 }

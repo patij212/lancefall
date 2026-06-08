@@ -20,6 +20,7 @@ const REQ_STACKS: Record<EvolutionId, PerkStacks> = {
   wraith: { afterimage: 2, longreach: 2 },
   inferno: { grazeburn: 2, slipstream: 1 },
   juggernaut: { secondwind: 2, chain: 1 },
+  aegis: { reflect: 2, secondwind: 2 },
 };
 
 describe('evolutions', () => {

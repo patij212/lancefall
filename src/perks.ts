@@ -39,7 +39,8 @@ export type PerkGlyph =
   | 'perpetual'
   | 'wraith'
   | 'inferno'
-  | 'juggernaut';
+  | 'juggernaut'
+  | 'aegis';
 
 export interface PerkDef {
   id: PerkId;

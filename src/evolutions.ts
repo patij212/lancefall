@@ -14,7 +14,8 @@ export type EvolutionId =
   | 'perpetual'
   | 'wraith'
   | 'inferno'
-  | 'juggernaut';
+  | 'juggernaut'
+  | 'aegis';
 
 export interface EvolutionDef {
   id: EvolutionId;
@@ -141,6 +142,25 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
       s.regenPerSec += 18;
       s.dashDamage += 1;
       s.chainRadius += 30;
+    },
+  },
+  aegis: {
+    id: 'aegis',
+    name: 'AEGIS',
+    desc: 'A walking fortress — your dash sweeps a wide bullet-shattering wall, with deep stamina and a long graze reach.',
+    from: 'Riposte + Second Wind',
+    accent: '#60a5fa',
+    glyph: 'aegis',
+    evolved: true,
+    requires: [
+      { id: 'reflect', stacks: 2 },
+      { id: 'secondwind', stacks: 2 },
+    ],
+    apply: (s) => {
+      s.dashShatterRadius += 40;
+      s.staminaSegments += 1;
+      s.regenPerSec += 15;
+      s.grazeRadius += 20;
     },
   },
 };
