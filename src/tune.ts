@@ -132,6 +132,9 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   splitter: { kind: 'splitter', hp: 1, radius: 19, color: '#a855f7', baseScore: 120, speed: 70 },
   mini: { kind: 'mini', hp: 1, radius: 9, color: '#c9a6ff', baseScore: 60, speed: 150 },
   bloomer: { kind: 'bloomer', hp: 3, radius: 18, color: '#fbbf24', baseScore: 250, speed: 40 },
+  lancer: { kind: 'lancer', hp: 2, radius: 14, color: '#ff8a3b', baseScore: 220, speed: 90 },
+  bomber: { kind: 'bomber', hp: 2, radius: 16, color: '#fb7185', baseScore: 200, speed: 135 },
+  wisp: { kind: 'wisp', hp: 1, radius: 8, color: '#67e8f9', baseScore: 45, speed: 210 },
 };
 
 export const DARTER = {
@@ -159,6 +162,24 @@ export const BLOOMER = {
   windup: 0.4,
   bulletSpeed: 180,
   driftSpeed: 30,
+};
+
+export const LANCER = {
+  range: 380, // preferred standoff distance
+  repositionTime: 1.1,
+  lockTime: 0.85, // telegraph; aim is frozen at lock start (the dodge window)
+  bulletSpeed: 410,
+};
+
+export const BOMBER = {
+  detonateCount: 14,
+  bulletSpeed: 200,
+  armRange: 150, // pulses faster when this close
+};
+
+export const WISP = {
+  packSize: 5,
+  wobble: 36, // crescent spread so a pack is dash-through-able
 };
 
 export const WARDEN = {

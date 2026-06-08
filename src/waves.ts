@@ -54,7 +54,10 @@ export function unlockedKinds(t: number): EnemyKind[] {
   const out: EnemyKind[] = ['darter'];
   if (t >= 18) out.push('orbiter');
   if (t >= 45) out.push('splitter');
+  if (t >= 60) out.push('lancer');
   if (t >= 85) out.push('bloomer');
+  if (t >= 105) out.push('bomber');
+  if (t >= 130) out.push('wisp');
   return out;
 }
 
@@ -65,6 +68,9 @@ export function enemyWeights(t: number, I: number): { v: EnemyKind; w: number }[
     orbiter: 0.55,
     splitter: 0.45 + 0.2 * clamp(I, 0, 1),
     bloomer: 0.35 + 0.5 * clamp(I, 0, 1),
+    lancer: 0.4 + 0.2 * clamp(I, 0, 1),
+    bomber: 0.35 + 0.2 * clamp(I, 0, 1),
+    wisp: 0.5,
     mini: 0,
     warden: 0,
     weaver: 0,

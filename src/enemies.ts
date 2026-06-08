@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -25,6 +25,15 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'bloomer':
       bloomer(e, world, dt);
+      break;
+    case 'lancer':
+      lancer(e, world, dt);
+      break;
+    case 'bomber':
+      bomber(e, world, dt);
+      break;
+    case 'wisp':
+      wisp(e, world, dt);
       break;
     default:
       break;
@@ -123,6 +132,58 @@ function bloomer(e: Enemy, world: World, dt: number): void {
       world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#ffd23b', false);
     }
   }
+}
+
+function lancer(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  const dx = p.x - e.x;
+  const dy = p.y - e.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const sp = 90 * e.speedMul;
+  if (e.phase === 0) {
+    // hold a standoff, strafing
+    if (dist < LANCER.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    else if (dist > LANCER.range * 1.3) steerToward(e, p.x, p.y, sp);
+    else {
+      e.vx = (-dy / dist) * sp * 0.8;
+      e.vy = (dx / dist) * sp * 0.8;
+    }
+    e.timer -= dt;
+    e.telegraph = 0;
+    if (e.timer <= 0) {
+      e.phase = 1;
+      e.timer = LANCER.lockTime;
+      e.angle = Math.atan2(dy, dx); // LOCK the aim now — frozen during telegraph
+    }
+  } else if (e.phase === 1) {
+    e.vx *= 0.15;
+    e.vy *= 0.15;
+    e.timer -= dt;
+    e.telegraph = clamp(1 - e.timer / LANCER.lockTime, 0, 1);
+    if (e.timer <= 0) {
+      const bs = LANCER.bulletSpeed * e.bulletMul;
+      world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false);
+      e.phase = 0;
+      e.timer = LANCER.repositionTime;
+      e.telegraph = 0;
+    }
+  }
+}
+
+function bomber(e: Enemy, world: World, _dt: number): void {
+  const p = world.player;
+  steerToward(e, p.x, p.y, 135 * e.speedMul);
+  // arm pulse for render when close to the player
+  const d2 = (p.x - e.x) ** 2 + (p.y - e.y) ** 2;
+  e.telegraph = d2 < 150 * 150 ? 1 : 0;
+}
+
+function wisp(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  e.angle += 4 * dt;
+  const tx = p.x + Math.cos(e.angle) * WISP.wobble;
+  const ty = p.y + Math.sin(e.angle) * WISP.wobble;
+  steerToward(e, tx, ty, 210 * e.speedMul);
 }
 
 /** Splitter death → spawn 2 fast mini-splitters. */

@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -615,8 +615,21 @@ export class Game {
     // shard gem for the vacuum/meta juice
     w.spawnGem(x, y, 1);
 
-    // splitter spawns minis
-    if (e.kind === 'splitter') splitInto(e, w);
+    // death effects
+    if (e.kind === 'splitter') {
+      splitInto(e, w);
+    } else if (e.kind === 'bomber') {
+      const n = BOMBER.detonateCount;
+      const sp = BOMBER.bulletSpeed * e.bulletMul;
+      const off = w.rng.range(0, Math.PI * 2);
+      for (let i = 0; i < n; i++) {
+        const a = off + (i / n) * Math.PI * 2;
+        w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#fb7185', false);
+      }
+      this.audio.explosion(0.8);
+      w.particles.ring(x, y, 90, '#fb7185', 0.35);
+      this.shake.add(0.16);
+    }
 
     w.enemies.release(e);
 
@@ -906,8 +919,15 @@ export class Game {
     const shield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
     for (const kind of spawn) {
       const pt = w.edgeSpawn();
-      const isShield = w.rng.next() < shield;
-      w.spawnEnemy(kind, pt.x, pt.y, sMul, bMul, isShield);
+      if (kind === 'wisp') {
+        // wisps arrive as a scattered pack
+        for (let i = 0; i < WISP.packSize; i++) {
+          w.spawnEnemy('wisp', pt.x + w.rng.range(-40, 40), pt.y + w.rng.range(-40, 40), sMul, bMul, false);
+        }
+      } else {
+        const isShield = w.rng.next() < shield;
+        w.spawnEnemy(kind, pt.x, pt.y, sMul, bMul, isShield);
+      }
     }
   }
 

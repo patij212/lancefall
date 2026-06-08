@@ -61,8 +61,14 @@ describe('unlock pacing', () => {
   it('weights only include unlocked kinds', () => {
     const w = enemyWeights(0, 0);
     expect(w.map((x) => x.v)).toEqual(['darter']);
-    const w2 = enemyWeights(90, 1);
-    expect(w2.map((x) => x.v).sort()).toEqual(['bloomer', 'darter', 'orbiter', 'splitter']);
+    // by t=200 every spawnable archetype is unlocked
+    const all = enemyWeights(200, 1).map((x) => x.v).sort();
+    expect(all).toEqual(['bloomer', 'bomber', 'darter', 'lancer', 'orbiter', 'splitter', 'wisp']);
+    // mid-run excludes not-yet-unlocked kinds (no bomber/wisp at t=90)
+    const mid = enemyWeights(90, 1).map((x) => x.v);
+    expect(mid).toContain('lancer');
+    expect(mid).not.toContain('bomber');
+    expect(mid).not.toContain('wisp');
   });
 });
 

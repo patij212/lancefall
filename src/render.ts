@@ -337,6 +337,49 @@ export class Renderer {
         ctx.globalAlpha = 1;
         break;
       }
+      case 'lancer': {
+        // the LOCK aim line — the dodge tell (only during telegraph)
+        if (e.telegraph > 0) {
+          ctx.save();
+          ctx.rotate(e.angle);
+          ctx.strokeStyle = `rgba(255,160,80,${0.18 + 0.55 * e.telegraph})`;
+          ctx.lineWidth = 1.5 + 2.5 * e.telegraph;
+          ctx.setLineDash([10, 8]);
+          ctx.beginPath();
+          ctx.moveTo(r, 0);
+          ctx.lineTo(1600, 0);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+        ctx.rotate(e.telegraph > 0 ? e.angle : Math.atan2(e.vy, e.vx) || 0);
+        poly(ctx, [
+          [r * 1.6, 0],
+          [-r * 0.5, r * 0.5],
+          [-r * 0.5, -r * 0.5],
+        ]);
+        break;
+      }
+      case 'bomber': {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        const pulse = e.telegraph > 0 ? 0.5 + 0.5 * Math.sin(e.spawnTime * 18) : 0.35;
+        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'wisp':
+        ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+        poly(ctx, [
+          [r, 0],
+          [-r * 0.7, r * 0.7],
+          [-r * 0.7, -r * 0.7],
+        ]);
+        break;
       case 'warden':
         this.drawWarden(ctx, e, r);
         break;
