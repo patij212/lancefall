@@ -507,9 +507,15 @@ export function comboColor(combo: number): string {
   return col;
 }
 
+const shadeCache = new Map<string, string>();
 function shade(hex: string, amt: number): string {
+  const key = hex + '|' + amt;
+  let v = shadeCache.get(key);
+  if (v) return v;
   const { r, g, b } = hexRgb(hex);
-  return `rgb(${Math.round(r * amt)},${Math.round(g * amt)},${Math.round(b * amt)})`;
+  v = `rgb(${Math.round(r * amt)},${Math.round(g * amt)},${Math.round(b * amt)})`;
+  shadeCache.set(key, v);
+  return v;
 }
 
 function mix(a: string, b: string, t: number): string {

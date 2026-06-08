@@ -98,6 +98,22 @@ export class UI {
     this.buildSettings();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.toastLayer);
+    // accessibility: announce overlays as dialogs
+    const dialogs: [HTMLElement, string][] = [
+      [this.pause, 'Paused'],
+      [this.gameover, 'Game over'],
+      [this.draft, 'Choose a perk'],
+      [this.settingsPanel, 'Settings'],
+    ];
+    for (const [scr, label] of dialogs) {
+      const panel = scr.querySelector('.panel');
+      if (panel) {
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'true');
+        panel.setAttribute('aria-label', label);
+      }
+    }
+    this.toastLayer.setAttribute('aria-live', 'polite');
     this.show('title');
   }
 
@@ -285,8 +301,16 @@ export class UI {
     this.gameover.classList.toggle('hidden', s !== 'gameover');
     this.draft.classList.toggle('hidden', s !== 'draft');
     this.hud.classList.toggle('hidden', s !== 'playing');
+    // any screen transition dismisses the settings modal so it can't block play
+    this.settingsPanel.classList.add('hidden');
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
+    }
+    // move keyboard focus to the active screen's primary action
+    const active = { title: this.title, paused: this.pause, gameover: this.gameover, draft: this.draft, playing: null }[s];
+    if (active) {
+      const btn = active.querySelector('.btn-primary, .perk-card, .btn') as HTMLElement | null;
+      btn?.focus();
     }
   }
 

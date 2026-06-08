@@ -102,11 +102,12 @@ export class Director {
     const I = intensity(this.t);
     const decision: DirectorDecision = { spawn: [], boss: false, perk: false };
 
-    // Mini-boss schedule
+    // Mini-boss schedule — always leave a full interval AFTER the fight ends,
+    // even if the previous boss overran the schedule.
     if (this.t >= this.nextBossAt && !bossAlive) {
       decision.boss = true;
       this.bossCount++;
-      this.nextBossAt += TUNE.director.bossInterval;
+      this.nextBossAt = this.t + TUNE.director.bossInterval;
     }
 
     // Perk draft schedule

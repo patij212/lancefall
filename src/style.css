@@ -523,3 +523,16 @@ body {
     transition: none !important;
   }
 }
+
+/* explicit in-game "Reduce motion" toggle (independent of the OS setting) */
+.reduce-motion .screen,
+.reduce-motion .btn,
+.reduce-motion .btn-play,
+.reduce-motion .go-badge,
+.reduce-motion .hud-combo,
+.reduce-motion .hud-combo.break,
+.reduce-motion .perk-card,
+.reduce-motion .toast {
+  animation: none !important;
+  transition: none !important;
+}

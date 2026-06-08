@@ -59,6 +59,7 @@ export class Game {
   private accumulator = 0;
   private lastTime = 0;
   private candidates: Enemy[] = [];
+  private chainBuf: Enemy[] = []; // separate buffer so chain explosions don't clobber the dash-hit loop
   private dashSlowmoTriggered = false;
   private dying = false;
   private dyingTimer = 0;
@@ -86,6 +87,15 @@ export class Game {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    // auto-pause + suspend audio when the tab is hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (this.state === 'playing') this.pause();
+        this.audio.suspend();
+      } else {
+        this.audio.resume();
+      }
+    });
     this.applySettings(this.settings);
     this.ui.refreshTitle(this.save.highScore, this.save.bestCombo);
   }
@@ -110,6 +120,8 @@ export class Game {
     this.audio.setVolumes(s.master, s.sfx, s.music);
     this.shake.intensity = s.shake * (s.reduceFlashing ? 0.4 : 1);
     this.world.particles.density = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);
+    // reduce-motion disables decorative UI animations/transitions (CSS)
+    document.documentElement.classList.toggle('reduce-motion', s.reduceMotion);
   }
 
   // ── state transitions ──
@@ -122,9 +134,18 @@ export class Game {
     this.world.reset(window.innerWidth, window.innerHeight);
     this.applySettings(this.settings);
     this.director.reset();
+    // clear any lingering juice/input state so a run never starts frozen,
+    // mid-slow-mo, mid-charge-tone, or auto-charging from a held key
+    this.scheduler.reset();
+    this.shake.reset();
+    this.audio.endCharge();
+    this.input.clearHeld();
+    this.cam.leanX = this.cam.leanY = 0;
+    this.cam.zoom = 1;
     this.accumulator = 0;
     this.dying = false;
     this.pendingDraft = false;
+    this.dashSlowmoTriggered = false;
     this.intensityTimer = 0;
     this.state = 'playing';
     this.ui.show('playing');
@@ -151,6 +172,7 @@ export class Game {
   private pause(): void {
     this.state = 'paused';
     this.ui.show('paused');
+    this.audio.endCharge(); // don't let the charge tone drone through the menu
     this.audio.duckMusic(true);
   }
 
@@ -158,6 +180,7 @@ export class Game {
     this.state = 'title';
     this.ui.show('title');
     this.ui.refreshTitle(this.save.highScore, this.save.bestCombo);
+    this.audio.endCharge();
     this.audio.stopDrone();
   }
 
@@ -275,8 +298,10 @@ export class Game {
     updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev);
     this.handlePlayerEvents(wasCharging);
 
-    // dash + afterimage hits (share one hash rebuild)
-    const dashing = w.player.phase === 'dashing';
+    // dash + afterimage hits (share one hash rebuild).
+    // Resolve on the landing step too (ev.landed) so the final segment to the
+    // dash endpoint is never skipped.
+    const dashing = w.player.phase === 'dashing' || this.ev.landed;
     if (dashing || w.ghostTimer > 0) w.hash.rebuild(w.enemies.items);
     if (dashing) {
       w.particles.trail(w.player.x, w.player.y, 5, comboColor(w.combo));
@@ -473,9 +498,9 @@ export class Game {
     const w = this.world;
     w.particles.ring(x, y, radius, '#ec4899', 0.35);
     this.audio.explosion(0.7);
-    w.hash.queryAABB(x - radius, y - radius, x + radius, y + radius, this.candidates);
-    // snapshot to avoid mutating while iterating the shared buffer
-    const hits = this.candidates.filter((e) => e.active && !e.isBoss && circleHit(x, y, radius, e.x, e.y, e.radius));
+    w.hash.queryAABB(x - radius, y - radius, x + radius, y + radius, this.chainBuf);
+    // snapshot to avoid mutating while iterating (the dash-hit loop owns `candidates`)
+    const hits = this.chainBuf.filter((e) => e.active && !e.isBoss && circleHit(x, y, radius, e.x, e.y, e.radius));
     for (const e of hits) {
       if (e.active) this.damageEnemy(e, dmg, true);
     }
@@ -618,6 +643,7 @@ export class Game {
     p.hitFlash = 0.3;
     this.dying = true;
     this.dyingTimer = 0.85;
+    this.audio.endCharge(); // kill the charge tone if we died mid-charge
     this.audio.death();
     this.audio.duckMusic(true);
     this.shake.add(TUNE.juice.traumaDeath);

@@ -72,9 +72,9 @@ export const TUNE = {
     traumaDeath: 1.0,
     camLean: 0.045,
     camLeanMax: 26,
-    aberrationBase: 1.2,
-    aberrationPerCombo: 0.18,
-    aberrationMax: 6,
+    aberrationBase: 0.6,
+    aberrationPerCombo: 0.06,
+    aberrationMax: 3,
   },
 
   particles: {

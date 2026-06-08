@@ -199,6 +199,19 @@ export class InputManager {
     return s;
   }
 
+  /** Drop all currently-held inputs so a fresh run never auto-charges from a
+   *  key/button still held down through a restart. */
+  clearHeld(): void {
+    this.keys.clear();
+    this.mouseDown = false;
+    this.prevDash = false;
+    this.moveTouchId = -1;
+    this.aimTouchId = -1;
+    this.startEdge = false;
+    this.confirmEdge = false;
+    this.selectEdge = -1;
+  }
+
   /** Consume the one-shot restart edge (R key). */
   consumeRestart(): boolean {
     const v = this.restartEdge;
@@ -245,6 +258,9 @@ export class InputManager {
           this.startEdge = true;
           this.confirmEdge = true;
         }
+        // d-pad left/right pick the outer perk cards (A picks the middle)
+        if (i === 14) this.selectEdge = 0;
+        if (i === 15) this.selectEdge = 2;
       }
       this.prevGpButtons[i] = pressed;
     }
