@@ -52,8 +52,8 @@ export function updatePlayer(
     const moveMul = p.phase === 'charging' ? TUNE.player.chargeMoveMul : 1;
     const [nx, ny] = norm(input.moveX, input.moveY);
     if (nx !== 0 || ny !== 0) {
-      p.vx += nx * TUNE.player.accel * moveMul * dt;
-      p.vy += ny * TUNE.player.accel * moveMul * dt;
+      p.vx += nx * stats.accel * moveMul * dt;
+      p.vy += ny * stats.accel * moveMul * dt;
     }
     // friction
     const fr = Math.pow(TUNE.player.friction, dt * 60);
@@ -61,7 +61,7 @@ export function updatePlayer(
     p.vy *= fr;
     // clamp speed
     const sp = Math.hypot(p.vx, p.vy);
-    const cap = TUNE.player.maxSpeed * (p.phase === 'charging' ? TUNE.player.chargeMoveMul : 1.6);
+    const cap = stats.maxSpeed * (p.phase === 'charging' ? TUNE.player.chargeMoveMul : 1.6);
     if (sp > cap) {
       p.vx = (p.vx / sp) * cap;
       p.vy = (p.vy / sp) * cap;

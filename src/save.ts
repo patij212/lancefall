@@ -15,6 +15,12 @@ export interface SaveData {
   totalRuns: number;
   dailySeed: number;
   dailyBest: number;
+  /** spendable shard balance accumulated across runs */
+  shards: number;
+  /** ship ids the player has unlocked */
+  unlockedShips: string[];
+  /** currently-selected ship id */
+  selectedShip: string;
 }
 
 export interface Settings {
@@ -46,6 +52,9 @@ export function defaultSave(): SaveData {
     totalRuns: 0,
     dailySeed: 0,
     dailyBest: 0,
+    shards: 0,
+    unlockedShips: ['lance'],
+    selectedShip: 'lance',
   };
 }
 

@@ -3,9 +3,10 @@
 // innerHTML churn) so the 60fps loop stays clean.
 
 import type { World } from './world';
-import type { Settings } from './save';
+import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
 import { comboColor } from './render';
+import { SHIPS } from './ships';
 import { TUNE } from './tune';
 
 export interface UICallbacks {
@@ -16,6 +17,8 @@ export interface UICallbacks {
   onPick: (index: number) => void;
   onCopyScore: () => void;
   onSettingsChange: (s: Settings) => void;
+  onSelectShip: (id: string) => void;
+  onUnlockShip: (id: string) => void;
 }
 
 export interface GameOverInfo {
@@ -26,6 +29,7 @@ export interface GameOverInfo {
   newBest: boolean;
   daily: boolean;
   highScore: number;
+  shardsEarned: number;
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
@@ -71,6 +75,8 @@ export class UI {
 
   // title refs
   private titleBest!: HTMLElement;
+  private shipRow!: HTMLElement;
+  private shardLine!: HTMLElement;
 
   // gameover refs
   private goScore!: HTMLElement;
@@ -160,6 +166,9 @@ export class UI {
     how.addEventListener('click', () => this.showHowTo());
     const row = el('div', { class: 'title-row' }, daily, settingsBtn, how);
     this.titleBest = el('div', { class: 'title-best' }, '');
+    this.shardLine = el('div', { class: 'title-shards' }, '');
+    this.shipRow = el('div', { class: 'ship-row' });
+    const shipSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'SHIP'), this.shipRow);
     this.soundHint = el('div', { class: 'sound-hint' }, '♪ click PLAY to enable sound');
 
     const legend = el(
@@ -171,7 +180,19 @@ export class UI {
       el('b', {}, 'hold + release  ·  mouse / Space / RT'),
     );
 
-    this.title = el('div', { class: 'screen screen-title' }, wordmark, tagline, play, row, legend, this.titleBest, this.soundHint);
+    this.title = el(
+      'div',
+      { class: 'screen screen-title' },
+      wordmark,
+      tagline,
+      play,
+      row,
+      shipSection,
+      legend,
+      this.titleBest,
+      this.shardLine,
+      this.soundHint,
+    );
   }
 
   private buildPause(): void {
@@ -314,8 +335,31 @@ export class UI {
     }
   }
 
-  refreshTitle(high: number, bestCombo: number): void {
-    this.titleBest.textContent = high > 0 ? `BEST ${high.toLocaleString()}  ·  x${bestCombo} combo` : 'no runs yet — go make a mess';
+  refreshTitle(save: SaveData): void {
+    this.titleBest.textContent =
+      save.highScore > 0
+        ? `BEST ${save.highScore.toLocaleString()}  ·  x${save.bestCombo} combo`
+        : 'no runs yet — go make a mess';
+    this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards`;
+
+    this.shipRow.replaceChildren();
+    for (const ship of SHIPS) {
+      const unlocked = save.unlockedShips.includes(ship.id);
+      const selected = save.selectedShip === ship.id;
+      const chip = el('button', { class: 'ship-chip' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
+      chip.style.setProperty('--accent', ship.accent);
+      chip.append(
+        el('div', { class: 'ship-name' }, ship.name),
+        el('div', { class: 'ship-desc' }, ship.desc),
+        el('div', { class: 'ship-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : `◆ ${ship.unlockShards.toLocaleString()}`),
+      );
+      chip.title = ship.desc;
+      chip.addEventListener('click', () => {
+        if (unlocked) this.cb.onSelectShip(ship.id);
+        else this.cb.onUnlockShip(ship.id);
+      });
+      this.shipRow.append(chip);
+    }
   }
 
   hideSoundHint(): void {
@@ -349,6 +393,7 @@ export class UI {
       stat('best combo', `x${info.combo}`),
       stat('wave', String(info.wave)),
       stat('time', formatTime(info.time)),
+      stat('◆ shards', `+${info.shardsEarned}`),
       stat('high score', info.highScore.toLocaleString()),
     );
     this.show('gameover');

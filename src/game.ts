@@ -22,6 +22,8 @@ import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk } from './perks';
 import type { PerkDef } from './perks';
+import { SHIPS, shipById } from './ships';
+import { maxStamina } from './dash';
 import { createRng, seedFromDate } from './rng';
 import {
   loadSave,
@@ -83,6 +85,8 @@ export class Game {
       onPick: (i) => this.pickPerk(i),
       onCopyScore: () => this.copyScore(),
       onSettingsChange: (s) => this.applySettings(s),
+      onSelectShip: (id) => this.selectShip(id),
+      onUnlockShip: (id) => this.unlockShip(id),
     });
 
     this.resize();
@@ -97,7 +101,7 @@ export class Game {
       }
     });
     this.applySettings(this.settings);
-    this.ui.refreshTitle(this.save.highScore, this.save.bestCombo);
+    this.ui.refreshTitle(this.save);
   }
 
   boot(): void {
@@ -131,7 +135,10 @@ export class Game {
     this.daily = daily;
     this.seed = daily ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.world.rng = createRng(this.seed);
+    this.world.shipApply = shipById(this.save.selectedShip).apply;
     this.world.reset(window.innerWidth, window.innerHeight);
+    // start each run with a full stamina bar sized to the chosen ship
+    this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
     this.applySettings(this.settings);
     this.director.reset();
     // clear any lingering juice/input state so a run never starts frozen,
@@ -179,7 +186,7 @@ export class Game {
   private toTitle(): void {
     this.state = 'title';
     this.ui.show('title');
-    this.ui.refreshTitle(this.save.highScore, this.save.bestCombo);
+    this.ui.refreshTitle(this.save);
     this.audio.endCharge();
     this.audio.stopDrone();
   }
@@ -206,6 +213,28 @@ export class Game {
     this.state = 'playing';
     this.ui.show('playing');
     this.audio.duckMusic(false);
+  }
+
+  private selectShip(id: string): void {
+    if (!this.save.unlockedShips.includes(id)) return;
+    this.save.selectedShip = id;
+    saveSave(this.save);
+    this.ui.refreshTitle(this.save);
+  }
+
+  private unlockShip(id: string): void {
+    const ship = SHIPS.find((s) => s.id === id);
+    if (!ship || this.save.unlockedShips.includes(id)) return;
+    if (this.save.shards < ship.unlockShards) {
+      this.ui.toast(`Need ${ship.unlockShards - this.save.shards} more shards`);
+      return;
+    }
+    this.save.shards -= ship.unlockShards;
+    this.save.unlockedShips.push(id);
+    this.save.selectedShip = id;
+    saveSave(this.save);
+    this.ui.toast(`${ship.name} unlocked!`);
+    this.ui.refreshTitle(this.save);
   }
 
   private copyScore(): void {
@@ -665,6 +694,7 @@ export class Game {
     this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
     this.save.bestWave = Math.max(this.save.bestWave, wave);
     this.save.totalRuns++;
+    this.save.shards += w.shards; // bank shards earned this run toward ship unlocks
     if (this.daily) {
       const seed = seedFromDate();
       if (this.save.dailySeed !== seed) {
@@ -682,6 +712,7 @@ export class Game {
       newBest,
       daily: this.daily,
       highScore: this.save.highScore,
+      shardsEarned: w.shards,
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);

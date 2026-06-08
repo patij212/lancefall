@@ -87,6 +87,8 @@ export const PERKS: Record<PerkId, PerkDef> = {
 export type PerkStacks = Partial<Record<PerkId, number>>;
 
 export interface RunStats {
+  maxSpeed: number;
+  accel: number;
   dashLenMul: number;
   dashHitboxRadius: number;
   staminaSegments: number;
@@ -105,9 +107,12 @@ export interface RunStats {
   timeThiefStamina: number; // instant stamina on big chains
 }
 
-/** Derive the full run stat block from base TUNE + perk stacks. Pure. */
-export function deriveStats(stacks: PerkStacks): RunStats {
+/** Derive the full run stat block from base TUNE + ship profile + perk stacks.
+ *  Order: base → ship (mutates base) → perks (stack on top). Pure. */
+export function deriveStats(stacks: PerkStacks, shipApply?: (s: RunStats) => void): RunStats {
   const s: RunStats = {
+    maxSpeed: TUNE.player.maxSpeed,
+    accel: TUNE.player.accel,
     dashLenMul: 1,
     dashHitboxRadius: TUNE.dash.hitboxRadius,
     staminaSegments: TUNE.stamina.segments,
@@ -125,6 +130,8 @@ export function deriveStats(stacks: PerkStacks): RunStats {
     timeThiefExtra: 0,
     timeThiefStamina: 0,
   };
+
+  if (shipApply) shipApply(s);
 
   const lr = stacks.longreach ?? 0;
   s.dashLenMul += 0.25 * lr;

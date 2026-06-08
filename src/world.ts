@@ -112,6 +112,8 @@ export class World {
   time = 0;
 
   stacks: PerkStacks = {};
+  /** ship stat profile applied before perks (set by the game from the roster) */
+  shipApply: (s: RunStats) => void = () => {};
   stats: RunStats = deriveStats({});
 
   bossAlive = false;
@@ -153,14 +155,14 @@ export class World {
     this.collectStreak = 0;
     this.time = 0;
     this.stacks = {};
-    this.stats = deriveStats({});
+    this.recomputeStats();
     this.bossAlive = false;
     this.boss = null;
     this.ghostTimer = 0;
   }
 
   recomputeStats(): void {
-    this.stats = deriveStats(this.stacks);
+    this.stats = deriveStats(this.stacks, this.shipApply);
   }
 
   /** A random point just outside the arena edge, plus an inward velocity. */
