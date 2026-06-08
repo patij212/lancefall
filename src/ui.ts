@@ -9,6 +9,7 @@ import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
 import { ACHIEVEMENTS } from './achievements';
+import { META_NODES, nodeCost } from './meta';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
 
@@ -24,6 +25,7 @@ export interface UICallbacks {
   onUnlockShip: (id: string) => void;
   onSelectTheme: (id: string) => void;
   onUnlockTheme: (id: string) => void;
+  onBuyMeta: (id: string) => void;
 }
 
 export interface GameOverInfo {
@@ -68,6 +70,7 @@ export class UI {
   private draft!: HTMLElement;
   private settingsPanel!: HTMLElement;
   private statsPanel!: HTMLElement;
+  private upgradesPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
@@ -119,9 +122,10 @@ export class UI {
     this.buildDraft();
     this.buildSettings();
     this.buildStats();
+    this.buildUpgrades();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.statsPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -181,11 +185,13 @@ export class UI {
     daily.addEventListener('click', () => this.cb.onStart(true));
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
     settingsBtn.addEventListener('click', () => this.openSettings());
+    const upgradesBtn = el('button', { class: 'btn btn-ghost' }, 'UPGRADES');
+    upgradesBtn.addEventListener('click', () => this.openUpgrades());
     const statsBtn = el('button', { class: 'btn btn-ghost' }, 'STATS');
     statsBtn.addEventListener('click', () => this.openStats());
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
-    const row = el('div', { class: 'title-row' }, daily, statsBtn, settingsBtn, how);
+    const row = el('div', { class: 'title-row' }, daily, upgradesBtn, statsBtn, settingsBtn, how);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -361,6 +367,47 @@ export class UI {
     this.statsPanel.classList.remove('hidden');
   }
 
+  private buildUpgrades(): void {
+    const h = el('h2', {}, 'UPGRADES');
+    const bal = el('div', { class: 'upg-balance' }, '');
+    bal.id = 'upg-balance';
+    const body = el('div', { class: 'upg-body' });
+    body.id = 'upg-body';
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.upgradesPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, bal, body, close);
+    this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  openUpgrades(): void {
+    const s = this.saveRef;
+    if (!s) return;
+    (this.upgradesPanel.querySelector('#upg-balance')!).textContent = `◆ ${s.shards.toLocaleString()} shards`;
+    const body = this.upgradesPanel.querySelector('#upg-body')!;
+    body.replaceChildren();
+    for (const node of META_NODES) {
+      const lvl = s.meta?.[node.id] ?? 0;
+      const maxed = lvl >= node.maxLevel;
+      const cost = nodeCost(node, lvl);
+      const affordable = !maxed && s.shards >= cost;
+      const pips = el('div', { class: 'upg-pips' });
+      for (let i = 0; i < node.maxLevel; i++) pips.append(el('span', { class: 'pip' + (i < lvl ? ' on' : '') }));
+      const btn = el('button', { class: 'btn btn-sm' + (affordable ? ' btn-primary' : '') }, maxed ? 'MAX' : `◆ ${cost}`);
+      if (maxed) btn.setAttribute('disabled', 'true');
+      btn.addEventListener('click', () => this.cb.onBuyMeta(node.id));
+      const card = el('div', { class: 'upg-node' + (maxed ? ' maxed' : '') },
+        el('div', { class: 'upg-info' },
+          el('div', { class: 'upg-name' }, `${node.name}  ${lvl}/${node.maxLevel}`),
+          el('div', { class: 'upg-desc' }, node.desc),
+          pips,
+        ),
+        btn,
+      );
+      body.append(card);
+    }
+    this.upgradesPanel.classList.remove('hidden');
+  }
+
   private patch(p: Partial<Settings>): void {
     Object.assign(this.settings, p);
     if (p.hudScale !== undefined) this.applyHudScale();
@@ -394,6 +441,7 @@ export class UI {
     // any screen transition dismisses the modals so they can't block play
     this.settingsPanel.classList.add('hidden');
     this.statsPanel.classList.add('hidden');
+    this.upgradesPanel.classList.add('hidden');
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }

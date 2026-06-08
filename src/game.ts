@@ -24,6 +24,7 @@ import { rollDraft, applyPerk, describeStacks } from './perks';
 import type { PerkDef } from './perks';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
+import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate } from './rng';
 import { evaluate as evalAchievements } from './achievements';
@@ -101,6 +102,7 @@ export class Game {
       onUnlockShip: (id) => this.unlockShip(id),
       onSelectTheme: (id) => this.selectTheme(id),
       onUnlockTheme: (id) => this.unlockTheme(id),
+      onBuyMeta: (id) => this.buyMeta(id),
     });
 
     this.resize();
@@ -156,10 +158,19 @@ export class Game {
     this.daily = daily;
     this.seed = daily ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.world.rng = createRng(this.seed);
+    this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
     this.world.reset(window.innerWidth, window.innerHeight);
+    // head-start perks (Head Start meta node)
+    const startPerks = this.world.stats.startPerks;
+    for (let i = 0; i < startPerks; i++) {
+      const pick = rollDraft(this.world.rng, this.world.stacks, 1)[0];
+      if (pick && pick.id !== 'shardcache') applyPerk(this.world.stacks, pick.id);
+    }
+    this.world.recomputeStats();
     // start each run with a full stamina bar sized to the chosen ship
     this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
+    this.world.reviveLeft = this.world.stats.reviveTokens;
     this.applySettings(this.settings);
     this.director.reset();
     // clear any lingering juice/input state so a run never starts frozen,
@@ -216,7 +227,7 @@ export class Game {
   }
 
   private openDraft(): void {
-    this.draftCards = rollDraft(this.world.rng, this.world.stacks);
+    this.draftCards = rollDraft(this.world.rng, this.world.stacks, this.world.stats.draftSize);
     this.state = 'draft';
     this.ui.showDraft(this.draftCards);
     this.audio.duckMusic(true);
@@ -283,6 +294,24 @@ export class Game {
     this.applyTheme();
     this.ui.toast(`${theme.name} theme unlocked!`);
     this.ui.refreshTitle(this.save);
+  }
+
+  private buyMeta(id: string): void {
+    const node = metaNode(id);
+    if (!node) return;
+    const lvl = this.save.meta[id] ?? 0;
+    if (lvl >= node.maxLevel) return;
+    const cost = nodeCost(node, lvl);
+    if (this.save.shards < cost) {
+      this.ui.toast(`Need ${cost - this.save.shards} more shards`);
+      return;
+    }
+    this.save.shards -= cost;
+    this.save.meta[id] = lvl + 1;
+    saveSave(this.save);
+    this.ui.toast(`${node.name} → Lv ${lvl + 1}`);
+    this.ui.refreshTitle(this.save);
+    this.ui.openUpgrades();
   }
 
   private copyScore(): void {
@@ -562,7 +591,7 @@ export class Game {
       w.player.stamina = Math.min(max, w.player.stamina + w.stats.killStaminaRefund);
     }
 
-    const gained = scoreForKill(e.baseScore, w.combo, Math.max(0, w.player.killsThisDash - 1));
+    const gained = Math.round(scoreForKill(e.baseScore, w.combo, Math.max(0, w.player.killsThisDash - 1)) * w.stats.scoreMul);
     w.score += gained;
 
     w.particles.burst(x, y, TUNE.particles.deathBurstMin + w.player.killsThisDash * 3, color);
@@ -678,7 +707,7 @@ export class Game {
     w.grazeCount++;
     const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
     p.stamina = Math.min(max, p.stamina + w.stats.grazeStaminaRefund);
-    w.score += grazeScore(w.combo);
+    w.score += Math.round(grazeScore(w.combo) * w.stats.scoreMul);
     if (w.stats.grazeComboBonus > 0 && w.combo > 0) w.comboTimer += w.stats.grazeComboBonus;
     w.particles.graze(b.x, b.y);
     this.audio.graze();
@@ -762,6 +791,21 @@ export class Game {
     const w = this.world;
     const p = w.player;
     if (!p.alive) return;
+    // Second Chance meta: revive once, clear the screen, brief invuln
+    if (w.reviveLeft > 0) {
+      w.reviveLeft--;
+      p.iframe = 2.2;
+      p.hitFlash = 0.3;
+      w.bullets.clear();
+      this.scheduler.requestHitstop(0.12);
+      this.shake.add(0.6);
+      this.renderer.flash('#34d399', 0.5);
+      w.particles.ring(p.x, p.y, 220, '#34d399', 0.6);
+      w.particles.burst(p.x, p.y, 50, '#34d399');
+      this.ui.announce('REVIVED', '#34d399');
+      this.audio.bossStinger();
+      return;
+    }
     p.alive = false;
     p.hitFlash = 0.3;
     this.dying = true;
@@ -790,10 +834,11 @@ export class Game {
     this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
     this.save.bestWave = Math.max(this.save.bestWave, wave);
     this.save.totalRuns++;
-    this.save.shards += w.shards; // bank shards earned this run toward ship unlocks
+    const banked = Math.round(w.shards * w.stats.shardMul); // Treasure Hunter meta
+    this.save.shards += banked; // bank shards toward unlocks + meta upgrades
     this.save.lifeKills += w.killCount;
     this.save.lifeBoss += w.bossKills;
-    this.save.lifeShards += w.shards;
+    this.save.lifeShards += banked;
     // achievements (evaluate against updated lifetime totals)
     const newAch = evalAchievements(this.save.achievements, {
       score: w.score,
@@ -830,7 +875,7 @@ export class Game {
       newBest,
       daily: this.daily,
       highScore: this.save.highScore,
-      shardsEarned: w.shards,
+      shardsEarned: banked,
       dailyBest: this.save.dailyBest,
       ship: shipById(this.save.selectedShip).name,
       perks: describeStacks(w.stacks),

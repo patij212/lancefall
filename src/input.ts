@@ -60,6 +60,7 @@ export class InputManager {
       if (k === '1') this.selectEdge = 0;
       if (k === '2') this.selectEdge = 1;
       if (k === '3') this.selectEdge = 2;
+      if (k === '4') this.selectEdge = 3;
       if (k === 'r') this.restartEdge = true;
       if (k === ' ' || k === 'enter' || k === 'j') {
         this.startEdge = true;

@@ -157,11 +157,21 @@ export interface RunStats {
   dashDamage: number; // damage per dash-spear hit (base 1)
   comboWindowBonus: number; // extra seconds on the combo decay window
   dashNovaRadius: number; // 0 = no nova; shockwave radius on dash launch
+  // meta-progression / economy
+  scoreMul: number; // score multiplier (base 1)
+  shardMul: number; // shard-gain multiplier (base 1)
+  draftSize: number; // perk cards offered per draft (base 3)
+  reviveTokens: number; // revives available per run (base 0)
+  startPerks: number; // random perks granted at run start (base 0)
 }
 
-/** Derive the full run stat block from base TUNE + ship profile + perk stacks.
- *  Order: base → ship (mutates base) → perks (stack on top). Pure. */
-export function deriveStats(stacks: PerkStacks, shipApply?: (s: RunStats) => void): RunStats {
+/** Derive the full run stat block from base TUNE + permanent meta + ship + perks.
+ *  Order: base → meta (permanent) → ship → perks (stack on top). Pure. */
+export function deriveStats(
+  stacks: PerkStacks,
+  shipApply?: (s: RunStats) => void,
+  metaApply?: (s: RunStats) => void,
+): RunStats {
   const s: RunStats = {
     maxSpeed: TUNE.player.maxSpeed,
     accel: TUNE.player.accel,
@@ -184,8 +194,14 @@ export function deriveStats(stacks: PerkStacks, shipApply?: (s: RunStats) => voi
     dashDamage: 1,
     comboWindowBonus: 0,
     dashNovaRadius: 0,
+    scoreMul: 1,
+    shardMul: 1,
+    draftSize: 3,
+    reviveTokens: 0,
+    startPerks: 0,
   };
 
+  if (metaApply) metaApply(s); // permanent meta-progression foundation
   if (shipApply) shipApply(s);
 
   const lr = stacks.longreach ?? 0;
@@ -249,15 +265,15 @@ function isEligible(stacks: PerkStacks, id: PerkId): boolean {
   return (stacks[id] ?? 0) < PERKS[id].maxStacks;
 }
 
-/** Offer up to 3 distinct perks not yet maxed; fill with Shard Cache if short. */
-export function rollDraft(rng: Rng, stacks: PerkStacks): PerkDef[] {
+/** Offer `size` distinct perks not yet maxed; fill with Shard Cache if short. */
+export function rollDraft(rng: Rng, stacks: PerkStacks, size = 3): PerkDef[] {
   const eligible = (Object.keys(PERKS) as PerkId[]).filter((id) => isEligible(stacks, id));
   // Fisher–Yates shuffle using the seeded rng
   for (let i = eligible.length - 1; i > 0; i--) {
     const j = Math.floor(rng.next() * (i + 1));
     [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
   }
-  const out: PerkDef[] = eligible.slice(0, 3).map((id) => PERKS[id]);
-  while (out.length < 3) out.push(PERKS.shardcache);
+  const out: PerkDef[] = eligible.slice(0, size).map((id) => PERKS[id]);
+  while (out.length < size) out.push(PERKS.shardcache);
   return out;
 }

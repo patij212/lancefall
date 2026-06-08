@@ -29,3 +29,8 @@ One substantial, verified, committed improvement per iteration. Target ~10.
 - **Iteration 10** — Wrap-up: docs refreshed to v1.2 (README/DESIGN/CLAUDE.md), backing-store DPR capped at 1.5 for hi-DPI fill-rate headroom, final integrated verification (101 tests, clean build, perf under extreme load, a full bot run reaching the first perk draft, zero console errors). Loop complete. `game.ts`, docs.
 
 — Loop complete (10/10). The game grew from a single ship + one boss into a full roster-and-progression arcade title with 3 bosses, 5 ships, 10 perks, themes, achievements, a daily challenge, an animated cosmos, and adaptive audio.
+
+## Masterpiece push (make it Steam-worthy)
+Driven by a multi-agent masterplan audit (`lancefall-masterplan` workflow): enemy/boss/perk/meta/modes/biome/music/UX/difficulty specs + harsh reviewer critique.
+
+- **M1 — Permanent meta-progression tree.** Shards now buy lasting upgrades from a 12-node UPGRADES shop (Quick Recovery, Long Reach, Keen Edge, Grazer, Momentum, Combo Memory, Iron Will, Scavenger, Treasure Hunter, Fortune=+1 draft card, Head Start=begin with random perks, Second Chance=revive once/run). Nodes apply to base RunStats before ship/perks (deriveStats order: base→meta→ship→perks). Added score/shard multipliers, draftSize, revive tokens, head-start perks. Revive verified (consumes token, clears screen, survives; 2nd hit kills). The "one more run" engine. `meta.ts` (new), `perks.ts`, `save.ts`, `world.ts`, `game.ts`, `ui.ts`, `input.ts`, `style.css`.

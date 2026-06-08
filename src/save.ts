@@ -31,6 +31,8 @@ export interface SaveData {
   lifeShards: number;
   /** unlocked achievement ids */
   achievements: string[];
+  /** permanent meta-upgrade levels (node id → level) */
+  meta: Record<string, number>;
 }
 
 export interface Settings {
@@ -71,6 +73,7 @@ export function defaultSave(): SaveData {
     lifeBoss: 0,
     lifeShards: 0,
     achievements: [],
+    meta: {},
   };
 }
 

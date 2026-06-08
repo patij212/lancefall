@@ -117,7 +117,10 @@ export class World {
   stacks: PerkStacks = {};
   /** ship stat profile applied before perks (set by the game from the roster) */
   shipApply: (s: RunStats) => void = () => {};
+  /** permanent meta-upgrade application (set by the game from the save) */
+  metaApply: (s: RunStats) => void = () => {};
   stats: RunStats = deriveStats({});
+  reviveLeft = 0;
 
   bossAlive = false;
   boss: Enemy | null = null;
@@ -168,7 +171,7 @@ export class World {
   }
 
   recomputeStats(): void {
-    this.stats = deriveStats(this.stacks, this.shipApply);
+    this.stats = deriveStats(this.stacks, this.shipApply, this.metaApply);
   }
 
   /** A random point just outside the arena edge, plus an inward velocity. */
