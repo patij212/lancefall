@@ -1,0 +1,20 @@
+{
+  "name": "lancefall",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A neon dash-combat bullet-hell: your only weapon is a momentum dash that spears everything in its path. Chain kills, graze bullets, survive the swarm.",
+  "author": "patij212",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5197",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "vitest": "^3.2.4"
+  }
+}
