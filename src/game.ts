@@ -622,7 +622,11 @@ export class Game {
     e.hp -= dmg;
     e.hitFlash = 0.1;
     if (e.hp > 0) {
-      if (fromDash) this.shake.add(0.04);
+      if (fromDash) {
+        this.shake.add(0.04);
+        // impact spark — feedback that the spear bit a tanky/elite enemy
+        this.world.particles.burst(e.x, e.y, e.elite ? 8 : 5, e.elite ? ELITE.aura : '#ffffff');
+      }
       return;
     }
     this.killEnemy(e, fromDash);

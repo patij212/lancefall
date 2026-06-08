@@ -570,6 +570,63 @@ body {
 }
 .reduce-motion .perk-card-evo { animation: none; }
 
+/* ── How to play ── */
+.howto-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 760px;
+  text-align: left;
+}
+.howto-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.howto-rule {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 14px;
+}
+.howto-rule b {
+  color: var(--cyan);
+  font-family: 'Space Grotesk', sans-serif;
+  text-align: right;
+}
+.howto-rule span { color: var(--text-muted); }
+.howto-evos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.howto-evo {
+  --accent: var(--cyan);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-raised));
+}
+.howto-evo-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.howto-evo-from {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-muted));
+  margin: 2px 0 4px;
+}
+.howto-evo-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; }
+@media (max-width: 640px) {
+  .howto-evos { grid-template-columns: 1fr; }
+  .howto-rule { grid-template-columns: 90px 1fr; }
+}
+
 /* ── Settings ── */
 .settings-body {
   display: grid;

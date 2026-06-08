@@ -5,7 +5,7 @@
 import type { World } from './world';
 import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
-import { isEvolution } from './evolutions';
+import { isEvolution, EVOLUTIONS } from './evolutions';
 import type { DraftCard } from './evolutions';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
@@ -80,6 +80,7 @@ export class UI {
   private settingsPanel!: HTMLElement;
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
+  private howtoPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
@@ -136,9 +137,10 @@ export class UI {
     this.buildSettings();
     this.buildStats();
     this.buildUpgrades();
+    this.buildHowTo();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -450,8 +452,46 @@ export class UI {
     this.settingsPanel.classList.add('hidden');
   }
 
+  private buildHowTo(): void {
+    const h = el('h2', {}, 'HOW TO PLAY');
+    const body = el('div', { class: 'howto-body' });
+    body.id = 'howto-body';
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.howtoPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
   private showHowTo(): void {
-    this.toast('Hold to charge a dash, release to spear. Chain kills for combo. Graze bullets for stamina.');
+    const body = this.howtoPanel.querySelector('#howto-body')!;
+    const rule = (k: string, v: string) => el('div', { class: 'howto-rule' }, el('b', {}, k), el('span', {}, v));
+    const basics = el('div', { class: 'howto-rules' },
+      rule('Move', 'WASD / arrows / left stick'),
+      rule('Dash', 'Hold to charge, release to spear through enemies (mouse / Space / RT)'),
+      rule('I-frames', 'You are invincible mid-dash — dash through bullets and bosses'),
+      rule('Combo', 'Chain kills before the timer runs out to multiply score'),
+      rule('Graze', 'Skim bullets without being hit to refill stamina'),
+      rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
+      rule('Perks', 'Pick a perk every few waves. They STACK — that is the snowball'),
+    );
+    const evoCards = el('div', { class: 'howto-evos' });
+    for (const id of Object.keys(EVOLUTIONS) as (keyof typeof EVOLUTIONS)[]) {
+      const e = EVOLUTIONS[id];
+      const card = el('div', { class: 'howto-evo' });
+      card.style.setProperty('--accent', e.accent);
+      card.append(
+        el('div', { class: 'howto-evo-name' }, e.name),
+        el('div', { class: 'howto-evo-from' }, e.from),
+        el('div', { class: 'howto-evo-desc' }, e.desc),
+      );
+      evoCards.append(card);
+    }
+    body.replaceChildren(
+      basics,
+      el('div', { class: 'stats-label' }, 'EVOLUTIONS · stack the recipe to unlock a fusion'),
+      evoCards,
+    );
+    this.howtoPanel.classList.remove('hidden');
   }
 
   // ── screen control ──
@@ -467,6 +507,7 @@ export class UI {
     this.settingsPanel.classList.add('hidden');
     this.statsPanel.classList.add('hidden');
     this.upgradesPanel.classList.add('hidden');
+    this.howtoPanel.classList.add('hidden');
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }
