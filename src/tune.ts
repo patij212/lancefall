@@ -189,7 +189,7 @@ export const ELITE = {
   maxChance: 0.14,
   rampSeconds: 240, // chance ramps to max over this window after startTime
   maxConcurrent: 2, // never more than this on screen — keeps them special
-  hpMul: 4,
+  hpMul: 3, // tanky but not a dash-grind slog on a fresh build
   sizeMul: 1.45,
   speedMul: 0.92, // a touch heavier/slower than its base kind
   scoreMul: 5,

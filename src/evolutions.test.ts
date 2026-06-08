@@ -55,18 +55,18 @@ describe('evolutions', () => {
     }
   });
 
-  it('IMPALER stacks +3 dash damage on top of perks', () => {
+  it('IMPALER stacks +2 dash damage on top of perks', () => {
     const stacks = REQ_STACKS.impaler;
     const base = deriveStats(stacks); // pierce 2 => dashDamage 3
     const evolved = deriveStats(stacks, undefined, undefined, evoApplier(['impaler']));
-    expect(evolved.dashDamage).toBe(base.dashDamage + 3);
+    expect(evolved.dashDamage).toBe(base.dashDamage + 2);
   });
 
   it('evoApplier composes multiple evolutions', () => {
     const stacks: PerkStacks = { ...REQ_STACKS.impaler, ...REQ_STACKS.juggernaut };
     const both = deriveStats(stacks, undefined, undefined, evoApplier(['impaler', 'juggernaut']));
     const base = deriveStats(stacks);
-    expect(both.dashDamage).toBe(base.dashDamage + 3 /*impaler*/ + 1 /*juggernaut*/);
+    expect(both.dashDamage).toBe(base.dashDamage + 2 /*impaler*/ + 1 /*juggernaut*/);
     expect(both.staminaSegments).toBe(base.staminaSegments + 2);
   });
 

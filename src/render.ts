@@ -647,7 +647,8 @@ export class Renderer {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = '#a855f7';
-      ctx.globalAlpha = 0.4 * (world.ghostTimer / 0.5);
+      // fade across the ghost's actual lifetime (WRAITH stretches afterimageSec well past 0.5)
+      ctx.globalAlpha = Math.min(1, 0.45 * (world.ghostTimer / Math.max(0.01, world.stats.afterimageSec)));
       ctx.lineWidth = 14;
       ctx.lineCap = 'round';
       ctx.beginPath();

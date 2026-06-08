@@ -56,13 +56,14 @@ export function eliteChance(t: number): number {
   return ELITE.baseChance + (ELITE.maxChance - ELITE.baseChance) * ramp;
 }
 
-/** Archetypes that can be promoted to a Champion (solid singles, not packs/splits). */
+/** Archetypes that can be promoted to a Champion. Mobile/fair singles only —
+ *  NOT packs, split-fodder, or the bloomer (a tanky stationary turret would be
+ *  an un-fun bullet-spitting sponge to grind down). */
 export const ELITE_KINDS: ReadonlySet<EnemyKind> = new Set<EnemyKind>([
   'darter',
   'orbiter',
   'lancer',
   'bomber',
-  'bloomer',
 ]);
 
 /** Which archetypes are unlocked by elapsed time (stealth tutorial pacing). */

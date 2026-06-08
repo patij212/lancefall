@@ -36,6 +36,8 @@ describe('elites', () => {
     expect(ELITE_KINDS.has('wisp')).toBe(false);
     expect(ELITE_KINDS.has('mini')).toBe(false);
     expect(ELITE_KINDS.has('splitter')).toBe(false);
+    // a tanky stationary turret would be an un-fun sponge
+    expect(ELITE_KINDS.has('bloomer')).toBe(false);
     // bosses are never elite
     expect(ELITE_KINDS.has('warden')).toBe(false);
   });

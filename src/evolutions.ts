@@ -43,7 +43,7 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
       { id: 'pierce', stacks: 2 },
     ],
     apply: (s) => {
-      s.dashDamage += 3;
+      s.dashDamage += 2; // total ~5 with pierce — tank-buster without one-shotting every elite
       s.dashHitboxRadius += 12;
       s.dashLenMul += 0.35;
     },
@@ -79,10 +79,11 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
       { id: 'timethief', stacks: 1 },
     ],
     apply: (s) => {
-      s.killStaminaRefund += 40;
-      s.timeThiefStamina += 60;
-      s.timeThiefExtra += 0.12;
-      s.regenPerSec += 20;
+      // strong stamina identity, but curbed so it isn't an infinite-dash / permanent-slowmo loop
+      s.killStaminaRefund += 20;
+      s.timeThiefStamina += 40;
+      s.timeThiefExtra += 0.06;
+      s.regenPerSec += 10;
     },
   },
   wraith: {
@@ -98,8 +99,10 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
       { id: 'longreach', stacks: 2 },
     ],
     apply: (s) => {
+      // worth its 4-pick cost: a long-lived ghost that also hits harder + wider
       s.afterimageSec += 1.1;
-      s.dashHitboxRadius += 6;
+      s.dashHitboxRadius += 12;
+      s.dashDamage += 1;
     },
   },
   inferno: {
@@ -181,7 +184,7 @@ export function rollDraftCards(
 
   // pick one available evolution at random
   const evo = evos[Math.floor(rng.next() * evos.length)];
-  const perks = rollDraft(rng, stacks, Math.max(1, size - 1));
+  const perks = rollDraft(rng, stacks, Math.max(0, size - 1));
   // evolution always leads the draft so it reads as special
   return [evo, ...perks];
 }
