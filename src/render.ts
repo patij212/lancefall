@@ -790,6 +790,21 @@ export class Renderer {
     sctx.fillStyle = grad;
     sctx.fillRect(0, 0, W, H);
 
+    // combo "heat" — a colored edge glow that swells as the chain climbs. Edges
+    // only (inner 0.5 radius is clear) so bullet readability is never touched.
+    if (!opts.reduceFlashing && world.combo >= 10) {
+      const heat = Math.min(1, (world.combo - 10) / 60); // x10 → x70 ramps 0→1
+      const hg = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.66);
+      hg.addColorStop(0, 'rgba(0,0,0,0)');
+      hg.addColorStop(1, comboColor(world.combo));
+      sctx.globalCompositeOperation = 'lighter';
+      sctx.globalAlpha = 0.05 + 0.2 * heat;
+      sctx.fillStyle = hg;
+      sctx.fillRect(0, 0, W, H);
+      sctx.globalAlpha = 1;
+      sctx.globalCompositeOperation = 'source-over';
+    }
+
     // full-screen flash (skipped entirely under reduce-flashing)
     if (this.flashAlpha > 0.01) {
       if (!opts.reduceFlashing) {
