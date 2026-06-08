@@ -23,13 +23,14 @@ You don't shoot. You **dash**.
 ## Features
 
 - ⚔️ **Charge-dash combat** — swept-capsule spear collision, i-frames, momentum carry, commit-on-release routing.
-- 💀 **4 enemy archetypes + 2 mini-bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, the two-phase **Warden** (spiral + aimed fans) and the **Weaver** (pinwheel + safe-lane pulse rings), which alternate as the run escalates.
-- 🚀 **3-ship roster (meta-progression)** — bank shards across runs to unlock **Lance** (balanced), **Glaive** (glass cannon: long dash, 2 stamina) and **Bastion** (tank: 4 stamina, fast regen). Each is a genuinely different playstyle.
+- 💀 **4 enemy archetypes + 3 mini-bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, and a rotating cast of bosses — the **Warden** (spiral + aimed fans), the **Weaver** (pinwheel + safe-lane pulse rings), and the **Beacon** (a sweeping laser you dash *through*).
+- 🚀 **5-ship roster (meta-progression)** — bank shards across runs to unlock **Lance** (balanced), **Tempest** (nimble), **Glaive** (glass cannon, 2 stamina), **Bastion** (tank, 4 stamina), and **Phantom** (knife-edge, 1 stamina + huge dash). Each is a genuinely different playstyle.
 - 🃏 **In-run perk draft** — 3-of-**10** stacking upgrades (Long Lance, Second Wind, Graze Burn, Chain Reaction, Afterimage, Time Thief, Heavy Lance, Siphon, Slipstream, Nova Dash) that compound into wild builds.
-- 🌀 **The juice stack** — trauma screen-shake, hitstop, time-dilation slow-mo on big chains, additive bloom, channel-split chromatic aberration, dash-trail ribbons, particle storms, floating combo numbers, velocity-lean camera, punch-zoom, and boss-spawn/death screen flashes.
-- 🔊 **Fully-synthesized reactive audio** (Web Audio, no asset files) — a bass *thunk* that pitches **up** with your combo so a clean run literally plays an ascending scale, a charging arpeggio, graze ticks, and an adaptive drone that layers more voices as the wave heats up.
-- 🎲 **Endless escalating wave director** driven by a single intensity scalar, plus a **daily-seed** mode (deterministic for everyone, no backend) and a copyable score-brag string.
-- 🏆 **localStorage** high score, best combo, shards, unlocked ships, and daily best.
+- 🎨 **Cosmetic palette themes** — 5 shard-unlockable reskins (Neon/Sunset/Toxic/Vapor/Mono) that retint the ship, UI, and nebula.
+- 🏆 **Achievements (12) + a lifetime-stats screen**, with build recaps on the game-over screen.
+- 🌀 **The juice stack** — animated parallax starfield + nebula backdrop, trauma screen-shake, hitstop, time-dilation slow-mo, additive bloom, channel-split chromatic aberration, dash-trail ribbons, particle storms, floating `+score` popups, combo-tier announcements (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, and screen flashes.
+- 🔊 **Fully-synthesized reactive audio** (Web Audio, no asset files) — a bass *thunk* that pitches **up** with your combo so a clean run plays an ascending scale, a charging arpeggio, graze ticks, an adaptive drone that layers with the wave, and a tense boss-fight layer + victory stinger.
+- 🎲 **Endless escalating wave director** plus a surfaced **Daily Challenge** (deterministic for everyone, no backend) and a build-aware copyable score-brag string.
 - 🎮 **Keyboard + mouse, gamepad, and touch** (twin virtual sticks on phones).
 - ♿ **Accessibility** — reduce-flashing, reduce-motion, colorblind shapes, screen-shake slider, HUD scale, and full volume controls.
 
@@ -78,10 +79,10 @@ npm run preview
 ## Test
 
 ```bash
-npm test         # 92 unit tests on the pure simulation
+npm test         # 101 unit tests on the pure simulation
 ```
 
-Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 10-perk draft (stacking + max-stack exclusion), ship stat profiles, and the wave-director intensity curve.
+Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 10-perk draft (stacking + max-stack exclusion), the 5 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
 
 ## Monetization
 

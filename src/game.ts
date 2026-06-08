@@ -133,7 +133,7 @@ export class Game {
   private resize(): void {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5); // cap backing store for fill-rate headroom on hi-DPI
     this.renderer.resize(w, h, dpr);
     this.world.width = w;
     this.world.height = h;

@@ -39,9 +39,11 @@ Layered: a **pure sim** (`rng, vec, pool, collision, dash, combat, perks, waves,
 
 **Shipped (v1):** the full dash/stamina/combo/graze loop; 4 enemies + Warden; endless director; 6-perk draft; the complete juice stack; reactive audio; daily seed; high-score/best-combo/shards; title/pause/game-over/settings; keyboard+mouse, gamepad, touch; accessibility toggles.
 
-**Added (v1.1):** a 3-ship roster with shard-based meta-progression (Lance/Glaive/Bastion, each a distinct stat profile applied before perks); the perk pool expanded 6→10 (Heavy Lance, Siphon, Slipstream, Nova Dash); a second mini-boss, the Weaver (pinwheel + safe-lane pulse rings), alternating with the Warden; boss-spawn/death screen flashes; resume-protection i-frames; daily-best surfacing. 92 sim tests.
+**Added (v1.1):** a 3-ship roster with shard-based meta-progression (Lance/Glaive/Bastion, each a distinct stat profile applied before perks); the perk pool expanded 6→10 (Heavy Lance, Siphon, Slipstream, Nova Dash); a second mini-boss, the Weaver (pinwheel + safe-lane pulse rings), alternating with the Warden; boss-spawn/death screen flashes; resume-protection i-frames; daily-best surfacing.
 
-**Deferred (engine supports, future sessions):** palette/skin packs, a dedicated daily-seed UI screen, controller-rumble depth, perk evolutions. Each is a future session, not a gap.
+**Added (v1.2 — a self-paced 10-iteration "keep improving" loop):** animated parallax-starfield + nebula backdrop; per-kill `+score` popups and combo-tier announcements (RAMPAGE→LEGENDARY); game-over build recap + build-aware share string; surfaced Daily Challenge (title caption + HUD badge); 5 cosmetic palette themes (shard-unlockable reskins); a third boss — the **Beacon** (rotating laser sweep, a new dash-through hazard); 12 achievements + a lifetime-stats screen; two more ships (Tempest, Phantom → 5 total); adaptive boss-fight music + victory stinger. 101 sim tests. See `DEVLOG.md` for the per-iteration log.
+
+**Deferred (engine supports, future sessions):** a gated diegetic onboarding tutorial, controller-rumble depth, perk evolutions, online leaderboards. Each is a future session, not a gap.
 
 ## Autonomy note
 
