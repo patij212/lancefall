@@ -202,6 +202,30 @@ export const WEAVER = {
   ringBulletSpeed: 165,
 } as const;
 
+// Third boss: the BEACON — a rotating laser-sweep boss. The beam is a diameter
+// line through the boss that telegraphs, then fires; you dash through the safe
+// arcs (i-frames phase you through it).
+export const BEACON = {
+  baseHp: 14,
+  hpPerInterval: 4,
+  radius: 38,
+  moveSpeed: 50,
+  phaseDuration: 6.5,
+  color: '#38bdf8',
+  sweepSpin: 0.55, // rad/s beam rotation
+  telegraphDur: 0.7,
+  activeDur: 1.7,
+  offDur: 0.5,
+  beamWidth: 30,
+  // Phase B: aimed fan bursts (the damage window)
+  fanShots: 4,
+  fanGap: 0.45,
+  fanBullets: 5,
+  fanSpread: 0.28,
+  fanRest: 1.7,
+  fanBulletSpeed: 215,
+} as const;
+
 // Combo color ramp stops (by combo count)
 export const COMBO_COLORS: { at: number; color: string }[] = [
   { at: 0, color: '#22d3ee' },

@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -17,7 +17,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, shieldChance } from './waves'
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName } from './boss';
+import { spawnBoss, updateBoss, bossName, beaconBeamActive } from './boss';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
@@ -739,6 +739,16 @@ export class Game {
     }
     if (w.bossAlive && w.boss && circleHit(p.x, p.y, p.radius, w.boss.x, w.boss.y, w.boss.radius * 0.85)) {
       this.playerDie();
+      return;
+    }
+    // Beacon sweep beam: die if within the active beam (a diameter line through
+    // the boss). Dash i-frames already exclude us from this check, so you can
+    // dash THROUGH the beam.
+    if (w.boss && beaconBeamActive(w.boss)) {
+      const dx = p.x - w.boss.x;
+      const dy = p.y - w.boss.y;
+      const perp = Math.abs(dx * -Math.sin(w.boss.angle) + dy * Math.cos(w.boss.angle));
+      if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie();
     }
   }
 

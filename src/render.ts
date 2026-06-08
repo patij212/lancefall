@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS } from './tune';
+import { TUNE, COMBO_COLORS, BEACON } from './tune';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
@@ -343,6 +343,9 @@ export class Renderer {
       case 'weaver':
         this.drawWeaver(ctx, e, r);
         break;
+      case 'beacon':
+        this.drawBeacon(ctx, e, r);
+        break;
     }
 
     // shield arc
@@ -417,6 +420,46 @@ export class Renderer {
     // hp ring
     const frac = e.hp / e.maxHp;
     ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  private drawBeacon(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    // rotating sweep beam (phase 0): thin warning during telegraph, hot beam when active
+    if (e.phase === 0 && e.subPhase !== 2) {
+      const active = e.subPhase === 1;
+      ctx.save();
+      ctx.rotate(e.angle);
+      ctx.globalCompositeOperation = 'lighter';
+      const w = active ? BEACON.beamWidth : 5;
+      ctx.globalAlpha = active ? 0.85 : 0.25 + 0.45 * (e.telegraph || 0);
+      ctx.fillStyle = active ? '#bfefff' : '#38bdf8';
+      ctx.fillRect(-3000, -w / 2, 6000, w);
+      if (active) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-3000, -w / 6, 6000, w / 3); // bright core
+      }
+      ctx.restore();
+    }
+    // lighthouse core
+    const white = e.telegraph || 0;
+    ctx.fillStyle = mix('#38bdf8', '#ffffff', white * 0.5);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.save();
+    ctx.rotate(e.angle);
+    ngon(ctx, 3, r); // triangular emitter
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#eaffff';
+    ctx.fill();
+    // hp ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);

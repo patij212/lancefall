@@ -66,6 +66,7 @@ export function enemyWeights(t: number, I: number): { v: EnemyKind; w: number }[
     mini: 0,
     warden: 0,
     weaver: 0,
+    beacon: 0,
   };
   return unlocked.map((k) => ({ v: k, w: base[k] }));
 }
