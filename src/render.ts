@@ -597,11 +597,12 @@ export class Renderer {
     const ctx = this.bctx;
     const p = world.player;
 
-    // dash spear line
+    // dash spear line + streaking ship afterimages (the "snap" of the dash)
     if (p.phase === 'dashing') {
+      const col = comboColor(world.combo);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = comboColor(world.combo);
+      ctx.strokeStyle = col;
       ctx.lineWidth = TUNE.dash.hitboxRadius * 0.8;
       ctx.lineCap = 'round';
       ctx.globalAlpha = 0.5;
@@ -609,6 +610,35 @@ export class Renderer {
       ctx.moveTo(p.dashFromX, p.dashFromY);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      ctx.restore();
+
+      // ghost silhouettes along the travelled segment — crisp outlines that
+      // read as a streak of ships, fading toward the tail
+      const gsr = TUNE.player.spriteRadius;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = this.theme.accent2;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      for (let i = 1; i <= 4; i++) {
+        const t = i / 5;
+        const gx = p.dashFromX + (p.x - p.dashFromX) * t;
+        const gy = p.dashFromY + (p.y - p.dashFromY) * t;
+        const s = 0.7 + 0.3 * t; // ghosts grow toward the ship
+        ctx.globalAlpha = 0.22 + 0.4 * t;
+        ctx.save();
+        ctx.translate(gx, gy);
+        ctx.rotate(p.angle);
+        ctx.scale(s, s);
+        ctx.beginPath();
+        ctx.moveTo(gsr, 0);
+        ctx.lineTo(-gsr * 0.7, gsr * 0.7);
+        ctx.lineTo(-gsr * 0.35, 0);
+        ctx.lineTo(-gsr * 0.7, -gsr * 0.7);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
       ctx.restore();
     }
 
