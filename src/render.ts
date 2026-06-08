@@ -35,6 +35,8 @@ export class Renderer {
   h = 720;
   private flashColor = '#ffffff';
   private flashAlpha = 0;
+  private stars: { x: number; y: number; z: number; phase: number; tw: number }[] = [];
+  private bgT = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.screen = canvas;
@@ -61,6 +63,21 @@ export class Renderer {
     }
     this.screen.style.width = w + 'px';
     this.screen.style.height = h + 'px';
+    this.initStars();
+  }
+
+  private initStars(): void {
+    const count = Math.min(190, Math.round((this.w * this.h) / 11000));
+    this.stars = [];
+    for (let i = 0; i < count; i++) {
+      this.stars.push({
+        x: Math.random() * this.w,
+        y: Math.random() * this.h,
+        z: 0.3 + Math.random() * 0.7, // depth: near stars are brighter/bigger/faster
+        phase: Math.random() * Math.PI * 2,
+        tw: 0.6 + Math.random() * 1.8, // twinkle speed
+      });
+    }
   }
 
   private getGlow(color: string): HTMLCanvasElement {
@@ -89,6 +106,10 @@ export class Renderer {
     bctx.fillStyle = '#0a0b0f';
     bctx.fillRect(0, 0, this.buf.width, this.buf.height);
 
+    // deep-space background (screen-space, behind the camera so it stays calm)
+    this.bgT += 1 / 60;
+    this.drawBackground(opts.combo);
+
     bctx.save();
     bctx.scale(dpr, dpr);
     // camera (zoom about center + velocity lean)
@@ -112,6 +133,49 @@ export class Renderer {
     // ── composite buffer → screen ──
     this.present(opts, cam);
     this.drawVignette(opts, world);
+  }
+
+  private drawBackground(combo: number): void {
+    const ctx = this.bctx;
+    ctx.save();
+    ctx.scale(this.dpr, this.dpr);
+    ctx.globalCompositeOperation = 'lighter';
+    const heat = 1 + Math.min(combo, 40) * 0.012;
+
+    // drifting nebula clouds (very low alpha, tinted, soft)
+    const blobs: [number, number, string, number][] = [
+      [0.26, 0.32, '#103040', 0.9],
+      [0.72, 0.34, '#241046', 1.3],
+      [0.5, 0.74, '#2e1030', 1.1],
+    ];
+    const R = Math.max(this.w, this.h) * 0.42;
+    for (const [fx, fy, col, sp] of blobs) {
+      const cx = this.w * fx + Math.sin(this.bgT * 0.07 * sp) * 40;
+      const cy = this.h * fy + Math.cos(this.bgT * 0.06 * sp) * 30;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      g.addColorStop(0, col);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.10 * heat;
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, this.w, this.h);
+    }
+
+    // parallax starfield — near stars drift faster, all twinkle
+    ctx.globalAlpha = 1;
+    for (const s of this.stars) {
+      const dy = (this.bgT * 7 * s.z) % this.h;
+      const y = (s.y + dy) % this.h;
+      const tw = 0.45 + 0.55 * Math.sin(this.bgT * s.tw + s.phase);
+      const a = s.z * tw * 0.5 * heat;
+      if (a <= 0.02) continue;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = s.z > 0.75 ? '#bfe9ff' : '#8aa0c8';
+      const sz = s.z * 1.7;
+      ctx.fillRect(s.x, y, sz, sz);
+    }
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
   }
 
   private drawGrid(ctx: CanvasRenderingContext2D): void {
