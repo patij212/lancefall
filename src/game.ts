@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -13,7 +13,7 @@ import { AudioEngine } from './audio';
 import { Scheduler } from './scheduler';
 import { Shake } from './shake';
 import { Director } from './waves';
-import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent } from './waves';
+import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, ELITE_KINDS } from './waves';
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
@@ -668,6 +668,26 @@ export class Game {
     // shard gem for the vacuum/meta juice
     w.spawnGem(x, y, 1);
 
+    // champion payoff — a fountain of shards, a score pop, and a volatile burst
+    if (e.elite) {
+      for (let i = 0; i < ELITE.shardDrops; i++) w.spawnGem(x, y, 5);
+      const bonus = Math.round(800 * comboMultiplier(w.combo) * w.stats.scoreMul);
+      w.score += bonus;
+      w.particles.floatText(x, y - 30, `CHAMPION +${bonus}`, ELITE.aura, 1.3);
+      w.particles.burst(x, y, 50, ELITE.aura);
+      w.particles.ring(x, y, e.radius + 50, ELITE.aura, 0.45);
+      this.renderer.flash(ELITE.aura, 0.18);
+      this.shake.add(0.4);
+      this.audio.explosion(1.0);
+      const n = ELITE.detonateCount;
+      const sp = ELITE.detonateSpeed * e.bulletMul;
+      const off = w.rng.range(0, Math.PI * 2);
+      for (let i = 0; i < n; i++) {
+        const a = off + (i / n) * Math.PI * 2;
+        w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, ELITE.aura, false);
+      }
+    }
+
     // death effects
     if (e.kind === 'splitter') {
       splitInto(e, w);
@@ -978,6 +998,10 @@ export class Game {
     const baseShield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
     const shield = Math.min(0.7, baseShield + this.biomeShield);
     const cap = maxConcurrent(I);
+    // count current champions once so we never exceed the concurrency cap
+    let eliteCount = 0;
+    w.enemies.forEachActive((e) => { if (e.elite) eliteCount++; });
+    const eChance = eliteChance(w.time);
     for (const kind of spawn) {
       const pt = w.edgeSpawn();
       if (kind === 'wisp') {
@@ -989,9 +1013,23 @@ export class Game {
         }
       } else {
         const isShield = w.rng.next() < shield;
-        w.spawnEnemy(kind, pt.x, pt.y, sMul, bMul, isShield);
+        const makeElite = eliteCount < ELITE.maxConcurrent && ELITE_KINDS.has(kind) && w.rng.next() < eChance;
+        const e = w.spawnEnemy(kind, pt.x, pt.y, sMul, bMul, isShield, makeElite);
+        if (makeElite && e) {
+          eliteCount++;
+          this.onEliteSpawn(e);
+        }
       }
     }
+  }
+
+  /** A champion arrives — make it a moment. */
+  private onEliteSpawn(e: Enemy): void {
+    this.audio.bossWarn();
+    this.renderer.flash(ELITE.aura, 0.12);
+    this.shake.add(0.18);
+    this.world.particles.ring(e.x, e.y, e.radius + 24, ELITE.aura, 0.4);
+    this.ui.toast('⚜ CHAMPION inbound — big bounty');
   }
 
   private spawnWarden(force?: import('./types').EnemyKind): void {

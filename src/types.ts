@@ -76,6 +76,7 @@ export interface Enemy {
   lastDashId: number; // last dash that damaged this enemy (one-hit-per-dash)
   shielded: boolean;
   shieldAngle: number; // facing of the frontal shield arc
+  elite: boolean; // a buffed "Champion" — more HP, bigger, bonus rewards, volatile death
   speedMul: number; // wave speed multiplier baked at spawn
   bulletMul: number; // wave bullet-speed multiplier baked at spawn
   isBoss: boolean;

@@ -3,7 +3,7 @@
 // on fixed timers. The pure math lives in exported functions (tested); the
 // Director class just holds timers and emits decisions.
 
-import { TUNE } from './tune';
+import { TUNE, ELITE } from './tune';
 import { clamp, lerp } from './vec';
 import type { Rng } from './rng';
 import type { EnemyKind } from './types';
@@ -48,6 +48,22 @@ export function shieldChance(t: number): number {
   if (t < d.shieldStartTime) return 0;
   return Math.min(d.shieldMaxChance, ((t - d.shieldStartTime) / 90) * d.shieldMaxChance);
 }
+
+/** Per-spawn chance an eligible enemy arrives as an elite Champion. */
+export function eliteChance(t: number): number {
+  if (t < ELITE.startTime) return 0;
+  const ramp = clamp((t - ELITE.startTime) / ELITE.rampSeconds, 0, 1);
+  return ELITE.baseChance + (ELITE.maxChance - ELITE.baseChance) * ramp;
+}
+
+/** Archetypes that can be promoted to a Champion (solid singles, not packs/splits). */
+export const ELITE_KINDS: ReadonlySet<EnemyKind> = new Set<EnemyKind>([
+  'darter',
+  'orbiter',
+  'lancer',
+  'bomber',
+  'bloomer',
+]);
 
 /** Which archetypes are unlocked by elapsed time (stealth tutorial pacing). */
 export function unlockedKinds(t: number): EnemyKind[] {

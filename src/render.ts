@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE } from './tune';
+import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE } from './tune';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
@@ -305,6 +305,30 @@ export class Renderer {
     ctx.globalAlpha = e.isBoss ? 0.7 : 0.5 + 0.4 * (e.telegraph || 0);
     ctx.drawImage(glow, e.x - r * gscale, e.y - r * gscale, r * gscale * 2, r * gscale * 2);
     ctx.restore();
+
+    // champion aura — a pulsing gold ring + orbiting crown ticks
+    if (e.elite) {
+      const pulse = 0.5 + 0.5 * Math.sin(this.bgT * 4);
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = ELITE.aura;
+      ctx.fillStyle = ELITE.aura;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.45 + 0.4 * pulse;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 9 + pulse * 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.85;
+      for (let i = 0; i < 6; i++) {
+        const a = this.bgT * 1.2 + (i / 6) * Math.PI * 2;
+        const rr = r + 15;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
 
     ctx.save();
     ctx.translate(e.x, e.y);

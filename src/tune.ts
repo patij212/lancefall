@@ -182,6 +182,23 @@ export const WISP = {
   wobble: 36, // crescent spread so a pack is dash-through-able
 };
 
+// Elite "Champions" — rare buffed variants that read as a moment + a payoff.
+export const ELITE = {
+  startTime: 55, // no champions in the opening minute
+  baseChance: 0.05, // chance per eligible spawn at start of elite window
+  maxChance: 0.14,
+  rampSeconds: 240, // chance ramps to max over this window after startTime
+  maxConcurrent: 2, // never more than this on screen — keeps them special
+  hpMul: 4,
+  sizeMul: 1.45,
+  speedMul: 0.92, // a touch heavier/slower than its base kind
+  scoreMul: 5,
+  shardDrops: 6, // bonus shard gems (value 5) on death
+  detonateCount: 12, // volatile bullet ring on death — risk on the reward
+  detonateSpeed: 185,
+  aura: '#fde047', // gold champion aura
+};
+
 export const WARDEN = {
   baseHp: 12, // dash-hits
   hpPerInterval: 4, // +per boss appearance

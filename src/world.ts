@@ -4,7 +4,7 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER } from './tune';
+import { TUNE, ENEMY_DEFS, DARTER, ELITE } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import type { RunStats, PerkStacks } from './perks';
@@ -34,6 +34,7 @@ function makeEnemy(): Enemy {
     lastDashId: -1,
     shielded: false,
     shieldAngle: 0,
+    elite: false,
     speedMul: 1,
     bulletMul: 1,
     isBoss: false,
@@ -195,7 +196,7 @@ export class World {
     }
   }
 
-  spawnEnemy(kind: EnemyKind, x: number, y: number, speedMul: number, bulletMul: number, shielded: boolean): Enemy | null {
+  spawnEnemy(kind: EnemyKind, x: number, y: number, speedMul: number, bulletMul: number, shielded: boolean, elite = false): Enemy | null {
     const def = ENEMY_DEFS[kind];
     if (!def) return null;
     const e = this.enemies.obtain();
@@ -219,10 +220,18 @@ export class World {
     e.lastDashId = -1;
     e.shielded = shielded && (kind === 'darter' || kind === 'orbiter');
     e.shieldAngle = 0;
-    e.speedMul = speedMul;
+    e.elite = elite;
+    e.speedMul = elite ? speedMul * ELITE.speedMul : speedMul;
     e.bulletMul = bulletMul;
     e.isBoss = false;
     e.scale = 0.2; // pops in
+    if (elite) {
+      e.hp = Math.round(def.hp * ELITE.hpMul);
+      e.maxHp = e.hp;
+      e.radius = def.radius * ELITE.sizeMul;
+      e.baseScore = Math.round(def.baseScore * ELITE.scoreMul);
+      e.shielded = false; // champion status replaces the shield gimmick
+    }
     return e;
   }
 

@@ -9,10 +9,37 @@ import {
   shieldChance,
   unlockedKinds,
   enemyWeights,
+  eliteChance,
+  ELITE_KINDS,
   Director,
 } from './waves';
 import { createRng } from './rng';
-import { TUNE } from './tune';
+import { TUNE, ELITE } from './tune';
+
+describe('elites', () => {
+  it('no champions before the elite window opens', () => {
+    expect(eliteChance(0)).toBe(0);
+    expect(eliteChance(ELITE.startTime - 1)).toBe(0);
+  });
+
+  it('chance ramps from base to max and clamps', () => {
+    expect(eliteChance(ELITE.startTime)).toBeCloseTo(ELITE.baseChance, 5);
+    expect(eliteChance(ELITE.startTime + ELITE.rampSeconds)).toBeCloseTo(ELITE.maxChance, 5);
+    // well past the ramp it stays clamped at max
+    expect(eliteChance(ELITE.startTime + ELITE.rampSeconds * 3)).toBeCloseTo(ELITE.maxChance, 5);
+  });
+
+  it('only solid single archetypes are elite-eligible', () => {
+    expect(ELITE_KINDS.has('darter')).toBe(true);
+    expect(ELITE_KINDS.has('lancer')).toBe(true);
+    // packs and split-fodder are never champions
+    expect(ELITE_KINDS.has('wisp')).toBe(false);
+    expect(ELITE_KINDS.has('mini')).toBe(false);
+    expect(ELITE_KINDS.has('splitter')).toBe(false);
+    // bosses are never elite
+    expect(ELITE_KINDS.has('warden')).toBe(false);
+  });
+});
 
 describe('intensity curve', () => {
   it('ramps 0→1 over the ramp window then keeps climbing', () => {
