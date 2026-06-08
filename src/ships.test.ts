@@ -54,4 +54,20 @@ describe('ship stat profiles', () => {
     // bastion 4 segs + second wind +1 = 5
     expect(s.staminaSegments).toBe(5);
   });
+
+  it('Tempest is nimble (faster, slightly shorter dash, normal stamina)', () => {
+    const s = deriveStats({}, shipById('tempest').apply);
+    expect(s.staminaSegments).toBe(TUNE.stamina.segments);
+    expect(s.maxSpeed).toBeGreaterThan(TUNE.player.maxSpeed);
+    expect(s.accel).toBeGreaterThan(TUNE.player.accel);
+    expect(s.dashLenMul).toBeLessThan(1);
+  });
+
+  it('Phantom is a one-segment knife-edge with a huge dash', () => {
+    const s = deriveStats({}, shipById('phantom').apply);
+    expect(s.staminaSegments).toBe(1);
+    expect(s.dashLenMul).toBeGreaterThan(1.5);
+    expect(s.regenPerSec).toBeGreaterThan(TUNE.stamina.regenPerSec);
+    expect(s.maxSpeed).toBeGreaterThan(TUNE.player.maxSpeed);
+  });
 });

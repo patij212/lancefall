@@ -51,6 +51,35 @@ export const SHIPS: ShipDef[] = [
       s.maxSpeed *= 0.85;
     },
   },
+  {
+    id: 'tempest',
+    name: 'TEMPEST',
+    desc: 'Nimble. Fast drift + acceleration and quick regen, with a slightly shorter dash.',
+    accent: '#818cf8',
+    unlockShards: 2000,
+    apply: (s) => {
+      s.maxSpeed *= 1.2;
+      s.accel *= 1.3;
+      s.regenPerSec += 18;
+      s.dashLenMul *= 0.92;
+    },
+  },
+  {
+    id: 'phantom',
+    name: 'PHANTOM',
+    desc: 'Knife-edge. Huge dash, fastest regen, +speed — but a SINGLE stamina segment.',
+    accent: '#f472b6',
+    unlockShards: 4500,
+    apply: (s) => {
+      s.staminaSegments = 1;
+      s.regenPerSec += 70;
+      s.regenDelay *= 0.4;
+      s.dashLenMul *= 1.6;
+      s.dashHitboxRadius += 6;
+      s.maxSpeed *= 1.18;
+      s.accel *= 1.15;
+    },
+  },
 ];
 
 export function shipById(id: string): ShipDef {
