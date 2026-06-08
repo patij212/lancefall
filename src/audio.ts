@@ -29,6 +29,14 @@ export class AudioEngine {
   // boss tension layer
   private bossVoice: { osc: OscillatorNode; gain: GainNode } | null = null;
 
+  // procedural music (beat-driven, A-minor pentatonic — can't sound "wrong")
+  private musicTimer = 0;
+  private musicStep = 0;
+  private nextNoteT = 0;
+  private musicHeat = 0;
+  private bossArp = false;
+  private readonly bpm = 112;
+
   get ready(): boolean {
     return this.ctx !== null;
   }
@@ -459,10 +467,12 @@ export class AudioEngine {
       osc.start(t);
       return { osc, gain: g };
     });
+    this.startMusic();
   }
 
   /** Heat 0..1+: fades in more voices and opens the filter as the wave climbs. */
   setIntensity(n: number): void {
+    this.musicHeat = n;
     const ctx = this.ctx;
     if (!ctx || !this.droneOn || !this.droneFilter) return;
     const t = ctx.currentTime;
@@ -472,10 +482,122 @@ export class AudioEngine {
     this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(targets[i] ?? 0.0001, t, 0.5));
   }
 
+  // ── procedural music: a lookahead beat sequencer ──────────────────────
+
+  private startMusic(): void {
+    const ctx = this.ctx;
+    if (!ctx || this.musicTimer) return;
+    this.musicStep = 0;
+    this.nextNoteT = ctx.currentTime + 0.1;
+    this.musicTimer = window.setInterval(() => this.scheduleMusic(), 25);
+  }
+
+  private stopMusic(): void {
+    if (this.musicTimer) {
+      clearInterval(this.musicTimer);
+      this.musicTimer = 0;
+    }
+  }
+
+  private scheduleMusic(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const sixteenth = 60 / this.bpm / 4;
+    while (this.nextNoteT < ctx.currentTime + 0.1) {
+      this.playStep(this.musicStep % 16, this.nextNoteT);
+      this.nextNoteT += sixteenth;
+      this.musicStep++;
+    }
+  }
+
+  // A-minor pentatonic across two octaves (consonant by construction)
+  private static PENTA = [110, 130.81, 146.83, 164.81, 196, 220, 261.63, 293.66, 329.63, 392];
+  private static ARP = [5, 7, 9, 7, 6, 9, 7, 5]; // indices into PENTA, per beat
+
+  private playStep(s: number, t: number): void {
+    const heat = this.musicHeat;
+    // KICK on every beat — drive
+    if (s % 4 === 0) this.kick(t, 0.16);
+    // BASS pulse on beats 1 and 3
+    if (s === 0 || s === 8) this.bassNote(t, 110, 0.18);
+    if (s === 8 && heat > 0.5) this.bassNote(t, 146.83, 0.12); // a little movement when hot
+    // ARP on offbeat 8ths, density rising with heat
+    const onArp = heat > 0.25 && s % 2 === 1 && (heat > 0.6 || s % 4 === 1);
+    if (onArp) {
+      const idx = Math.floor(this.musicStep / 2) % AudioEngine.ARP.length;
+      const base = AudioEngine.PENTA[AudioEngine.ARP[idx] % AudioEngine.PENTA.length];
+      const freq = this.bossArp ? base * 0.75 : base; // boss: drop a touch, darker
+      this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
+    }
+  }
+
+  private kick(t: number, gain: number): void {
+    const ctx = this.ctx!;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(48, t + 0.09);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.16);
+    osc.connect(g);
+    g.connect(this.musicBus);
+    osc.start(t);
+    osc.stop(t + 0.18);
+    osc.onended = () => {
+      osc.disconnect();
+      g.disconnect();
+    };
+  }
+
+  private bassNote(t: number, freq: number, gain: number): void {
+    const ctx = this.ctx!;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 600;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.22);
+    osc.connect(lp);
+    lp.connect(g);
+    g.connect(this.musicBus);
+    osc.start(t);
+    osc.stop(t + 0.24);
+    osc.onended = () => {
+      osc.disconnect();
+      lp.disconnect();
+      g.disconnect();
+    };
+  }
+
+  private pluck(t: number, freq: number, dur: number, gain: number): void {
+    const ctx = this.ctx!;
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
+    osc.connect(g);
+    g.connect(this.musicBus);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+    osc.onended = () => {
+      osc.disconnect();
+      g.disconnect();
+    };
+  }
+
   /** Layer in a dissonant tritone voice while a boss is alive (and remove it). */
   bossMusic(on: boolean): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    this.bossArp = on; // the arp drops darker during a boss fight
     const t = ctx.currentTime;
     if (on) {
       if (this.bossVoice || !this.droneFilter) return;
@@ -532,6 +654,8 @@ export class AudioEngine {
   stopDrone(): void {
     const ctx = this.ctx;
     if (!ctx || !this.droneOn) return;
+    this.stopMusic();
+    this.bossArp = false;
     this.bossMusic(false);
     const t = ctx.currentTime;
     for (const v of this.drone) {
