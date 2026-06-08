@@ -26,6 +26,7 @@ import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate } from './rng';
+import { evaluate as evalAchievements } from './achievements';
 import {
   loadSave,
   saveSave,
@@ -545,7 +546,10 @@ export class Game {
     const y = e.y;
     const color = e.color;
     w.killCount++;
-    if (fromDash) w.player.killsThisDash++;
+    if (fromDash) {
+      w.player.killsThisDash++;
+      if (w.player.killsThisDash > w.maxDashChain) w.maxDashChain = w.player.killsThisDash;
+    }
 
     const rk = registerKill(w.combo);
     w.combo = rk.combo;
@@ -625,6 +629,7 @@ export class Game {
     this.shake.add(0.9);
     this.scheduler.requestHitstop(0.18);
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
+    w.bossKills++;
     w.enemies.release(e);
     w.bossAlive = false;
     w.boss = null;
@@ -784,6 +789,28 @@ export class Game {
     this.save.bestWave = Math.max(this.save.bestWave, wave);
     this.save.totalRuns++;
     this.save.shards += w.shards; // bank shards earned this run toward ship unlocks
+    this.save.lifeKills += w.killCount;
+    this.save.lifeBoss += w.bossKills;
+    this.save.lifeShards += w.shards;
+    // achievements (evaluate against updated lifetime totals)
+    const newAch = evalAchievements(this.save.achievements, {
+      score: w.score,
+      combo: w.bestComboRun,
+      wave,
+      kills: w.killCount,
+      grazes: w.grazeCount,
+      maxDashChain: w.maxDashChain,
+      bossKills: w.bossKills,
+      daily: this.daily,
+      lifeRuns: this.save.totalRuns,
+      lifeKills: this.save.lifeKills,
+      lifeBoss: this.save.lifeBoss,
+      lifeShards: this.save.lifeShards,
+    });
+    for (const a of newAch) {
+      this.save.achievements.push(a.id);
+      this.ui.toast(`🏆 ${a.name} — ${a.desc}`);
+    }
     if (this.daily) {
       const seed = seedFromDate();
       if (this.save.dailySeed !== seed) {

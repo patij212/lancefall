@@ -8,6 +8,7 @@ import type { PerkDef } from './perks';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
+import { ACHIEVEMENTS } from './achievements';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
 
@@ -66,10 +67,12 @@ export class UI {
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
   private settingsPanel!: HTMLElement;
+  private statsPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
   private announceTimer = 0;
+  private saveRef: SaveData | null = null;
 
   // hud refs
   private scoreEl!: HTMLElement;
@@ -115,9 +118,10 @@ export class UI {
     this.buildGameOver();
     this.buildDraft();
     this.buildSettings();
+    this.buildStats();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.statsPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -177,9 +181,11 @@ export class UI {
     daily.addEventListener('click', () => this.cb.onStart(true));
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
     settingsBtn.addEventListener('click', () => this.openSettings());
+    const statsBtn = el('button', { class: 'btn btn-ghost' }, 'STATS');
+    statsBtn.addEventListener('click', () => this.openStats());
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
-    const row = el('div', { class: 'title-row' }, daily, settingsBtn, how);
+    const row = el('div', { class: 'title-row' }, daily, statsBtn, settingsBtn, how);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -313,6 +319,48 @@ export class UI {
     this.settingsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
+  private buildStats(): void {
+    const h = el('h2', {}, 'STATS');
+    const body = el('div', { class: 'stats-body' });
+    body.id = 'stats-body';
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.statsPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    this.statsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private openStats(): void {
+    const s = this.saveRef;
+    if (!s) return;
+    const body = this.statsPanel.querySelector('#stats-body')!;
+    const lifetime = el('div', { class: 'stats-grid' },
+      stat(s.highScore.toLocaleString(), 'high score'),
+      stat(`x${s.bestCombo}`, 'best combo'),
+      stat(String(s.totalRuns), 'runs'),
+      stat(s.lifeKills.toLocaleString(), 'total kills'),
+      stat(String(s.lifeBoss), 'bosses down'),
+      stat(s.lifeShards.toLocaleString(), 'shards earned'),
+    );
+    const achWrap = el('div', { class: 'ach-grid' });
+    const unlockedCount = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
+    for (const a of ACHIEVEMENTS) {
+      const got = s.achievements.includes(a.id);
+      achWrap.append(
+        el('div', { class: 'ach' + (got ? ' got' : '') },
+          el('div', { class: 'ach-name' }, (got ? '🏆 ' : '🔒 ') + a.name),
+          el('div', { class: 'ach-desc' }, a.desc),
+        ),
+      );
+    }
+    body.replaceChildren(
+      el('div', { class: 'stats-label' }, 'LIFETIME'),
+      lifetime,
+      el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${unlockedCount}/${ACHIEVEMENTS.length}`),
+      achWrap,
+    );
+    this.statsPanel.classList.remove('hidden');
+  }
+
   private patch(p: Partial<Settings>): void {
     Object.assign(this.settings, p);
     if (p.hudScale !== undefined) this.applyHudScale();
@@ -343,8 +391,9 @@ export class UI {
     this.gameover.classList.toggle('hidden', s !== 'gameover');
     this.draft.classList.toggle('hidden', s !== 'draft');
     this.hud.classList.toggle('hidden', s !== 'playing');
-    // any screen transition dismisses the settings modal so it can't block play
+    // any screen transition dismisses the modals so they can't block play
     this.settingsPanel.classList.add('hidden');
+    this.statsPanel.classList.add('hidden');
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }
@@ -357,6 +406,7 @@ export class UI {
   }
 
   refreshTitle(save: SaveData): void {
+    this.saveRef = save;
     this.titleBest.textContent =
       save.highScore > 0
         ? `BEST ${save.highScore.toLocaleString()}  ·  x${save.bestCombo} combo`

@@ -25,6 +25,12 @@ export interface SaveData {
   unlockedThemes: string[];
   /** currently-selected theme id */
   selectedTheme: string;
+  /** lifetime totals */
+  lifeKills: number;
+  lifeBoss: number;
+  lifeShards: number;
+  /** unlocked achievement ids */
+  achievements: string[];
 }
 
 export interface Settings {
@@ -61,6 +67,10 @@ export function defaultSave(): SaveData {
     selectedShip: 'lance',
     unlockedThemes: ['neon'],
     selectedTheme: 'neon',
+    lifeKills: 0,
+    lifeBoss: 0,
+    lifeShards: 0,
+    achievements: [],
   };
 }
 

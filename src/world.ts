@@ -108,6 +108,8 @@ export class World {
   shards = 0;
   grazeCount = 0;
   killCount = 0;
+  maxDashChain = 0; // most kills in a single dash this run
+  bossKills = 0; // bosses downed this run
   collectStreak = 0;
   collectStreakTimer = 0;
   time = 0;
@@ -154,6 +156,8 @@ export class World {
     this.shards = 0;
     this.grazeCount = 0;
     this.killCount = 0;
+    this.maxDashChain = 0;
+    this.bossKills = 0;
     this.collectStreak = 0;
     this.time = 0;
     this.stacks = {};

@@ -511,6 +511,68 @@ body {
   accent-color: var(--cyan);
 }
 
+/* ── Stats / achievements ── */
+.stats-body {
+  width: 100%;
+  margin: 6px 0 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.stats-label {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+  margin: 10px 0 8px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.stats-grid .go-stat {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 6px;
+}
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.ach {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 11px;
+  opacity: 0.5;
+}
+.ach.got {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+.ach-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+}
+.ach.got .ach-name {
+  color: var(--amber);
+}
+.ach-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+@media (max-width: 700px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ach-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── HUD ── */
 .hud {
   position: absolute;
