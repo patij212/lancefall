@@ -28,7 +28,7 @@ You don't shoot. You **dash**.
 - 🌍 **Evolving biomes** — a run cycles through The Void → Emberfield → The Lattice → Bloomgarden → Nullspace, each retinting the world, shifting the enemy mix, and twisting the rules.
 - ⬆️ **Permanent meta-progression** — a 12-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**) bought with banked shards. The "one more run" engine.
 - 🚀 **5-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge). Each a genuinely different playstyle.
-- 🃏 **In-run perk draft + fusion evolutions** — 3-of-**10** stacking upgrades that compound into wild builds, plus **6 evolutions** (IMPALER, SUPERNOVA, PERPETUAL, WRAITH, INFERNO, JUGGERNAUT): stack the right recipe and a build-defining fusion capstone unlocks as a guaranteed glowing draft slot.
+- 🃏 **In-run perk draft + fusion evolutions** — 3-of-**11** stacking upgrades that compound into wild builds (offensive *and* defensive — Riposte shatters bullets on the dash), plus **7 evolutions** (IMPALER, SUPERNOVA, PERPETUAL, WRAITH, INFERNO, JUGGERNAUT, AEGIS): stack the right recipe and a build-defining fusion capstone unlocks as a guaranteed glowing draft slot.
 - 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **12 achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
 - 🌀 **The juice stack** — parallax starfield + nebula, trauma shake, hitstop, slow-mo, bloom, chromatic aberration, dash-trail ribbons, `+score` popups, combo-tier callouts (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, screen flashes.
 - 🔊 **Fully-synthesized audio** (Web Audio, no assets) — combo-pitched *thunks*, a beat-driven adaptive **soundtrack** (kick/bass/pentatonic arp that builds with intensity), a tense boss layer + victory stinger.
@@ -83,7 +83,7 @@ npm run preview
 npm test         # 101 unit tests on the pure simulation
 ```
 
-Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 10-perk draft (stacking + max-stack exclusion), the 6 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 5 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
+Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 11-perk draft (stacking + max-stack exclusion), the 7 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 5 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
 
 ## Monetization
 
