@@ -548,6 +548,49 @@ body {
   text-align: right;
 }
 
+/* ── Milestone announcement ── */
+.announce {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1.6);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: clamp(28px, 5vw, 56px);
+  letter-spacing: 0.08em;
+  opacity: 0;
+  pointer-events: none;
+  text-shadow: 0 0 30px currentColor;
+  white-space: nowrap;
+  transition: opacity 0.25s ease;
+}
+.announce.show {
+  opacity: 1;
+  animation: announcePop 1.1s ease-out forwards;
+}
+@keyframes announcePop {
+  0% {
+    transform: translate(-50%, -50%) scale(1.7);
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+.reduce-motion .announce.show {
+  animation: none;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
 /* ── Toasts ── */
 .toast-layer {
   position: absolute;

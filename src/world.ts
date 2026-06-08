@@ -104,6 +104,7 @@ export class World {
   combo = 0;
   comboTimer = 0;
   bestComboRun = 0;
+  lastTierAnnounced = 0; // highest combo-tier milestone shown this chain
   shards = 0;
   grazeCount = 0;
   killCount = 0;
@@ -149,6 +150,7 @@ export class World {
     this.combo = 0;
     this.comboTimer = 0;
     this.bestComboRun = 0;
+    this.lastTierAnnounced = 0;
     this.shards = 0;
     this.grazeCount = 0;
     this.killCount = 0;

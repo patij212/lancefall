@@ -62,6 +62,8 @@ export class UI {
   private settingsPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
+  private announceEl!: HTMLElement;
+  private announceTimer = 0;
 
   // hud refs
   private scoreEl!: HTMLElement;
@@ -104,7 +106,8 @@ export class UI {
     this.buildDraft();
     this.buildSettings();
     this.toastLayer = el('div', { class: 'toast-layer' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.toastLayer);
+    this.announceEl = el('div', { class: 'announce' });
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -419,6 +422,18 @@ export class UI {
       setTimeout(() => t.remove(), 300);
     }, 2200);
     while (this.toastLayer.children.length > 3) this.toastLayer.firstChild?.remove();
+  }
+
+  /** Big center milestone announcement (RAMPAGE / FRENZY / ...). */
+  announce(text: string, color: string): void {
+    const el = this.announceEl;
+    el.textContent = text;
+    el.style.color = color;
+    el.classList.remove('show');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('show');
+    clearTimeout(this.announceTimer);
+    this.announceTimer = window.setTimeout(() => el.classList.remove('show'), 1100);
   }
 
   comboBreakFlash(): void {

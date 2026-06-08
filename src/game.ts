@@ -38,6 +38,16 @@ import type { Enemy, EnemyKind } from './types';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'gameover';
 
+/** Combo milestones → arcade announcements. */
+const COMBO_TIERS: { at: number; name: string; color: string }[] = [
+  { at: 10, name: 'RAMPAGE', color: '#34d399' },
+  { at: 20, name: 'FRENZY', color: '#fbbf24' },
+  { at: 35, name: 'CARNAGE', color: '#fb923c' },
+  { at: 50, name: 'UNSTOPPABLE', color: '#ec4899' },
+  { at: 75, name: 'GODLIKE', color: '#a855f7' },
+  { at: 100, name: 'LEGENDARY', color: '#ef4444' },
+];
+
 export class Game {
   private renderer: Renderer;
   private ui: UI;
@@ -383,6 +393,7 @@ export class Game {
       this.audio.comboBreak();
       this.ui.comboBreakFlash();
       w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
+      w.lastTierAnnounced = 0;
     }
     w.combo = c.combo;
     w.comboTimer = c.timer;
@@ -513,9 +524,8 @@ export class Game {
     w.score += gained;
 
     w.particles.burst(x, y, TUNE.particles.deathBurstMin + w.player.killsThisDash * 3, color);
-    if (w.player.killsThisDash >= 2) {
-      w.particles.floatText(x, y - 18, `x${w.combo}`, comboColor(w.combo), 0.8 + Math.min(w.player.killsThisDash, 8) * 0.06);
-    }
+    w.particles.floatText(x, y - 16, `+${gained}`, comboColor(w.combo), 0.55 + Math.min(w.player.killsThisDash, 8) * 0.06);
+    this.checkComboTier();
     this.audio.thunk(w.combo);
     this.shake.add(TUNE.juice.traumaKill);
     this.scheduler.requestHitstop(hitstopFor(w.player.killsThisDash));
@@ -533,6 +543,22 @@ export class Game {
     // chains don't count as dash-kills)
     if (w.stats.chainRadius > 0) {
       this.chainExplode(x, y, w.stats.chainRadius, w.stats.chainDmg, fromDash);
+    }
+  }
+
+  /** Fire an arcade announcement when the combo crosses a new milestone tier. */
+  private checkComboTier(): void {
+    const w = this.world;
+    for (let i = COMBO_TIERS.length - 1; i >= 0; i--) {
+      const t = COMBO_TIERS[i];
+      if (w.combo >= t.at && t.at > w.lastTierAnnounced) {
+        w.lastTierAnnounced = t.at;
+        this.ui.announce(`${t.name}  ×${w.combo}`, t.color);
+        this.shake.add(0.18);
+        this.renderer.flash(t.color, 0.12);
+        this.audio.pickup(14);
+        break;
+      }
     }
   }
 
