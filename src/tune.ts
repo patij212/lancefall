@@ -205,6 +205,33 @@ export const SHADE_TUNE = {
   telegraphTime: 0.4, // s of pre-blink warning flash
 };
 
+// THE HOLLOW — 5th boss. An intangible phantom: NEVER contact-lethal. It seeds
+// killable echo clones and rains concentric rings; the ONLY way to damage it is
+// to dash through its body during a telegraphed "Clone Sync" window (white flash).
+export const HOLLOW = {
+  baseHp: 5,
+  hpPerInterval: 1, // +per boss-appearance ordinal (5th boss → 10 hp)
+  weakPointBonus: 2, // extra dash damage during the sync window (so base builds clear it)
+  radius: 40,
+  color: '#6ee7b7',
+  echoColor: '#a7f3d0',
+  moveSpeed: 50,
+  ringSpin: 0.6, // rad/s ring rotation
+  ringEvery: 2.2, // s between concentric rings
+  ringCount: 22,
+  ringGap: 4, // bullets omitted → a rotating safe lane
+  ringSpeed: 150,
+  maxEchoes: 3, // echo clones seeded over the opening
+  echoFireEvery: 1.9,
+  echoBulletSpeed: 200,
+  syncEvery: 3.5, // s between Clone Sync cycles
+  syncTelegraph: 0.9, // s of white-flash warning before the window
+  syncWindow: 1.0, // s the boss is damageable (dash through it)
+  fanBullets: 5,
+  fanSpread: 0.3,
+  fanBulletSpeed: 210,
+};
+
 // Elite "Champions" — rare buffed variants that read as a moment + a payoff.
 export const ELITE = {
   startTime: 55, // no champions in the opening minute

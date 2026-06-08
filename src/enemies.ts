@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -40,6 +40,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'shade':
       shade(e, world, dt);
+      break;
+    case 'hollow_echo':
+      hollowEcho(e, world, dt);
       break;
     default:
       break;
@@ -252,6 +255,23 @@ function shade(e: Enemy, world: World, dt: number): void {
     // brace (slow) just before blinking out
     e.vx *= 0.3;
     e.vy *= 0.3;
+  }
+}
+
+// A Hollow echo clone — orbits the player at mid-range and fires aimed shots.
+// Solid (contact-lethal) and killable, so the player can thin them for relief.
+function hollowEcho(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  e.angle += 0.6 * dt;
+  const tx = p.x + Math.cos(e.angle) * 220;
+  const ty = p.y + Math.sin(e.angle) * 220;
+  steerToward(e, tx, ty, 90 * e.speedMul);
+  e.timer -= dt;
+  if (e.timer <= 0) {
+    e.timer = HOLLOW.echoFireEvery;
+    const [nx, ny] = norm(p.x - e.x, p.y - e.y);
+    const sp = HOLLOW.echoBulletSpeed * e.bulletMul;
+    world.spawnBullet(e.x, e.y, nx * sp, ny * sp, 6, HOLLOW.echoColor, true);
   }
 }
 

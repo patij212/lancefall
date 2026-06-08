@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE } from './tune';
+import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW } from './tune';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
@@ -455,6 +455,12 @@ export class Renderer {
         ctx.fill();
         break;
       }
+      case 'hollow':
+        this.drawHollow(ctx, e, r);
+        break;
+      case 'hollow_echo':
+        this.drawHollowEcho(ctx, e, r);
+        break;
       case 'warden':
         this.drawWarden(ctx, e, r);
         break;
@@ -479,6 +485,58 @@ export class Renderer {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  private drawHollow(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const sync = e.telegraph || 0; // 0..1 charge, 1 during the damage window
+    const open = e.phase === 2; // the passable/damageable window
+    // concentric pentagon shells — hollow rings, brightening toward white on sync
+    ctx.strokeStyle = mix(HOLLOW.color, '#ffffff', sync * 0.85);
+    ctx.fillStyle = open ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0)';
+    ctx.lineWidth = 2.5;
+    ctx.save();
+    ctx.rotate(e.angle);
+    for (let k = 3; k >= 1; k--) {
+      ctx.globalAlpha = 0.35 + 0.25 * k;
+      ngon(ctx, 5, r * (k / 3));
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    // sync telegraph: a closing dashed ring that says "dash through me NOW"
+    if (sync > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = open ? '#ffffff' : `rgba(167,243,208,${0.3 + 0.6 * sync})`;
+      ctx.lineWidth = open ? 4 : 2 + 2 * sync;
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (open ? 1.15 : 1.1 + (1 - sync) * 1.2), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    // hp ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = HOLLOW.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  private drawHollowEcho(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    ctx.strokeStyle = e.hitFlash > 0 ? '#ffffff' : HOLLOW.echoColor;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.85;
+    ctx.save();
+    ctx.rotate(e.spawnTime * 0.8);
+    ngon(ctx, 5, r);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = HOLLOW.echoColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawWarden(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {

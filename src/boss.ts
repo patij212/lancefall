@@ -3,7 +3,7 @@
 // bursts with a rest window that is your damage opening. HP scales each
 // appearance. Takes 1 "dash-hit" per dash (one-hit-per-dashId enforced upstream).
 
-import { WARDEN, WEAVER, BEACON, MIRRORBLADE } from './tune';
+import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -13,10 +13,11 @@ export function bossName(kind: Enemy['kind']): string {
   if (kind === 'weaver') return 'THE WEAVER';
   if (kind === 'beacon') return 'THE BEACON';
   if (kind === 'mirrorblade') return 'THE MIRRORBLADE';
+  if (kind === 'hollow') return 'THE HOLLOW';
   return 'THE WARDEN';
 }
 
-const BOSS_CYCLE: Enemy['kind'][] = ['warden', 'weaver', 'beacon', 'mirrorblade'];
+const BOSS_CYCLE: Enemy['kind'][] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow'];
 
 /** Is the Beacon's sweep beam currently lethal? (active sub-phase of sweep). */
 export function beaconBeamActive(e: Enemy): boolean {
@@ -29,7 +30,12 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   const edge = world.edgeSpawn();
   // cycle bosses: Warden → Weaver → Beacon → Mirrorblade, then repeat (unless forced)
   const kind = force ?? BOSS_CYCLE[(count - 1) % BOSS_CYCLE.length];
-  const def = kind === 'weaver' ? WEAVER : kind === 'beacon' ? BEACON : kind === 'mirrorblade' ? MIRRORBLADE : WARDEN;
+  const def =
+    kind === 'weaver' ? WEAVER
+    : kind === 'beacon' ? BEACON
+    : kind === 'mirrorblade' ? MIRRORBLADE
+    : kind === 'hollow' ? HOLLOW
+    : WARDEN;
   e.kind = kind;
   e.x = edge.x;
   e.y = edge.y;
@@ -37,12 +43,18 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.vy = 0;
   e.hp = e.maxHp = def.baseHp + count * def.hpPerInterval;
   e.radius = def.radius;
-  e.color = kind === 'weaver' ? WEAVER.color : kind === 'beacon' ? BEACON.color : kind === 'mirrorblade' ? MIRRORBLADE.color : '#ff3b6b';
+  e.color =
+    kind === 'weaver' ? WEAVER.color
+    : kind === 'beacon' ? BEACON.color
+    : kind === 'mirrorblade' ? MIRRORBLADE.color
+    : kind === 'hollow' ? HOLLOW.color
+    : '#ff3b6b';
   e.baseScore = 0;
   e.timer =
     kind === 'mirrorblade' ? MIRRORBLADE.windup
     : kind === 'weaver' ? WEAVER.phaseDuration
     : kind === 'beacon' ? BEACON.phaseDuration
+    : kind === 'hollow' ? HOLLOW.syncEvery
     : WARDEN.phaseDuration;
   e.phase = 0;
   e.telegraph = 0;
@@ -68,12 +80,27 @@ export function updateBoss(e: Enemy, world: World, dt: number): void {
   if (e.kind === 'weaver') updateWeaver(e, world, dt);
   else if (e.kind === 'beacon') updateBeacon(e, world, dt);
   else if (e.kind === 'mirrorblade') updateMirrorblade(e, world, dt);
+  else if (e.kind === 'hollow') updateHollow(e, world, dt);
   else updateWarden(e, world, dt);
 }
 
 /** Is the Mirrorblade mid-lunge? (its body is lethal then). */
 export function mirrorbladeDashing(e: Enemy): boolean {
   return e.kind === 'mirrorblade' && e.phase === 1;
+}
+
+/** Is the Hollow in its Clone Sync window? (the only time it can be damaged). */
+export function hollowSyncActive(e: Enemy): boolean {
+  return e.kind === 'hollow' && e.phase === 2;
+}
+
+/** Whether a boss's body kills the player on contact this frame. Extracted so
+ *  the per-boss exceptions live in one place (Mirrorblade only mid-lunge; the
+ *  Hollow is an intangible phantom and never contact-lethal). */
+export function isBossLethal(e: Enemy): boolean {
+  if (e.kind === 'mirrorblade') return mirrorbladeDashing(e);
+  if (e.kind === 'hollow') return false;
+  return true;
 }
 
 function updateWarden(e: Enemy, world: World, dt: number): void {
@@ -333,4 +360,91 @@ function updateMirrorblade(e: Enemy, world: World, dt: number): void {
   }
 
   e.telegraph = e.phase === 0 ? e.telegraph : e.phase === 2 ? 0 : 0;
+}
+
+/** Seed one echo clone at a random offset around the boss. */
+function spawnHollowEcho(boss: Enemy, world: World): void {
+  const a = world.rng.range(0, Math.PI * 2);
+  const ec = world.spawnEnemy('hollow_echo', boss.x + Math.cos(a) * 160, boss.y + Math.sin(a) * 160, 1, 1, false);
+  if (ec) {
+    ec.timer = HOLLOW.echoFireEvery;
+    ec.angle = a;
+  }
+}
+
+/** Release any echoes still alive when the Hollow falls (so they don't linger). */
+export function cleanupHollowEchoes(world: World): void {
+  world.enemies.forEachActive((e) => {
+    if (e.kind === 'hollow_echo') world.enemies.release(e);
+  });
+}
+
+function updateHollow(e: Enemy, world: World, dt: number): void {
+  e.spawnTime += dt;
+  if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 1.5);
+  if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+  const enraged = e.hp / e.maxHp < 0.4;
+
+  // drift slowly near arena centre
+  const cx = world.width / 2;
+  const cy = world.height / 2;
+  const tx = cx + Math.cos(e.spawnTime * 0.3) * world.width * 0.1;
+  const ty = cy + Math.sin(e.spawnTime * 0.45) * world.height * 0.1;
+  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  e.vx = nx * HOLLOW.moveSpeed;
+  e.vy = ny * HOLLOW.moveSpeed;
+  e.x += e.vx * dt;
+  e.y += e.vy * dt;
+
+  // concentric rings with a rotating safe lane; seed echoes over the opening
+  e.angle += HOLLOW.ringSpin * dt;
+  e.fireTimer -= dt;
+  if (e.fireTimer <= 0) {
+    e.fireTimer = HOLLOW.ringEvery * (enraged ? 0.7 : 1);
+    const n = HOLLOW.ringCount;
+    const gap = Math.floor(world.rng.next() * n);
+    const sp = HOLLOW.ringSpeed;
+    for (let i = 0; i < n; i++) {
+      if ((i - gap + n) % n < HOLLOW.ringGap) continue; // safe lane
+      const a = e.angle + (i / n) * Math.PI * 2;
+      world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, HOLLOW.color, true);
+    }
+    if (e.subPhase < HOLLOW.maxEchoes) {
+      spawnHollowEcho(e, world);
+      e.subPhase++;
+    }
+  }
+
+  // Clone Sync state machine (phase): 0 normal → 1 telegraph → 2 window → 0
+  e.timer -= dt;
+  if (e.phase === 0) {
+    e.telegraph = 0;
+    if (e.timer <= 0) {
+      e.phase = 1;
+      e.timer = HOLLOW.syncTelegraph;
+    }
+  } else if (e.phase === 1) {
+    e.telegraph = clamp(1 - e.timer / HOLLOW.syncTelegraph, 0, 1);
+    if (e.timer <= 0) {
+      e.phase = 2;
+      e.timer = HOLLOW.syncWindow;
+      e.telegraph = 1;
+      // a parting aimed fan as the window opens
+      const p = world.player;
+      const base = Math.atan2(p.y - e.y, p.x - e.x);
+      const sp = HOLLOW.fanBulletSpeed;
+      const half = (HOLLOW.fanBullets - 1) / 2;
+      for (let i = 0; i < HOLLOW.fanBullets; i++) {
+        const a = base + (i - half) * HOLLOW.fanSpread;
+        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, HOLLOW.echoColor, true);
+      }
+    }
+  } else {
+    e.telegraph = 1; // window — passable + damageable, drawn bright white
+    if (e.timer <= 0) {
+      e.phase = 0;
+      e.timer = enraged ? HOLLOW.syncEvery * 0.6 : HOLLOW.syncEvery;
+      e.telegraph = 0;
+    }
+  }
 }

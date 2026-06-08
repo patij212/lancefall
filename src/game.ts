@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -17,7 +17,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, E
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, beaconBeamActive, mirrorbladeDashing } from './boss';
+import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes } from './boss';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
@@ -581,9 +581,13 @@ export class Game {
     w.hash.queryAABB(minX, minY, maxX, maxY, this.candidates);
     for (const e of this.candidates) {
       if (!e.active || e.lastDashId === p.dashId) continue;
+      // the Hollow is an intangible phantom — only damageable during its sync window
+      if (e.kind === 'hollow' && !hollowSyncActive(e)) continue;
       if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
         e.lastDashId = p.dashId;
-        this.damageEnemy(e, w.stats.dashDamage, true);
+        // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
+        const dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
+        this.damageEnemy(e, dmg, true);
       }
     }
     // Riposte: shatter enemy bullets along the spear (boss shots stay lethal)
@@ -772,6 +776,7 @@ export class Game {
     this.scheduler.requestHitstop(0.18);
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
     w.bossKills++;
+    if (e.kind === 'hollow') cleanupHollowEchoes(w); // clear lingering echo clones
     w.enemies.release(e);
     w.bossAlive = false;
     w.boss = null;
@@ -884,8 +889,9 @@ export class Game {
         return;
       }
     }
-    // boss body — the Mirrorblade is only lethal mid-lunge (recover/wind-up are the openings)
-    const bossLethal = w.boss && (w.boss.kind !== 'mirrorblade' || mirrorbladeDashing(w.boss));
+    // boss body — per-boss exceptions live in isBossLethal (Mirrorblade only
+    // mid-lunge; the Hollow is an intangible phantom and never contact-lethal)
+    const bossLethal = w.boss && isBossLethal(w.boss);
     if (w.bossAlive && w.boss && bossLethal && circleHit(p.x, p.y, p.radius, w.boss.x, w.boss.y, w.boss.radius * 0.85)) {
       this.playerDie('the boss');
       return;
@@ -1055,7 +1061,7 @@ export class Game {
     this.audio.bossWarn();
     this.audio.bossMusic(true);
     this.shake.add(TUNE.juice.traumaBossSpawn);
-    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : '#ff3b6b';
+    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : boss?.kind === 'hollow' ? '#6ee7b7' : '#ff3b6b';
     this.renderer.flash(col, 0.3);
     this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
   }
