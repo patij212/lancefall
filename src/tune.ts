@@ -24,7 +24,7 @@ export const TUNE = {
     maxLen: 560,
     speed: 3000, // px/s travel — duration = len/speed (0.06s..0.19s)
     minDuration: 0.06,
-    iframeGrace: 0.07, // extra invuln after travel ends
+    iframeGrace: 0.13, // extra invuln after travel ends — softens landing in a crowd, flows into dash-chaining
     hitboxRadius: 22, // swept-capsule radius (the spear)
     carrySpeed: 540, // post-dash momentum carried into drift
   },
@@ -98,11 +98,11 @@ export const TUNE = {
   // ── Difficulty: a single intensity scalar I(t) drives everything ──
   director: {
     rampSeconds: 240, // I goes 0->1 over the first 4 minutes
-    spawnIntervalStart: 2.0,
+    spawnIntervalStart: 2.6, // gentle opening so a new player learns the dash
     spawnIntervalEnd: 0.45,
     spawnIntervalFloor: 0.3,
     enemiesPerSpawnMax: 3,
-    maxConcurrentStart: 6,
+    maxConcurrentStart: 4,
     maxConcurrentEnd: 26,
     maxConcurrentCap: 40,
     bossInterval: 45, // seconds between mini-boss crescendos

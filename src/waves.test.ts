@@ -53,15 +53,15 @@ describe('spawn cadence', () => {
 describe('unlock pacing', () => {
   it('starts with only darters and adds archetypes over time', () => {
     expect(unlockedKinds(0)).toEqual(['darter']);
-    expect(unlockedKinds(15)).toContain('orbiter');
-    expect(unlockedKinds(40)).toContain('splitter');
-    expect(unlockedKinds(80)).toContain('bloomer');
+    expect(unlockedKinds(20)).toContain('orbiter');
+    expect(unlockedKinds(50)).toContain('splitter');
+    expect(unlockedKinds(90)).toContain('bloomer');
   });
 
   it('weights only include unlocked kinds', () => {
     const w = enemyWeights(0, 0);
     expect(w.map((x) => x.v)).toEqual(['darter']);
-    const w2 = enemyWeights(80, 1);
+    const w2 = enemyWeights(90, 1);
     expect(w2.map((x) => x.v).sort()).toEqual(['bloomer', 'darter', 'orbiter', 'splitter']);
   });
 });

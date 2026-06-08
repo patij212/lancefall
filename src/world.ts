@@ -142,7 +142,7 @@ export class World {
     this.player = makePlayer();
     this.player.x = width / 2;
     this.player.y = height / 2;
-    this.player.iframe = 1.2; // brief spawn protection so you're not insta-swarmed
+    this.player.iframe = 1.6; // brief spawn protection so you're not insta-swarmed
     this.score = 0;
     this.combo = 0;
     this.comboTimer = 0;

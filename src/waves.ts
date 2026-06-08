@@ -50,9 +50,9 @@ export function shieldChance(t: number): number {
 /** Which archetypes are unlocked by elapsed time (stealth tutorial pacing). */
 export function unlockedKinds(t: number): EnemyKind[] {
   const out: EnemyKind[] = ['darter'];
-  if (t >= 12) out.push('orbiter');
-  if (t >= 35) out.push('splitter');
-  if (t >= 70) out.push('bloomer');
+  if (t >= 18) out.push('orbiter');
+  if (t >= 45) out.push('splitter');
+  if (t >= 85) out.push('bloomer');
   return out;
 }
 

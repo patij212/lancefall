@@ -625,7 +625,7 @@ export class Game {
     w.hash.queryAABB(p.x - 60, p.y - 60, p.x + 60, p.y + 60, this.candidates);
     for (const e of this.candidates) {
       if (!e.active) continue;
-      if (circleHit(p.x, p.y, p.radius, e.x, e.y, e.radius * 0.8)) {
+      if (circleHit(p.x, p.y, p.radius, e.x, e.y, e.radius * 0.72)) {
         this.playerDie();
         return;
       }
