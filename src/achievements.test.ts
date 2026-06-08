@@ -11,6 +11,8 @@ const base: AchCtx = {
   maxDashChain: 0,
   bossKills: 0,
   daily: false,
+  won: false,
+  modeId: 'endless',
   lifeRuns: 0,
   lifeKills: 0,
   lifeBoss: 0,
@@ -52,5 +54,12 @@ describe('achievements', () => {
   it('daily achievement needs a daily run', () => {
     expect(evaluate([], { ...base, daily: true }).map((a) => a.id)).toContain('daily');
     expect(evaluate([], { ...base, daily: false }).map((a) => a.id)).not.toContain('daily');
+  });
+
+  it('mode achievements need a win in the right mode', () => {
+    expect(evaluate([], { ...base, won: true, modeId: 'arena' }).map((a) => a.id)).toContain('gauntlet');
+    expect(evaluate([], { ...base, won: false, modeId: 'arena' }).map((a) => a.id)).not.toContain('gauntlet');
+    expect(evaluate([], { ...base, won: true, modeId: 'bossrush' }).map((a) => a.id)).toContain('bossbane');
+    expect(evaluate([], { ...base, modeId: 'nightmare', wave: 8 }).map((a) => a.id)).toContain('nightmarewalker');
   });
 });

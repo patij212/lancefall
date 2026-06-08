@@ -899,6 +899,8 @@ export class Game {
       maxDashChain: w.maxDashChain,
       bossKills: w.bossKills,
       daily: this.mode.id === 'daily',
+      won,
+      modeId: this.mode.id,
       lifeRuns: this.save.totalRuns,
       lifeKills: this.save.lifeKills,
       lifeBoss: this.save.lifeBoss,

@@ -10,6 +10,8 @@ export interface AchCtx {
   maxDashChain: number; // most kills in one dash this run
   bossKills: number; // this run
   daily: boolean;
+  won: boolean;
+  modeId: string;
   lifeRuns: number;
   lifeKills: number;
   lifeBoss: number;
@@ -36,6 +38,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'daily', name: 'Creature of Habit', desc: 'Play a Daily Challenge.', check: (c) => c.daily },
   { id: 'veteran', name: 'Veteran', desc: 'Complete 20 runs.', check: (c) => c.lifeRuns >= 20 },
   { id: 'hoarder', name: 'Shard Hoarder', desc: 'Earn 5,000 shards all-time.', check: (c) => c.lifeShards >= 5000 },
+  { id: 'gauntlet', name: 'Gauntlet Cleared', desc: 'Win the Arena.', check: (c) => c.won && c.modeId === 'arena' },
+  { id: 'bossbane', name: 'Boss Bane', desc: 'Clear Boss Rush.', check: (c) => c.won && c.modeId === 'bossrush' },
+  { id: 'nightmarewalker', name: 'Nightmare Walker', desc: 'Reach wave 8 in Nightmare.', check: (c) => c.modeId === 'nightmare' && c.wave >= 8 },
 ];
 
 /** Returns the achievements newly satisfied by this context (not already in `unlocked`). */
