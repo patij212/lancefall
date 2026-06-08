@@ -13,7 +13,7 @@ import { AudioEngine } from './audio';
 import { Scheduler } from './scheduler';
 import { Shake } from './shake';
 import { Director } from './waves';
-import { intensity, enemySpeedMul, bulletSpeedMul, shieldChance } from './waves';
+import { intensity, enemySpeedMul, bulletSpeedMul } from './waves';
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
@@ -28,6 +28,8 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate } from './rng';
 import { evaluate as evalAchievements } from './achievements';
+import { MODES } from './modes';
+import type { RunConfig } from './modes';
 import {
   loadSave,
   saveSave,
@@ -65,8 +67,10 @@ export class Game {
 
   private world: World;
   private state: State = 'title';
-  private daily = false;
+  private mode: RunConfig = MODES[0];
   private seed = 1;
+  private winning = false;
+  private winTimer = 0;
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -91,8 +95,8 @@ export class Game {
     this.world = new World(createRng(this.seed));
 
     this.ui = new UI(uiRoot, this.settings, {
-      onStart: (d) => this.start(d),
-      onRestart: () => this.start(this.daily),
+      onStart: (cfg) => this.start(cfg),
+      onRestart: () => this.start(this.mode),
       onResume: () => this.resume(),
       onQuit: () => this.toTitle(),
       onPick: (i) => this.pickPerk(i),
@@ -152,11 +156,11 @@ export class Game {
   }
 
   // ── state transitions ──
-  private start(daily: boolean): void {
+  private start(cfg: RunConfig): void {
     this.audio.ensure();
     this.ui.hideSoundHint();
-    this.daily = daily;
-    this.seed = daily ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
+    this.mode = cfg;
+    this.seed = cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.world.rng = createRng(this.seed);
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
@@ -172,7 +176,8 @@ export class Game {
     this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
     this.world.reviveLeft = this.world.stats.reviveTokens;
     this.applySettings(this.settings);
-    this.director.reset();
+    this.director.configure(cfg);
+    this.winning = false;
     // clear any lingering juice/input state so a run never starts frozen,
     // mid-slow-mo, mid-charge-tone, or auto-charging from a held key
     this.scheduler.reset();
@@ -188,7 +193,7 @@ export class Game {
     this.intensityTimer = 0;
     this.state = 'playing';
     this.ui.show('playing');
-    this.ui.setDaily(daily);
+    this.ui.setMode(cfg);
     this.audio.startDrone();
     this.audio.duckMusic(false);
 
@@ -318,7 +323,7 @@ export class Game {
     const shipName = shipById(this.save.selectedShip).name;
     const perks = describeStacks(this.world.stacks);
     const build = perks ? `${shipName} [${perks}]` : shipName;
-    const str = buildShareString(this.world.score, this.world.bestComboRun, Math.floor(this.world.time / 30) + 1, this.daily, build);
+    const str = buildShareString(this.world.score, this.world.bestComboRun, this.director.wave, this.mode.id === 'daily', `${this.mode.name} · ${build}`);
     try {
       void navigator.clipboard?.writeText(str);
       this.ui.toast('Score copied to clipboard!');
@@ -358,9 +363,13 @@ export class Game {
 
       if (this.dying) {
         this.dyingTimer -= realDt;
-        if (this.dyingTimer <= 0) this.finishGameOver();
+        if (this.dyingTimer <= 0) this.finishGameOver(false);
       }
-      if (this.pendingDraft && !this.dying) {
+      if (this.winning) {
+        this.winTimer -= realDt;
+        if (this.winTimer <= 0) this.finishGameOver(true);
+      }
+      if (this.pendingDraft && !this.dying && !this.winning) {
         this.pendingDraft = false;
         this.openDraft();
       }
@@ -380,7 +389,7 @@ export class Game {
   private handleMeta(): void {
     const inp = this.input.state;
     if (this.state === 'title') {
-      if (this.input.consumeStart()) this.start(false);
+      if (this.input.consumeStart()) this.start(MODES[0]);
     } else if (this.state === 'playing') {
       if (inp.pausePressed) this.pause();
     } else if (this.state === 'paused') {
@@ -389,7 +398,7 @@ export class Game {
       if (inp.selectIndex >= 0) this.pickPerk(inp.selectIndex);
       else if (this.input.consumeConfirm()) this.pickPerk(1);
     } else if (this.state === 'gameover') {
-      if (this.input.consumeRestart() || this.input.consumeConfirm()) this.start(this.daily);
+      if (this.input.consumeRestart() || this.input.consumeConfirm()) this.start(this.mode);
     }
     // clear one-shot edges every frame so the dash key can't leak a restart/start
     this.input.consumeStart();
@@ -447,12 +456,13 @@ export class Game {
     }
 
     // director
-    if (!this.dying && w.player.alive) {
+    if (!this.dying && !this.winning && w.player.alive) {
       const liveEnemies = w.enemies.activeCount - (w.bossAlive ? 1 : 0);
       const dec = this.director.update(dt, liveEnemies, w.bossAlive, w.rng);
       this.applyDirector(dec.spawn);
-      if (dec.boss) this.spawnWarden();
+      if (dec.boss) this.spawnWarden(dec.bossKind);
       if (dec.perk) this.pendingDraft = true;
+      if (dec.win) this.winRun();
     }
 
     // combo decay
@@ -824,17 +834,19 @@ export class Game {
     this.input.rumble(1, 1, 220);
   }
 
-  private finishGameOver(): void {
+  private finishGameOver(won: boolean): void {
     const w = this.world;
     this.dying = false;
+    this.winning = false;
     this.audio.stopDrone();
-    const wave = Math.floor(w.time / 30) + 1;
+    const wave = this.director.wave;
     const newBest = w.score > this.save.highScore;
     this.save.highScore = Math.max(this.save.highScore, w.score);
     this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
     this.save.bestWave = Math.max(this.save.bestWave, wave);
     this.save.totalRuns++;
-    const banked = Math.round(w.shards * w.stats.shardMul); // Treasure Hunter meta
+    // bank shards: in-run gems × meta Treasure Hunter × mode bonus
+    const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
     this.save.shards += banked; // bank shards toward unlocks + meta upgrades
     this.save.lifeKills += w.killCount;
     this.save.lifeBoss += w.bossKills;
@@ -848,7 +860,7 @@ export class Game {
       grazes: w.grazeCount,
       maxDashChain: w.maxDashChain,
       bossKills: w.bossKills,
-      daily: this.daily,
+      daily: this.mode.id === 'daily',
       lifeRuns: this.save.totalRuns,
       lifeKills: this.save.lifeKills,
       lifeBoss: this.save.lifeBoss,
@@ -858,7 +870,7 @@ export class Game {
       this.save.achievements.push(a.id);
       this.ui.toast(`🏆 ${a.name} — ${a.desc}`);
     }
-    if (this.daily) {
+    if (this.mode.id === 'daily') {
       const seed = seedFromDate();
       if (this.save.dailySeed !== seed) {
         this.save.dailySeed = seed;
@@ -873,7 +885,9 @@ export class Game {
       wave,
       time: w.time,
       newBest,
-      daily: this.daily,
+      daily: this.mode.id === 'daily',
+      won,
+      mode: this.mode.name,
       highScore: this.save.highScore,
       shardsEarned: banked,
       dailyBest: this.save.dailyBest,
@@ -886,10 +900,10 @@ export class Game {
 
   private applyDirector(spawn: EnemyKind[]): void {
     const w = this.world;
-    const I = intensity(w.time);
-    const sMul = enemySpeedMul(I);
-    const bMul = bulletSpeedMul(I);
-    const shield = shieldChance(w.time);
+    const I = intensity(w.time) * this.mode.intensityMul;
+    const sMul = enemySpeedMul(I) + this.mode.speedBonus;
+    const bMul = bulletSpeedMul(I) + this.mode.speedBonus;
+    const shield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
     for (const kind of spawn) {
       const pt = w.edgeSpawn();
       const isShield = w.rng.next() < shield;
@@ -897,14 +911,32 @@ export class Game {
     }
   }
 
-  private spawnWarden(): void {
+  private spawnWarden(force?: import('./types').EnemyKind): void {
     const w = this.world;
-    const boss = spawnBoss(w, this.director.bossCount);
+    // arena/bossrush force a specific boss; scripted modes pass a 1-based index
+    const count = force ? this.director.wave : this.director.bossCount;
+    const boss = spawnBoss(w, count, force);
     this.audio.bossWarn();
     this.audio.bossMusic(true);
     this.shake.add(TUNE.juice.traumaBossSpawn);
-    this.renderer.flash(boss?.kind === 'weaver' ? '#a855f7' : '#ff3b6b', 0.3);
+    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : '#ff3b6b';
+    this.renderer.flash(col, 0.3);
     this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
+  }
+
+  private winRun(): void {
+    if (this.winning) return;
+    this.winning = true;
+    this.winTimer = 1.6;
+    const w = this.world;
+    w.player.iframe = 999;
+    w.bullets.clear();
+    this.scheduler.requestSlowmo(0.4);
+    this.renderer.flash('#fbbf24', 0.4);
+    this.shake.add(0.5);
+    this.ui.announce('VICTORY!', '#fbbf24');
+    this.audio.bossStinger();
+    for (let i = 0; i < 60; i++) w.particles.burst(w.width * Math.random(), w.height * Math.random(), 18, '#fbbf24');
   }
 
   private updateCamera(realDt: number): void {

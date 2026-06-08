@@ -420,6 +420,17 @@ body {
   flex-wrap: wrap;
   justify-content: center;
 }
+.mode-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+.btn-mode {
+  font-size: 13px;
+  padding: 9px 16px;
+}
 
 /* ── Perk draft ── */
 .draft-head {

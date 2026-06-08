@@ -10,11 +10,13 @@ import { SHIPS } from './ships';
 import { THEMES } from './themes';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
+import { MODES, modeById } from './modes';
+import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
 
 export interface UICallbacks {
-  onStart: (daily: boolean) => void;
+  onStart: (cfg: RunConfig) => void;
   onRestart: () => void;
   onResume: () => void;
   onQuit: () => void;
@@ -40,6 +42,8 @@ export interface GameOverInfo {
   dailyBest: number;
   ship: string;
   perks: string;
+  won: boolean;
+  mode: string;
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
@@ -101,6 +105,7 @@ export class UI {
   private goStats!: HTMLElement;
   private goBadge!: HTMLElement;
   private goBuild!: HTMLElement;
+  private goHead!: HTMLElement;
 
   private displayScore = 0;
   private pauseRestartArmed = false;
@@ -180,9 +185,17 @@ export class UI {
     const wordmark = el('h1', { class: 'title-word' }, 'LANCEFALL');
     const tagline = el('p', { class: 'title-tag' }, 'thread death itself');
     const play = el('button', { class: 'btn btn-primary btn-play' }, 'PLAY');
-    play.addEventListener('click', () => this.cb.onStart(false));
-    const daily = el('button', { class: 'btn btn-ghost' }, 'DAILY SEED');
-    daily.addEventListener('click', () => this.cb.onStart(true));
+    play.title = 'Endless mode';
+    play.addEventListener('click', () => this.cb.onStart(modeById('endless')));
+    // mode row: every mode except endless (the big PLAY button)
+    const modeRow = el('div', { class: 'mode-row' });
+    for (const m of MODES) {
+      if (m.id === 'endless') continue;
+      const b = el('button', { class: 'btn btn-ghost btn-mode' }, m.name);
+      b.title = m.desc;
+      b.addEventListener('click', () => this.cb.onStart(m));
+      modeRow.append(b);
+    }
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
     settingsBtn.addEventListener('click', () => this.openSettings());
     const upgradesBtn = el('button', { class: 'btn btn-ghost' }, 'UPGRADES');
@@ -191,7 +204,7 @@ export class UI {
     statsBtn.addEventListener('click', () => this.openStats());
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
-    const row = el('div', { class: 'title-row' }, daily, upgradesBtn, statsBtn, settingsBtn, how);
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, settingsBtn, how);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -216,6 +229,7 @@ export class UI {
       wordmark,
       tagline,
       play,
+      modeRow,
       row,
       this.dailyCaption,
       shipSection,
@@ -255,7 +269,7 @@ export class UI {
   }
 
   private buildGameOver(): void {
-    const h = el('h2', { class: 'go-head' }, 'YOU FELL');
+    this.goHead = el('h2', { class: 'go-head' }, 'YOU FELL');
     this.goBadge = el('div', { class: 'go-badge' }, '');
     this.goScore = el('div', { class: 'go-score' }, '0');
     this.goStats = el('div', { class: 'go-stats' }, '');
@@ -267,7 +281,7 @@ export class UI {
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
     const row = el('div', { class: 'go-row' }, again, copy, menu);
-    const panel = el('div', { class: 'panel' }, h, this.goBadge, this.goScore, this.goStats, this.goBuild, row);
+    const panel = el('div', { class: 'panel' }, this.goHead, this.goBadge, this.goScore, this.goStats, this.goBuild, row);
     this.gameover = el('div', { class: 'screen screen-dim' }, panel);
   }
 
@@ -508,9 +522,11 @@ export class UI {
     this.soundHint.style.display = 'none';
   }
 
-  /** Toggle the in-run DAILY badge on the HUD. */
-  setDaily(on: boolean): void {
-    this.dailyBadge.classList.toggle('hidden', !on);
+  /** Show the active mode on the HUD (hidden for plain Endless). */
+  setMode(cfg: RunConfig): void {
+    const show = cfg.id !== 'endless';
+    this.dailyBadge.classList.toggle('hidden', !show);
+    if (show) this.dailyBadge.textContent = `◆ ${cfg.name}`;
   }
 
   showDraft(cards: PerkDef[]): void {
@@ -534,6 +550,8 @@ export class UI {
   showGameOver(info: GameOverInfo): void {
     this.displayScore = 0;
     this.goScore.textContent = '0';
+    this.goHead.textContent = info.won ? 'VICTORY' : 'YOU FELL';
+    this.goHead.style.color = info.won ? 'var(--amber)' : 'var(--pink)';
     this.goBadge.classList.toggle('hidden', !info.newBest);
     this.goBadge.textContent = info.newBest ? '★ NEW BEST ★' : '';
     this.goStats.replaceChildren(
@@ -544,7 +562,7 @@ export class UI {
       stat(info.daily ? 'daily best' : 'high score', (info.daily ? info.dailyBest : info.highScore).toLocaleString()),
     );
     this.goBuild.replaceChildren(
-      el('span', { class: 'go-ship' }, info.ship),
+      el('span', { class: 'go-ship' }, `${info.mode} · ${info.ship}`),
       el('span', { class: 'go-perks' }, info.perks ? ` · ${info.perks}` : ' · no perks taken'),
     );
     this.show('gameover');

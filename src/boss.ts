@@ -20,13 +20,13 @@ export function beaconBeamActive(e: Enemy): boolean {
   return e.kind === 'beacon' && e.phase === 0 && e.subPhase === 1;
 }
 
-export function spawnBoss(world: World, count: number): Enemy | null {
+export function spawnBoss(world: World, count: number, force?: Enemy['kind']): Enemy | null {
   const e = world.enemies.obtain();
   if (!e) return null;
   const edge = world.edgeSpawn();
-  // cycle bosses: 1st Warden, 2nd Weaver, 3rd Beacon, then repeat
+  // cycle bosses: 1st Warden, 2nd Weaver, 3rd Beacon, then repeat (unless forced)
   const variant = (count - 1) % 3;
-  const kind = variant === 1 ? 'weaver' : variant === 2 ? 'beacon' : 'warden';
+  const kind = force ?? (variant === 1 ? 'weaver' : variant === 2 ? 'beacon' : 'warden');
   const def = kind === 'weaver' ? WEAVER : kind === 'beacon' ? BEACON : WARDEN;
   e.kind = kind;
   e.x = edge.x;

@@ -7,6 +7,8 @@ import { TUNE } from './tune';
 import { clamp, lerp } from './vec';
 import type { Rng } from './rng';
 import type { EnemyKind } from './types';
+import type { RunConfig } from './modes';
+import { MODES, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
 
 /** Intensity I(t): ramps 0→1 over rampSeconds, then keeps climbing, unbounded. */
 export function intensity(t: number): number {
@@ -74,65 +76,166 @@ export function enemyWeights(t: number, I: number): { v: EnemyKind; w: number }[
 export interface DirectorDecision {
   spawn: EnemyKind[];
   boss: boolean;
+  bossKind?: EnemyKind; // explicit boss for scripted modes (arena/bossrush)
   perk: boolean;
+  win: boolean; // run beaten (scripted modes only)
 }
+
+type ArenaPhase = 'entering' | 'spawning' | 'clearing' | 'bossfight' | 'done';
 
 export class Director {
   t = 0;
+  cfg: RunConfig = MODES[0];
   private spawnTimer = 0;
-  private nextBossAt: number;
-  private nextPerkAt: number;
+  private nextBossAt: number = TUNE.director.bossInterval;
+  private nextPerkAt: number = TUNE.director.perkFirst;
   bossCount = 0;
+  /** displayed wave number (1-based) */
+  wave = 1;
+  // scripted state
+  private waveIndex = 0;
+  private spawnedThisWave = 0;
+  private phase: ArenaPhase = 'entering';
+  private bossSpawned = false;
+  private seqIndex = 0;
+  private pendingBoss = false;
 
-  constructor() {
-    this.nextBossAt = TUNE.director.bossInterval;
-    this.nextPerkAt = TUNE.director.perkFirst;
+  configure(cfg: RunConfig): void {
+    this.cfg = cfg;
+    this.reset();
   }
 
   reset(): void {
     this.t = 0;
     this.spawnTimer = 0;
     this.bossCount = 0;
-    this.nextBossAt = TUNE.director.bossInterval;
+    this.wave = 1;
+    this.nextBossAt = this.cfg.bossInterval;
     this.nextPerkAt = TUNE.director.perkFirst;
+    this.waveIndex = 0;
+    this.spawnedThisWave = 0;
+    this.phase = 'entering';
+    this.bossSpawned = false;
+    this.seqIndex = 0;
+    this.pendingBoss = true; // bossrush spawns its first boss on the first update
   }
 
-  /** Advance the director. `concurrent` is the current live enemy count and
-   *  `bossAlive` suppresses normal spawns while a boss is on screen. */
   update(dt: number, concurrent: number, bossAlive: boolean, rng: Rng): DirectorDecision {
     this.t += dt;
-    const I = intensity(this.t);
-    const decision: DirectorDecision = { spawn: [], boss: false, perk: false };
+    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false };
+    if (this.cfg.arena) return this.updateArena(dt, concurrent, bossAlive, rng, decision);
+    if (this.cfg.bossrush) return this.updateBossRush(concurrent, bossAlive, decision);
+    return this.updateEndless(dt, concurrent, bossAlive, rng, decision);
+  }
 
-    // Mini-boss schedule — always leave a full interval AFTER the fight ends,
-    // even if the previous boss overran the schedule.
+  private updateEndless(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, d: DirectorDecision): DirectorDecision {
+    const I = intensity(this.t) * this.cfg.intensityMul;
+    this.wave = Math.floor(this.t / 30) + 1;
+
     if (this.t >= this.nextBossAt && !bossAlive) {
-      decision.boss = true;
+      d.boss = true;
       this.bossCount++;
-      this.nextBossAt = this.t + TUNE.director.bossInterval;
+      this.nextBossAt = this.t + this.cfg.bossInterval;
     }
-
-    // Perk draft schedule
-    if (this.t >= this.nextPerkAt) {
-      decision.perk = true;
+    if (this.cfg.perks && this.t >= this.nextPerkAt) {
+      d.perk = true;
       this.nextPerkAt += TUNE.director.perkInterval;
     }
-
-    // Normal spawns (paused during boss)
-    if (!bossAlive && !decision.boss) {
+    if (!bossAlive && !d.boss) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) {
-        this.spawnTimer = spawnInterval(I);
-        const cap = maxConcurrent(I);
-        const room = cap - concurrent;
+        this.spawnTimer = spawnInterval(I) * this.cfg.spawnMul;
+        const room = maxConcurrent(I) - concurrent;
         if (room > 0) {
           const n = Math.min(room, enemiesPerSpawn(I));
           const weights = enemyWeights(this.t, I);
-          for (let i = 0; i < n; i++) decision.spawn.push(rng.weighted(weights));
+          for (let i = 0; i < n; i++) d.spawn.push(rng.weighted(weights));
         }
       }
     }
+    return d;
+  }
 
-    return decision;
+  private updateArena(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, d: DirectorDecision): DirectorDecision {
+    if (this.phase === 'done') return d;
+    if (this.phase === 'entering') this.enterArenaWave(d);
+
+    if (this.phase === 'spawning') {
+      const wave = ARENA_SCRIPT[this.waveIndex];
+      if (wave.kind === 'wave') {
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0 && this.spawnedThisWave < wave.budget) {
+          this.spawnTimer = 0.7;
+          const cap = 14;
+          const room = Math.min(cap - concurrent, wave.budget - this.spawnedThisWave, 2);
+          for (let i = 0; i < room; i++) {
+            d.spawn.push(rng.pick(wave.enemies));
+            this.spawnedThisWave++;
+          }
+        }
+        if (this.spawnedThisWave >= wave.budget) this.phase = 'clearing';
+      }
+    } else if (this.phase === 'clearing') {
+      if (concurrent === 0) this.advanceArena(d);
+    } else if (this.phase === 'bossfight') {
+      if (this.bossSpawned && !bossAlive && concurrent === 0) this.advanceArena(d);
+    }
+    return d;
+  }
+
+  private enterArenaWave(d: DirectorDecision): void {
+    if (this.waveIndex >= ARENA_SCRIPT.length) {
+      this.phase = 'done';
+      d.win = true;
+      return;
+    }
+    this.wave = this.waveIndex + 1;
+    const wave = ARENA_SCRIPT[this.waveIndex];
+    if (wave.kind === 'boss') {
+      d.boss = true;
+      d.bossKind = wave.boss;
+      this.bossSpawned = true;
+      this.phase = 'bossfight';
+    } else {
+      this.spawnedThisWave = 0;
+      this.spawnTimer = 0;
+      this.bossSpawned = false;
+      this.phase = 'spawning';
+    }
+  }
+
+  private advanceArena(d: DirectorDecision): void {
+    const finished = ARENA_SCRIPT[this.waveIndex];
+    this.waveIndex++;
+    // perk draft after each boss and after waves 3/6/9 (0-based 2/5/8)
+    if (this.cfg.perks && (finished.kind === 'boss' || this.waveIndex === 3 || this.waveIndex === 6 || this.waveIndex === 9)) {
+      d.perk = true;
+    }
+    this.enterArenaWave(d);
+  }
+
+  private updateBossRush(concurrent: number, bossAlive: boolean, d: DirectorDecision): DirectorDecision {
+    if (this.phase === 'done') return d;
+    if (this.pendingBoss && !bossAlive) {
+      // (the perk draft, if any, already fired the previous update)
+      d.boss = true;
+      d.bossKind = BOSSRUSH_SEQUENCE[this.seqIndex];
+      this.pendingBoss = false;
+      this.bossSpawned = true;
+      this.wave = this.seqIndex + 1;
+      return d;
+    }
+    if (this.bossSpawned && !bossAlive && concurrent === 0) {
+      this.bossSpawned = false;
+      this.seqIndex++;
+      if (this.seqIndex >= BOSSRUSH_SEQUENCE.length) {
+        this.phase = 'done';
+        d.win = true;
+      } else {
+        if (this.cfg.perks) d.perk = true; // draft between bosses; boss spawns next update
+        this.pendingBoss = true;
+      }
+    }
+    return d;
   }
 }
