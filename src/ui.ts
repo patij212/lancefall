@@ -49,6 +49,7 @@ export interface GameOverInfo {
   deathCause: string;
   pbDelta: number;
   newAchievements: string[];
+  mutators: { name: string; accent: string }[];
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
@@ -91,6 +92,7 @@ export class UI {
   private scoreEl!: HTMLElement;
   private waveEl!: HTMLElement;
   private dailyBadge!: HTMLElement;
+  private mutatorRow!: HTMLElement;
   private dailyCaption!: HTMLElement;
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
@@ -164,7 +166,8 @@ export class UI {
     this.scoreEl = el('div', { class: 'hud-score' }, '0');
     this.waveEl = el('div', { class: 'hud-wave' }, 'WAVE 1');
     this.dailyBadge = el('div', { class: 'hud-daily hidden' }, '◆ DAILY');
-    const topLeft = el('div', { class: 'hud-topleft' }, this.scoreEl, this.waveEl, this.dailyBadge);
+    this.mutatorRow = el('div', { class: 'hud-mutators' });
+    const topLeft = el('div', { class: 'hud-topleft' }, this.scoreEl, this.waveEl, this.dailyBadge, this.mutatorRow);
 
     this.comboEl = el('div', { class: 'hud-combo' }, '');
     this.comboBar = el('div', { class: 'hud-combo-fill' });
@@ -581,6 +584,16 @@ export class UI {
     if (show) this.dailyBadge.textContent = `◆ ${cfg.name}`;
   }
 
+  /** Show the active run mutators as a small coloured badge row under the mode badge. */
+  setMutators(muts: { name: string; accent: string }[]): void {
+    this.mutatorRow.replaceChildren();
+    for (const m of muts) {
+      const b = el('span', { class: 'hud-mutator' }, m.name);
+      b.style.setProperty('--accent', m.accent);
+      this.mutatorRow.append(b);
+    }
+  }
+
   showDraft(cards: DraftCard[]): void {
     const wrap = this.draft.querySelector('#draft-cards')!;
     wrap.replaceChildren();
@@ -620,8 +633,13 @@ export class UI {
     } else {
       this.goDelta.textContent = '';
     }
-    // newly-unlocked achievement chips
+    // newly-unlocked achievement chips + active-mutator chips
     this.goAch.replaceChildren();
+    for (const m of info.mutators) {
+      const chip = el('span', { class: 'ach-chip mut-chip' }, `⚡ ${m.name}`);
+      chip.style.setProperty('--accent', m.accent);
+      this.goAch.append(chip);
+    }
     for (const name of info.newAchievements) {
       this.goAch.append(el('span', { class: 'ach-chip' }, `🏆 ${name}`));
     }

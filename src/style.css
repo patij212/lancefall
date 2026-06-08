@@ -627,6 +627,31 @@ body {
   .howto-rule { grid-template-columns: 90px 1fr; }
 }
 
+/* ── Run mutators (HUD badges + debrief chips) ── */
+.hud-mutators {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.hud-mutator {
+  --accent: var(--cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.mut-chip {
+  --accent: var(--cyan);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent) !important;
+  background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+}
+
 /* ── Settings ── */
 .settings-body {
   display: grid;

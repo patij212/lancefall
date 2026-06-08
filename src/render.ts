@@ -893,6 +893,18 @@ export class Renderer {
     sctx.fillStyle = grad;
     sctx.fillRect(0, 0, W, H);
 
+    // fog of war (mutator): darken everything beyond a radius around the player
+    if (world.stats.fogRadius > 0 && world.player.alive) {
+      const fr = world.stats.fogRadius * this.dpr;
+      const px = world.player.x * this.dpr;
+      const py = world.player.y * this.dpr;
+      const fg = sctx.createRadialGradient(px, py, fr * 0.45, px, py, fr);
+      fg.addColorStop(0, 'rgba(5,6,12,0)');
+      fg.addColorStop(1, 'rgba(5,6,12,0.94)');
+      sctx.fillStyle = fg;
+      sctx.fillRect(0, 0, W, H);
+    }
+
     // combo "heat" — a colored edge glow that swells as the chain climbs. Edges
     // only (inner 0.5 radius is clear) so bullet readability is never touched.
     if (!opts.reduceFlashing && world.combo >= 10) {

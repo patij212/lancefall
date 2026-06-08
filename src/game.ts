@@ -31,6 +31,8 @@ import { createRng, seedFromDate } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES } from './modes';
 import type { RunConfig } from './modes';
+import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
+import type { MutatorId } from './mutators';
 import { BIOMES, biomeAt } from './biomes';
 import {
   loadSave,
@@ -91,6 +93,8 @@ export class Game {
   private pendingDraft = false;
   private draftCards: DraftCard[] = [];
   private announcedEvos = new Set<EvolutionId>(); // evolutions we've already flagged as ready
+  private activeMutators: MutatorId[] = []; // run mutators in effect this run
+  private eliteMods = { chanceMul: 1, maxAdd: 0 }; // champion-spawn mods from mutators
   private intensityTimer = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
@@ -171,6 +175,11 @@ export class Game {
     this.world.rng = createRng(this.seed);
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
+    // run mutators — the Daily picks a deterministic set from the date seed
+    this.activeMutators = cfg.id === 'daily' ? pickDailyMutators(this.seed) : [];
+    this.world.mutatorApply = buildMutatorApply(this.activeMutators);
+    this.eliteMods = mutatorElite(this.activeMutators);
+    const effCfg = applyMutatorConfig(cfg, this.activeMutators);
     this.world.reset(window.innerWidth, window.innerHeight);
     // head-start perks (Head Start meta node) — use a SEPARATE rng so they don't
     // consume the seeded world.rng (keeps Daily runs identical regardless of meta)
@@ -187,7 +196,7 @@ export class Game {
     this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
     this.world.reviveLeft = this.world.stats.reviveTokens;
     this.applySettings(this.settings);
-    this.director.configure(cfg);
+    this.director.configure(effCfg);
     this.winning = false;
     this.biomeIndex = -1;
     this.setBiome(0, false); // first biome, no banner at run start
@@ -208,6 +217,7 @@ export class Game {
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
+    this.ui.setMutators(this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })));
     this.audio.startDrone();
     this.audio.duckMusic(false);
 
@@ -988,6 +998,7 @@ export class Game {
         this.save.dailyBest = 0;
       }
       this.save.dailyBest = Math.max(this.save.dailyBest, w.score);
+      this.save.dailyMutators = this.activeMutators.slice();
     }
     saveSave(this.save);
     const info: GameOverInfo = {
@@ -1007,6 +1018,7 @@ export class Game {
       deathCause: won ? '' : this.deathCause,
       pbDelta: w.score - prevHigh,
       newAchievements: newAch.map((a) => a.name),
+      mutators: this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })),
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
@@ -1023,7 +1035,8 @@ export class Game {
     // count current champions once so we never exceed the concurrency cap
     let eliteCount = 0;
     w.enemies.forEachActive((e) => { if (e.elite) eliteCount++; });
-    const eChance = eliteChance(w.time);
+    const eChance = eliteChance(w.time) * this.eliteMods.chanceMul;
+    const eliteMax = ELITE.maxConcurrent + this.eliteMods.maxAdd;
     for (const kind of spawn) {
       const pt = w.edgeSpawn();
       if (kind === 'wisp') {
@@ -1035,7 +1048,7 @@ export class Game {
         }
       } else {
         const isShield = w.rng.next() < shield;
-        const makeElite = eliteCount < ELITE.maxConcurrent && ELITE_KINDS.has(kind) && w.rng.next() < eChance;
+        const makeElite = eliteCount < eliteMax && ELITE_KINDS.has(kind) && w.rng.next() < eChance;
         const e = w.spawnEnemy(kind, pt.x, pt.y, sMul, bMul, isShield, makeElite);
         if (makeElite && e) {
           eliteCount++;

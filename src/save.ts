@@ -37,6 +37,8 @@ export interface SaveData {
   achievements: string[];
   /** permanent meta-upgrade levels (node id → level) */
   meta: Record<string, number>;
+  /** mutator ids active on the most recently played Daily (for title/debrief display) */
+  dailyMutators: string[];
 }
 
 export interface Settings {
@@ -79,6 +81,7 @@ export function defaultSave(): SaveData {
     lifeShards: 0,
     achievements: [],
     meta: {},
+    dailyMutators: [],
   };
 }
 
