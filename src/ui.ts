@@ -44,6 +44,9 @@ export interface GameOverInfo {
   perks: string;
   won: boolean;
   mode: string;
+  deathCause: string;
+  pbDelta: number;
+  newAchievements: string[];
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
@@ -106,6 +109,9 @@ export class UI {
   private goBadge!: HTMLElement;
   private goBuild!: HTMLElement;
   private goHead!: HTMLElement;
+  private goSub!: HTMLElement;
+  private goDelta!: HTMLElement;
+  private goAch!: HTMLElement;
 
   private displayScore = 0;
   private pauseRestartArmed = false;
@@ -270,10 +276,13 @@ export class UI {
 
   private buildGameOver(): void {
     this.goHead = el('h2', { class: 'go-head' }, 'YOU FELL');
+    this.goSub = el('div', { class: 'go-sub' }, '');
     this.goBadge = el('div', { class: 'go-badge' }, '');
     this.goScore = el('div', { class: 'go-score' }, '0');
+    this.goDelta = el('div', { class: 'go-delta' }, '');
     this.goStats = el('div', { class: 'go-stats' }, '');
     this.goBuild = el('div', { class: 'go-build' }, '');
+    this.goAch = el('div', { class: 'go-ach' }, '');
     const again = el('button', { class: 'btn btn-primary' }, 'AGAIN');
     again.addEventListener('click', () => this.cb.onRestart());
     const copy = el('button', { class: 'btn btn-ghost' }, 'COPY SCORE');
@@ -281,7 +290,7 @@ export class UI {
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
     const row = el('div', { class: 'go-row' }, again, copy, menu);
-    const panel = el('div', { class: 'panel' }, this.goHead, this.goBadge, this.goScore, this.goStats, this.goBuild, row);
+    const panel = el('div', { class: 'panel' }, this.goHead, this.goSub, this.goBadge, this.goScore, this.goDelta, this.goStats, this.goBuild, this.goAch, row);
     this.gameover = el('div', { class: 'screen screen-dim' }, panel);
   }
 
@@ -552,8 +561,24 @@ export class UI {
     this.goScore.textContent = '0';
     this.goHead.textContent = info.won ? 'VICTORY' : 'YOU FELL';
     this.goHead.style.color = info.won ? 'var(--amber)' : 'var(--pink)';
+    this.goSub.textContent = info.won ? 'you cleared the gauntlet' : `felled by ${info.deathCause}`;
     this.goBadge.classList.toggle('hidden', !info.newBest);
     this.goBadge.textContent = info.newBest ? '★ NEW BEST ★' : '';
+    // personal-best delta vs your previous high
+    if (info.newBest && info.pbDelta > 0) {
+      this.goDelta.textContent = `+${info.pbDelta.toLocaleString()} over your best!`;
+      this.goDelta.style.color = 'var(--green)';
+    } else if (info.pbDelta < 0) {
+      this.goDelta.textContent = `${info.pbDelta.toLocaleString()} from your best`;
+      this.goDelta.style.color = 'var(--text-muted)';
+    } else {
+      this.goDelta.textContent = '';
+    }
+    // newly-unlocked achievement chips
+    this.goAch.replaceChildren();
+    for (const name of info.newAchievements) {
+      this.goAch.append(el('span', { class: 'ach-chip' }, `🏆 ${name}`));
+    }
     this.goStats.replaceChildren(
       stat('best combo', `x${info.combo}`),
       stat('wave', String(info.wave)),

@@ -75,6 +75,7 @@ export class Game {
   private biomeIndex = -1;
   private biomeSpeedMul = 1;
   private biomeShield = 0;
+  private deathCause = 'a bullet';
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -723,7 +724,7 @@ export class Game {
       const d2 = dx * dx + dy * dy;
       // hit
       if (p.iframe <= 0 && d2 <= (hitR + b.radius) * (hitR + b.radius)) {
-        this.playerDie();
+        this.playerDie(b.fromBoss ? 'a boss bullet' : 'a bullet');
         return;
       }
       // graze (approaching only)
@@ -804,12 +805,12 @@ export class Game {
     for (const e of this.candidates) {
       if (!e.active) continue;
       if (circleHit(p.x, p.y, p.radius, e.x, e.y, e.radius * 0.72)) {
-        this.playerDie();
+        this.playerDie('a collision');
         return;
       }
     }
     if (w.bossAlive && w.boss && circleHit(p.x, p.y, p.radius, w.boss.x, w.boss.y, w.boss.radius * 0.85)) {
-      this.playerDie();
+      this.playerDie('the boss');
       return;
     }
     // Beacon sweep beam: die if within the active beam (a diameter line through
@@ -819,14 +820,15 @@ export class Game {
       const dx = p.x - w.boss.x;
       const dy = p.y - w.boss.y;
       const perp = Math.abs(dx * -Math.sin(w.boss.angle) + dy * Math.cos(w.boss.angle));
-      if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie();
+      if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie('the beam');
     }
   }
 
-  private playerDie(): void {
+  private playerDie(cause = 'a bullet'): void {
     const w = this.world;
     const p = w.player;
     if (!p.alive) return;
+    this.deathCause = cause;
     // Second Chance meta: revive once, clear the screen, brief invuln
     if (w.reviveLeft > 0) {
       w.reviveLeft--;
@@ -866,6 +868,7 @@ export class Game {
     this.winning = false;
     this.audio.stopDrone();
     const wave = this.director.wave;
+    const prevHigh = this.save.highScore;
     const newBest = w.score > this.save.highScore;
     this.save.highScore = Math.max(this.save.highScore, w.score);
     this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
@@ -892,10 +895,7 @@ export class Game {
       lifeBoss: this.save.lifeBoss,
       lifeShards: this.save.lifeShards,
     });
-    for (const a of newAch) {
-      this.save.achievements.push(a.id);
-      this.ui.toast(`🏆 ${a.name} — ${a.desc}`);
-    }
+    for (const a of newAch) this.save.achievements.push(a.id);
     if (this.mode.id === 'daily') {
       const seed = seedFromDate();
       if (this.save.dailySeed !== seed) {
@@ -919,6 +919,9 @@ export class Game {
       dailyBest: this.save.dailyBest,
       ship: shipById(this.save.selectedShip).name,
       perks: describeStacks(w.stacks),
+      deathCause: won ? '' : this.deathCause,
+      pbDelta: w.score - prevHigh,
+      newAchievements: newAch.map((a) => a.name),
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);

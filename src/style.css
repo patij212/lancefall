@@ -354,6 +354,33 @@ body {
 .go-head {
   color: var(--pink);
 }
+.go-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-top: -4px;
+}
+.go-delta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  margin-top: -2px;
+}
+.go-ach {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  max-width: 380px;
+  margin: 2px 0 4px;
+}
+.ach-chip {
+  font-size: 11px;
+  color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--border));
+  border-radius: 999px;
+  padding: 2px 10px;
+  animation: badgePop 0.4s ease;
+}
 .go-score {
   font-family: 'JetBrains Mono', monospace;
   font-size: 52px;
