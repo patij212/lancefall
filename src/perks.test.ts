@@ -42,6 +42,25 @@ describe('deriveStats', () => {
     expect(s.timeThiefExtra).toBeGreaterThan(0);
     expect(s.timeThiefStamina).toBe(40);
   });
+
+  it('Heavy Lance increases dash damage', () => {
+    expect(deriveStats({}).dashDamage).toBe(1);
+    expect(deriveStats({ pierce: 2 }).dashDamage).toBe(3);
+  });
+
+  it('Siphon refunds stamina per kill', () => {
+    expect(deriveStats({ siphon: 2 }).killStaminaRefund).toBe(40);
+  });
+
+  it('Slipstream extends the combo window', () => {
+    expect(deriveStats({ slipstream: 1 }).comboWindowBonus).toBeCloseTo(0.6);
+  });
+
+  it('Nova Dash enables a launch shockwave that grows per stack', () => {
+    expect(deriveStats({}).dashNovaRadius).toBe(0);
+    expect(deriveStats({ nova: 1 }).dashNovaRadius).toBe(90);
+    expect(deriveStats({ nova: 2 }).dashNovaRadius).toBe(120);
+  });
 });
 
 describe('applyPerk', () => {

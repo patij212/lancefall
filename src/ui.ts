@@ -483,6 +483,10 @@ function perkGlyph(g: PerkDef['glyph']): string {
     burst: '✺',
     ghost: '◈',
     clock: '◷',
+    pierce: '⫸',
+    siphon: '♺',
+    window: '⧗',
+    nova: '✸',
     gem: '◆',
   };
   return map[g];

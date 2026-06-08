@@ -334,6 +334,10 @@ export class Game {
     if (dashing || w.ghostTimer > 0) w.hash.rebuild(w.enemies.items);
     if (dashing) {
       w.particles.trail(w.player.x, w.player.y, 5, comboColor(w.combo));
+      // Nova Dash: detonate a shockwave at the launch point
+      if (this.ev.dashFired && w.stats.dashNovaRadius > 0) {
+        this.chainExplode(w.player.dashFromX, w.player.dashFromY, w.stats.dashNovaRadius, 1);
+      }
       this.resolveDashHits();
     }
     if (w.ghostTimer > 0) {
@@ -435,7 +439,7 @@ export class Game {
       if (!e.active || e.lastDashId === p.dashId) continue;
       if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
         e.lastDashId = p.dashId;
-        this.damageEnemy(e, 1, true);
+        this.damageEnemy(e, w.stats.dashDamage, true);
       }
     }
     // trigger slow-mo once per dash on big chains
@@ -464,7 +468,7 @@ export class Game {
       if (!e.active || e.lastDashId === w.ghostDashId) continue;
       if (segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, e.x, e.y, e.radius, r)) {
         e.lastDashId = w.ghostDashId;
-        this.damageEnemy(e, 1, true);
+        this.damageEnemy(e, w.stats.dashDamage, true);
       }
     }
   }
@@ -494,8 +498,14 @@ export class Game {
 
     const rk = registerKill(w.combo);
     w.combo = rk.combo;
-    w.comboTimer = rk.timer;
+    w.comboTimer = rk.timer + w.stats.comboWindowBonus; // Slipstream extends the window
     if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
+
+    // Siphon: dash-kills refund stamina
+    if (fromDash && w.stats.killStaminaRefund > 0) {
+      const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
+      w.player.stamina = Math.min(max, w.player.stamina + w.stats.killStaminaRefund);
+    }
 
     const gained = scoreForKill(e.baseScore, w.combo, Math.max(0, w.player.killsThisDash - 1));
     w.score += gained;

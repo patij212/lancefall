@@ -13,7 +13,24 @@ export type PerkId =
   | 'chain'
   | 'afterimage'
   | 'timethief'
+  | 'pierce'
+  | 'siphon'
+  | 'slipstream'
+  | 'nova'
   | 'shardcache';
+
+export type PerkGlyph =
+  | 'lance'
+  | 'cell'
+  | 'graze'
+  | 'burst'
+  | 'ghost'
+  | 'clock'
+  | 'pierce'
+  | 'siphon'
+  | 'window'
+  | 'nova'
+  | 'gem';
 
 export interface PerkDef {
   id: PerkId;
@@ -21,7 +38,7 @@ export interface PerkDef {
   desc: string;
   accent: string;
   /** simple shape keyword for the card glyph */
-  glyph: 'lance' | 'cell' | 'graze' | 'burst' | 'ghost' | 'clock' | 'gem';
+  glyph: PerkGlyph;
   maxStacks: number;
 }
 
@@ -74,6 +91,38 @@ export const PERKS: Record<PerkId, PerkDef> = {
     glyph: 'clock',
     maxStacks: 2,
   },
+  pierce: {
+    id: 'pierce',
+    name: 'Heavy Lance',
+    desc: 'Your dash deals +1 damage — punch through tanky enemies in one pass.',
+    accent: '#f97316',
+    glyph: 'pierce',
+    maxStacks: 2,
+  },
+  siphon: {
+    id: 'siphon',
+    name: 'Siphon',
+    desc: 'Every dash-kill refunds stamina — chain forever.',
+    accent: '#10b981',
+    glyph: 'siphon',
+    maxStacks: 2,
+  },
+  slipstream: {
+    id: 'slipstream',
+    name: 'Slipstream',
+    desc: 'Your combo lingers longer before it decays.',
+    accent: '#38bdf8',
+    glyph: 'window',
+    maxStacks: 2,
+  },
+  nova: {
+    id: 'nova',
+    name: 'Nova Dash',
+    desc: 'Launching a dash detonates a shockwave around you.',
+    accent: '#facc15',
+    glyph: 'nova',
+    maxStacks: 2,
+  },
   shardcache: {
     id: 'shardcache',
     name: 'Shard Cache',
@@ -105,6 +154,9 @@ export interface RunStats {
   afterimageSec: number; // 0 = none
   timeThiefExtra: number; // extra slow-mo seconds on big chains
   timeThiefStamina: number; // instant stamina on big chains
+  dashDamage: number; // damage per dash-spear hit (base 1)
+  comboWindowBonus: number; // extra seconds on the combo decay window
+  dashNovaRadius: number; // 0 = no nova; shockwave radius on dash launch
 }
 
 /** Derive the full run stat block from base TUNE + ship profile + perk stacks.
@@ -129,6 +181,9 @@ export function deriveStats(stacks: PerkStacks, shipApply?: (s: RunStats) => voi
     afterimageSec: 0,
     timeThiefExtra: 0,
     timeThiefStamina: 0,
+    dashDamage: 1,
+    comboWindowBonus: 0,
+    dashNovaRadius: 0,
   };
 
   if (shipApply) shipApply(s);
@@ -163,6 +218,13 @@ export function deriveStats(stacks: PerkStacks, shipApply?: (s: RunStats) => voi
     s.timeThiefExtra = 0.08 + 0.04 * (tt - 1);
     s.timeThiefStamina = 40;
   }
+
+  s.dashDamage += stacks.pierce ?? 0;
+  s.killStaminaRefund += 20 * (stacks.siphon ?? 0);
+  s.comboWindowBonus += 0.6 * (stacks.slipstream ?? 0);
+
+  const nv = stacks.nova ?? 0;
+  if (nv > 0) s.dashNovaRadius = 90 + 30 * (nv - 1);
 
   return s;
 }
