@@ -16,7 +16,8 @@ export type EnemyKind =
   | 'wisp'
   | 'warden'
   | 'weaver'
-  | 'beacon';
+  | 'beacon'
+  | 'mirrorblade';
 
 /** Player charge/dash state machine. */
 export type DashPhase = 'idle' | 'charging' | 'dashing';

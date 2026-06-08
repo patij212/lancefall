@@ -76,4 +76,4 @@ export const ARENA_SCRIPT: ArenaWave[] = [
   { kind: 'boss', boss: 'beacon' },
 ];
 
-export const BOSSRUSH_SEQUENCE: EnemyKind[] = ['warden', 'weaver', 'beacon'];
+export const BOSSRUSH_SEQUENCE: EnemyKind[] = ['warden', 'weaver', 'beacon', 'mirrorblade'];

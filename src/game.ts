@@ -939,7 +939,7 @@ export class Game {
     this.audio.bossWarn();
     this.audio.bossMusic(true);
     this.shake.add(TUNE.juice.traumaBossSpawn);
-    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : '#ff3b6b';
+    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : '#ff3b6b';
     this.renderer.flash(col, 0.3);
     this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
   }

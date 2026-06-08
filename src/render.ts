@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON } from './tune';
+import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE } from './tune';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
@@ -389,6 +389,9 @@ export class Renderer {
       case 'beacon':
         this.drawBeacon(ctx, e, r);
         break;
+      case 'mirrorblade':
+        this.drawMirrorblade(ctx, e, r);
+        break;
     }
 
     // shield arc
@@ -506,6 +509,57 @@ export class Renderer {
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  private drawMirrorblade(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    // wind-up aim line — the lunge tell
+    if (e.phase === 0 && e.telegraph > 0) {
+      ctx.save();
+      ctx.rotate(e.angle);
+      ctx.strokeStyle = `rgba(255,80,80,${0.2 + 0.5 * e.telegraph})`;
+      ctx.lineWidth = 2 + 3 * e.telegraph;
+      ctx.setLineDash([12, 9]);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(MIRRORBLADE.dashLen, 0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    // dash trail
+    if (e.phase === 1) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = '#ff5b5b';
+      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = r * 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-Math.cos(e.angle) * 70, -Math.sin(e.angle) * 70);
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // hostile mirror-ship body (red echo of the player), pointing along its lunge
+    ctx.save();
+    ctx.rotate(e.angle);
+    ctx.fillStyle = e.phase === 2 ? '#ffd0d0' : '#2a0a0a'; // brightens when vulnerable
+    ctx.strokeStyle = '#ff5b5b';
+    ctx.lineWidth = 3;
+    poly(ctx, [
+      [r * 1.4, 0],
+      [-r * 0.8, r * 0.8],
+      [-r * 0.4, 0],
+      [-r * 0.8, -r * 0.8],
+    ]);
+    ctx.restore();
+    // hp ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
     ctx.stroke();
   }
 

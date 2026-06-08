@@ -223,6 +223,25 @@ export const WEAVER = {
   ringBulletSpeed: 165,
 } as const;
 
+// Fourth boss: the MIRRORBLADE — a dash-duelist that lunges like the player.
+export const MIRRORBLADE = {
+  baseHp: 14,
+  hpPerInterval: 4,
+  radius: 22,
+  color: '#ef4444',
+  driftSpeed: 70,
+  windup: 0.7, // telegraph before a lunge (aim line shows)
+  dashSpeed: 980, // < radius+playerR per frame so it can't tunnel at 60fps
+  dashLen: 520,
+  recover: 0.9, // vulnerable pause after a lunge
+  fanBullets: 3,
+  fanSpread: 0.3,
+  fanBulletSpeed: 230,
+  // enrage (HP < 50%)
+  windupFast: 0.45,
+  recoverFast: 0.6,
+} as const;
+
 // Third boss: the BEACON — a rotating laser-sweep boss. The beam is a diameter
 // line through the boss that telegraphs, then fires; you dash through the safe
 // arcs (i-frames phase you through it).
