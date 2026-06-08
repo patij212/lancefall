@@ -182,6 +182,26 @@ export const WARDEN = {
   rearMultiplier: 3,
 } as const;
 
+// Second boss: the WEAVER — a pinwheel/ring boss, distinct from the Warden.
+export const WEAVER = {
+  baseHp: 12,
+  hpPerInterval: 4,
+  radius: 42,
+  moveSpeed: 70,
+  phaseDuration: 6,
+  color: '#a855f7',
+  // Phase A: rotating 4-arm pinwheel
+  armCount: 4,
+  pinwheelEvery: 0.12,
+  pinwheelSpin: 1.2, // rad/s the arms rotate
+  pinwheelBulletSpeed: 190,
+  // Phase B: pulse rings with a moving safe-gap
+  ringEvery: 1.3,
+  ringBullets: 26,
+  ringGap: 3, // consecutive omitted bullets = the safe lane
+  ringBulletSpeed: 165,
+} as const;
+
 // Combo color ramp stops (by combo count)
 export const COMBO_COLORS: { at: number; color: string }[] = [
   { at: 0, color: '#22d3ee' },

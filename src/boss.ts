@@ -3,25 +3,33 @@
 // bursts with a rest window that is your damage opening. HP scales each
 // appearance. Takes 1 "dash-hit" per dash (one-hit-per-dashId enforced upstream).
 
-import { WARDEN } from './tune';
+import { WARDEN, WEAVER } from './tune';
 import { norm } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
+
+/** Human-readable boss name for the incoming-warning toast. */
+export function bossName(kind: Enemy['kind']): string {
+  return kind === 'weaver' ? 'THE WEAVER' : 'THE WARDEN';
+}
 
 export function spawnBoss(world: World, count: number): Enemy | null {
   const e = world.enemies.obtain();
   if (!e) return null;
   const edge = world.edgeSpawn();
-  e.kind = 'warden';
+  // alternate bosses: 1st Warden, 2nd Weaver, 3rd Warden, ...
+  const weaver = (count - 1) % 2 === 1;
+  const def = weaver ? WEAVER : WARDEN;
+  e.kind = weaver ? 'weaver' : 'warden';
   e.x = edge.x;
   e.y = edge.y;
   e.vx = 0;
   e.vy = 0;
-  e.hp = e.maxHp = WARDEN.baseHp + count * WARDEN.hpPerInterval;
-  e.radius = WARDEN.radius;
-  e.color = '#ff3b6b';
+  e.hp = e.maxHp = def.baseHp + count * def.hpPerInterval;
+  e.radius = def.radius;
+  e.color = weaver ? WEAVER.color : '#ff3b6b';
   e.baseScore = 0;
-  e.timer = WARDEN.phaseDuration;
+  e.timer = def.phaseDuration;
   e.phase = 0;
   e.telegraph = 0;
   e.angle = 0;
@@ -43,6 +51,11 @@ export function spawnBoss(world: World, count: number): Enemy | null {
 }
 
 export function updateBoss(e: Enemy, world: World, dt: number): void {
+  if (e.kind === 'weaver') updateWeaver(e, world, dt);
+  else updateWarden(e, world, dt);
+}
+
+function updateWarden(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
   if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
@@ -105,4 +118,60 @@ export function updateBoss(e: Enemy, world: World, dt: number): void {
 
   // color shifts toward white as HP drops
   e.telegraph = 1 - hpFrac;
+}
+
+function updateWeaver(e: Enemy, world: World, dt: number): void {
+  e.spawnTime += dt;
+  if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
+  if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+
+  // slow drift near arena center
+  const cx = world.width / 2;
+  const cy = world.height / 2;
+  const tx = cx + Math.cos(e.spawnTime * 0.4) * world.width * 0.16;
+  const ty = cy + Math.sin(e.spawnTime * 0.55) * world.height * 0.16;
+  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  e.vx = nx * WEAVER.moveSpeed;
+  e.vy = ny * WEAVER.moveSpeed;
+  e.x += e.vx * dt;
+  e.y += e.vy * dt;
+
+  e.timer -= dt;
+  if (e.timer <= 0) {
+    e.phase = (e.phase + 1) % 2;
+    e.timer = WEAVER.phaseDuration;
+    e.fireTimer = 0;
+    e.subPhase = 0;
+  }
+
+  const hpFrac = e.hp / e.maxHp;
+  e.telegraph = 1 - hpFrac;
+  const rate = hpFrac < 0.34 ? 0.8 : 1;
+
+  e.fireTimer -= dt;
+  if (e.phase === 0) {
+    // PINWHEEL: rotating arms
+    while (e.fireTimer <= 0) {
+      e.angle += WEAVER.pinwheelSpin * WEAVER.pinwheelEvery;
+      const sp = WEAVER.pinwheelBulletSpeed;
+      for (let i = 0; i < WEAVER.armCount; i++) {
+        const a = e.angle + (i / WEAVER.armCount) * Math.PI * 2;
+        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#c084fc', true);
+      }
+      e.fireTimer += WEAVER.pinwheelEvery * rate;
+    }
+  } else {
+    // PULSE RINGS with a randomly-placed safe lane to dash through
+    if (e.fireTimer <= 0) {
+      const n = WEAVER.ringBullets;
+      const gapStart = Math.floor(world.rng.next() * n);
+      const sp = WEAVER.ringBulletSpeed;
+      for (let i = 0; i < n; i++) {
+        if ((i - gapStart + n) % n < WEAVER.ringGap) continue; // safe lane
+        const a = (i / n) * Math.PI * 2;
+        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#d8b4fe', true);
+      }
+      e.fireTimer = WEAVER.ringEvery * rate;
+    }
+  }
 }

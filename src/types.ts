@@ -5,7 +5,7 @@ export interface Vec2 {
   y: number;
 }
 
-export type EnemyKind = 'darter' | 'orbiter' | 'splitter' | 'mini' | 'bloomer' | 'warden';
+export type EnemyKind = 'darter' | 'orbiter' | 'splitter' | 'mini' | 'bloomer' | 'warden' | 'weaver';
 
 /** Player charge/dash state machine. */
 export type DashPhase = 'idle' | 'charging' | 'dashing';

@@ -65,6 +65,7 @@ export function enemyWeights(t: number, I: number): { v: EnemyKind; w: number }[
     bloomer: 0.35 + 0.5 * clamp(I, 0, 1),
     mini: 0,
     warden: 0,
+    weaver: 0,
   };
   return unlocked.map((k) => ({ v: k, w: base[k] }));
 }

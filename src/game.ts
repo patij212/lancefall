@@ -17,7 +17,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, shieldChance } from './waves'
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss } from './boss';
+import { spawnBoss, updateBoss, bossName } from './boss';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk } from './perks';
@@ -743,10 +743,10 @@ export class Game {
 
   private spawnWarden(): void {
     const w = this.world;
-    spawnBoss(w, this.director.bossCount);
+    const boss = spawnBoss(w, this.director.bossCount);
     this.audio.bossWarn();
     this.shake.add(TUNE.juice.traumaBossSpawn);
-    this.ui.toast('⚠ THE WARDEN APPROACHES');
+    this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
   }
 
   private updateCamera(realDt: number): void {
