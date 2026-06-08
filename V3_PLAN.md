@@ -1,5 +1,16 @@
 # LANCEFALL v3 — execution plan (multi-agent design → sequential build)
 
+> **RESUME POINTER:** Phases 0, 1, 2 are DONE and committed (134 tests green).
+> Next: **Phase 3** (Heat/Ghost/Archetypes/Relics/DNA). Phase-0 hooks ready to build on:
+> `deriveStats` has a `postApply` capstone slot; `World.postApply` + `World.boons[]`
+> compose into it (relics/heat go through `postApply`); `RunStats` has `dashCostMul`.
+> Draft chassis to extend for relics: `evolutions.ts` DraftCard union + `isEvolution`
+> guard (add `isRelic`), `rollDraftCards`, `ui.showDraft`, `game.pickPerk`. Use overlay
+> panels (no new State) for archetype/heat/DNA — only the 'event' State was added (Phase 2).
+> Full BP4 (polish) + BP5 (wildcard) blueprints: re-read via the workflow output file if needed
+> (task w3clu6gv7 output, or re-run a design agent). Reset save key is now `lancefall.save` (v2).
+
+
 Derived from a 5-architect design workflow + tech-lead synthesis. The five shared
 surfaces — `save.ts`, `perks.ts`/`deriveStats`, `render.ts`, `game.ts`, the draft
 chassis (`evolutions.ts` DraftCard + `ui.ts` showDraft + `game.ts` pickPerk) — are
@@ -21,12 +32,12 @@ in-browser) and committed.
 - [x] 0.2 Stat pipeline: add `postApply?` 5th param to `deriveStats` (runs last, after evo); add RunStats fields `fogRadius:0`, `dashCostMul:1`; `World` gains `mutatorApply` + `postApply` no-op fields and composes meta+mutator (before ship) and relics+heat (postApply, after evo). Canonical order: base→meta→mutator→ship→perks→evo→relics→heat.
 - RenderOpts extensions (ghostPlayer?, caPerCombo?, realDt): added per-feature when the consumer lands (single builder = no collision risk).
 
-## Phase 1 — Content (Direction 2): The Hollow + Drifter + Shade  [most additive]
+## Phase 1 — Content (Direction 2): The Hollow + Drifter + Shade  [DONE ✓ — 1a Drifter+Shade, 1b The Hollow, 1c Arena-13/BossRush-5]
 - 5th boss **THE HOLLOW**: clone-sync; Phase 2 damage window = dash through the boss during its white flash (i-frame dash only). EnemyKinds: `hollow`, `hollow_echo`. New `boss_hollow.ts`. Add to BOSS_CYCLE, bossrush (→5), arena (→15-wave gauntlet).
 - New enemies **Drifter** + **Shade** (arc-via-speed-differential, no Bullet struct change). Add to EnemyKind union, ENEMY_DEFS, unlockedKinds, enemyWeights (Record!), ELITE_KINDS (as appropriate), enemies.ts AI switch, render drawEnemy switch.
 - Refactor `isBossLethal(boss)` into boss.ts (extract from game.ts:888).
 
-## Phase 2 — Variety (Direction 1): mutators + mid-run events  [first big bet]
+## Phase 2 — Variety (Direction 1): mutators + mid-run events  [DONE ✓ — 2a mutators (Daily), 2b events]
 - `mutators.ts` (6: doubleChampions, glassCannon, bulletStorm, fogOfWar, suddenDeath, eliteHunt) + `events.ts` (5: shrine, gamble, eliteWave, treasure, cursedBargain) + tests. Pure first.
 - Daily picks mutators from `seedFromDate()` via a SEPARATE rng; weekly = floor(date/7).
 - `DirectorDecision.event`; new `'event'` State (the ONLY new State value) + handleMeta branch + ui 'event' ScreenId + event panel (draft chassis) + HUD mutator badges + fog-of-war render read.
