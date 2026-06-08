@@ -17,6 +17,7 @@ export type PerkId =
   | 'siphon'
   | 'slipstream'
   | 'nova'
+  | 'reflect'
   | 'shardcache';
 
 export type PerkGlyph =
@@ -30,6 +31,7 @@ export type PerkGlyph =
   | 'siphon'
   | 'window'
   | 'nova'
+  | 'reflect'
   | 'gem'
   // evolution glyphs
   | 'impaler'
@@ -130,6 +132,14 @@ export const PERKS: Record<PerkId, PerkDef> = {
     glyph: 'nova',
     maxStacks: 2,
   },
+  reflect: {
+    id: 'reflect',
+    name: 'Riposte',
+    desc: 'Your dash shatters enemy bullets in its path (boss shots excepted).',
+    accent: '#60a5fa',
+    glyph: 'reflect',
+    maxStacks: 2,
+  },
   shardcache: {
     id: 'shardcache',
     name: 'Shard Cache',
@@ -164,6 +174,7 @@ export interface RunStats {
   dashDamage: number; // damage per dash-spear hit (base 1)
   comboWindowBonus: number; // extra seconds on the combo decay window
   dashNovaRadius: number; // 0 = no nova; shockwave radius on dash launch
+  dashShatterRadius: number; // 0 = off; extra band around the spear that destroys enemy bullets
   // meta-progression / economy
   scoreMul: number; // score multiplier (base 1)
   shardMul: number; // shard-gain multiplier (base 1)
@@ -203,6 +214,7 @@ export function deriveStats(
     dashDamage: 1,
     comboWindowBonus: 0,
     dashNovaRadius: 0,
+    dashShatterRadius: 0,
     scoreMul: 1,
     shardMul: 1,
     draftSize: 3,
@@ -250,6 +262,9 @@ export function deriveStats(
 
   const nv = stacks.nova ?? 0;
   if (nv > 0) s.dashNovaRadius = 90 + 30 * (nv - 1);
+
+  const rf = stacks.reflect ?? 0;
+  if (rf > 0) s.dashShatterRadius = 22 + 14 * (rf - 1); // widens the bullet-shatter band per stack
 
   if (evoApply) evoApply(s); // evolutions are the capstone — built on top of perks
 

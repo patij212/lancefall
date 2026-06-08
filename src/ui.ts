@@ -741,6 +741,7 @@ function perkGlyph(g: PerkDef['glyph']): string {
     siphon: '♺',
     window: '⧗',
     nova: '✸',
+    reflect: '⊛',
     gem: '◆',
     impaler: '⤞',
     supernova: '❂',

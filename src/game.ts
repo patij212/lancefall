@@ -586,6 +586,18 @@ export class Game {
         this.damageEnemy(e, w.stats.dashDamage, true);
       }
     }
+    // Riposte: shatter enemy bullets along the spear (boss shots stay lethal)
+    if (w.stats.dashShatterRadius > 0) {
+      const br = r + w.stats.dashShatterRadius;
+      w.bullets.forEachActive((b) => {
+        if (b.fromBoss) return;
+        if (segCircleHit(ax, ay, bx, by, b.x, b.y, b.radius, br)) {
+          w.particles.burst(b.x, b.y, 2, b.color);
+          w.score += 2;
+          w.bullets.release(b);
+        }
+      });
+    }
     // trigger slow-mo once per dash on big chains
     if (!this.dashSlowmoTriggered && shouldSlowmo(p.killsThisDash)) {
       this.dashSlowmoTriggered = true;

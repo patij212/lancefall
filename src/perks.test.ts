@@ -61,6 +61,12 @@ describe('deriveStats', () => {
     expect(deriveStats({ nova: 1 }).dashNovaRadius).toBe(90);
     expect(deriveStats({ nova: 2 }).dashNovaRadius).toBe(120);
   });
+
+  it('Riposte enables a bullet-shatter band that grows per stack', () => {
+    expect(deriveStats({}).dashShatterRadius).toBe(0);
+    expect(deriveStats({ reflect: 1 }).dashShatterRadius).toBe(22);
+    expect(deriveStats({ reflect: 2 }).dashShatterRadius).toBe(36);
+  });
 });
 
 describe('applyPerk', () => {
