@@ -7,6 +7,7 @@ import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
+import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
 
 export interface UICallbacks {
@@ -70,6 +71,8 @@ export class UI {
   // hud refs
   private scoreEl!: HTMLElement;
   private waveEl!: HTMLElement;
+  private dailyBadge!: HTMLElement;
+  private dailyCaption!: HTMLElement;
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
   private staminaWrap!: HTMLElement;
@@ -133,7 +136,8 @@ export class UI {
   private buildHud(): void {
     this.scoreEl = el('div', { class: 'hud-score' }, '0');
     this.waveEl = el('div', { class: 'hud-wave' }, 'WAVE 1');
-    const topLeft = el('div', { class: 'hud-topleft' }, this.scoreEl, this.waveEl);
+    this.dailyBadge = el('div', { class: 'hud-daily hidden' }, '◆ DAILY');
+    const topLeft = el('div', { class: 'hud-topleft' }, this.scoreEl, this.waveEl, this.dailyBadge);
 
     this.comboEl = el('div', { class: 'hud-combo' }, '');
     this.comboBar = el('div', { class: 'hud-combo-fill' });
@@ -172,6 +176,7 @@ export class UI {
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
     const row = el('div', { class: 'title-row' }, daily, settingsBtn, how);
+    this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
     this.shipRow = el('div', { class: 'ship-row' });
@@ -194,6 +199,7 @@ export class UI {
       tagline,
       play,
       row,
+      this.dailyCaption,
       shipSection,
       legend,
       this.titleBest,
@@ -350,6 +356,13 @@ export class UI {
         : 'no runs yet — go make a mess';
     this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards`;
 
+    // daily challenge caption — today's seed + your best for it
+    let daily = `Daily Challenge · ${dateString()}`;
+    if (save.dailySeed === seedFromDate() && save.dailyBest > 0) {
+      daily += ` · your best ${save.dailyBest.toLocaleString()}`;
+    }
+    this.dailyCaption.textContent = daily;
+
     this.shipRow.replaceChildren();
     for (const ship of SHIPS) {
       const unlocked = save.unlockedShips.includes(ship.id);
@@ -372,6 +385,11 @@ export class UI {
 
   hideSoundHint(): void {
     this.soundHint.style.display = 'none';
+  }
+
+  /** Toggle the in-run DAILY badge on the HUD. */
+  setDaily(on: boolean): void {
+    this.dailyBadge.classList.toggle('hidden', !on);
   }
 
   showDraft(cards: PerkDef[]): void {

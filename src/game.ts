@@ -166,6 +166,7 @@ export class Game {
     this.intensityTimer = 0;
     this.state = 'playing';
     this.ui.show('playing');
+    this.ui.setDaily(daily);
     this.audio.startDrone();
     this.audio.duckMusic(false);
 

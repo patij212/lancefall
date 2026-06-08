@@ -191,6 +191,20 @@ body {
   font-size: 13px;
   margin-top: 2px;
 }
+.daily-caption {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--amber);
+  font-size: 12px;
+  margin-top: 8px;
+  opacity: 0.85;
+}
+.hud-daily {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(11px * var(--hud-scale));
+  color: var(--amber);
+  margin-top: 3px;
+  letter-spacing: 0.12em;
+}
 
 /* ── Ship selector ── */
 .ship-section {
