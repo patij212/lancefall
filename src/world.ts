@@ -124,6 +124,10 @@ export class World {
   shipApply: (s: RunStats) => void = () => {};
   /** permanent meta-upgrade application (set by the game from the save) */
   metaApply: (s: RunStats) => void = () => {};
+  /** run mutator application — applied AFTER meta, BEFORE ship (so perks layer on top) */
+  mutatorApply: (s: RunStats) => void = () => {};
+  /** capstone application (relics + heat) — applied LAST, after evolutions */
+  postApply: (s: RunStats) => void = () => {};
   stats: RunStats = deriveStats({});
   reviveLeft = 0;
 
@@ -177,7 +181,12 @@ export class World {
   }
 
   recomputeStats(): void {
-    this.stats = deriveStats(this.stacks, this.shipApply, this.metaApply, evoApplier(this.evolutions));
+    // meta then mutator share the "metaApply" slot so both land before ship/perks
+    const metaThenMutator = (s: RunStats): void => {
+      this.metaApply(s);
+      this.mutatorApply(s);
+    };
+    this.stats = deriveStats(this.stacks, this.shipApply, metaThenMutator, evoApplier(this.evolutions), this.postApply);
   }
 
   /** A random point just outside the arena edge, plus an inward velocity. */

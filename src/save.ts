@@ -3,11 +3,15 @@
 // "leaderboard".
 
 import { dateString } from './rng';
+import { SAVE_VERSION, migrateSave } from './migrate';
 
-const SAVE_KEY = 'lancefall.v1';
+const SAVE_KEY = 'lancefall.save';
+const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
 const SETTINGS_KEY = 'lancefall.settings.v1';
 
 export interface SaveData {
+  /** save schema version (see migrate.ts) */
+  version: number;
   highScore: number;
   bestCombo: number;
   bestWave: number;
@@ -57,6 +61,7 @@ function prefersReducedMotion(): boolean {
 
 export function defaultSave(): SaveData {
   return {
+    version: SAVE_VERSION,
     highScore: 0,
     bestCombo: 0,
     bestWave: 0,
@@ -94,8 +99,15 @@ export function defaultSettings(): Settings {
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return defaultSave();
-    return { ...defaultSave(), ...JSON.parse(raw) };
+    if (raw) return migrateSave(JSON.parse(raw), defaultSave());
+    // one-time migration from the pre-versioning key, then persist under the new key
+    const legacy = localStorage.getItem(LEGACY_SAVE_KEY);
+    if (legacy) {
+      const migrated = migrateSave(JSON.parse(legacy), defaultSave());
+      saveSave(migrated);
+      return migrated;
+    }
+    return defaultSave();
   } catch {
     return defaultSave();
   }

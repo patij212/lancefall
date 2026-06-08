@@ -176,6 +176,8 @@ export interface RunStats {
   comboWindowBonus: number; // extra seconds on the combo decay window
   dashNovaRadius: number; // 0 = no nova; shockwave radius on dash launch
   dashShatterRadius: number; // 0 = off; extra band around the spear that destroys enemy bullets
+  dashCostMul: number; // multiplier on dash stamina cost (base 1; relics/mutators tweak)
+  fogRadius: number; // 0 = off; fog-of-war visibility radius (fog-of-war mutator)
   // meta-progression / economy
   scoreMul: number; // score multiplier (base 1)
   shardMul: number; // shard-gain multiplier (base 1)
@@ -185,13 +187,17 @@ export interface RunStats {
 }
 
 /** Derive the full run stat block from base TUNE + permanent meta + ship + perks.
- *  Order: base → meta (permanent) → ship → perks → evolutions (capstone). Pure.
- *  Evolutions apply LAST so they can amplify perk-derived values. */
+ *  Order: base → meta → ship → perks → evolutions → postApply. Pure.
+ *  `metaApply` is where the World composes permanent-meta THEN run mutators (so
+ *  perks/ships layer on top); `postApply` is the final capstone where relics +
+ *  heat apply (after evolutions). Canonical order:
+ *  base → meta → mutator → ship → perks → evo → relics → heat. */
 export function deriveStats(
   stacks: PerkStacks,
   shipApply?: (s: RunStats) => void,
   metaApply?: (s: RunStats) => void,
   evoApply?: (s: RunStats) => void,
+  postApply?: (s: RunStats) => void,
 ): RunStats {
   const s: RunStats = {
     maxSpeed: TUNE.player.maxSpeed,
@@ -216,6 +222,8 @@ export function deriveStats(
     comboWindowBonus: 0,
     dashNovaRadius: 0,
     dashShatterRadius: 0,
+    dashCostMul: 1,
+    fogRadius: 0,
     scoreMul: 1,
     shardMul: 1,
     draftSize: 3,
@@ -267,7 +275,8 @@ export function deriveStats(
   const rf = stacks.reflect ?? 0;
   if (rf > 0) s.dashShatterRadius = 22 + 14 * (rf - 1); // widens the bullet-shatter band per stack
 
-  if (evoApply) evoApply(s); // evolutions are the capstone — built on top of perks
+  if (evoApply) evoApply(s); // evolutions build on top of perks
+  if (postApply) postApply(s); // relics + heat — the final capstone, after evolutions
 
   return s;
 }
