@@ -117,7 +117,9 @@ export function buildShareString(
   combo: number,
   wave: number,
   daily: boolean,
+  build = '',
 ): string {
   const head = daily ? `LANCEFALL Daily ${dateString()}` : 'LANCEFALL';
-  return `${head} — ${score.toLocaleString()} pts · x${combo} combo · wave ${wave}. Can you thread the swarm?`;
+  const buildPart = build ? ` · ${build}` : '';
+  return `${head} — ${score.toLocaleString()} pts · x${combo} combo · wave ${wave}${buildPart}. Can you thread the swarm?`;
 }

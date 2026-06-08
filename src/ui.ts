@@ -31,6 +31,8 @@ export interface GameOverInfo {
   highScore: number;
   shardsEarned: number;
   dailyBest: number;
+  ship: string;
+  perks: string;
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
@@ -85,6 +87,7 @@ export class UI {
   private goScore!: HTMLElement;
   private goStats!: HTMLElement;
   private goBadge!: HTMLElement;
+  private goBuild!: HTMLElement;
 
   private displayScore = 0;
   private pauseRestartArmed = false;
@@ -231,6 +234,7 @@ export class UI {
     this.goBadge = el('div', { class: 'go-badge' }, '');
     this.goScore = el('div', { class: 'go-score' }, '0');
     this.goStats = el('div', { class: 'go-stats' }, '');
+    this.goBuild = el('div', { class: 'go-build' }, '');
     const again = el('button', { class: 'btn btn-primary' }, 'AGAIN');
     again.addEventListener('click', () => this.cb.onRestart());
     const copy = el('button', { class: 'btn btn-ghost' }, 'COPY SCORE');
@@ -238,7 +242,7 @@ export class UI {
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
     const row = el('div', { class: 'go-row' }, again, copy, menu);
-    const panel = el('div', { class: 'panel' }, h, this.goBadge, this.goScore, this.goStats, row);
+    const panel = el('div', { class: 'panel' }, h, this.goBadge, this.goScore, this.goStats, this.goBuild, row);
     this.gameover = el('div', { class: 'screen screen-dim' }, panel);
   }
 
@@ -399,6 +403,10 @@ export class UI {
       stat('time', formatTime(info.time)),
       stat('◆ shards', `+${info.shardsEarned}`),
       stat(info.daily ? 'daily best' : 'high score', (info.daily ? info.dailyBest : info.highScore).toLocaleString()),
+    );
+    this.goBuild.replaceChildren(
+      el('span', { class: 'go-ship' }, info.ship),
+      el('span', { class: 'go-perks' }, info.perks ? ` · ${info.perks}` : ' · no perks taken'),
     );
     this.show('gameover');
     // animate score count-up

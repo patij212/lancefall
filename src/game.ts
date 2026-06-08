@@ -20,7 +20,7 @@ import { updateEnemy, splitInto } from './enemies';
 import { spawnBoss, updateBoss, bossName } from './boss';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
-import { rollDraft, applyPerk } from './perks';
+import { rollDraft, applyPerk, describeStacks } from './perks';
 import type { PerkDef } from './perks';
 import { SHIPS, shipById } from './ships';
 import { maxStamina } from './dash';
@@ -250,7 +250,10 @@ export class Game {
   }
 
   private copyScore(): void {
-    const str = buildShareString(this.world.score, this.world.bestComboRun, Math.floor(this.world.time / 30) + 1, this.daily);
+    const shipName = shipById(this.save.selectedShip).name;
+    const perks = describeStacks(this.world.stacks);
+    const build = perks ? `${shipName} [${perks}]` : shipName;
+    const str = buildShareString(this.world.score, this.world.bestComboRun, Math.floor(this.world.time / 30) + 1, this.daily, build);
     try {
       void navigator.clipboard?.writeText(str);
       this.ui.toast('Score copied to clipboard!');
@@ -755,6 +758,8 @@ export class Game {
       highScore: this.save.highScore,
       shardsEarned: w.shards,
       dailyBest: this.save.dailyBest,
+      ship: shipById(this.save.selectedShip).name,
+      perks: describeStacks(w.stacks),
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);

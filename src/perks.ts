@@ -233,6 +233,17 @@ export function applyPerk(stacks: PerkStacks, id: PerkId): void {
   stacks[id] = (stacks[id] ?? 0) + 1;
 }
 
+/** Human-readable build summary, e.g. "Long Lance×2, Chain Reaction×3". */
+export function describeStacks(stacks: PerkStacks): string {
+  const parts: string[] = [];
+  for (const id of Object.keys(PERKS) as PerkId[]) {
+    if (id === 'shardcache') continue;
+    const n = stacks[id] ?? 0;
+    if (n > 0) parts.push(n > 1 ? `${PERKS[id].name}×${n}` : PERKS[id].name);
+  }
+  return parts.join(', ');
+}
+
 function isEligible(stacks: PerkStacks, id: PerkId): boolean {
   if (id === 'shardcache') return false;
   return (stacks[id] ?? 0) < PERKS[id].maxStacks;
