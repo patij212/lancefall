@@ -410,6 +410,51 @@ export class Renderer {
           [-r * 0.7, -r * 0.7],
         ]);
         break;
+      case 'drifter': {
+        // lock aim line — the dodge tell (during telegraph)
+        if (e.telegraph > 0) {
+          ctx.save();
+          ctx.rotate(e.angle);
+          ctx.strokeStyle = `rgba(52,211,153,${0.18 + 0.5 * e.telegraph})`;
+          ctx.lineWidth = 1.5 + 2 * e.telegraph;
+          ctx.setLineDash([10, 8]);
+          ctx.beginPath();
+          ctx.moveTo(r, 0);
+          ctx.lineTo(1400, 0);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+        // crescent (concave arc) — shape-coded, colorblind-safe
+        ctx.rotate((Math.atan2(e.vy, e.vx) || 0) + Math.PI);
+        ctx.beginPath();
+        ctx.arc(0, 0, r, -1.1, 1.1);
+        ctx.arc(r * 0.7, 0, r * 0.9, 0.95, -0.95, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        break;
+      }
+      case 'shade': {
+        // pre-blink warning flash
+        const warn = e.telegraph || 0;
+        if (warn > 0) {
+          ctx.globalAlpha = 0.3 + 0.5 * warn;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * (1.4 + warn * 0.8), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        ctx.rotate(Math.PI / 4 + e.spawnTime * 1.5);
+        rect(ctx, r * 1.2);
+        ctx.fillStyle = flash ? '#ffffff' : baseColor;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
       case 'warden':
         this.drawWarden(ctx, e, r);
         break;

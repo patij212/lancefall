@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -34,6 +34,12 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'wisp':
       wisp(e, world, dt);
+      break;
+    case 'drifter':
+      drifter(e, world, dt);
+      break;
+    case 'shade':
+      shade(e, world, dt);
       break;
     default:
       break;
@@ -184,6 +190,69 @@ function wisp(e: Enemy, world: World, dt: number): void {
   const tx = p.x + Math.cos(e.angle) * WISP.wobble;
   const ty = p.y + Math.sin(e.angle) * WISP.wobble;
   steerToward(e, tx, ty, 210 * e.speedMul);
+}
+
+function drifter(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  const dx = p.x - e.x;
+  const dy = p.y - e.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const sp = DRIFTER_TUNE.strafeSpeed * e.speedMul;
+  if (e.phase === 0) {
+    // hold a comfortable standoff, strafing
+    if (dist < DRIFTER_TUNE.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    else if (dist > DRIFTER_TUNE.range * 1.25) steerToward(e, p.x, p.y, sp);
+    else {
+      e.vx = (-dy / dist) * sp * 0.7;
+      e.vy = (dx / dist) * sp * 0.7;
+    }
+    e.timer -= dt;
+    e.telegraph = 0;
+    if (e.timer <= 0) {
+      e.phase = 1;
+      e.timer = DRIFTER_TUNE.lockTime;
+      e.angle = Math.atan2(dy, dx); // lock aim now
+    }
+  } else {
+    e.vx *= 0.2;
+    e.vy *= 0.2;
+    e.timer -= dt;
+    e.telegraph = clamp(1 - e.timer / DRIFTER_TUNE.lockTime, 0, 1);
+    if (e.timer <= 0) {
+      // a 3-bullet arc fan: centre fast, outer slower → curved wavefront
+      const base = DRIFTER_TUNE.bulletSpeed * e.bulletMul;
+      const a = e.angle;
+      const s = DRIFTER_TUNE.arcSpread;
+      const o = DRIFTER_TUNE.outerSpeedMul;
+      world.spawnBullet(e.x, e.y, Math.cos(a) * base, Math.sin(a) * base, 6, '#34d399', false);
+      world.spawnBullet(e.x, e.y, Math.cos(a - s) * base * o, Math.sin(a - s) * base * o, 6, '#34d399', false);
+      world.spawnBullet(e.x, e.y, Math.cos(a + s) * base * o, Math.sin(a + s) * base * o, 6, '#34d399', false);
+      e.phase = 0;
+      e.timer = DRIFTER_TUNE.repositionTime;
+      e.telegraph = 0;
+    }
+  }
+}
+
+function shade(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  e.timer -= dt;
+  e.telegraph = e.timer < SHADE_TUNE.telegraphTime ? clamp(1 - e.timer / SHADE_TUNE.telegraphTime, 0, 1) : 0;
+  if (e.timer <= 0) {
+    // blink to a fresh edge angle — threatens from an unexpected direction
+    const pt = world.edgeSpawn();
+    e.x = pt.x;
+    e.y = pt.y;
+    e.timer = SHADE_TUNE.blinkCadence;
+    e.telegraph = 0;
+    e.scale = 0.5; // brief re-materialise pop
+  }
+  steerToward(e, p.x, p.y, SHADE_TUNE.chaseSpeed * e.speedMul);
+  if (e.telegraph > 0) {
+    // brace (slow) just before blinking out
+    e.vx *= 0.3;
+    e.vy *= 0.3;
+  }
 }
 
 /** Splitter death → spawn 2 fast mini-splitters. */

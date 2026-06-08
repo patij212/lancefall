@@ -4,7 +4,7 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER, ELITE } from './tune';
+import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import type { RunStats, PerkStacks } from './perks';
@@ -220,7 +220,8 @@ export class World {
     e.radius = def.radius;
     e.color = def.color;
     e.baseScore = def.baseScore;
-    e.timer = kind === 'darter' ? DARTER.cadence : 0;
+    e.timer =
+      kind === 'darter' ? DARTER.cadence : kind === 'drifter' ? DRIFTER_TUNE.repositionTime : kind === 'shade' ? SHADE_TUNE.blinkCadence : 0;
     e.phase = 0;
     e.telegraph = 0;
     e.angle = this.rng.range(0, Math.PI * 2);

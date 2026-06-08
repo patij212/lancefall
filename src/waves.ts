@@ -64,6 +64,8 @@ export const ELITE_KINDS: ReadonlySet<EnemyKind> = new Set<EnemyKind>([
   'orbiter',
   'lancer',
   'bomber',
+  'drifter',
+  'shade',
 ]);
 
 /** Which archetypes are unlocked by elapsed time (stealth tutorial pacing). */
@@ -72,9 +74,11 @@ export function unlockedKinds(t: number): EnemyKind[] {
   if (t >= 18) out.push('orbiter');
   if (t >= 45) out.push('splitter');
   if (t >= 60) out.push('lancer');
+  if (t >= 75) out.push('drifter');
   if (t >= 85) out.push('bloomer');
   if (t >= 105) out.push('bomber');
   if (t >= 130) out.push('wisp');
+  if (t >= 150) out.push('shade');
   return out;
 }
 
@@ -88,11 +92,15 @@ export function enemyWeights(t: number, I: number): { v: EnemyKind; w: number }[
     lancer: 0.4 + 0.2 * clamp(I, 0, 1),
     bomber: 0.35 + 0.2 * clamp(I, 0, 1),
     wisp: 0.5,
+    drifter: 0.4 + 0.2 * clamp(I, 0, 1),
+    shade: 0.25 + 0.2 * clamp(I, 0, 1),
     mini: 0,
     warden: 0,
     weaver: 0,
     beacon: 0,
     mirrorblade: 0,
+    hollow: 0,
+    hollow_echo: 0,
   };
   return unlocked.map((k) => ({ v: k, w: base[k] }));
 }

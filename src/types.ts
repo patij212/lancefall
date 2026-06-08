@@ -14,10 +14,14 @@ export type EnemyKind =
   | 'lancer'
   | 'bomber'
   | 'wisp'
+  | 'drifter'
+  | 'shade'
   | 'warden'
   | 'weaver'
   | 'beacon'
-  | 'mirrorblade';
+  | 'mirrorblade'
+  | 'hollow'
+  | 'hollow_echo';
 
 /** Player charge/dash state machine. */
 export type DashPhase = 'idle' | 'charging' | 'dashing';

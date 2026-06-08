@@ -135,6 +135,9 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   lancer: { kind: 'lancer', hp: 2, radius: 14, color: '#ff8a3b', baseScore: 220, speed: 90 },
   bomber: { kind: 'bomber', hp: 2, radius: 16, color: '#fb7185', baseScore: 200, speed: 135 },
   wisp: { kind: 'wisp', hp: 1, radius: 8, color: '#67e8f9', baseScore: 45, speed: 210 },
+  drifter: { kind: 'drifter', hp: 2, radius: 14, color: '#10b981', baseScore: 230, speed: 80 },
+  shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240, speed: 150 },
+  hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300, speed: 0 },
 };
 
 export const DARTER = {
@@ -180,6 +183,26 @@ export const BOMBER = {
 export const WISP = {
   packSize: 5,
   wobble: 36, // crescent spread so a pack is dash-through-able
+};
+
+// Drifter — a mid-range zoner that fires a 3-bullet arc fan (outer bullets slower
+// so the wavefront curves) at a locked aim. Fills the gap between orbiter + lancer.
+export const DRIFTER_TUNE = {
+  range: 300, // preferred standoff
+  repositionTime: 0.9,
+  lockTime: 0.7, // telegraph; aim frozen at lock start
+  arcSpread: 0.22, // half-angle of the arc fan
+  bulletSpeed: 320,
+  outerSpeedMul: 0.78, // outer bullets slower → arced wavefront
+  strafeSpeed: 80,
+};
+
+// Shade — a teleporting ambusher. Chases, then blinks to a fresh edge angle.
+// No bullets; contact kill. Fills the gap between wisp + bomber.
+export const SHADE_TUNE = {
+  chaseSpeed: 150,
+  blinkCadence: 3.2, // s between blinks
+  telegraphTime: 0.4, // s of pre-blink warning flash
 };
 
 // Elite "Champions" — rare buffed variants that read as a moment + a payoff.
