@@ -30,7 +30,14 @@ export type PerkGlyph =
   | 'siphon'
   | 'window'
   | 'nova'
-  | 'gem';
+  | 'gem'
+  // evolution glyphs
+  | 'impaler'
+  | 'supernova'
+  | 'perpetual'
+  | 'wraith'
+  | 'inferno'
+  | 'juggernaut';
 
 export interface PerkDef {
   id: PerkId;
@@ -166,11 +173,13 @@ export interface RunStats {
 }
 
 /** Derive the full run stat block from base TUNE + permanent meta + ship + perks.
- *  Order: base → meta (permanent) → ship → perks (stack on top). Pure. */
+ *  Order: base → meta (permanent) → ship → perks → evolutions (capstone). Pure.
+ *  Evolutions apply LAST so they can amplify perk-derived values. */
 export function deriveStats(
   stacks: PerkStacks,
   shipApply?: (s: RunStats) => void,
   metaApply?: (s: RunStats) => void,
+  evoApply?: (s: RunStats) => void,
 ): RunStats {
   const s: RunStats = {
     maxSpeed: TUNE.player.maxSpeed,
@@ -241,6 +250,8 @@ export function deriveStats(
 
   const nv = stacks.nova ?? 0;
   if (nv > 0) s.dashNovaRadius = 90 + 30 * (nv - 1);
+
+  if (evoApply) evoApply(s); // evolutions are the capstone — built on top of perks
 
   return s;
 }

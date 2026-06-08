@@ -523,6 +523,53 @@ body {
   padding: 1px 7px;
 }
 
+/* Evolution draft card — the build-defining fusion. Reads as rare/special. */
+.perk-card-evo {
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    var(--bg-raised);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
+    0 10px 36px color-mix(in srgb, var(--accent) 28%, transparent);
+  animation: evoGlow 2.2s ease-in-out infinite;
+}
+.perk-card-evo:hover,
+.perk-card-evo:focus-visible {
+  transform: translateY(-10px) scale(1.02);
+}
+.perk-card-evo .perk-name {
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.perk-card-evo .perk-glyph {
+  font-size: 48px;
+}
+.perk-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.perk-from {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-muted));
+  text-align: center;
+  margin-top: auto;
+  opacity: 0.9;
+}
+@keyframes evoGlow {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 10px 36px color-mix(in srgb, var(--accent) 24%, transparent); }
+  50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent), 0 14px 48px color-mix(in srgb, var(--accent) 42%, transparent); }
+}
+.reduce-motion .perk-card-evo { animation: none; }
+
 /* ── Settings ── */
 .settings-body {
   display: grid;

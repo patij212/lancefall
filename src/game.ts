@@ -21,7 +21,8 @@ import { spawnBoss, updateBoss, bossName, beaconBeamActive, mirrorbladeDashing }
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
-import type { PerkDef } from './perks';
+import { rollDraftCards, isEvolution, availableEvolutions, describeEvolutions } from './evolutions';
+import type { DraftCard, EvolutionId } from './evolutions';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
@@ -88,7 +89,8 @@ export class Game {
   private dying = false;
   private dyingTimer = 0;
   private pendingDraft = false;
-  private draftCards: PerkDef[] = [];
+  private draftCards: DraftCard[] = [];
+  private announcedEvos = new Set<EvolutionId>(); // evolutions we've already flagged as ready
   private intensityTimer = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
@@ -201,6 +203,7 @@ export class Game {
     this.dying = false;
     this.pendingDraft = false;
     this.dashSlowmoTriggered = false;
+    this.announcedEvos.clear();
     this.intensityTimer = 0;
     this.state = 'playing';
     this.ui.show('playing');
@@ -244,7 +247,8 @@ export class Game {
   }
 
   private openDraft(): void {
-    this.draftCards = rollDraft(this.world.rng, this.world.stacks, this.world.stats.draftSize);
+    const w = this.world;
+    this.draftCards = rollDraftCards(w.rng, w.stacks, w.evolutions, w.stats.draftSize);
     this.state = 'draft';
     this.ui.showDraft(this.draftCards);
     this.audio.duckMusic(true);
@@ -254,17 +258,38 @@ export class Game {
     if (this.state !== 'draft') return;
     const card = this.draftCards[i];
     if (!card) return;
-    if (card.id === 'shardcache') {
-      this.world.score += 200;
-      this.world.shards += 50;
+    const w = this.world;
+    if (isEvolution(card)) {
+      w.evolutions.push(card.id);
+      w.recomputeStats();
+      this.ui.announce(`EVOLVED · ${card.name}`, card.accent);
+      this.renderer.flash(card.accent, 0.3);
+      this.shake.add(0.4);
+      this.audio.bossStinger();
+    } else if (card.id === 'shardcache') {
+      w.score += 200;
+      w.shards += 50;
     } else {
-      applyPerk(this.world.stacks, card.id);
-      this.world.recomputeStats();
+      applyPerk(w.stacks, card.id);
+      w.recomputeStats();
       this.ui.toast(`PERK: ${card.name}`);
+      this.checkEvoReady();
     }
     this.state = 'playing';
     this.ui.show('playing');
     this.audio.duckMusic(false);
+  }
+
+  /** Announce once when a new evolution becomes craftable, so the build goal is felt. */
+  private checkEvoReady(): void {
+    const w = this.world;
+    for (const evo of availableEvolutions(w.stacks, w.evolutions)) {
+      if (this.announcedEvos.has(evo.id)) continue;
+      this.announcedEvos.add(evo.id);
+      this.ui.announce(`EVOLUTION READY · ${evo.name}`, evo.accent);
+      this.renderer.flash(evo.accent, 0.16);
+      this.audio.pickup(16);
+    }
   }
 
   private selectShip(id: string): void {
@@ -331,9 +356,16 @@ export class Game {
     this.ui.openUpgrades();
   }
 
+  /** The full run build summary: evolutions (caps) lead, then perk stacks. */
+  private buildLine(): string {
+    const evo = describeEvolutions(this.world.evolutions);
+    const perks = describeStacks(this.world.stacks);
+    return [evo, perks].filter(Boolean).join(' · ');
+  }
+
   private copyScore(): void {
     const shipName = shipById(this.save.selectedShip).name;
-    const perks = describeStacks(this.world.stacks);
+    const perks = this.buildLine();
     const build = perks ? `${shipName} [${perks}]` : shipName;
     const str = buildShareString(this.world.score, this.world.bestComboRun, this.director.wave, this.mode.id === 'daily', `${this.mode.name} · ${build}`);
     try {
@@ -929,7 +961,7 @@ export class Game {
       shardsEarned: banked,
       dailyBest: this.save.dailyBest,
       ship: shipById(this.save.selectedShip).name,
-      perks: describeStacks(w.stacks),
+      perks: this.buildLine(),
       deathCause: won ? '' : this.deathCause,
       pbDelta: w.score - prevHigh,
       newAchievements: newAch.map((a) => a.name),

@@ -5,6 +5,8 @@
 import type { World } from './world';
 import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
+import { isEvolution } from './evolutions';
+import type { DraftCard } from './evolutions';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
@@ -538,16 +540,19 @@ export class UI {
     if (show) this.dailyBadge.textContent = `◆ ${cfg.name}`;
   }
 
-  showDraft(cards: PerkDef[]): void {
+  showDraft(cards: DraftCard[]): void {
     const wrap = this.draft.querySelector('#draft-cards')!;
     wrap.replaceChildren();
     cards.forEach((c, i) => {
-      const card = el('button', { class: 'perk-card' });
+      const evo = isEvolution(c);
+      const card = el('button', { class: evo ? 'perk-card perk-card-evo' : 'perk-card' });
       card.style.setProperty('--accent', c.accent);
       card.append(
+        ...(evo ? [el('div', { class: 'perk-tag' }, 'EVOLUTION')] : []),
         el('div', { class: 'perk-glyph' }, perkGlyph(c.glyph)),
         el('div', { class: 'perk-name' }, c.name),
         el('div', { class: 'perk-desc' }, c.desc),
+        ...(evo ? [el('div', { class: 'perk-from' }, c.from)] : []),
         el('div', { class: 'perk-key' }, String(i + 1)),
       );
       card.addEventListener('click', () => this.cb.onPick(i));
@@ -696,6 +701,12 @@ function perkGlyph(g: PerkDef['glyph']): string {
     window: '⧗',
     nova: '✸',
     gem: '◆',
+    impaler: '⤞',
+    supernova: '❂',
+    perpetual: '∞',
+    wraith: '⟁',
+    inferno: '🔥',
+    juggernaut: '⬢',
   };
   return map[g];
 }

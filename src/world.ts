@@ -6,7 +6,9 @@ import { SpatialHash } from './collision';
 import { Particles } from './particles';
 import { TUNE, ENEMY_DEFS, DARTER } from './tune';
 import { deriveStats } from './perks';
+import { evoApplier } from './evolutions';
 import type { RunStats, PerkStacks } from './perks';
+import type { EvolutionId } from './evolutions';
 import type { Rng } from './rng';
 import type { Player, Enemy, Bullet, Gem, EnemyKind } from './types';
 
@@ -115,6 +117,8 @@ export class World {
   time = 0;
 
   stacks: PerkStacks = {};
+  /** evolutions taken this run — fusion capstones built on top of perks */
+  evolutions: EvolutionId[] = [];
   /** ship stat profile applied before perks (set by the game from the roster) */
   shipApply: (s: RunStats) => void = () => {};
   /** permanent meta-upgrade application (set by the game from the save) */
@@ -164,6 +168,7 @@ export class World {
     this.collectStreak = 0;
     this.time = 0;
     this.stacks = {};
+    this.evolutions = [];
     this.recomputeStats();
     this.bossAlive = false;
     this.boss = null;
@@ -171,7 +176,7 @@ export class World {
   }
 
   recomputeStats(): void {
-    this.stats = deriveStats(this.stacks, this.shipApply, this.metaApply);
+    this.stats = deriveStats(this.stacks, this.shipApply, this.metaApply, evoApplier(this.evolutions));
   }
 
   /** A random point just outside the arena edge, plus an inward velocity. */
