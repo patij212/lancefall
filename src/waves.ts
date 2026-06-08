@@ -242,8 +242,9 @@ export class Director {
   private advanceArena(d: DirectorDecision): void {
     const finished = ARENA_SCRIPT[this.waveIndex];
     this.waveIndex++;
-    // perk draft after each boss and after waves 3/6/9 (0-based 2/5/8)
-    if (this.cfg.perks && (finished.kind === 'boss' || this.waveIndex === 3 || this.waveIndex === 6 || this.waveIndex === 9)) {
+    // perk draft after each boss and at a steady cadence through the gauntlet
+    const perkWaves = [3, 6, 9, 13, 16];
+    if (this.cfg.perks && (finished.kind === 'boss' || perkWaves.includes(this.waveIndex))) {
       d.perk = true;
     }
     this.enterArenaWave(d);
