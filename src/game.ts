@@ -13,11 +13,11 @@ import { AudioEngine } from './audio';
 import { Scheduler } from './scheduler';
 import { Shake } from './shake';
 import { Director } from './waves';
-import { intensity, enemySpeedMul, bulletSpeedMul } from './waves';
+import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent } from './waves';
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, beaconBeamActive } from './boss';
+import { spawnBoss, updateBoss, bossName, beaconBeamActive, mirrorbladeDashing } from './boss';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
@@ -170,11 +170,15 @@ export class Game {
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
     this.world.reset(window.innerWidth, window.innerHeight);
-    // head-start perks (Head Start meta node)
+    // head-start perks (Head Start meta node) — use a SEPARATE rng so they don't
+    // consume the seeded world.rng (keeps Daily runs identical regardless of meta)
     const startPerks = this.world.stats.startPerks;
-    for (let i = 0; i < startPerks; i++) {
-      const pick = rollDraft(this.world.rng, this.world.stacks, 1)[0];
-      if (pick && pick.id !== 'shardcache') applyPerk(this.world.stacks, pick.id);
+    if (startPerks > 0) {
+      const hsRng = createRng((this.seed ^ 0x5bd1e995) >>> 0);
+      for (let i = 0; i < startPerks; i++) {
+        const pick = rollDraft(hsRng, this.world.stacks, 1)[0];
+        if (pick && pick.id !== 'shardcache') applyPerk(this.world.stacks, pick.id);
+      }
     }
     this.world.recomputeStats();
     // start each run with a full stamina bar sized to the chosen ship
@@ -359,6 +363,9 @@ export class Game {
         this.step(FIXED_DT);
         this.accumulator -= FIXED_DT;
         steps++;
+        // open a pending draft immediately so a scripted boss can't spawn in the
+        // same frame before the draft modal appears (Boss Rush inter-boss draft)
+        if (this.pendingDraft && !this.dying && !this.winning) break;
       }
       if (steps >= MAX_SUBSTEPS) this.accumulator = 0;
 
@@ -803,13 +810,15 @@ export class Game {
     w.hash.rebuild(w.enemies.items);
     w.hash.queryAABB(p.x - 60, p.y - 60, p.x + 60, p.y + 60, this.candidates);
     for (const e of this.candidates) {
-      if (!e.active) continue;
+      if (!e.active || e.isBoss) continue; // boss body handled by the phase-aware check below
       if (circleHit(p.x, p.y, p.radius, e.x, e.y, e.radius * 0.72)) {
         this.playerDie('a collision');
         return;
       }
     }
-    if (w.bossAlive && w.boss && circleHit(p.x, p.y, p.radius, w.boss.x, w.boss.y, w.boss.radius * 0.85)) {
+    // boss body — the Mirrorblade is only lethal mid-lunge (recover/wind-up are the openings)
+    const bossLethal = w.boss && (w.boss.kind !== 'mirrorblade' || mirrorbladeDashing(w.boss));
+    if (w.bossAlive && w.boss && bossLethal && circleHit(p.x, p.y, p.radius, w.boss.x, w.boss.y, w.boss.radius * 0.85)) {
       this.playerDie('the boss');
       return;
     }
@@ -934,11 +943,14 @@ export class Game {
     const bMul = (bulletSpeedMul(I) + this.mode.speedBonus) * this.biomeSpeedMul;
     const baseShield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
     const shield = Math.min(0.7, baseShield + this.biomeShield);
+    const cap = maxConcurrent(I);
     for (const kind of spawn) {
       const pt = w.edgeSpawn();
       if (kind === 'wisp') {
-        // wisps arrive as a scattered pack
-        for (let i = 0; i < WISP.packSize; i++) {
+        // wisps arrive as a scattered pack, clamped to remaining concurrency budget
+        const free = Math.max(1, cap - w.enemies.activeCount);
+        const n = Math.min(WISP.packSize, free);
+        for (let i = 0; i < n; i++) {
           w.spawnEnemy('wisp', pt.x + w.rng.range(-40, 40), pt.y + w.rng.range(-40, 40), sMul, bMul, false);
         }
       } else {
@@ -950,9 +962,8 @@ export class Game {
 
   private spawnWarden(force?: import('./types').EnemyKind): void {
     const w = this.world;
-    // arena/bossrush force a specific boss; scripted modes pass a 1-based index
-    const count = force ? this.director.wave : this.director.bossCount;
-    const boss = spawnBoss(w, count, force);
+    // bossCount is the true boss-appearance ordinal in every mode (drives HP scaling)
+    const boss = spawnBoss(w, this.director.bossCount, force);
     this.audio.bossWarn();
     this.audio.bossMusic(true);
     this.shake.add(TUNE.juice.traumaBossSpawn);

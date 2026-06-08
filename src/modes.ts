@@ -31,7 +31,7 @@ const ENDLESS: RunConfig = {
 export const MODES: RunConfig[] = [
   ENDLESS,
   {
-    id: 'arena', name: 'ARENA', desc: '12 hand-built waves, 3 bosses. Clear it to WIN.',
+    id: 'arena', name: 'ARENA', desc: '9 hand-built waves + 3 bosses. Clear it to WIN.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
     shieldStart: 70, shieldMax: 0.35, shardMul: 1.1, perks: true, canFail: true, arena: true, bossrush: false,
   },
@@ -41,7 +41,7 @@ export const MODES: RunConfig[] = [
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
   },
   {
-    id: 'nightmare', name: 'NIGHTMARE', desc: 'Faster, denser, deadlier. Triple shards.',
+    id: 'nightmare', name: 'NIGHTMARE', desc: 'Faster, denser, deadlier. +75% shards.',
     seedKind: 'random', intensityMul: 1.35, spawnMul: 0.8, bossInterval: 35, speedBonus: 0.12,
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
   },

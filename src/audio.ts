@@ -12,6 +12,7 @@ export class AudioEngine {
   private masterVol = 0.8;
   private sfxVol = 0.9;
   private musicVol = 0.6;
+  private ducked = false;
 
   // throttle to survive massacres without clipping / main-thread stalls
   private thunkCount = 0;
@@ -103,7 +104,7 @@ export class AudioEngine {
     const t = this.ctx.currentTime;
     this.master.gain.setTargetAtTime(master, t, 0.02);
     this.sfxBus.gain.setTargetAtTime(sfx, t, 0.02);
-    this.musicBus.gain.setTargetAtTime(music * (this.droneOn ? 1 : 1), t, 0.02);
+    this.musicBus.gain.setTargetAtTime(music * (this.ducked ? 0.15 : 1), t, 0.02);
   }
 
   suspend(): void {
@@ -673,6 +674,7 @@ export class AudioEngine {
   }
 
   duckMusic(on: boolean): void {
+    this.ducked = on;
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.musicBus.gain.setTargetAtTime(on ? this.musicVol * 0.15 : this.musicVol, t, 0.08);

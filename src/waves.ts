@@ -203,6 +203,7 @@ export class Director {
     if (wave.kind === 'boss') {
       d.boss = true;
       d.bossKind = wave.boss;
+      this.bossCount++; // boss-appearance ordinal (drives HP scaling), not the script index
       this.bossSpawned = true;
       this.phase = 'bossfight';
     } else {
@@ -231,6 +232,7 @@ export class Director {
       d.bossKind = BOSSRUSH_SEQUENCE[this.seqIndex];
       this.pendingBoss = false;
       this.bossSpawned = true;
+      this.bossCount++; // boss-appearance ordinal (HP scaling)
       this.wave = this.seqIndex + 1;
       return d;
     }
