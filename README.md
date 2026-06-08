@@ -18,21 +18,22 @@ You don't shoot. You **dash**.
 - …unless you **graze** — skimming bullets *without* dying tops your stamina back up and rewards staying dangerous.
 - Killing several enemies in **one dash** builds a **combo** that decays fast. Greed vs. survival.
 - Every 45s a **Warden** mini-boss forces you to read a bullet pattern and find the opening.
-- Every few waves you **draft a perk** (3 of 6, they stack) — chain explosions, longer lance, graze-burn, afterimage, time-thief, second wind — and watch your build snowball into a perpetual-motion massacre.
+- Every few waves you **draft a perk** (3 of 10, they stack) — chain explosions, longer lance, graze-burn, nova dash, siphon, time-thief… — and watch your build snowball into a perpetual-motion massacre.
 
 ## Features
 
 - ⚔️ **Charge-dash combat** — swept-capsule spear collision, i-frames, momentum carry, commit-on-release routing.
-- 💀 **4 enemy archetypes + 3 mini-bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, and a rotating cast of bosses — the **Warden** (spiral + aimed fans), the **Weaver** (pinwheel + safe-lane pulse rings), and the **Beacon** (a sweeping laser you dash *through*).
-- 🚀 **5-ship roster (meta-progression)** — bank shards across runs to unlock **Lance** (balanced), **Tempest** (nimble), **Glaive** (glass cannon, 2 stamina), **Bastion** (tank, 4 stamina), and **Phantom** (knife-edge, 1 stamina + huge dash). Each is a genuinely different playstyle.
-- 🃏 **In-run perk draft** — 3-of-**10** stacking upgrades (Long Lance, Second Wind, Graze Burn, Chain Reaction, Afterimage, Time Thief, Heavy Lance, Siphon, Slipstream, Nova Dash) that compound into wild builds.
-- 🎨 **Cosmetic palette themes** — 5 shard-unlockable reskins (Neon/Sunset/Toxic/Vapor/Mono) that retint the ship, UI, and nebula.
-- 🏆 **Achievements (12) + a lifetime-stats screen**, with build recaps on the game-over screen.
-- 🌀 **The juice stack** — animated parallax starfield + nebula backdrop, trauma screen-shake, hitstop, time-dilation slow-mo, additive bloom, channel-split chromatic aberration, dash-trail ribbons, particle storms, floating `+score` popups, combo-tier announcements (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, and screen flashes.
-- 🔊 **Fully-synthesized reactive audio** (Web Audio, no asset files) — a bass *thunk* that pitches **up** with your combo so a clean run plays an ascending scale, a charging arpeggio, graze ticks, an adaptive drone that layers with the wave, and a tense boss-fight layer + victory stinger.
-- 🎲 **Endless escalating wave director** plus a surfaced **Daily Challenge** (deterministic for everyone, no backend) and a build-aware copyable score-brag string.
+- 🎮 **5 game modes** — **Endless**, **Arena** (a hand-built 12-wave gauntlet you can actually **win**), **Daily Challenge** (seeded, same for everyone), **Nightmare** (cranked + ×1.75 shards), and **Boss Rush** (every boss back-to-back).
+- 💀 **7 enemy archetypes + 4 mini-bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, **lancers** (telegraphed snipers), **bombers** (detonate on death), **wisp** swarms — and a rotating boss cast: **Warden** (spiral), **Weaver** (pinwheel + safe lanes), **Beacon** (sweeping laser), **Mirrorblade** (a dash-duelist that lunges like you).
+- 🌍 **Evolving biomes** — a run cycles through The Void → Emberfield → The Lattice → Bloomgarden → Nullspace, each retinting the world, shifting the enemy mix, and twisting the rules.
+- ⬆️ **Permanent meta-progression** — a 12-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**) bought with banked shards. The "one more run" engine.
+- 🚀 **5-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge). Each a genuinely different playstyle.
+- 🃏 **In-run perk draft** — 3-of-**10** stacking upgrades that compound into wild builds (Chain Reaction + Nova Dash + Siphon = a perpetual-motion massacre).
+- 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **12 achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
+- 🌀 **The juice stack** — parallax starfield + nebula, trauma shake, hitstop, slow-mo, bloom, chromatic aberration, dash-trail ribbons, `+score` popups, combo-tier callouts (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, screen flashes.
+- 🔊 **Fully-synthesized audio** (Web Audio, no assets) — combo-pitched *thunks*, a beat-driven adaptive **soundtrack** (kick/bass/pentatonic arp that builds with intensity), a tense boss layer + victory stinger.
 - 🎮 **Keyboard + mouse, gamepad, and touch** (twin virtual sticks on phones).
-- ♿ **Accessibility** — reduce-flashing, reduce-motion, colorblind shapes, screen-shake slider, HUD scale, and full volume controls.
+- ♿ **Accessibility** — reduce-flashing, reduce-motion, colorblind shapes, screen-shake slider, HUD scale, full volume controls.
 
 ## Controls
 

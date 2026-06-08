@@ -43,6 +43,8 @@ Layered: a **pure sim** (`rng, vec, pool, collision, dash, combat, perks, waves,
 
 **Added (v1.2 — a self-paced 10-iteration "keep improving" loop):** animated parallax-starfield + nebula backdrop; per-kill `+score` popups and combo-tier announcements (RAMPAGE→LEGENDARY); game-over build recap + build-aware share string; surfaced Daily Challenge (title caption + HUD badge); 5 cosmetic palette themes (shard-unlockable reskins); a third boss — the **Beacon** (rotating laser sweep, a new dash-through hazard); 12 achievements + a lifetime-stats screen; two more ships (Tempest, Phantom → 5 total); adaptive boss-fight music + victory stinger. 101 sim tests. See `DEVLOG.md` for the per-iteration log.
 
+**Added (v2.0 — the "Steam-worthy" push, driven by a multi-agent masterplan audit + harsh-reviewer critique; see `DEVLOG.md`):** a permanent meta-progression UPGRADES tree (12 nodes incl. a per-run revive); 5 game modes including a winnable 12-wave **Arena** with a real VICTORY state, plus Nightmare and Boss Rush; 3 new enemies (Lancer sniper, Bomber, Wisp swarm → 7 total); a 4th boss, the Mirrorblade dash-duelist; a 5-biome stage system; a beat-driven procedural soundtrack (kick/bass/pentatonic arp, intensity-adaptive); and a rich run-summary debrief (death cause, PB delta, achievement chips).
+
 **Deferred (engine supports, future sessions):** a gated diegetic onboarding tutorial, controller-rumble depth, perk evolutions, online leaderboards. Each is a future session, not a gap.
 
 ## Autonomy note
