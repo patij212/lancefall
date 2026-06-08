@@ -128,6 +128,8 @@ export class World {
   mutatorApply: (s: RunStats) => void = () => {};
   /** capstone application (relics + heat) — applied LAST, after evolutions */
   postApply: (s: RunStats) => void = () => {};
+  /** accumulating run boons (mid-run event rewards) — applied in the capstone slot */
+  boons: ((s: RunStats) => void)[] = [];
   stats: RunStats = deriveStats({});
   reviveLeft = 0;
 
@@ -174,6 +176,7 @@ export class World {
     this.time = 0;
     this.stacks = {};
     this.evolutions = [];
+    this.boons = [];
     this.recomputeStats();
     this.bossAlive = false;
     this.boss = null;
@@ -186,7 +189,12 @@ export class World {
       this.metaApply(s);
       this.mutatorApply(s);
     };
-    this.stats = deriveStats(this.stacks, this.shipApply, metaThenMutator, evoApplier(this.evolutions), this.postApply);
+    // capstone slot: relic/heat postApply, then accumulated run boons
+    const post = (s: RunStats): void => {
+      this.postApply(s);
+      for (const b of this.boons) b(s);
+    };
+    this.stats = deriveStats(this.stacks, this.shipApply, metaThenMutator, evoApplier(this.evolutions), post);
   }
 
   /** A random point just outside the arena edge, plus an inward velocity. */
