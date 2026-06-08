@@ -627,6 +627,30 @@ body {
   .howto-rule { grid-template-columns: 90px 1fr; }
 }
 
+/* ── Mid-run event panel ── */
+.event-head {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 1px;
+  text-align: center;
+}
+.event-flavor {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: -8px 0 18px;
+  font-style: italic;
+}
+.event-risk {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.event-risk-none { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+.event-risk-low { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+.event-risk-high { color: var(--pink); background: color-mix(in srgb, var(--pink) 16%, transparent); }
+
 /* ── Run mutators (HUD badges + debrief chips) ── */
 .hud-mutators {
   display: flex;

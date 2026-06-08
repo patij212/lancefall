@@ -7,6 +7,7 @@ import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
 import { isEvolution, EVOLUTIONS } from './evolutions';
 import type { DraftCard } from './evolutions';
+import type { EventChoice } from './events';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
@@ -23,6 +24,7 @@ export interface UICallbacks {
   onResume: () => void;
   onQuit: () => void;
   onPick: (index: number) => void;
+  onPickEvent: (index: number) => void;
   onCopyScore: () => void;
   onSettingsChange: (s: Settings) => void;
   onSelectShip: (id: string) => void;
@@ -52,7 +54,7 @@ export interface GameOverInfo {
   mutators: { name: string; accent: string }[];
 }
 
-type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft';
+type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft' | 'event';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -78,6 +80,9 @@ export class UI {
   private pause!: HTMLElement;
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
+  private eventPanel!: HTMLElement;
+  private eventHead!: HTMLElement;
+  private eventFlavor!: HTMLElement;
   private settingsPanel!: HTMLElement;
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
@@ -136,13 +141,14 @@ export class UI {
     this.buildPause();
     this.buildGameOver();
     this.buildDraft();
+    this.buildEvent();
     this.buildSettings();
     this.buildStats();
     this.buildUpgrades();
     this.buildHowTo();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -307,6 +313,37 @@ export class UI {
     cards.id = 'draft-cards';
     const panel = el('div', { class: 'panel panel-wide' }, h, cards);
     this.draft = el('div', { class: 'screen screen-dim' }, panel);
+  }
+
+  private buildEvent(): void {
+    this.eventHead = el('h2', { class: 'event-head' }, 'EVENT');
+    this.eventFlavor = el('div', { class: 'event-flavor' }, '');
+    const cards = el('div', { class: 'draft-cards' });
+    cards.id = 'event-cards';
+    const panel = el('div', { class: 'panel panel-wide' }, this.eventHead, this.eventFlavor, cards);
+    this.eventPanel = el('div', { class: 'screen screen-dim' }, panel);
+  }
+
+  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[]): void {
+    this.eventHead.textContent = name;
+    this.eventHead.style.color = accent;
+    this.eventFlavor.textContent = flavor;
+    const wrap = this.eventPanel.querySelector('#event-cards')!;
+    wrap.replaceChildren();
+    choices.forEach((c, i) => {
+      const card = el('button', { class: 'perk-card' });
+      card.style.setProperty('--accent', c.accent);
+      const riskLabel = c.risk === 'high' ? 'HIGH RISK' : c.risk === 'low' ? 'RISK' : 'SAFE';
+      card.append(
+        el('div', { class: `event-risk event-risk-${c.risk}` }, riskLabel),
+        el('div', { class: 'perk-name' }, c.name),
+        el('div', { class: 'perk-desc' }, c.desc),
+        el('div', { class: 'perk-key' }, String(i + 1)),
+      );
+      card.addEventListener('click', () => this.cb.onPickEvent(i));
+      wrap.append(card);
+    });
+    this.show('event');
   }
 
   private buildSettings(): void {
@@ -505,6 +542,7 @@ export class UI {
     this.pause.classList.toggle('hidden', s !== 'paused');
     this.gameover.classList.toggle('hidden', s !== 'gameover');
     this.draft.classList.toggle('hidden', s !== 'draft');
+    this.eventPanel.classList.toggle('hidden', s !== 'event');
     this.hud.classList.toggle('hidden', s !== 'playing');
     // any screen transition dismisses the modals so they can't block play
     this.settingsPanel.classList.add('hidden');
@@ -515,7 +553,7 @@ export class UI {
       this.pauseRestartArmed = false;
     }
     // move keyboard focus to the active screen's primary action
-    const active = { title: this.title, paused: this.pause, gameover: this.gameover, draft: this.draft, playing: null }[s];
+    const active = { title: this.title, paused: this.pause, gameover: this.gameover, draft: this.draft, event: this.eventPanel, playing: null }[s];
     if (active) {
       const btn = active.querySelector('.btn-primary, .perk-card, .btn') as HTMLElement | null;
       btn?.focus();

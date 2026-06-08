@@ -111,6 +111,8 @@ export const TUNE = {
     bulletSpeedRamp: 0.3,
     perkFirst: 20, // first perk draft at t=20s
     perkInterval: 30, // then every 30s
+    eventFirst: 50, // first mid-run event at t=50s
+    eventInterval: 75, // then roughly every 75s
     shieldStartTime: 110, // shielded variants appear after this many seconds
     shieldMaxChance: 0.35,
   },

@@ -23,6 +23,8 @@ import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, sho
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
+import { RUN_EVENTS, rollEventChoices } from './events';
+import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
@@ -45,7 +47,7 @@ import {
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind } from './types';
 
-type State = 'title' | 'playing' | 'paused' | 'draft' | 'gameover';
+type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
 /** Combo milestones → arcade announcements. */
 const COMBO_TIERS: { at: number; name: string; color: string }[] = [
@@ -92,6 +94,8 @@ export class Game {
   private dyingTimer = 0;
   private pendingDraft = false;
   private draftCards: DraftCard[] = [];
+  private pendingEvent: RunEventId | null = null;
+  private eventChoices: EventChoice[] = [];
   private announcedEvos = new Set<EvolutionId>(); // evolutions we've already flagged as ready
   private activeMutators: MutatorId[] = []; // run mutators in effect this run
   private eliteMods = { chanceMul: 1, maxAdd: 0 }; // champion-spawn mods from mutators
@@ -111,6 +115,7 @@ export class Game {
       onResume: () => this.resume(),
       onQuit: () => this.toTitle(),
       onPick: (i) => this.pickPerk(i),
+      onPickEvent: (i) => this.pickEvent(i),
       onCopyScore: () => this.copyScore(),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
@@ -211,6 +216,7 @@ export class Game {
     this.accumulator = 0;
     this.dying = false;
     this.pendingDraft = false;
+    this.pendingEvent = null;
     this.dashSlowmoTriggered = false;
     this.announcedEvos.clear();
     this.intensityTimer = 0;
@@ -285,6 +291,26 @@ export class Game {
       this.ui.toast(`PERK: ${card.name}`);
       this.checkEvoReady();
     }
+    this.state = 'playing';
+    this.ui.show('playing');
+    this.audio.duckMusic(false);
+  }
+
+  private openEvent(id: RunEventId): void {
+    const def = RUN_EVENTS[id];
+    this.eventChoices = rollEventChoices(id, this.world.rng, this.world);
+    this.state = 'event';
+    this.ui.showEvent(def.name, def.flavor, def.accent, this.eventChoices);
+    this.audio.duckMusic(true);
+    this.renderer.flash(def.accent, 0.14);
+  }
+
+  private pickEvent(i: number): void {
+    if (this.state !== 'event') return;
+    const choice = this.eventChoices[i];
+    if (!choice) return;
+    choice.resolve(this.world);
+    this.ui.toast(`${choice.name}`);
     this.state = 'playing';
     this.ui.show('playing');
     this.audio.duckMusic(false);
@@ -405,9 +431,9 @@ export class Game {
         this.step(FIXED_DT);
         this.accumulator -= FIXED_DT;
         steps++;
-        // open a pending draft immediately so a scripted boss can't spawn in the
-        // same frame before the draft modal appears (Boss Rush inter-boss draft)
-        if (this.pendingDraft && !this.dying && !this.winning) break;
+        // open a pending draft/event immediately so a scripted boss can't spawn
+        // in the same frame before the modal appears (Boss Rush inter-boss draft)
+        if ((this.pendingDraft || this.pendingEvent) && !this.dying && !this.winning) break;
       }
       if (steps >= MAX_SUBSTEPS) this.accumulator = 0;
 
@@ -435,6 +461,10 @@ export class Game {
       if (this.pendingDraft && !this.dying && !this.winning) {
         this.pendingDraft = false;
         this.openDraft();
+      } else if (this.pendingEvent && !this.dying && !this.winning && this.state === 'playing') {
+        const id = this.pendingEvent;
+        this.pendingEvent = null;
+        this.openEvent(id);
       }
     }
 
@@ -460,6 +490,9 @@ export class Game {
     } else if (this.state === 'draft') {
       if (inp.selectIndex >= 0) this.pickPerk(inp.selectIndex);
       else if (this.input.consumeConfirm()) this.pickPerk(1);
+    } else if (this.state === 'event') {
+      if (inp.selectIndex >= 0) this.pickEvent(inp.selectIndex);
+      else if (this.input.consumeConfirm()) this.pickEvent(0);
     } else if (this.state === 'gameover') {
       if (this.input.consumeRestart() || this.input.consumeConfirm()) this.start(this.mode);
     }
@@ -525,6 +558,7 @@ export class Game {
       this.applyDirector(dec.spawn);
       if (dec.boss) this.spawnWarden(dec.bossKind);
       if (dec.perk) this.pendingDraft = true;
+      if (dec.event) this.pendingEvent = dec.event;
       if (dec.win) this.winRun();
     }
 

@@ -9,6 +9,8 @@ import type { Rng } from './rng';
 import type { EnemyKind } from './types';
 import type { RunConfig } from './modes';
 import { MODES, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
+import { rollEventId } from './events';
+import type { RunEventId } from './events';
 
 /** Intensity I(t): ramps 0→1 over rampSeconds, then keeps climbing, unbounded. */
 export function intensity(t: number): number {
@@ -111,6 +113,7 @@ export interface DirectorDecision {
   bossKind?: EnemyKind; // explicit boss for scripted modes (arena/bossrush)
   perk: boolean;
   win: boolean; // run beaten (scripted modes only)
+  event: RunEventId | null; // mid-run event to open (endless/daily/nightmare)
 }
 
 type ArenaPhase = 'entering' | 'spawning' | 'clearing' | 'bossfight' | 'done';
@@ -121,6 +124,7 @@ export class Director {
   private spawnTimer = 0;
   private nextBossAt: number = TUNE.director.bossInterval;
   private nextPerkAt: number = TUNE.director.perkFirst;
+  private nextEventAt: number = TUNE.director.eventFirst;
   bossCount = 0;
   /** displayed wave number (1-based) */
   wave = 1;
@@ -146,6 +150,7 @@ export class Director {
     this.wave = 1;
     this.nextBossAt = this.cfg.bossInterval;
     this.nextPerkAt = TUNE.director.perkFirst;
+    this.nextEventAt = TUNE.director.eventFirst;
     this.waveIndex = 0;
     this.spawnedThisWave = 0;
     this.phase = 'entering';
@@ -156,7 +161,7 @@ export class Director {
 
   update(dt: number, concurrent: number, bossAlive: boolean, rng: Rng): DirectorDecision {
     this.t += dt;
-    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false };
+    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false, event: null };
     if (this.cfg.arena) return this.updateArena(dt, concurrent, bossAlive, rng, decision);
     if (this.cfg.bossrush) return this.updateBossRush(concurrent, bossAlive, decision);
     return this.updateEndless(dt, concurrent, bossAlive, rng, decision);
@@ -174,6 +179,11 @@ export class Director {
     if (this.cfg.perks && this.t >= this.nextPerkAt) {
       d.perk = true;
       this.nextPerkAt += TUNE.director.perkInterval;
+    }
+    // mid-run event — never collides with a boss or perk this tick
+    if (this.t >= this.nextEventAt && !bossAlive && !d.boss && !d.perk) {
+      d.event = rollEventId(rng);
+      this.nextEventAt = this.t + TUNE.director.eventInterval;
     }
     if (!bossAlive && !d.boss) {
       this.spawnTimer -= dt;
