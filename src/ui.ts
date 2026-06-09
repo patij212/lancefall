@@ -174,8 +174,10 @@ export class UI {
     this.buildHeat();
     this.buildArchetype();
     this.buildLeaderboard();
-    this.toastLayer = el('div', { class: 'toast-layer' });
-    this.announceEl = el('div', { class: 'announce' });
+    // aria-live so the narrator's SOUL payload reaches screen-reader users:
+    // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
+    this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
+    this.announceEl = el('div', { class: 'announce', role: 'alert', 'aria-live': 'assertive' });
     this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
@@ -199,7 +201,7 @@ export class UI {
   private buildHud(): void {
     this.scoreEl = el('div', { class: 'hud-score' }, '0');
     this.waveEl = el('div', { class: 'hud-wave' }, 'WAVE 1');
-    this.dailyBadge = el('div', { class: 'hud-daily hidden' }, '◆ DAILY');
+    this.dailyBadge = el('div', { class: 'hud-daily hidden' }, '◆ ECHO');
     this.mutatorRow = el('div', { class: 'hud-mutators' });
     const topLeft = el('div', { class: 'hud-topleft' }, this.scoreEl, this.waveEl, this.dailyBadge, this.mutatorRow);
 
@@ -214,7 +216,7 @@ export class UI {
     const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.bestComboEl);
 
     // OVERDRIVE meter (below the stamina bar)
-    this.odLabel = el('div', { class: 'hud-od-label' }, 'OVERDRIVE');
+    this.odLabel = el('div', { class: 'hud-od-label' }, 'REMEMBER');
     this.odFill = el('div', { class: 'hud-od-fill' });
     this.odWrap = el('div', { class: 'hud-overdrive' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
 
@@ -240,7 +242,7 @@ export class UI {
 
   private buildTitle(): void {
     const wordmark = el('h1', { class: 'title-word' }, 'LANCEFALL');
-    const tagline = el('p', { class: 'title-tag' }, 'thread death itself');
+    const tagline = el('p', { class: 'title-tag' }, 'remember the fall');
     const play = el('button', { class: 'btn btn-primary btn-play' }, 'PLAY');
     play.title = 'Endless mode';
     play.addEventListener('click', () => this.cb.onStart(modeById('endless')));
@@ -349,7 +351,7 @@ export class UI {
   }
 
   private buildGameOver(): void {
-    this.goHead = el('h2', { class: 'go-head' }, 'YOU FELL');
+    this.goHead = el('h2', { class: 'go-head' }, 'THE LIGHT DIMS');
     this.goSub = el('div', { class: 'go-sub' }, '');
     this.goBadge = el('div', { class: 'go-badge' }, '');
     this.goScore = el('div', { class: 'go-score' }, '0');
@@ -604,7 +606,7 @@ export class UI {
       rule('I-frames', 'You are invincible mid-dash — dash through bullets and bosses'),
       rule('Combo', 'Chain kills before the timer runs out to multiply score — hit ×50 and your combo ERUPTS into a bullet-clearing nova'),
       rule('Graze', 'Skim bullets without being hit to refill stamina'),
-      rule('OVERDRIVE', 'Kills + grazes charge the bottom meter. When it reads READY, tap F (or gamepad LB) to unleash a time-slowing, screen-clearing nova'),
+      rule('REMEMBER EVERYTHING', 'Kills + grazes charge the bottom meter. When it reads READY, tap F (or gamepad LB) to unleash a time-slowing, screen-clearing nova'),
       rule('Power-ups', 'Bosses and Champions drop timed buffs — run over the glowing pickup to grab it (one active at a time)'),
       rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
@@ -733,7 +735,7 @@ export class UI {
     const modeRow = el('div', { class: 'leader-modes' });
     const listWrap = el('div', { class: 'leader-list' }, el('div', { class: 'event-flavor' }, 'Loading…'));
     const modes: { id: string; name: string }[] = [
-      { id: 'endless', name: 'ENDLESS' }, { id: 'daily', name: 'DAILY' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' },
+      { id: 'endless', name: 'ENDLESS' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' },
     ];
     const load = async (mode: string) => {
       listWrap.replaceChildren(el('div', { class: 'event-flavor' }, 'Loading…'));
@@ -801,7 +803,7 @@ export class UI {
     this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards${save.selectedHeat > 0 ? `  ·  🔥 HEAT ${save.selectedHeat}` : ''}${arch}`;
 
     // daily challenge caption — today's seed + your best for it
-    let daily = `Daily Challenge · ${dateString()}`;
+    let daily = `Echo of the Fall · ${dateString()}`;
     if (save.dailySeed === seedFromDate() && save.dailyBest > 0) {
       daily += ` · your best ${save.dailyBest.toLocaleString()}`;
     }
@@ -909,9 +911,9 @@ export class UI {
   showGameOver(info: GameOverInfo): void {
     this.displayScore = 0;
     this.goScore.textContent = '0';
-    this.goHead.textContent = info.won ? 'VICTORY' : 'YOU FELL';
+    this.goHead.textContent = info.won ? 'THE LIGHT HOLDS' : 'THE LIGHT DIMS';
     this.goHead.style.color = info.won ? 'var(--amber)' : 'var(--pink)';
-    this.goSub.textContent = info.won ? 'you cleared the gauntlet' : `felled by ${info.deathCause}`;
+    this.goSub.textContent = info.won ? 'Lancefall remembers itself' : `the kingdom forgets a little more · ${info.deathCause}`;
     this.goBadge.classList.toggle('hidden', !info.newBest);
     this.goBadge.textContent = info.newBest ? '★ NEW BEST ★' : '';
     // personal-best delta vs your previous high
@@ -1031,7 +1033,7 @@ export class UI {
     const ready = od.meter >= 1 && od.cooldown <= 0;
     this.odFill.style.transform = `scaleX(${Math.max(0, Math.min(1, od.meter))})`;
     this.odWrap.classList.toggle('od-ready', ready);
-    this.odLabel.textContent = od.cooldown > 0 ? `RECHARGING ${Math.ceil(od.cooldown)}s` : ready ? 'OVERDRIVE READY [F]' : 'OVERDRIVE';
+    this.odLabel.textContent = od.cooldown > 0 ? `FADING ${Math.ceil(od.cooldown)}s` : ready ? 'REMEMBER EVERYTHING READY [F]' : 'REMEMBER';
 
     // active POWER-UP badge
     const pu = world.powerup;

@@ -61,6 +61,7 @@ import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
+import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
@@ -106,6 +107,9 @@ export class Game {
   private beat = new BeatClock(makeGrid(MUSIC_BPM));
   /** latched when a dash commits in step(); graded in frame() (out of the substep loop) */
   private dashFiredThisStep = false;
+  /** the dead-world narrator — own rng (cosmetic), surfaces on toast/announce */
+  private narrator = newNarrator();
+  private narratedFirstKill = false;
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -300,6 +304,9 @@ export class Game {
     resetCoherence(this.coherence);
     this.beat = new BeatClock(makeGrid(MUSIC_BPM)); // fresh epoch — never grade against a stale one
     this.dashFiredThisStep = false;
+    // re-seed the narrator per run (cosmetic variety; totalRuns is save state, never world.rng)
+    this.narrator = newNarrator((0x9e3779b1 ^ Math.imul(this.save.totalRuns + 1, 2654435761)) >>> 0);
+    this.narratedFirstKill = false;
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
@@ -308,6 +315,7 @@ export class Game {
     this.ui.setMutators(hudBadges);
     this.audio.startDrone();
     this.audio.duckMusic(false);
+    this.narrate('run_start', 'announce', NARRATOR.runStart);
 
     // first-run progressive onboarding — hints surface as you perform each action
     if (!this.save.seenTutorial) {
@@ -329,6 +337,25 @@ export class Game {
     this.ui.toast(h.text);
     this.onboardStep++;
     if (this.onboardStep >= ONBOARDING_STEPS) this.onboarding = false;
+  }
+
+  /** The narrator surfaces a terse second-person line on the existing
+   *  non-blocking toast/announce. Uses its OWN rng (cosmetic) — never world.rng —
+   *  so it can never perturb a seeded run. */
+  private narrate(bucket: string, surface: 'toast' | 'announce', pool: readonly string[], ambient = false): void {
+    if (!pool.length) return;
+    if (ambient && !ambientReady(this.narrator, bucket, this.world.time, 7)) return;
+    const line = pool[pickLine(this.narrator, bucket, pool.length)];
+    if (!line) return;
+    if (surface === 'announce') this.ui.announce(line, '#cbd5e1');
+    else this.ui.toast(line);
+  }
+
+  /** Surface a single keyed narrator line (boss/strata/combo-tier), if present. */
+  private narrateOne(surface: 'toast' | 'announce', line: string | undefined): void {
+    if (!line) return;
+    if (surface === 'announce') this.ui.announce(line, '#cbd5e1');
+    else this.ui.toast(line);
   }
 
   private resume(): void {
@@ -426,7 +453,7 @@ export class Game {
     // score + spectacle
     const bonus = Math.round(OVERDRIVE.scoreBonus * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.score += bonus;
-    w.particles.floatText(p.x, p.y - 44, `OVERDRIVE +${bonus.toLocaleString()}`, '#ffffff', 1.7);
+    w.particles.floatText(p.x, p.y - 44, `REMEMBER EVERYTHING +${bonus.toLocaleString()}`, '#ffffff', 1.7);
     w.particles.ring(p.x, p.y, OVERDRIVE.novaRadius, '#ffffff', 0.5);
     w.particles.ring(p.x, p.y, OVERDRIVE.novaRadius * 0.6, '#5beaff', 0.4);
     w.particles.burst(p.x, p.y, 70, '#ffffff');
@@ -437,7 +464,7 @@ export class Game {
     this.audio.overdriveBurst();
     this.cam.zoom = Math.max(this.cam.zoom, 1.18);
     this.input.rumble(0.8, 1, 280);
-    this.ui.announce('OVERDRIVE', '#ffffff');
+    this.ui.announce('REMEMBER EVERYTHING', '#ffffff');
   }
 
   private openEvent(id: RunEventId): void {
@@ -711,6 +738,15 @@ export class Game {
     // THE ONE BUS (render half): push the eased Coherence value + focus-snap each frame
     this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse);
 
+    // narrator (cosmetic; own rng; frame-context, never the seeded sim)
+    if (this.state === 'playing') {
+      if (!this.narratedFirstKill && cw.killCount >= 1) {
+        this.narratedFirstKill = true;
+        this.narrate('first_kill', 'toast', NARRATOR.firstKill);
+      }
+      if (this.coherence.value >= 0.85) this.narrate('high_coherence', 'toast', NARRATOR.highCoherence, true);
+    }
+
     this.renderer.render(this.world, this.cam, {
       reduceFlashing: this.settings.reduceFlashing,
       colorblind: this.settings.colorblind,
@@ -831,6 +867,7 @@ export class Game {
         this.audio.comboBreak();
         this.ui.comboBreakFlash();
         w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
+        this.narrate('combo_break', 'toast', NARRATOR.comboBreak, true);
         w.lastTierAnnounced = 0;
         resetErupt(w.clutch); // re-arm COMBO ERUPTION for the next climb
         this.tryHint('comboBreak');
@@ -1127,6 +1164,7 @@ export class Game {
       if (w.combo >= t.at && t.at > w.lastTierAnnounced) {
         w.lastTierAnnounced = t.at;
         this.ui.announce(`${t.name}  ×${w.combo}`, t.color);
+        this.narrateOne('toast', NARRATOR.comboTier[t.at]);
         this.shake.add(0.18);
         this.renderer.flash(t.color, 0.12);
         this.audio.pickup(14);
@@ -1246,6 +1284,7 @@ export class Game {
     w.particles.burst(e.x, e.y, 90, '#ffffff');
     w.particles.ring(e.x, e.y, 220, e.color, 0.5);
     w.particles.floatText(e.x, e.y - 40, `${bossName(e.kind).replace('THE ', '')} DOWN`, '#fbbf24', 1.4);
+    this.narrateOne('announce', NARRATOR.bossKill[e.kind]);
     this.renderer.flash('#ffffff', 0.45);
     this.audio.bossMusic(false);
     this.audio.bossStinger();
@@ -1439,6 +1478,7 @@ export class Game {
       this.shake.add(0.5);
       this.audio.lastBreath();
       this.ui.announce('LAST BREATH', '#c4b5fd');
+    this.narrate('last_breath', 'toast', NARRATOR.lastBreath);
       w.particles.ring(p.x, p.y, CLUTCH.lastBreathPushRadius, '#a78bfa', 0.6);
       w.particles.burst(p.x, p.y, 30, '#c4b5fd');
       this.input.rumble(0.4, 0.4, 200);
@@ -1618,6 +1658,7 @@ export class Game {
     this.renderer.flash(col, 0.3);
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
+    if (boss) this.narrateOne('toast', NARRATOR.bossApproach[boss.kind]);
     // teach the Sovereign's core gimmick on arrival
     if (boss?.kind === 'sovereign') {
       w.particles.floatText(w.width / 2, w.height / 2 + 90, 'SHATTER THE CORES', '#fde047', 1.2);
@@ -1633,6 +1674,7 @@ export class Game {
     this.biomeShield = b.shieldBonus;
     if (announce) {
       this.ui.announce(`⟐ ${b.name}`, b.accent);
+      this.narrateOne('toast', NARRATOR.strata[index]);
       this.renderer.flash(b.accent, 0.12);
     }
   }
@@ -1649,7 +1691,8 @@ export class Game {
     this.renderer.flash('#fbbf24', 0.5);
     this.shake.add(0.6);
     this.cam.zoom = Math.max(this.cam.zoom, 1.12); // a punch that eases back out
-    this.ui.announce('VICTORY!', '#fbbf24');
+    this.ui.announce('REMEMBERED', '#fbbf24');
+    this.narrate('victory', 'toast', NARRATOR.victory);
     this.audio.bossStinger();
     this.input.rumble(0.6, 0.8, 320);
     // concentric shockwaves from the arena centre

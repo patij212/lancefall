@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { newNarrator, pickLine, ambientReady } from './narrator';
+import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 
 describe('narrator — pure weighted no-repeat picker', () => {
   it('never repeats the immediate previous index', () => {
@@ -67,5 +67,34 @@ describe('narrator — pure weighted no-repeat picker', () => {
     const n = newNarrator();
     expect(() => pickLine(n, 'empty', 0)).not.toThrow();
     expect(pickLine(n, 'empty', 0)).toBe(0);
+  });
+});
+
+describe('narrator pool (data coverage)', () => {
+  it('every list bucket has at least one non-empty line', () => {
+    for (const pool of [
+      NARRATOR.runStart,
+      NARRATOR.firstKill,
+      NARRATOR.comboBreak,
+      NARRATOR.lastBreath,
+      NARRATOR.victory,
+      NARRATOR.highCoherence,
+    ]) {
+      expect(pool.length).toBeGreaterThan(0);
+      for (const line of pool) expect(line.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('all six bosses have an approach + kill line', () => {
+    for (const k of ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'] as const) {
+      expect(NARRATOR.bossApproach[k]).toBeTruthy();
+      expect(NARRATOR.bossKill[k]).toBeTruthy();
+    }
+  });
+
+  it('all six strata have a line; combo tiers map to known cut points', () => {
+    expect(NARRATOR.strata.length).toBe(6);
+    for (const s of NARRATOR.strata) expect(s.trim().length).toBeGreaterThan(0);
+    for (const at of [10, 20, 50, 100]) expect(NARRATOR.comboTier[at]).toBeTruthy();
   });
 });

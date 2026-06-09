@@ -4,6 +4,7 @@
 // non-blocking ui.toast / ui.announce surfaces. The line pools themselves are
 // added (as data) in the Phase 4 "voice" pass.
 import { createRng } from './rng';
+import type { EnemyKind } from './types';
 
 export type Surface = 'toast' | 'announce';
 
@@ -38,3 +39,47 @@ export function ambientReady(n: NarratorState, bucket: string, nowSec: number, g
   n.cooldown[bucket] = nowSec;
   return true;
 }
+
+// ── THE NARRATOR POOL (data) ──────────────────────────────────────────────
+// The dead world is mostly silent — restraint IS the soul. ~30 terse,
+// second-person lines, surfaced on the existing non-blocking toast/announce.
+export const NARRATOR = {
+  runStart: ['The city is gray. You remember it lit.', 'One lance. One descent. Begin.'],
+  firstKill: ['One. The dark notices.'],
+  // keyed by the combo-tier cut point (COHERENCE.tierCombo); only some tiers speak
+  comboTier: {
+    10: 'Ten. The streets begin to remember.',
+    20: 'Twenty. A whole street remembers.',
+    50: 'Fifty. The skyline burns awake.',
+    100: 'A hundred. Lancefall stands again.',
+  } as Record<number, string>,
+  comboBreak: ['The colour drains. Get it back.', 'The city forgets a little. Remind it again.'],
+  bossApproach: {
+    warden: 'He held the walls, then chose the dark.',
+    weaver: 'Find the true thread in all her lies.',
+    beacon: 'The light that lied still turns above.',
+    mirrorblade: 'It wears your colour. It is your doubt.',
+    hollow: "Strike only when it remembers it's real.",
+    sovereign: 'It could have saved everything. Make it answer.',
+  } as Partial<Record<EnemyKind, string>>,
+  bossKill: {
+    warden: '"I only locked the doors you forgot."',
+    weaver: 'The threads fall slack. The story is yours now.',
+    beacon: 'The false light goes out for good.',
+    mirrorblade: 'Your doubt, face-down. You meant it more.',
+    hollow: 'You caught it in the one true moment.',
+    sovereign: 'The crown is bare. You proved it could be saved.',
+  } as Partial<Record<EnemyKind, string>>,
+  // keyed by biome index 0..5 (Court / Emberwall / Lattice-vaults / Bloomgardens / Warrens / Null)
+  strata: [
+    'The throne-hall, gone grey. It started here.',
+    'The ramparts still burn at the breach.',
+    'The archives, locked. Everything sealed away.',
+    'The royal gardens, gone to ruin and seed.',
+    "The undercity. Things hatch where light won't reach.",
+    'The edge of erasure. Memory runs out here.',
+  ],
+  lastBreath: ["Not yet. The city isn't done with you."],
+  victory: ['The light holds. Lancefall remembers itself.', 'The crown is bare. The kingdom is yours to keep.'],
+  highCoherence: ['The city remembers. Hold it here.'],
+} as const;
