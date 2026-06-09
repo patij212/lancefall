@@ -301,13 +301,28 @@ function isEligible(stacks: PerkStacks, id: PerkId): boolean {
   return (stacks[id] ?? 0) < PERKS[id].maxStacks;
 }
 
-/** Offer `size` distinct perks not yet maxed; fill with Shard Cache if short. */
-export function rollDraft(rng: Rng, stacks: PerkStacks, size = 3): PerkDef[] {
+/** Offer `size` distinct perks not yet maxed; fill with Shard Cache if short.
+ *  An optional `weightMap` (build-archetype bias) softly favours certain perks —
+ *  applied as a deterministic reorder AFTER the shuffle so it consumes NO extra
+ *  rng (Daily seeds stay identical regardless of the player's archetype). */
+export function rollDraft(
+  rng: Rng,
+  stacks: PerkStacks,
+  size = 3,
+  weightMap?: Partial<Record<PerkId, number>>,
+): PerkDef[] {
   const eligible = (Object.keys(PERKS) as PerkId[]).filter((id) => isEligible(stacks, id));
   // Fisher–Yates shuffle using the seeded rng
   for (let i = eligible.length - 1; i > 0; i--) {
     const j = Math.floor(rng.next() * (i + 1));
     [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+  }
+  // soft archetype bias: sort by (shuffleIndex / weight) — a favoured perk that
+  // shuffled late can still beat an unfavoured one, so it biases without guaranteeing.
+  if (weightMap) {
+    const keyed = eligible.map((id, i) => ({ id, k: i / (weightMap[id] ?? 1) }));
+    keyed.sort((a, b) => a.k - b.k);
+    for (let i = 0; i < eligible.length; i++) eligible[i] = keyed[i].id;
   }
   const out: PerkDef[] = eligible.slice(0, size).map((id) => PERKS[id]);
   while (out.length < size) out.push(PERKS.shardcache);

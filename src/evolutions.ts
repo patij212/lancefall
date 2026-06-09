@@ -191,6 +191,12 @@ export function describeEvolutions(taken: EvolutionId[]): string {
   return taken.map((id) => EVOLUTIONS[id].name).join(', ');
 }
 
+/** Options for a draft roll. Tail param so features extend it without reordering
+ *  positional args (archetype weightMap now; relics will add fields later). */
+export interface DraftOpts {
+  weightMap?: Partial<Record<PerkId, number>>;
+}
+
 /** Roll a draft. If an evolution is available it claims one guaranteed slot
  *  (the big payoff should never be missed); the rest are normal perks. */
 export function rollDraftCards(
@@ -198,13 +204,14 @@ export function rollDraftCards(
   stacks: PerkStacks,
   takenEvolutions: EvolutionId[],
   size = 3,
+  opts: DraftOpts = {},
 ): DraftCard[] {
   const evos = availableEvolutions(stacks, takenEvolutions);
-  if (evos.length === 0) return rollDraft(rng, stacks, size);
+  if (evos.length === 0) return rollDraft(rng, stacks, size, opts.weightMap);
 
   // pick one available evolution at random
   const evo = evos[Math.floor(rng.next() * evos.length)];
-  const perks = rollDraft(rng, stacks, Math.max(0, size - 1));
+  const perks = rollDraft(rng, stacks, Math.max(0, size - 1), opts.weightMap);
   // evolution always leads the draft so it reads as special
   return [evo, ...perks];
 }

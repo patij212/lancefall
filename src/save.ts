@@ -43,6 +43,8 @@ export interface SaveData {
   selectedHeat: number;
   /** highest Heat level ever played */
   maxHeat: number;
+  /** selected build archetype id (draft bias); 'none' = freestyle */
+  selectedArchetype: string;
 }
 
 export interface Settings {
@@ -88,6 +90,7 @@ export function defaultSave(): SaveData {
     dailyMutators: [],
     selectedHeat: 0,
     maxHeat: 0,
+    selectedArchetype: 'none',
   };
 }
 

@@ -36,6 +36,7 @@ import type { RunConfig } from './modes';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
 import { HEAT_LEVELS, applyHeatStats, applyHeatConfig } from './heat';
+import { archetypeById } from './archetypes';
 import { BIOMES, biomeAt } from './biomes';
 import {
   loadSave,
@@ -126,6 +127,7 @@ export class Game {
       onUnlockTheme: (id) => this.unlockTheme(id),
       onBuyMeta: (id) => this.buyMeta(id),
       onHeatChange: (level) => this.setHeat(level),
+      onArchetypeChange: (id) => this.setArchetype(id),
     });
 
     this.resize();
@@ -272,7 +274,9 @@ export class Game {
 
   private openDraft(): void {
     const w = this.world;
-    this.draftCards = rollDraftCards(w.rng, w.stacks, w.evolutions, w.stats.draftSize);
+    this.draftCards = rollDraftCards(w.rng, w.stacks, w.evolutions, w.stats.draftSize, {
+      weightMap: archetypeById(this.save.selectedArchetype).weights,
+    });
     this.state = 'draft';
     this.ui.showDraft(this.draftCards);
     this.audio.duckMusic(true);
@@ -410,6 +414,12 @@ export class Game {
   private setHeat(level: number): void {
     this.save.selectedHeat = Math.max(0, Math.min(HEAT_LEVELS.length - 1, Math.floor(level)));
     this.save.maxHeat = Math.max(this.save.maxHeat, this.save.selectedHeat);
+    saveSave(this.save);
+    this.ui.refreshTitle(this.save);
+  }
+
+  private setArchetype(id: string): void {
+    this.save.selectedArchetype = archetypeById(id).id;
     saveSave(this.save);
     this.ui.refreshTitle(this.save);
   }
