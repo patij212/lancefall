@@ -58,6 +58,26 @@ export function echoLine(daySeed: number): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// ── MEMORY FRAGMENTS — earned per descent; the caller pushes the new ids ──
+export interface RunFragmentCtx {
+  runOrdinal: number; // save.totalRuns (post-increment) → a unique per-run carry id
+  bossKills: number;
+  deepestWave: number;
+  bestComboRun: number;
+  sovereignDown: boolean;
+}
+/** Fragment ids this run qualifies for (caller filters to the not-yet-owned and
+ *  pushes them). Pure — no rng. The per-run carry is always unique; the milestone
+ *  fragments earn once ever (dedup is the caller's plain includes() check). */
+export function fragmentsForRun(c: RunFragmentCtx): string[] {
+  const ids = [`run-${c.runOrdinal}`]; // THE LIGHT DIMS — carry one fragment out of every descent
+  if (c.bossKills >= 1) ids.push('m-firstboss');
+  if (c.deepestWave >= 10) ids.push('m-deep');
+  if (c.bestComboRun >= 25) ids.push('m-combo');
+  if (c.sovereignDown) ids.push('m-sovereign');
+  return ids;
+}
+
 // ── NEMESIS — the boss the player has died to most (hub run-state read) ──
 export function nemesisOf(nemesis: Record<string, number>): { kind: string; count: number } | null {
   let best: string | null = null;

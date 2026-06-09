@@ -63,7 +63,8 @@ import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
-import { choiceEnding, echoLine } from './stillpoint';
+import { choiceEnding, echoLine, fragmentsForRun } from './stillpoint';
+import { fragmentBalance, loreById } from './lore';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
@@ -163,6 +164,7 @@ export class Game {
       onCopyBuildDna: () => this.copyBuildDna(),
       onChoice: (c) => this.makeChoice(c),
       onSaveReplay: () => this.replay.download(),
+      onUnlockLore: (id) => this.unlockLore(id),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
@@ -1545,6 +1547,16 @@ export class Game {
     if (!won && this.deathCause) this.save.nemesis[this.deathCause] = (this.save.nemesis[this.deathCause] ?? 0) + 1;
     this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
     this.save.totalRuns++;
+    // MEMORY FRAGMENTS — carry one out of every descent + earn milestone fragments
+    for (const f of fragmentsForRun({
+      runOrdinal: this.save.totalRuns,
+      bossKills: w.bossKills,
+      deepestWave: this.save.deepestWave,
+      bestComboRun: w.bestComboRun,
+      sovereignDown: w.sovereignDown,
+    })) {
+      if (!this.save.stillpointFragments.includes(f)) this.save.stillpointFragments.push(f);
+    }
     // bank shards: in-run gems × meta Treasure Hunter × mode bonus
     const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
     this.save.shards += banked; // bank shards toward unlocks + meta upgrades
@@ -1626,6 +1638,18 @@ export class Game {
     saveSave(this.save);
     const end = choiceEnding(c);
     this.ui.resolveChoice(end.head, end.line);
+  }
+
+  /** Remember a lore entry — spend Memory Fragments. Cosmetic/personal: a plain
+   *  save mutation, never touches rng. */
+  private unlockLore(id: string): void {
+    const e = loreById(id);
+    if (!e || this.save.stillpointLore.includes(id)) return;
+    if (fragmentBalance(this.save) < e.cost) return;
+    this.save.fragmentsSpent += e.cost;
+    this.save.stillpointLore.push(id);
+    saveSave(this.save);
+    this.ui.refreshMemories();
   }
 
   private applyDirector(spawn: EnemyKind[]): void {

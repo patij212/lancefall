@@ -20,6 +20,7 @@ import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById } from './modes';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
+import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
@@ -43,6 +44,7 @@ export interface UICallbacks {
   onSelectTrail: (id: string) => void;
   onUnlockTrail: (id: string) => void;
   onBuyMeta: (id: string) => void;
+  onUnlockLore: (id: string) => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
   onSetHandle: (name: string) => void;
@@ -107,6 +109,7 @@ export class UI {
   private upgradesPanel!: HTMLElement;
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
+  private codexMemories!: HTMLElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
   private leaderPanel!: HTMLElement;
@@ -595,6 +598,8 @@ export class UI {
   private buildCodex(): void {
     const h = el('h2', {}, 'CODEX');
     const body = el('div', { class: 'codex-body' });
+    this.codexMemories = el('div', { class: 'codex-memories' });
+    body.append(this.codexMemories);
     for (const { cat, label } of CODEX_CATEGORIES) {
       body.append(el('div', { class: 'stats-label' }, label));
       const grid = el('div', { class: 'codex-grid' });
@@ -615,7 +620,46 @@ export class UI {
     this.codexPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
+  /** Render THE FALL · MEMORIES (fragment balance + lore unlocks). Public so the
+   *  game can re-render after a successful unlock. */
+  refreshMemories(): void {
+    const s = this.saveRef;
+    if (!this.codexMemories) return;
+    this.codexMemories.replaceChildren();
+    if (!s) return;
+    const bal = fragmentBalance(s);
+    this.codexMemories.append(
+      el('div', { class: 'stats-label' }, 'THE FALL · MEMORIES'),
+      el(
+        'div',
+        { class: 'codex-frag' },
+        `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'} — one is carried out of every descent. Spend them to remember.`,
+      ),
+    );
+    const grid = el('div', { class: 'codex-grid' });
+    for (const e of LORE) {
+      const unlocked = loreUnlocked(s, e.id);
+      const card = el('div', { class: 'codex-entry' + (unlocked ? '' : ' codex-forgotten') });
+      if (unlocked) {
+        card.append(el('div', { class: 'codex-name' }, e.title), el('div', { class: 'codex-blurb' }, e.text));
+      } else {
+        const affordable = bal >= e.cost;
+        const btn = el('button', { class: 'btn btn-sm' + (affordable ? ' btn-primary' : '') }, `REMEMBER ◆${e.cost}`);
+        if (!affordable) btn.setAttribute('disabled', 'true');
+        btn.addEventListener('click', () => this.cb.onUnlockLore(e.id));
+        card.append(
+          el('div', { class: 'codex-name codex-locked' }, '— forgotten —'),
+          el('div', { class: 'codex-blurb codex-locked' }, `A memory of the fall, lost. ◆${e.cost} to remember it.`),
+          btn,
+        );
+      }
+      grid.append(card);
+    }
+    this.codexMemories.append(grid);
+  }
+
   private showCodex(): void {
+    this.refreshMemories();
     this.codexPanel.classList.remove('hidden');
   }
 
