@@ -59,6 +59,7 @@ import {
 } from './save';
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind } from './types';
+import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier } from './coherence';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
@@ -95,6 +96,9 @@ export class Game {
   private biomeSpeedMul = 1;
   private biomeShield = 0;
   private deathCause = 'a bullet';
+
+  /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
+  private coherence = newCoherence();
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -285,6 +289,7 @@ export class Game {
     this.dashSlowmoTriggered = false;
     this.announcedEvos.clear();
     this.intensityTimer = 0;
+    resetCoherence(this.coherence);
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
@@ -662,6 +667,20 @@ export class Game {
     }
 
     this.updateCamera(realDt);
+
+    // COHERENCE — the soul dial, computed each display frame on realDt. A Game
+    // field (never on world / never in step()) → structurally rng-free. Read by
+    // render + audio in later phases; computed-but-unread here (no behavior yet).
+    const cw = this.world;
+    this.coherence.tier = comboTier(cw.combo);
+    this.coherence.target = coherenceTarget(
+      cw.combo,
+      cw.comboTimer,
+      cw.player.killsThisDash,
+      cw.clutch.lastBreathActive,
+    );
+    tickCoherence(this.coherence, realDt);
+
     this.renderer.render(this.world, this.cam, {
       reduceFlashing: this.settings.reduceFlashing,
       colorblind: this.settings.colorblind,
