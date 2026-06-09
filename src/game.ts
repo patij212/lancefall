@@ -1220,16 +1220,29 @@ export class Game {
   private winRun(): void {
     if (this.winning) return;
     this.winning = true;
-    this.winTimer = 1.6;
+    this.winTimer = 2.4; // a longer victory cinematic before the debrief
     const w = this.world;
     w.player.iframe = 999;
     w.bullets.clear();
-    this.scheduler.requestSlowmo(0.4);
-    this.renderer.flash('#fbbf24', 0.4);
-    this.shake.add(0.5);
+    w.enemies.clear(); // clear the board for a clean victory tableau
+    this.scheduler.requestSlowmo(0.45);
+    this.renderer.flash('#fbbf24', 0.5);
+    this.shake.add(0.6);
+    this.cam.zoom = Math.max(this.cam.zoom, 1.12); // a punch that eases back out
     this.ui.announce('VICTORY!', '#fbbf24');
     this.audio.bossStinger();
-    for (let i = 0; i < 60; i++) w.particles.burst(w.width * Math.random(), w.height * Math.random(), 18, '#fbbf24');
+    this.input.rumble(0.6, 0.8, 320);
+    // concentric shockwaves from the arena centre
+    const cx = w.width / 2;
+    const cy = w.height / 2;
+    const big = Math.max(w.width, w.height);
+    w.particles.ring(cx, cy, big * 0.72, '#fbbf24', 0.95);
+    w.particles.ring(cx, cy, big * 0.5, '#ffffff', 0.7);
+    w.particles.ring(cx, cy, big * 0.3, '#fde047', 0.55);
+    // a fountain of gold + white from the centre
+    for (let i = 0; i < 90; i++) {
+      w.particles.burst(cx + (Math.random() - 0.5) * 240, cy + (Math.random() - 0.5) * 200, 22, i % 3 === 0 ? '#ffffff' : '#fbbf24');
+    }
   }
 
   private updateCamera(realDt: number): void {
