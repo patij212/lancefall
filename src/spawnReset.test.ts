@@ -44,3 +44,15 @@ describe('spawnEnemy determinism (explicit angle ⇒ no world.rng draw)', () => 
     expect(wC.rng.next()).not.toBe(wB.rng.next());
   });
 });
+
+describe('Daily determinism — kill-timed scatter stays off the director stream', () => {
+  it('spawnGem draws from dropRng, not world.rng (so kills never desync the Daily waves)', () => {
+    const wA = new World(createRng(7));
+    wA.reset(1280, 720);
+    const wB = new World(createRng(7)); // identical twin, drops no gems
+    wB.reset(1280, 720);
+    for (let i = 0; i < 8; i++) wA.spawnGem(100, 100, 1); // many kill-drops
+    // the director stream (world.rng) must be untouched → still aligned with the twin
+    expect(wA.rng.next()).toBe(wB.rng.next());
+  });
+});

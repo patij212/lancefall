@@ -987,7 +987,7 @@ export class Game {
       this.audio.explosion(1.0);
       const n = ELITE.detonateCount;
       const sp = ELITE.detonateSpeed * e.bulletMul;
-      const off = w.rng.range(0, Math.PI * 2);
+      const off = w.dropRng.range(0, Math.PI * 2); // death-timed: keep off the seeded director stream
       for (let i = 0; i < n; i++) {
         const a = off + (i / n) * Math.PI * 2;
         w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, ELITE.aura, false);
@@ -1000,7 +1000,7 @@ export class Game {
     } else if (e.kind === 'bomber') {
       const n = BOMBER.detonateCount;
       const sp = BOMBER.bulletSpeed * e.bulletMul;
-      const off = w.rng.range(0, Math.PI * 2);
+      const off = w.dropRng.range(0, Math.PI * 2); // death-timed: keep off the seeded director stream
       for (let i = 0; i < n; i++) {
         const a = off + (i / n) * Math.PI * 2;
         w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#fb7185', false);

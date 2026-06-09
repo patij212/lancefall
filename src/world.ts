@@ -315,12 +315,15 @@ export class World {
   }
 
   spawnGem(x: number, y: number, value: number): void {
+    // Gems drop on KILLS (player-driven timing). Scatter from dropRng, not the
+    // seeded director rng, so the Daily's wave stream stays identical for everyone.
+    // Draw before the pool guard so a full gem pool can't skip draws and desync.
+    const a = this.dropRng.range(0, Math.PI * 2);
+    const sp = this.dropRng.range(30, 90);
     const g = this.gems.obtain();
     if (!g) return;
     g.x = x;
     g.y = y;
-    const a = this.rng.range(0, Math.PI * 2);
-    const sp = this.rng.range(30, 90);
     g.vx = Math.cos(a) * sp;
     g.vy = Math.sin(a) * sp;
     g.value = value;
