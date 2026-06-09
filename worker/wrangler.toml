@@ -1,0 +1,10 @@
+name = "lancefall-leaderboard"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Created with:  wrangler d1 create lancefall
+# then paste the printed database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "lancefall"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
