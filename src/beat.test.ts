@@ -45,6 +45,7 @@ describe('beat — pure rhythm clock + grading', () => {
   it('perfect window boundary (after grace subtraction)', () => {
     expect(gradeRelease(0, true)).toBe('perfect');
     expect(gradeRelease(0.105, true)).toBe('perfect'); // 0.105 - 0.06 = 0.045 (edge)
+    expect(gradeRelease(0.105 + 5e-10, true)).toBe('perfect'); // EPS protects the edge vs float noise
     expect(gradeRelease(0.106, true)).toBe('good');
   });
 
@@ -98,5 +99,14 @@ describe('beat — pure rhythm clock + grading', () => {
       b.advance(dt);
     }
     expect(a.t).toBe(b.t);
+  });
+
+  it('nextGridTime is strictly forward even ON a grid boundary (the risky case)', () => {
+    const c = new BeatClock(g);
+    for (const tt of [0, g.sixteenthDur, 2 * g.sixteenthDur]) {
+      c.t = tt;
+      expect(c.nextGridTime()).toBeGreaterThan(tt);
+      expect(c.nextGridTime() - tt).toBeLessThanOrEqual(g.sixteenthDur + 1e-9);
+    }
   });
 });

@@ -72,14 +72,22 @@ describe('coherence — the soul dial', () => {
     expect(fallDelta).toBeLessThan(riseDelta);
   });
 
-  it('is frame-rate stable (integrated 60Hz ≈ 120Hz over 1s)', () => {
-    const a = newCoherence();
-    a.target = 1;
-    const b = newCoherence();
-    b.target = 1;
-    for (let i = 0; i < 60; i++) tickCoherence(a, 1 / 60);
-    for (let i = 0; i < 120; i++) tickCoherence(b, 1 / 120);
-    expect(Math.abs(a.value - b.value)).toBeLessThan(2e-3);
+  it('is frame-rate independent (exponential smoothing composes exactly)', () => {
+    const mk = () => {
+      const c = newCoherence();
+      c.target = 1;
+      return c;
+    };
+    // one second of rise integrates to 1 - e^(-riseRate) regardless of step size,
+    // across the whole 30–240 Hz range the game can actually run at.
+    const a = mk();
+    for (let i = 0; i < 30; i++) tickCoherence(a, 1 / 30);
+    const b = mk();
+    for (let i = 0; i < 240; i++) tickCoherence(b, 1 / 240);
+    const d = mk();
+    for (let i = 0; i < 60; i++) tickCoherence(d, 1 / 60);
+    expect(Math.abs(a.value - b.value)).toBeLessThan(1e-6);
+    expect(Math.abs(a.value - d.value)).toBeLessThan(1e-6);
   });
 
   it('beat kick: perfect > good and perfect lights focusPulse', () => {
@@ -124,6 +132,21 @@ describe('coherence — the soul dial', () => {
     expect(comboTier(9)).toBe(0);
     expect(comboTier(10)).toBe(1);
     expect(comboTier(100)).toBe(6);
+  });
+
+  it('comboTier matches every cut point (catches interior drift)', () => {
+    expect([9, 10, 19, 20, 34, 35, 49, 50, 74, 75, 99, 100].map(comboTier)).toEqual([
+      0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6,
+    ]);
+  });
+
+  it('only the beat kick lifts value above target (the ease never overshoots)', () => {
+    const c = newCoherence();
+    c.target = 0.3;
+    for (let i = 0; i < 600; i++) tickCoherence(c, 1 / 60); // converge from below
+    expect(c.value).toBeLessThanOrEqual(c.target + 1e-9);
+    coherenceBeatKick(c, true);
+    expect(c.value).toBeGreaterThan(c.target);
   });
 
   it('value + focusPulse stay in [0,1] across a scripted run', () => {

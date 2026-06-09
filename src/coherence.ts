@@ -49,7 +49,9 @@ export function coherenceTarget(
  *  focus-snap envelope decays linearly to 0. */
 export function tickCoherence(c: CoherenceState, dt: number): void {
   const rate = c.target > c.value ? CO.riseRate : CO.fallRate;
-  c.value += (c.target - c.value) * Math.min(1, rate * dt);
+  // exact exponential smoothing → frame-rate independent (composes across dt splits,
+  // so the bloom feels identical on 60/120/144 Hz; at 60fps ~= the old min(1,rate*dt))
+  c.value += (c.target - c.value) * (1 - Math.exp(-rate * dt));
   c.focusPulse = Math.max(0, c.focusPulse - dt / CO.focusPulseDecay);
 }
 

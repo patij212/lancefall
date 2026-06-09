@@ -6,6 +6,7 @@
 
 export const FIXED_DT = 1 / 60; // fixed simulation timestep (seconds)
 export const MAX_SUBSTEPS = 5; // anti spiral-of-death clamp
+export const MUSIC_BPM = 112; // procedural soundtrack tempo — the beat grid + dash-grading derive from this
 
 export const TUNE = {
   player: {

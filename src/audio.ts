@@ -4,7 +4,7 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
-import { COHERENCE_AUDIO } from './tune';
+import { COHERENCE_AUDIO, MUSIC_BPM } from './tune';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -41,7 +41,7 @@ export class AudioEngine {
   private musicHeat = 0;
   private bossArp = false;
   private bossArpMul = 1; // per-boss arp pitch shift (set from the active boss theme)
-  private readonly bpm = 112;
+  private readonly bpm = MUSIC_BPM;
   private musicEpoch = 0; // ctx time of the music's first scheduled note (beat-clock epoch)
 
   // ── COHERENCE one-bus (audio half) — Coherence solely owns the drone bloom +

@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, TUNE, COHERENCE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -65,13 +65,15 @@ import { BeatClock, makeGrid, gradeRelease } from './beat';
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
 /** Combo milestones → arcade announcements. */
+// Cut points single-sourced from COHERENCE.tierCombo (tune.ts) so the on-screen
+// milestones and the audio root-transpose tiers can never drift apart.
 const COMBO_TIERS: { at: number; name: string; color: string }[] = [
-  { at: 10, name: 'RAMPAGE', color: '#34d399' },
-  { at: 20, name: 'FRENZY', color: '#fbbf24' },
-  { at: 35, name: 'CARNAGE', color: '#fb923c' },
-  { at: 50, name: 'UNSTOPPABLE', color: '#ec4899' },
-  { at: 75, name: 'GODLIKE', color: '#a855f7' },
-  { at: 100, name: 'LEGENDARY', color: '#ef4444' },
+  { at: COHERENCE.tierCombo[0], name: 'RAMPAGE', color: '#34d399' },
+  { at: COHERENCE.tierCombo[1], name: 'FRENZY', color: '#fbbf24' },
+  { at: COHERENCE.tierCombo[2], name: 'CARNAGE', color: '#fb923c' },
+  { at: COHERENCE.tierCombo[3], name: 'UNSTOPPABLE', color: '#ec4899' },
+  { at: COHERENCE.tierCombo[4], name: 'GODLIKE', color: '#a855f7' },
+  { at: COHERENCE.tierCombo[5], name: 'LEGENDARY', color: '#ef4444' },
 ];
 
 export class Game {
@@ -101,7 +103,7 @@ export class Game {
   /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
   private coherence = newCoherence();
   /** pure beat clock — advanced on realDt, reconciled toward the audio clock */
-  private beat = new BeatClock(makeGrid(112));
+  private beat = new BeatClock(makeGrid(MUSIC_BPM));
   /** latched when a dash commits in step(); graded in frame() (out of the substep loop) */
   private dashFiredThisStep = false;
 
@@ -295,7 +297,7 @@ export class Game {
     this.announcedEvos.clear();
     this.intensityTimer = 0;
     resetCoherence(this.coherence);
-    this.beat = new BeatClock(makeGrid(112)); // fresh epoch — never grade against a stale one
+    this.beat = new BeatClock(makeGrid(MUSIC_BPM)); // fresh epoch — never grade against a stale one
     this.dashFiredThisStep = false;
     this.state = 'playing';
     this.ui.show('playing');
@@ -651,8 +653,9 @@ export class Game {
       }
 
       // advance the pure beat clock every frame, reconciled toward the audio truth
+      // (only while music is actually running — never seed the epoch to a sentinel 0)
       this.beat.advance(realDt);
-      this.beat.reconcile(this.audio.musicTime, realDt);
+      if (this.audio.musicRunning) this.beat.reconcile(this.audio.musicTime, realDt);
 
       // biome cycling
       if (!this.dying && !this.winning) {
