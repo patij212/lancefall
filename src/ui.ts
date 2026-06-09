@@ -10,6 +10,7 @@ import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
 import { HEAT_LEVELS } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
+import { leaderboardEnabled, fetchLeaderboard } from './api';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
@@ -37,6 +38,7 @@ export interface UICallbacks {
   onBuyMeta: (id: string) => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
+  onSetHandle: (name: string) => void;
 }
 
 export interface GameOverInfo {
@@ -94,6 +96,7 @@ export class UI {
   private howtoPanel!: HTMLElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
+  private leaderPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
@@ -155,9 +158,10 @@ export class UI {
     this.buildHowTo();
     this.buildHeat();
     this.buildArchetype();
+    this.buildLeaderboard();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.heatPanel, this.archetypePanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -236,7 +240,9 @@ export class UI {
     heatBtn.addEventListener('click', () => this.openHeat());
     const archBtn = el('button', { class: 'btn btn-ghost' }, '◈ BUILD');
     archBtn.addEventListener('click', () => this.openArchetype());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, settingsBtn, how);
+    const leaderBtn = el('button', { class: 'btn btn-ghost' }, '🏅 RANKS');
+    leaderBtn.addEventListener('click', () => this.openLeaderboard());
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, leaderBtn, settingsBtn, how);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -617,6 +623,68 @@ export class UI {
     this.archetypePanel.classList.remove('hidden');
   }
 
+  private buildLeaderboard(): void {
+    const h = el('h2', {}, 'LEADERBOARD');
+    const body = el('div', { class: 'leader-body' });
+    body.id = 'leader-body';
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.leaderPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  openLeaderboard(): void {
+    const s = this.saveRef;
+    if (!s) return;
+    const body = this.leaderPanel.querySelector('#leader-body')!;
+    body.replaceChildren();
+
+    // handle field — always available (used for online submission)
+    const nameWrap = el('div', { class: 'leader-name' });
+    const label = el('label', {}, 'Your handle');
+    const input = el('input', { type: 'text', maxlength: '16', value: s.handle, placeholder: 'ACE' }) as HTMLInputElement;
+    input.addEventListener('change', () => this.cb.onSetHandle(input.value));
+    nameWrap.append(label, input);
+    body.append(nameWrap);
+
+    if (!leaderboardEnabled()) {
+      body.append(el('div', { class: 'event-flavor' }, 'Online leaderboards are not configured for this build. Your scores are saved locally; set a handle so they\'re ready when boards go live.'));
+      this.leaderPanel.classList.remove('hidden');
+      return;
+    }
+
+    const modeRow = el('div', { class: 'leader-modes' });
+    const listWrap = el('div', { class: 'leader-list' }, el('div', { class: 'event-flavor' }, 'Loading…'));
+    const modes: { id: string; name: string }[] = [
+      { id: 'endless', name: 'ENDLESS' }, { id: 'daily', name: 'DAILY' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' },
+    ];
+    const load = async (mode: string) => {
+      listWrap.replaceChildren(el('div', { class: 'event-flavor' }, 'Loading…'));
+      const entries = await fetchLeaderboard(mode, mode === 'daily' ? dateString() : undefined);
+      listWrap.replaceChildren();
+      if (entries.length === 0) {
+        listWrap.append(el('div', { class: 'event-flavor' }, 'No scores yet — be the first.'));
+        return;
+      }
+      entries.forEach((e, i) => {
+        listWrap.append(el('div', { class: 'leader-row' },
+          el('span', { class: 'leader-rank' }, `#${e.rank ?? i + 1}`),
+          el('span', { class: 'leader-handle' }, e.name || '—'),
+          el('span', { class: 'leader-score' }, e.score.toLocaleString()),
+          el('span', { class: 'leader-meta' }, `w${e.wave}${e.heat ? ` · H${e.heat}` : ''}`),
+        ));
+      });
+    };
+    for (const m of modes) {
+      const b = el('button', { class: 'btn btn-ghost btn-sm' }, m.name);
+      b.addEventListener('click', () => { void load(m.id); });
+      modeRow.append(b);
+    }
+    body.append(modeRow, listWrap);
+    void load('endless');
+    this.leaderPanel.classList.remove('hidden');
+  }
+
   // ── screen control ──
   private current: ScreenId = 'title';
   show(s: ScreenId): void {
@@ -634,6 +702,7 @@ export class UI {
     this.howtoPanel.classList.add('hidden');
     this.heatPanel.classList.add('hidden');
     this.archetypePanel.classList.add('hidden');
+    this.leaderPanel.classList.add('hidden');
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }

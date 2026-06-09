@@ -642,6 +642,25 @@ body {
   .howto-rule { grid-template-columns: 90px 1fr; }
 }
 
+/* ── Leaderboard panel ── */
+.leader-body { display: flex; flex-direction: column; gap: 14px; min-width: 420px; max-width: 560px; }
+.leader-name { display: flex; align-items: center; gap: 10px; justify-content: center; }
+.leader-name label { color: var(--text-muted); font-size: 13px; }
+.leader-name input {
+  background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 6px 10px; font-family: 'JetBrains Mono', monospace; width: 120px; text-transform: uppercase;
+}
+.leader-modes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.leader-list { display: flex; flex-direction: column; gap: 3px; min-height: 120px; }
+.leader-row {
+  display: grid; grid-template-columns: 44px 1fr auto auto; gap: 10px; align-items: baseline;
+  padding: 5px 10px; border-radius: 7px; background: var(--bg-raised); font-size: 14px;
+}
+.leader-rank { color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.leader-handle { font-family: 'Space Grotesk', sans-serif; }
+.leader-score { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+.leader-meta { color: var(--text-muted); font-size: 11px; }
+
 /* ── Heat ascension panel ── */
 .heat-grid {
   display: grid;

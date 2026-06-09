@@ -45,6 +45,8 @@ export interface SaveData {
   maxHeat: number;
   /** selected build archetype id (draft bias); 'none' = freestyle */
   selectedArchetype: string;
+  /** player handle for online leaderboards ('' = anonymous / not set) */
+  handle: string;
 }
 
 export interface Settings {
@@ -91,6 +93,7 @@ export function defaultSave(): SaveData {
     selectedHeat: 0,
     maxHeat: 0,
     selectedArchetype: 'none',
+    handle: '',
   };
 }
 

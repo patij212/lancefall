@@ -25,13 +25,14 @@ import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvol
 import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
+import { submitScore } from './api';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
-import { createRng, seedFromDate } from './rng';
+import { createRng, seedFromDate, dateString } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES } from './modes';
 import type { RunConfig } from './modes';
@@ -137,6 +138,7 @@ export class Game {
       onBuyMeta: (id) => this.buyMeta(id),
       onHeatChange: (level) => this.setHeat(level),
       onArchetypeChange: (id) => this.setArchetype(id),
+      onSetHandle: (name) => this.setHandle(name),
     });
 
     this.resize();
@@ -465,6 +467,11 @@ export class Game {
     this.save.selectedArchetype = archetypeById(id).id;
     saveSave(this.save);
     this.ui.refreshTitle(this.save);
+  }
+
+  private setHandle(name: string): void {
+    this.save.handle = name.replace(/[^\w \-]/g, '').slice(0, 16).trim();
+    saveSave(this.save);
   }
 
   private copyBuildDna(): void {
@@ -1126,6 +1133,16 @@ export class Game {
       this.save.dailyMutators = this.activeMutators.slice();
     }
     saveSave(this.save);
+    // fire-and-forget online leaderboard submission (no-op if not configured)
+    void submitScore({
+      mode: this.mode.id,
+      name: this.save.handle,
+      score: w.score,
+      wave,
+      combo: w.bestComboRun,
+      heat: this.runHeat,
+      daily: this.mode.id === 'daily' ? dateString() : undefined,
+    });
     const info: GameOverInfo = {
       score: w.score,
       combo: w.bestComboRun,
