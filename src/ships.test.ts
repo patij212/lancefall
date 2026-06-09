@@ -70,4 +70,13 @@ describe('ship stat profiles', () => {
     expect(s.regenPerSec).toBeGreaterThan(TUNE.stamina.regenPerSec);
     expect(s.maxSpeed).toBeGreaterThan(TUNE.player.maxSpeed);
   });
+
+  it('Reaver is a snowball: kill-refund + wide bite, but slow regen and weak graze refund', () => {
+    const s = deriveStats({}, shipById('reaver').apply);
+    expect(s.killStaminaRefund).toBeGreaterThan(0); // base is 0 → the snowball engine
+    expect(s.dashHitboxRadius).toBeGreaterThan(TUNE.dash.hitboxRadius);
+    expect(s.regenPerSec).toBeLessThan(TUNE.stamina.regenPerSec); // sluggish passive regen
+    expect(s.grazeStaminaRefund).toBeLessThan(TUNE.stamina.grazeRefund); // graze barely helps
+    expect(s.staminaSegments).toBe(TUNE.stamina.segments); // standard 3 segments
+  });
 });

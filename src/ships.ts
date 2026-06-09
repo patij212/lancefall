@@ -80,6 +80,20 @@ export const SHIPS: ShipDef[] = [
       s.accel *= 1.15;
     },
   },
+  {
+    id: 'reaver',
+    name: 'REAVER',
+    desc: 'Bloodthirsty. Dash-kills refund stamina and the bite is wide — but grazing barely helps and regen is slow. Live by the chain.',
+    accent: '#ef4444',
+    unlockShards: 3500,
+    apply: (s) => {
+      s.killStaminaRefund += 16; // dash-kills fuel the next dash — the snowball engine
+      s.dashHitboxRadius += 4; // a wider bite to start the chain
+      s.comboWindowBonus += 0.3; // aggression keeps the combo alive a touch longer
+      s.grazeStaminaRefund *= 0.4; // grazing barely refunds — you must KILL to move
+      s.regenPerSec *= 0.65; // sluggish passive regen between fights
+    },
+  },
 ];
 
 export function shipById(id: string): ShipDef {
