@@ -45,6 +45,7 @@ export function ambientReady(n: NarratorState, bucket: string, nowSec: number, g
 // second-person lines, surfaced on the existing non-blocking toast/announce.
 export const NARRATOR = {
   runStart: ['The city is grey. You remember it lit.', 'One lance. One last descent.'],
+  loop: ['Again. The fall remembers you now.', 'The loop knows your name. Down you go.'],
   firstKill: ['One. The dark notices.'],
   // keyed by the combo-tier cut point (COHERENCE.tierCombo); only some tiers speak
   comboTier: {

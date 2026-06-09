@@ -91,3 +91,20 @@ export function nemesisOf(nemesis: Record<string, number>): { kind: string; coun
   }
   return best ? { kind: best, count: bestN } : null;
 }
+
+// ── NG+ — a difficulty loop unlocked by felling the Sovereign. CRITICAL: this is
+//    the only place the loop touches difficulty, and it is HARD-gated to
+//    non-seeded modes (seedKind !== 'date') so a Daily/seeded run is bit-identical
+//    for everyone regardless of their NG+ progress. ──
+export function ngPlusIntensityMul(
+  baseMul: number,
+  ngPlusActive: boolean,
+  ngPlusLevel: number,
+  seedKind: string,
+  perLoop: number,
+  maxLoop: number,
+): number {
+  if (!ngPlusActive || seedKind === 'date') return baseMul; // daily/seeded: untouched, always
+  const lvl = Math.min(maxLoop, Math.max(0, ngPlusLevel));
+  return baseMul * (1 + lvl * perLoop);
+}

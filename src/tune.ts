@@ -366,6 +366,13 @@ export const BEAT = {
   reseedEase: 6, // per-second ease rate toward audio truth below the snap tolerance
 } as const;
 
+// NG+ — a difficulty loop unlocked by felling the Sovereign. The effect is gated
+// at start() to NON-seeded modes so a Daily/seeded run stays bit-identical for all.
+export const NG_PLUS = {
+  intensityPerLoop: 0.14, // intensityMul *= 1 + level*this (non-seeded runs only)
+  maxLoop: 8,
+} as const;
+
 // POWER-UP DROPS — temporary power-fantasy buffs. Bosses always drop one; elite
 // Champions drop one sometimes. One active at a time (a new pickup replaces it).
 export const POWERUP_DROP = {

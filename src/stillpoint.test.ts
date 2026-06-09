@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from './rng';
-import { choiceEnding, echoVignette, echoLine, nemesisOf } from './stillpoint';
+import { choiceEnding, echoVignette, echoLine, nemesisOf, ngPlusIntensityMul } from './stillpoint';
 
 describe('stillpoint — THE CHOICE + ECHO + nemesis', () => {
   it('choiceEnding is distinct for catch vs fall', () => {
@@ -43,5 +43,20 @@ describe('stillpoint — THE CHOICE + ECHO + nemesis', () => {
   it('nemesisOf returns the most-died-to kind, null when empty', () => {
     expect(nemesisOf({})).toBeNull();
     expect(nemesisOf({ warden: 2, sovereign: 5, hollow: 1 })).toEqual({ kind: 'sovereign', count: 5 });
+  });
+});
+
+describe('NG+ intensity gate — the determinism invariant', () => {
+  it('NEVER scales a date-seeded run, even at max level + active', () => {
+    expect(ngPlusIntensityMul(1, true, 8, 'date', 0.14, 8)).toBe(1);
+    expect(ngPlusIntensityMul(2.5, true, 99, 'date', 0.2, 8)).toBe(2.5);
+  });
+  it('does not scale when NG+ is inactive', () => {
+    expect(ngPlusIntensityMul(1, false, 5, 'random', 0.14, 8)).toBe(1);
+  });
+  it('scales a non-seeded active run by level, capped at maxLoop', () => {
+    expect(ngPlusIntensityMul(1, true, 0, 'random', 0.14, 8)).toBe(1);
+    expect(ngPlusIntensityMul(1, true, 1, 'random', 0.14, 8)).toBeCloseTo(1.14, 6);
+    expect(ngPlusIntensityMul(1, true, 100, 'random', 0.1, 8)).toBeCloseTo(1.8, 6); // capped at 8 loops
   });
 });

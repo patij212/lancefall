@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, TUNE, COHERENCE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -63,7 +63,7 @@ import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
-import { choiceEnding, echoLine, fragmentsForRun } from './stillpoint';
+import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul } from './stillpoint';
 import { fragmentBalance, loreById } from './lore';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
@@ -115,6 +115,7 @@ export class Game {
   private narrator = newNarrator();
   private narratedFirstKill = false;
   private replay = new ReplayRecorder();
+  private runNgPlus = 0; // active NG+ level this run (0 = off / seeded run)
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -165,6 +166,7 @@ export class Game {
       onChoice: (c) => this.makeChoice(c),
       onSaveReplay: () => this.replay.download(),
       onUnlockLore: (id) => this.unlockLore(id),
+      onToggleNgPlus: () => this.toggleNgPlus(),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
@@ -275,6 +277,10 @@ export class Game {
     this.runHeat = this.save.selectedHeat;
     this.world.postApply = (s) => applyHeatStats(s, this.runHeat);
     const effCfg = applyHeatConfig(applyMutatorConfig(cfg, this.activeMutators), this.runHeat);
+    // NG+ — deepen NON-seeded runs only; daily/seeded stays bit-identical for everyone
+    this.runNgPlus = this.save.ngPlusActive && cfg.seedKind !== 'date' ? Math.min(NG_PLUS.maxLoop, this.save.ngPlusLevel) : 0;
+    const runMul = ngPlusIntensityMul(effCfg.intensityMul, this.save.ngPlusActive, this.save.ngPlusLevel, cfg.seedKind, NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop);
+    const runCfg = runMul === effCfg.intensityMul ? effCfg : { ...effCfg, intensityMul: runMul };
     this.world.reset(window.innerWidth, window.innerHeight);
     // head-start perks (Head Start meta node) — use a SEPARATE rng so they don't
     // consume the seeded world.rng (keeps Daily runs identical regardless of meta)
@@ -291,7 +297,7 @@ export class Game {
     this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
     this.world.reviveLeft = this.world.stats.reviveTokens;
     this.applySettings(this.settings);
-    this.director.configure(effCfg);
+    this.director.configure(runCfg);
     this.winning = false;
     this.biomeIndex = -1;
     this.setBiome(0, false); // first biome, no banner at run start
@@ -324,7 +330,7 @@ export class Game {
     this.ui.setMutators(hudBadges);
     this.audio.startDrone();
     this.audio.duckMusic(false);
-    this.narrate('run_start', 'announce', NARRATOR.runStart);
+    this.narrate('run_start', 'announce', this.runNgPlus > 0 ? NARRATOR.loop : NARRATOR.runStart);
     if (cfg.seedKind === 'date') this.narrateOne('toast', echoLine(this.seed)); // ECHO OF THE FALL
     this.replay.start(this.canvas);
 
@@ -1549,6 +1555,12 @@ export class Game {
     this.save.deepestWave = Math.max(this.save.deepestWave, wave);
     if (!won && this.deathCause) this.save.nemesis[this.deathCause] = (this.save.nemesis[this.deathCause] ?? 0) + 1;
     this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
+    if (won && w.sovereignDown) {
+      // NG+ — felling the Sovereign deepens the loop. Pure save state; the EFFECT
+      // is gated to non-seeded runs at start(), so this never affects a Daily.
+      this.save.ngPlusLevel = Math.min(NG_PLUS.maxLoop, this.save.ngPlusLevel + 1);
+      this.save.ngPlusActive = true; // queued for the next run; toggle off on the title
+    }
     this.save.totalRuns++;
     // MEMORY FRAGMENTS — carry one out of every descent + earn milestone fragments
     for (const f of fragmentsForRun({
@@ -1653,6 +1665,14 @@ export class Game {
     this.save.stillpointLore.push(id);
     saveSave(this.save);
     this.ui.refreshMemories();
+  }
+
+  /** Toggle NG+ for the next run (only once unlocked by a Sovereign kill). */
+  private toggleNgPlus(): void {
+    if (this.save.ngPlusLevel < 1) return;
+    this.save.ngPlusActive = !this.save.ngPlusActive;
+    saveSave(this.save);
+    this.ui.refreshTitle(this.save);
   }
 
   private applyDirector(spawn: EnemyKind[]): void {

@@ -45,6 +45,7 @@ export interface UICallbacks {
   onUnlockTrail: (id: string) => void;
   onBuyMeta: (id: string) => void;
   onUnlockLore: (id: string) => void;
+  onToggleNgPlus: () => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
   onSetHandle: (name: string) => void;
@@ -110,6 +111,7 @@ export class UI {
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
+  private ngBtn!: HTMLButtonElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
   private leaderPanel!: HTMLElement;
@@ -282,7 +284,9 @@ export class UI {
     archBtn.addEventListener('click', () => this.openArchetype());
     const leaderBtn = el('button', { class: 'btn btn-ghost' }, '🏅 RANKS');
     leaderBtn.addEventListener('click', () => this.openLeaderboard());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, leaderBtn, settingsBtn, how, codexBtn);
+    this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
+    this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, settingsBtn, how, codexBtn);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -867,6 +871,11 @@ export class UI {
         : 'no runs yet — go make a mess';
     const arch = save.selectedArchetype && save.selectedArchetype !== 'none' ? `  ·  ◈ ${archetypeById(save.selectedArchetype).name}` : '';
     this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards${save.selectedHeat > 0 ? `  ·  🔥 HEAT ${save.selectedHeat}` : ''}${arch}`;
+    // NG+ toggle — appears only once the Sovereign has been felled
+    const ngUnlocked = save.ngPlusLevel >= 1;
+    this.ngBtn.classList.toggle('hidden', !ngUnlocked);
+    this.ngBtn.classList.toggle('btn-primary', save.ngPlusActive);
+    this.ngBtn.textContent = save.ngPlusActive ? `★ NG+${save.ngPlusLevel}` : `NG+${save.ngPlusLevel} off`;
 
     // daily challenge caption — today's seed + your best for it
     let daily = `Echo of the Fall · ${dateString()}`;
