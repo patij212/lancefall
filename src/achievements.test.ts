@@ -15,6 +15,9 @@ const base: AchCtx = {
   modeId: 'endless',
   heat: 0,
   sovereignDown: false,
+  overdriveUses: 0,
+  lastBreathUses: 0,
+  powerupsCollected: 0,
   lifeRuns: 0,
   lifeKills: 0,
   lifeBoss: 0,
@@ -77,5 +80,14 @@ describe('achievements', () => {
     expect(evaluate([], { ...base, sovereignDown: false }).map((a) => a.id)).not.toContain('regicide');
     expect(evaluate([], { ...base, sovereignDown: true, heat: 3 }).map((a) => a.id)).toContain('coronation');
     expect(evaluate([], { ...base, sovereignDown: true, heat: 2 }).map((a) => a.id)).not.toContain('coronation');
+  });
+
+  it('v4 mechanic achievements track OVERDRIVE / Last Breath / power-ups', () => {
+    expect(evaluate([], { ...base, overdriveUses: 1 }).map((a) => a.id)).toContain('unleashed');
+    expect(evaluate([], { ...base, overdriveUses: 3 }).map((a) => a.id)).not.toContain('overcharged');
+    expect(evaluate([], { ...base, overdriveUses: 4 }).map((a) => a.id)).toContain('overcharged');
+    expect(evaluate([], { ...base, lastBreathUses: 1 }).map((a) => a.id)).toContain('lastbreath');
+    expect(evaluate([], { ...base, powerupsCollected: 5 }).map((a) => a.id)).toContain('powerplayer');
+    expect(evaluate([], { ...base, powerupsCollected: 4 }).map((a) => a.id)).not.toContain('powerplayer');
   });
 });

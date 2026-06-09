@@ -125,6 +125,8 @@ export class World {
   maxDashChain = 0; // most kills in a single dash this run
   bossKills = 0; // bosses downed this run
   sovereignDown = false; // the Sovereign (final boss) fell this run
+  overdriveUses = 0; // OVERDRIVE bursts fired this run (achievements)
+  powerupsCollected = 0; // power-ups grabbed this run (achievements)
   collectStreak = 0;
   collectStreakTimer = 0;
   time = 0;
@@ -201,6 +203,8 @@ export class World {
     this.maxDashChain = 0;
     this.bossKills = 0;
     this.sovereignDown = false;
+    this.overdriveUses = 0;
+    this.powerupsCollected = 0;
     this.collectStreak = 0;
     this.collectStreakTimer = 0;
     this.time = 0;

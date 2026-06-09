@@ -391,6 +391,7 @@ export class Game {
   private activateBurst(): void {
     const w = this.world;
     if (!activateOverdrive(w.overdrive)) return;
+    w.overdriveUses++;
     const p = w.player;
     // clear every non-boss bullet on screen
     w.bullets.forEachActive((b) => { if (!b.fromBoss) w.bullets.release(b); });
@@ -1162,6 +1163,7 @@ export class Game {
     const p = w.player;
     const def = POWERUPS[kind];
     activatePowerup(w.powerup, kind);
+    w.powerupsCollected++;
     w.recomputeStats();
     this.ui.announce(`${def.name} — ${def.blurb}`, def.color);
     w.particles.ring(p.x, p.y, 120, def.color, 0.5);
@@ -1458,6 +1460,9 @@ export class Game {
       modeId: this.mode.id,
       heat: this.runHeat,
       sovereignDown: w.sovereignDown,
+      overdriveUses: w.overdriveUses,
+      lastBreathUses: w.clutch.lastBreathUses,
+      powerupsCollected: w.powerupsCollected,
       lifeRuns: this.save.totalRuns,
       lifeKills: this.save.lifeKills,
       lifeBoss: this.save.lifeBoss,
