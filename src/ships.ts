@@ -32,7 +32,7 @@ export const SHIPS: ShipDef[] = [
     apply: (s) => {
       s.dashLenMul *= 1.35;
       s.dashHitboxRadius += 6;
-      s.staminaSegments = 2;
+      s.staminaSegments = Math.max(1, s.staminaSegments - 1); // relative so a mutator floor (Glass Cannon) survives
       s.maxSpeed *= 1.08;
       s.accel *= 1.1;
     },
@@ -44,7 +44,7 @@ export const SHIPS: ShipDef[] = [
     accent: '#34d399',
     unlockShards: 3000,
     apply: (s) => {
-      s.staminaSegments = 4;
+      s.staminaSegments += 1; // relative tank bonus (won't erase a Glass Cannon floor)
       s.regenPerSec += 28;
       s.regenDelay *= 0.7;
       s.dashLenMul *= 0.85;
@@ -71,7 +71,7 @@ export const SHIPS: ShipDef[] = [
     accent: '#f472b6',
     unlockShards: 4500,
     apply: (s) => {
-      s.staminaSegments = 1;
+      s.staminaSegments = Math.max(1, s.staminaSegments - 2); // knife-edge: base 3 → 1
       s.regenPerSec += 70;
       s.regenDelay *= 0.4;
       s.dashLenMul *= 1.6;

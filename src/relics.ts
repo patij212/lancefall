@@ -21,8 +21,8 @@ export interface RelicDef {
 export const RELICS: Record<RelicId, RelicDef> = {
   glassspear: {
     id: 'glassspear', name: 'GLASS SPEAR', glyph: '🔱', accent: '#67e8f9', isRelic: true,
-    desc: '+80% dash length & a wider spear — but every dash costs double stamina.',
-    apply: (s) => { s.dashLenMul += 0.8; s.dashHitboxRadius += 8; s.dashCostMul *= 2; },
+    desc: '+80% dash length & a wider spear — but dashes cost double and stamina regen is sluggish.',
+    apply: (s) => { s.dashLenMul += 0.8; s.dashHitboxRadius += 8; s.dashCostMul *= 2; s.regenPerSec *= 0.65; },
   },
   berserker: {
     id: 'berserker', name: "BERSERKER'S MARK", glyph: '⚔', accent: '#ef4444', isRelic: true,

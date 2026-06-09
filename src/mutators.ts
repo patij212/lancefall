@@ -72,14 +72,15 @@ export const MUTATORS: Record<MutatorId, MutatorDef> = {
   berserk: {
     id: 'berserk',
     name: 'BERSERK',
-    desc: 'Your combo never decays — but everything moves faster. +20% score.',
+    desc: 'A huge combo window — it barely decays — but everything moves much faster.',
     accent: '#f97316',
     apply: (s) => {
-      s.comboWindowBonus += 999; // the combo timer never runs out
-      s.scoreMul *= 1.2;
+      // a long-but-finite window (a real kill drought still breaks it) — the
+      // forgiveness IS the reward, so no flat score bonus on top.
+      s.comboWindowBonus += 5;
     },
     config: (c) => {
-      c.speedBonus += 0.16;
+      c.speedBonus += 0.25;
     },
   },
   windfall: {

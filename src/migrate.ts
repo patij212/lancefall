@@ -18,7 +18,7 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
 
   // --- version-stepped transforms ---
   // v1 (no `version` field) → v2: no field renames; new fields default-filled by the spread.
-  // v2 → v3: added selectedHeat, maxHeat, selectedArchetype, bestRunPath — all
+  // v2 → v3: added selectedHeat, maxHeat, selectedArchetype, handle — all
   //          default-filled by the spread below; no explicit transform needed.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 

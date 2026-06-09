@@ -41,7 +41,10 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.y = edge.y;
   e.vx = 0;
   e.vy = 0;
-  e.hp = e.maxHp = def.baseHp + count * def.hpPerInterval;
+  // HP scales with appearance ordinal, but with diminishing returns past the 4th
+  // so late bosses don't become un-dashable sponges (one dash-hit per dash).
+  const ramp = Math.min(count, 4) + 0.5 * Math.max(0, count - 4);
+  e.hp = e.maxHp = Math.round(def.baseHp + ramp * def.hpPerInterval);
   e.radius = def.radius;
   e.color =
     kind === 'weaver' ? WEAVER.color

@@ -281,6 +281,9 @@ export function deriveStats(
   // safety floor: no stack of graze-shrinking modifiers (Heat + Overcharge + …)
   // may collapse the graze band below a readable, playable minimum.
   s.grazeRadius = Math.max(s.grazeRadius, TUNE.player.radius * 1.8);
+  // cap the in-run shard multiplier so Windfall × Hoarder × Treasure-Hunter can't
+  // compound into a degenerate farm (mode.shardMul still multiplies at bank time).
+  s.shardMul = Math.min(s.shardMul, 6);
 
   return s;
 }

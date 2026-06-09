@@ -183,7 +183,7 @@ export class Renderer {
     sctx.textBaseline = 'middle';
     sctx.font = `700 ${Math.round(H * 0.085)}px 'Space Grotesk', system-ui, sans-serif`;
     sctx.shadowColor = this.bossEntranceColor;
-    sctx.shadowBlur = 28;
+    sctx.shadowBlur = 28 * this.dpr;
     const slide = (1 - a) * 50 * this.dpr;
     sctx.fillText(this.bossEntranceName, W / 2 + slide, H * 0.5);
     sctx.restore();
