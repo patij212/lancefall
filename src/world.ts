@@ -8,6 +8,7 @@ import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE } from './tun
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import { makeOverdrive, resetOverdrive } from './overdrive';
+import { makeClutch, resetClutch } from './clutch';
 import type { RunStats, PerkStacks } from './perks';
 import type { EvolutionId } from './evolutions';
 import type { RelicId } from './relics';
@@ -144,6 +145,9 @@ export class World {
   /** OVERDRIVE ultimate meter/cooldown state */
   overdrive = makeOverdrive();
 
+  /** CLUTCH state — LAST BREATH cooldown/window + COMBO ERUPTION milestone */
+  clutch = makeClutch();
+
   // afterimage perk: a lingering damaging ghost of the last dash
   ghostX0 = 0;
   ghostY0 = 0;
@@ -193,6 +197,7 @@ export class World {
     this.boss = null;
     this.ghostTimer = 0;
     resetOverdrive(this.overdrive);
+    resetClutch(this.clutch);
   }
 
   recomputeStats(): void {

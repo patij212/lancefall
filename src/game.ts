@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -29,6 +29,7 @@ import { encodeBuildDna } from './buildDna';
 import { submitScore } from './api';
 import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
+import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { OVERDRIVE } from './tune';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
@@ -716,6 +717,8 @@ export class Game {
 
     // OVERDRIVE meter/cooldown ticks
     tickOverdrive(w.overdrive, dt);
+    // CLUTCH timers (LAST BREATH cooldown/window)
+    tickClutch(w.clutch, dt);
 
     // combo decay — frozen during the OVERDRIVE lock window (keep the combo alive)
     if (w.overdrive.lockTimer > 0) {
@@ -727,6 +730,7 @@ export class Game {
         this.ui.comboBreakFlash();
         w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
         w.lastTierAnnounced = 0;
+        resetErupt(w.clutch); // re-arm COMBO ERUPTION for the next climb
         this.tryHint('comboBreak');
       }
       w.combo = c.combo;
@@ -1011,6 +1015,51 @@ export class Game {
         break;
       }
     }
+    // COMBO ERUPTION — a big-combo milestone detonates a bullet-clearing nova
+    const m = eruptMilestone(w.combo, w.clutch.lastErupt);
+    if (m > 0) {
+      w.clutch.lastErupt = m;
+      this.comboErupt(m);
+    }
+  }
+
+  /** COMBO ERUPTION: shatter enemy bullets in a big radius (breathing room),
+   *  scorch nearby chaff, drop a score bonus, and sell it with juice. */
+  private comboErupt(milestone: number): void {
+    const w = this.world;
+    const p = w.player;
+    // shatter enemy bullets in the clear radius
+    const cr2 = CLUTCH.eruptClearRadius * CLUTCH.eruptClearRadius;
+    w.bullets.forEachActive((b) => {
+      const dx = b.x - p.x;
+      const dy = b.y - p.y;
+      if (dx * dx + dy * dy < cr2) {
+        w.particles.burst(b.x, b.y, 1, b.color);
+        w.bullets.release(b);
+      }
+    });
+    // scorch nearby non-boss enemies
+    const dr = CLUTCH.eruptDamageRadius;
+    w.hash.rebuild(w.enemies.items);
+    w.hash.queryAABB(p.x - dr, p.y - dr, p.x + dr, p.y + dr, this.chainBuf);
+    const hits = this.chainBuf.filter((e) => e.active && !e.isBoss && circleHit(p.x, p.y, dr, e.x, e.y, e.radius));
+    for (const e of hits) {
+      if (e.active) this.damageEnemy(e, CLUTCH.eruptDamage, false);
+    }
+    // score bonus
+    const bonus = Math.round(CLUTCH.eruptScore * comboMultiplier(w.combo) * w.stats.scoreMul);
+    w.score += bonus;
+    // juice — reuse the screen-space nova ring (cyan) + ring/burst + slow-mo blip
+    w.particles.ring(p.x, p.y, CLUTCH.eruptClearRadius, '#22d3ee', 0.55);
+    w.particles.burst(p.x, p.y, 60, '#a5f3fc');
+    w.particles.floatText(p.x, p.y - 40, `ERUPTION +${bonus}`, '#67e8f9', 1.2);
+    this.renderer.flash('#22d3ee', 0.22);
+    this.renderer.startOverdriveNova('#22d3ee');
+    this.scheduler.requestSlowmo(CLUTCH.eruptSlowmoHold);
+    this.shake.add(0.5);
+    this.audio.comboErupt();
+    this.ui.announce(`ERUPTION ×${milestone}`, '#22d3ee');
+    this.input.rumble(0.3, 0.4, 120);
   }
 
   private chainExplode(x: number, y: number, radius: number, dmg: number, fromDash: boolean): void {
@@ -1194,6 +1243,37 @@ export class Game {
     const w = this.world;
     const p = w.player;
     if (!p.alive) return;
+    // LAST BREATH — an automatic bullet-time clutch save. It does NOT save you
+    // outright: it opens a deep slow-mo window + brief grace and shoves nearby
+    // bullets aside so you can dash to safety. Fail to escape and you still fall.
+    if (canLastBreath(w.clutch)) {
+      triggerLastBreath(w.clutch);
+      p.iframe = CLUTCH.lastBreathIframe;
+      p.hitFlash = 0.3;
+      this.scheduler.requestDeepSlowmo(CLUTCH.lastBreathSlowmo, CLUTCH.lastBreathDuration);
+      // shove nearby bullets outward to open an escape lane
+      const r2 = CLUTCH.lastBreathPushRadius * CLUTCH.lastBreathPushRadius;
+      w.bullets.forEachActive((b) => {
+        const dx = b.x - p.x;
+        const dy = b.y - p.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < r2) {
+          const d = Math.sqrt(d2) || 1;
+          b.vx += (dx / d) * CLUTCH.lastBreathPush;
+          b.vy += (dy / d) * CLUTCH.lastBreathPush;
+        }
+      });
+      this.renderer.flash('#a78bfa', 0.5);
+      this.renderer.startLastBreath();
+      this.shake.add(0.5);
+      this.audio.lastBreath();
+      this.ui.announce('LAST BREATH', '#c4b5fd');
+      w.particles.ring(p.x, p.y, CLUTCH.lastBreathPushRadius, '#a78bfa', 0.6);
+      w.particles.burst(p.x, p.y, 30, '#c4b5fd');
+      this.input.rumble(0.4, 0.4, 200);
+      this.deathCause = cause; // remembered in case the escape fails
+      return;
+    }
     this.deathCause = cause;
     // Second Chance meta: revive once, clear the screen, brief invuln
     if (w.reviveLeft > 0) {

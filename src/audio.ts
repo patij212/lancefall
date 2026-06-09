@@ -176,6 +176,98 @@ export class AudioEngine {
     });
   }
 
+  /** LAST BREATH — the bullet-time second wind: a deep slowed heartbeat thump +
+   *  a reverse-swell "inhale" that signals time dilating around you. */
+  lastBreath(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // (a) deep heartbeat — a low sine that drops and lingers
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    const sg = ctx.createGain();
+    sub.frequency.setValueAtTime(70, t);
+    sub.frequency.exponentialRampToValueAtTime(38, t + 0.6);
+    sg.gain.setValueAtTime(0.0001, t);
+    sg.gain.exponentialRampToValueAtTime(0.5, t + 0.03);
+    sg.gain.exponentialRampToValueAtTime(0.0008, t + 0.9);
+    sub.connect(sg);
+    sg.connect(this.sfxBus);
+    sub.start(t);
+    sub.stop(t + 0.92);
+    sub.onended = () => { sub.disconnect(); sg.disconnect(); };
+    // (b) reverse-swell inhale — band-passed noise rising then cutting (time stretch)
+    const n = this.noiseSource();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.1;
+    f.frequency.setValueAtTime(300, t);
+    f.frequency.exponentialRampToValueAtTime(1800, t + 0.7);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.22, t + 0.5);
+    ng.gain.exponentialRampToValueAtTime(0.0006, t + 0.78);
+    n.connect(f);
+    f.connect(ng);
+    ng.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.8);
+    n.onended = () => { n.disconnect(); f.disconnect(); ng.disconnect(); };
+  }
+
+  /** COMBO ERUPTION — a bright detonation when a high combo cashes in: a sub kick
+   *  + a fast rising sweep + a major-third stab. Punchier/shorter than OVERDRIVE. */
+  comboErupt(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // (a) sub kick
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    const sg = ctx.createGain();
+    sub.frequency.setValueAtTime(150, t);
+    sub.frequency.exponentialRampToValueAtTime(48, t + 0.2);
+    sg.gain.setValueAtTime(0.0001, t);
+    sg.gain.exponentialRampToValueAtTime(0.5, t + 0.01);
+    sg.gain.exponentialRampToValueAtTime(0.0008, t + 0.3);
+    sub.connect(sg);
+    sg.connect(this.sfxBus);
+    sub.start(t);
+    sub.stop(t + 0.32);
+    sub.onended = () => { sub.disconnect(); sg.disconnect(); };
+    // (b) fast rising sweep (the shockwave)
+    const n = this.noiseSource();
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.setValueAtTime(600, t);
+    f.frequency.exponentialRampToValueAtTime(4200, t + 0.22);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.24, t + 0.02);
+    ng.gain.exponentialRampToValueAtTime(0.0006, t + 0.28);
+    n.connect(f);
+    f.connect(ng);
+    ng.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.3);
+    n.onended = () => { n.disconnect(); f.disconnect(); ng.disconnect(); };
+    // (c) bright C-E stab
+    [523.25, 659.25].forEach((freq) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0006, t + 0.35);
+      o.connect(g);
+      g.connect(this.sfxBus);
+      o.start(t);
+      o.stop(t + 0.37);
+      o.onended = () => { o.disconnect(); g.disconnect(); };
+    });
+  }
+
   /** Bass "thunk" on a kill — pitched UP with the combo so a clean run plays an
    *  ascending scale. */
   thunk(combo: number): void {

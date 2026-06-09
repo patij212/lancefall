@@ -268,6 +268,27 @@ export const OVERDRIVE = {
   slowmoHold: 1.8, // seconds of slow-mo on activation
 };
 
+// CLUTCH MOMENTS — two systems that turn a near-death and a hot streak into a
+// thrill: LAST BREATH (an automatic bullet-time second wind — it doesn't save
+// you, it gives you the time to save yourself) and COMBO ERUPTION (combo
+// milestones detonate a bullet-clearing nova: your reward for living dangerously).
+export const CLUTCH = {
+  // LAST BREATH
+  lastBreathCooldown: 38, // s before it can save you again
+  lastBreathDuration: 1.7, // s of the bullet-time window (real-time hold)
+  lastBreathSlowmo: 0.18, // sim time-scale during the window (deep slow)
+  lastBreathIframe: 0.55, // s of grace so the killing shot can't immediately re-hit
+  lastBreathPush: 240, // px/s outward shove on nearby bullets (opens an escape lane)
+  lastBreathPushRadius: 250,
+  // COMBO ERUPTION
+  eruptEvery: 50, // erupt at ×50, ×100, ×150, …
+  eruptClearRadius: 360, // px — enemy bullets shattered inside (breathing room)
+  eruptDamage: 3, // damage dealt to non-boss enemies in radius
+  eruptDamageRadius: 240,
+  eruptScore: 2500, // flat bonus (× combo mult × scoreMul)
+  eruptSlowmoHold: 0.5,
+};
+
 export const WARDEN = {
   baseHp: 12, // dash-hits
   hpPerInterval: 4, // +per boss appearance

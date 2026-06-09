@@ -27,6 +27,15 @@ export class Scheduler {
     this.easing = false;
   }
 
+  /** A custom-depth, custom-length slow-mo (LAST BREATH's deep bullet-time).
+   *  Takes the deeper scale + longer hold so it can't be cut short by a lighter
+   *  slow-mo already running. */
+  requestDeepSlowmo(scale: number, hold: number): void {
+    this.timeScale = Math.min(this.timeScale, scale);
+    this.holdTimer = Math.max(this.holdTimer, hold);
+    this.easing = false;
+  }
+
   get frozen(): boolean {
     return this.hitstop > 0;
   }

@@ -147,6 +147,7 @@ export class Renderer {
     // ── composite buffer → screen ──
     this.present(opts, cam);
     this.drawVignette(opts, world);
+    this.drawLastBreath();
     this.drawOverdriveNova(world);
     this.drawBossEntrance();
   }
@@ -156,6 +157,32 @@ export class Renderer {
   private bossEntranceColor = '#ffffff';
   private overdriveNovaT = 0;
   private overdriveNovaColor = '#5beaff';
+  private lastBreathT = 0;
+
+  /** Trigger the LAST BREATH bullet-time overlay (a violet vignette that pulses
+   *  while the clutch window is open, then fades). Self-timed on real frames. */
+  startLastBreath(): void {
+    this.lastBreathT = 1;
+  }
+
+  private drawLastBreath(): void {
+    if (this.lastBreathT <= 0) return;
+    this.lastBreathT = Math.max(0, this.lastBreathT - 1 / 102); // ~1.7s
+    const sctx = this.sctx;
+    const W = this.screen.width;
+    const H = this.screen.height;
+    const fade = this.lastBreathT; // 1 → 0
+    const pulse = 0.55 + 0.45 * Math.sin(this.bgT * 7);
+    sctx.save();
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    // violet edge vignette that breathes
+    const g = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.72);
+    g.addColorStop(0, 'rgba(167,139,250,0)');
+    g.addColorStop(1, `rgba(124,58,237,${0.5 * fade * pulse})`);
+    sctx.fillStyle = g;
+    sctx.fillRect(0, 0, W, H);
+    sctx.restore();
+  }
 
   /** Trigger the OVERDRIVE nova shockwave (a ~0.6s expanding screen ring). */
   startOverdriveNova(color: string): void {
