@@ -9,7 +9,7 @@
 
 import type { SaveData } from './save';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -22,6 +22,10 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          default-filled by the spread below; no explicit transform needed.
   // v3 → v4: added unlockedTrails + selectedTrail (cosmetic dash trails) — again
   //          default-filled by the spread; no explicit transform needed.
+  // v4 → v5: added the Stillpoint meta (stillpointFragments/Lore/Dossiers,
+  //          fragmentsSpent, stillpointChoice, ngPlusLevel/Active, nemesis,
+  //          deepestWave). Purely additive → default-filled by the spread; no
+  //          explicit transform needed.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
   return { ...base, ...data, version: SAVE_VERSION };

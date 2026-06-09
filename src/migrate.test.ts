@@ -36,4 +36,20 @@ describe('save migration', () => {
     expect(out.version).toBe(SAVE_VERSION);
     expect(out.highScore).toBe(5);
   });
+
+  it('default-fills the v5 Stillpoint fields for a v4 save (single additive bump)', () => {
+    const v4 = { version: 4, highScore: 46472, bestCombo: 31, handle: '' };
+    const out = migrateSave(v4, defaultSave());
+    expect(out.version).toBe(SAVE_VERSION); // 5
+    expect(out.highScore).toBe(46472); // pre-existing data preserved
+    expect(out.stillpointFragments).toEqual([]);
+    expect(out.fragmentsSpent).toBe(0);
+    expect(out.stillpointLore).toEqual([]);
+    expect(out.stillpointDossiers).toEqual([]);
+    expect(out.stillpointChoice).toBe('none');
+    expect(out.ngPlusLevel).toBe(0);
+    expect(out.ngPlusActive).toBe(false);
+    expect(out.nemesis).toEqual({});
+    expect(out.deepestWave).toBe(0);
+  });
 });

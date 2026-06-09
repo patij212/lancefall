@@ -51,6 +51,26 @@ export interface SaveData {
   selectedArchetype: string;
   /** player handle for online leaderboards ('' = anonymous / not set) */
   handle: string;
+  // ── THE STILLPOINT (v5) — the meta-layer. All additive; the only writes are
+  //    plain assignments/array-pushes, never an rng method (determinism-safe). ──
+  /** collected Memory Fragment ids (set; never a Set — JSON-safe) */
+  stillpointFragments: string[];
+  /** count spent on lore/dossiers (available = length - spent) */
+  fragmentsSpent: number;
+  /** unlocked lore entry ids */
+  stillpointLore: string[];
+  /** unlocked betrayer dossier ids (== boss EnemyKind) */
+  stillpointDossiers: string[];
+  /** THE CHOICE on a Sovereign kill: catch the star, let it fall, or not yet made */
+  stillpointChoice: 'catch' | 'fall' | 'none';
+  /** highest NG+ loop reached */
+  ngPlusLevel: number;
+  /** NG+ queued for the next run */
+  ngPlusActive: boolean;
+  /** killer-kind → death count (the hub's nemesis read; JSON-safe like meta) */
+  nemesis: Record<string, number>;
+  /** deepest descent (wave) reached — the hub run-state line */
+  deepestWave: number;
 }
 
 export interface Settings {
@@ -103,6 +123,15 @@ export function defaultSave(): SaveData {
     maxHeat: 0,
     selectedArchetype: 'none',
     handle: '',
+    stillpointFragments: [],
+    fragmentsSpent: 0,
+    stillpointLore: [],
+    stillpointDossiers: [],
+    stillpointChoice: 'none',
+    ngPlusLevel: 0,
+    ngPlusActive: false,
+    nemesis: {},
+    deepestWave: 0,
   };
 }
 
