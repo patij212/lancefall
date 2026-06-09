@@ -33,7 +33,8 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **#9 Discoverability pass** — HOW TO PLAY codex + title legend now teach OVERDRIVE [F], Combo Eruption, power-ups, Last Breath, the Sovereign's cores, and the unlockables. (`302a462`)
 - ✅ **Cumulative review (10 agents)** — over the not-yet-reviewed features + cross-feature interactions. Clean except 2 real BROODER bugs (subPhase not reset on pool recycle → inert duds; hatches drew world.rng → Daily desync), both fixed + 3 regression tests. (`83684dc`)
 - ✅ **#10 THE WARREN biome** — a 6th evolving-biome stage biasing brooders/shades/drifters (priority targets); array-driven, purely additive. (`cec5fea`)
-- ✅ Redeployed to the live alpha; **224 tests**, tsc clean, build clean, zero console errors; owner save restored.
+- ✅ **Daily-determinism hardening** — routed the remaining kill-timed draws (gem scatter + bomber/elite detonations) to dropRng so kills never perturb the seeded director; Daily waves now identical for all. (`2f56595`)
+- ✅ Redeployed to the live alpha; **225 tests**, tsc clean, build clean, zero console errors; owner save restored.
 
 Deferred (needs the user's go-ahead — touches the live worker backend): weekly challenge + online board.
 
