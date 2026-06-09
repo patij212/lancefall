@@ -739,13 +739,16 @@ export class Game {
     // field (never on world / never in step()) → structurally rng-free. The
     // render half reads it in Phase 3; the audio half rides the 0.4s throttle.
     const cw = this.world;
-    this.coherence.tier = comboTier(cw.combo);
-    this.coherence.target = coherenceTarget(
-      cw.combo,
-      cw.comboTimer,
-      cw.player.killsThisDash,
-      cw.clutch.lastBreathActive,
-    );
+    if (this.state === 'title') {
+      // THE STILLPOINT hub — the title skyline reflects THE CHOICE made on the
+      // Sovereign kill: caught the star → the neon City; let it fall → dark ruin.
+      this.coherence.tier = 0;
+      this.coherence.target =
+        this.save.stillpointChoice === 'catch' ? 0.92 : this.save.stillpointChoice === 'fall' ? 0.12 : 0.42;
+    } else {
+      this.coherence.tier = comboTier(cw.combo);
+      this.coherence.target = coherenceTarget(cw.combo, cw.comboTimer, cw.player.killsThisDash, cw.clutch.lastBreathActive);
+    }
     tickCoherence(this.coherence, realDt);
     // THE ONE BUS (render half): push the eased Coherence value + focus-snap each frame
     this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse);
