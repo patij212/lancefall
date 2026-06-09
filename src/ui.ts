@@ -282,6 +282,8 @@ export class UI {
       el('b', {}, 'WASD / arrows / stick'),
       el('span', {}, 'dash'),
       el('b', {}, 'hold + release  ·  mouse / Space / RT'),
+      el('span', {}, 'overdrive'),
+      el('b', {}, 'F / LB'),
     );
 
     this.title = el(
@@ -556,10 +558,15 @@ export class UI {
       rule('Move', 'WASD / arrows / left stick'),
       rule('Dash', 'Hold to charge, release to spear through enemies (mouse / Space / RT)'),
       rule('I-frames', 'You are invincible mid-dash — dash through bullets and bosses'),
-      rule('Combo', 'Chain kills before the timer runs out to multiply score'),
+      rule('Combo', 'Chain kills before the timer runs out to multiply score — hit ×50 and your combo ERUPTS into a bullet-clearing nova'),
       rule('Graze', 'Skim bullets without being hit to refill stamina'),
+      rule('OVERDRIVE', 'Kills + grazes charge the bottom meter. When it reads READY, tap F (or gamepad LB) to unleash a time-slowing, screen-clearing nova'),
+      rule('Power-ups', 'Bosses and Champions drop timed buffs — run over the glowing pickup to grab it (one active at a time)'),
+      rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
+      rule('Bosses', 'Dash through the safe gaps. THE SOVEREIGN (the final boss) is ARMORED — dash through its orbiting CORES to crack it open, then punish the exposed crown'),
       rule('Perks', 'Pick a perk every few waves. They STACK — that is the snowball'),
+      rule('Unlocks', 'Spend shards on ships + palettes + dash trails; beat the Sovereign for the gold CROWN trail'),
     );
     const evoCards = el('div', { class: 'howto-evos' });
     for (const id of Object.keys(EVOLUTIONS) as (keyof typeof EVOLUTIONS)[]) {
