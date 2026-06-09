@@ -30,6 +30,7 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **#6 Per-boss music themes** — each of the 6 bosses layers a distinct drone chord + arp colour over the soundtrack (Sovereign = grand 4-voice). Pure `bossThemes.ts`. (`39b5b2d`)
 - ✅ **#7 REAVER ship** — a 6th ship: snowball aggression (dash-kills refund stamina, wider bite; slow regen + weak graze refund). Pure `ships.ts` profile. (`91c730c`)
 - ✅ **#8 BROODER enemy** — a 10th enemy: a slow spawner pod that hatches up to 4 mini drones (telegraphed); prioritise it or get flooded. (`76405e8`)
+- ✅ **#9 Discoverability pass** — HOW TO PLAY codex + title legend now teach OVERDRIVE [F], Combo Eruption, power-ups, Last Breath, the Sovereign's cores, and the unlockables. (`302a462`)
 - ✅ Redeployed to the live alpha; **217 tests**, tsc clean, build clean, zero console errors; owner save restored.
 
 Deferred (needs the user's go-ahead — touches the live worker backend): weekly challenge + online board.
