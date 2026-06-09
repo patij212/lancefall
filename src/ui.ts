@@ -469,6 +469,7 @@ export class UI {
       toggle('Reduce motion', s.reduceMotion, (v) => this.patch({ reduceMotion: v })),
       toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
       toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
+      toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v })),
     );
 
     const densityWrap = el('div', { class: 'setting' }, el('span', {}, 'Particle density'));

@@ -775,6 +775,8 @@ export class Game {
       caScale: this.settings.chromAberration,
       reduceMotion: this.settings.reduceMotion,
       clarity: this.settings.clarity,
+      beatRing: this.settings.rhythmAssist,
+      beatPhase: this.beat.beatPhase(),
     });
     if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density);
 

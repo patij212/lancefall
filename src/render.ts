@@ -37,6 +37,8 @@ export interface RenderOpts {
   caScale: number; // 0..1 chromatic-aberration intensity (accessibility setting)
   reduceMotion: boolean;
   clarity: boolean; // high-contrast Clarity mode (tames the coherence visuals)
+  beatRing: boolean; // draw the opt-in beat-ring (rhythm assist)
+  beatPhase: number; // 0..1 within the current beat (drives the ring radius)
 }
 
 export class Renderer {
@@ -186,6 +188,7 @@ export class Renderer {
     this.drawBullets(world);
     this.drawEnemies(world, opts);
     if (world.player.alive || world.player.hitFlash > 0) this.drawPlayer(world);
+    this.drawBeatRing(world, opts);
     this.drawParticlesAbove(world);
     this.drawFloatingText(world);
     bctx.restore();
@@ -360,6 +363,32 @@ export class Renderer {
         }
       }
     }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /** Opt-in beat-ring (rhythm assist) — a ring that contracts to the player on
+   *  each beat; commit a dash when it's tight to land on-beat. Drawn in world
+   *  space (follows the player); render-only, never touches the sim. a11y: static
+   *  under reduceMotion, no on-beat flash under reduceFlashing, luminance tone
+   *  under colorblind. */
+  private drawBeatRing(world: World, opts: RenderOpts): void {
+    if (!opts.beatRing || !world.player.alive) return;
+    const ctx = this.bctx;
+    const p = world.player;
+    const phase = opts.beatPhase;
+    const onBeat = phase < 0.12 || phase > 0.88;
+    const minR = TUNE.player.spriteRadius + 9;
+    const maxR = 70;
+    const r = this.reduceMotionR ? (minR + maxR) / 2 : minR + (maxR - minR) * (1 - phase);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = this.colorblindR ? '#cfe2ff' : this.theme.accent2;
+    ctx.globalAlpha = onBeat && !this.reduceFlashingR ? 0.5 : 0.2;
+    ctx.lineWidth = onBeat ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
     ctx.globalAlpha = 1;
   }
