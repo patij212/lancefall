@@ -54,10 +54,11 @@ describe('renderMath — coherence→render mappings + a11y gates', () => {
     expect(washSaturation(0, 0, false, false, true)).toBeGreaterThanOrEqual(COHERENCE.clarityFloor);
   });
 
-  it('cityGlowAlpha rises with coherence, capped by reduceFlashing', () => {
-    expect(cityGlowAlpha(0, false)).toBeCloseTo(COHERENCE.cityGlowBase, 6);
-    expect(cityGlowAlpha(1, false)).toBeGreaterThan(cityGlowAlpha(0, false));
-    expect(cityGlowAlpha(1, true)).toBeLessThan(cityGlowAlpha(1, false));
+  it('cityGlowAlpha rises with coherence, capped by reduceFlashing, frozen under Clarity', () => {
+    expect(cityGlowAlpha(0, false, false)).toBeCloseTo(COHERENCE.cityGlowBase, 6);
+    expect(cityGlowAlpha(1, false, false)).toBeGreaterThan(cityGlowAlpha(0, false, false));
+    expect(cityGlowAlpha(1, true, false)).toBeLessThan(cityGlowAlpha(1, false, false));
+    expect(cityGlowAlpha(1, false, true)).toBeCloseTo(COHERENCE.cityGlowBase, 6); // Clarity freezes the swing
   });
 
   it('skylineAlpha + showWindows', () => {

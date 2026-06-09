@@ -339,7 +339,7 @@ export class Renderer {
     const baseY = this.h;
     const drift = this.reduceMotionR ? 0 : this.bgT * 6;
     const span = this.w + 160;
-    const lights = showWindows(c) && this.quality >= 1;
+    const lights = showWindows(c) && this.quality >= 0.8; // keep the city alive through a mild perf step-down
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
     ctx.globalCompositeOperation = 'source-over';
@@ -1307,7 +1307,10 @@ export class Renderer {
       this.reduceMotionR,
       this.clarityR,
     );
-    if (sat < 0.999) {
+    // gate the wash off under DEEP perf load (quality ≤ 0.6) — it is the single
+    // biggest new per-frame op on CPU-compositing hardware, and this is the only
+    // lever adaptPerf has on it. The world stays full-colour (readable) when shed.
+    if (sat < 0.999 && this.quality > 0.6) {
       sctx.globalCompositeOperation = 'saturation';
       sctx.globalAlpha = 1 - sat;
       sctx.fillStyle = '#808080';
@@ -1317,7 +1320,7 @@ export class Renderer {
     }
     // foreground neon city-glow band rising from the bottom edge (the anchor the
     // eye lands on in a compressed GIF — the City of Lancefall's edge resolving)
-    const glow = cityGlowAlpha(this.coherence, this.reduceFlashingR);
+    const glow = cityGlowAlpha(this.coherence, this.reduceFlashingR, this.clarityR);
     if (glow > 0.003) {
       const bandH = H * 0.16;
       const grad = sctx.createLinearGradient(0, H - bandH, 0, H);

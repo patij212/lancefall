@@ -340,7 +340,7 @@ export const COHERENCE = {
   skylineGain: 0.7, // …added at coherence 1 (the City of Lancefall resolves)
   // ── accessibility caps ──
   flashCap: 0.85, // max coherence-driven brightness swing under reduceFlashing
-  clarityFloor: 0.85, // min gameplay-layer alpha under Clarity (play layer never dims below this)
+  clarityFloor: 0.85, // min whole-frame saturation under Clarity (the world never grays out below this)
   // ── combo → audio tier (monotone; reuses COMBO_TIERS cut points) ──
   tierCombo: [10, 20, 35, 50, 75, 100], // combo thresholds → tier 1..6
 } as const;

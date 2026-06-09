@@ -11,7 +11,7 @@ export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
  *  satFloor ≈ gray static). A Perfect-dash focusPulse briefly snaps toward full
  *  colour. reduceFlashing caps the swing; reduceMotion/reduceFlashing kill the
  *  snap (a full-field swell reads as motion/flash); Clarity floors saturation so
- *  the play layer never desaturates below readability. */
+ *  the WHOLE FRAME never desaturates below readability (no separate play-layer mask). */
 export function washSaturation(
   c: number,
   focusPulse: number,
@@ -27,8 +27,11 @@ export function washSaturation(
   return clamp01(sat);
 }
 
-/** Bottom neon city-glow band alpha (the foreground anchor the eye lands on). */
-export function cityGlowAlpha(c: number, reduceFlashing: boolean): number {
+/** Bottom neon city-glow band alpha (the foreground anchor the eye lands on).
+ *  Clarity freezes the swing to a constant (parity with the other coherence
+ *  visuals); reduceFlashing caps the ceiling. The band carries no danger info. */
+export function cityGlowAlpha(c: number, reduceFlashing: boolean, clarity: boolean): number {
+  if (clarity) return clamp01(CO.cityGlowBase);
   let cc = clamp01(c);
   if (reduceFlashing) cc = Math.min(cc, CO.flashCap);
   return clamp01(CO.cityGlowBase + CO.cityGlowGain * cc);
