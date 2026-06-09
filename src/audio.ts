@@ -4,6 +4,7 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
+import { COHERENCE_AUDIO } from './tune';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -41,9 +42,29 @@ export class AudioEngine {
   private bossArp = false;
   private bossArpMul = 1; // per-boss arp pitch shift (set from the active boss theme)
   private readonly bpm = 112;
+  private musicEpoch = 0; // ctx time of the music's first scheduled note (beat-clock epoch)
+
+  // ── COHERENCE one-bus (audio half) — Coherence solely owns the drone bloom +
+  //    filter now; setIntensity keeps only its arp-density (musicHeat) role. ──
+  private rootMul = 1; // current root transpose multiplier (by combo tier)
+  private choirVoices: { osc: OscillatorNode; gain: GainNode }[] = [];
+  private static CHOIR_SEMIS = [0, 7, 12, 16, 19] as const; // add9 pad over the root
 
   get ready(): boolean {
     return this.ctx !== null;
+  }
+
+  /** Seconds since the music's first scheduled note — the pure beat clock syncs
+   *  to this (0 when music isn't running). */
+  get musicTime(): number {
+    return this.ctx && this.musicTimer ? this.ctx.currentTime - this.musicEpoch : 0;
+  }
+  get musicRunning(): boolean {
+    return this.musicTimer !== 0;
+  }
+  /** Raw audio clock (ctx.currentTime); 0 before the context exists. */
+  get clock(): number {
+    return this.ctx?.currentTime ?? 0;
   }
 
   /** Create/resume the context. MUST be called from a user gesture. */
@@ -659,16 +680,110 @@ export class AudioEngine {
     this.startMusic();
   }
 
-  /** Heat 0..1+: fades in more voices and opens the filter as the wave climbs. */
+  /** Heat 0..1+: drives ONLY the arp density now. Coherence (setCoherence) is the
+   *  sole owner of the drone gains + filter bloom — one controller per knob, so
+   *  the two never fight over the same setTargetAtTime params. */
   setIntensity(n: number): void {
     this.musicHeat = n;
+  }
+
+  /** THE ONE BUS (audio half) — Coherence 0..1 + combo tier together bloom the
+   *  lone drone into a 4-voice chord, open the filter, transpose the root, and
+   *  crossfade a choir pad in past the onset. Cosmetic: never touches world.rng. */
+  setCoherence(c: number, tier: number): void {
     const ctx = this.ctx;
-    if (!ctx || !this.droneOn || !this.droneFilter) return;
+    if (!ctx || !this.droneOn || !this.droneFilter) return; // no resurrection after teardown
     const t = ctx.currentTime;
-    const k = Math.min(1, n);
-    this.droneFilter.frequency.setTargetAtTime(700 + k * 2800, t, 0.5);
-    const targets = [0.16, k > 0.33 ? 0.1 : 0.0001, k > 0.55 ? 0.09 : 0.0001, k > 0.8 ? 0.07 : 0.0001];
-    this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(targets[i] ?? 0.0001, t, 0.5));
+    const k = Math.min(1, Math.max(0, c));
+    const CA = COHERENCE_AUDIO;
+    // (a) ROOT TRANSPOSE by combo tier (drone + melodic layer shift together)
+    const semis = CA.tierSemis[Math.min(tier, CA.tierSemis.length - 1)] ?? 0;
+    const mul = Math.pow(2, semis / 12);
+    if (mul !== this.rootMul) {
+      this.rootMul = mul;
+      const base = [55, 82.5, 110, 165];
+      this.drone.forEach((v, i) => v.osc.frequency.setTargetAtTime(base[i] * mul, t, CA.transposeGlide));
+    }
+    // (b) LONE-DRONE → 4-VOICE bloom (sole owner of these gains now)
+    const g = [0.16, k > 0.3 ? 0.1 * k : 0.0001, k > 0.5 ? 0.09 * k : 0.0001, k > 0.72 ? 0.07 * k : 0.0001];
+    this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(g[i], t, CA.droneGlide));
+    this.droneFilter.frequency.setTargetAtTime(700 + k * CA.filterBloom, t, CA.filterGlide);
+    // (c) CHOIR pad blooms past the onset
+    this.setChoir(Math.max(0, (k - CA.choirOnset) / (1 - CA.choirOnset)));
+  }
+
+  /** Lazily build + crossfade a 5-voice choir pad (add9 over the root), routed
+   *  through droneFilter → musicBus (inherits ducking + the music slider). */
+  private setChoir(level: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.droneFilter) return;
+    const t = ctx.currentTime;
+    const CA = COHERENCE_AUDIO;
+    const lvl = Math.min(1, Math.max(0, level));
+    if (!this.choirVoices.length) {
+      if (lvl <= 0.001) return; // stay silent + uninstantiated until first needed
+      for (const semi of AudioEngine.CHOIR_SEMIS) {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = 110 * this.rootMul * Math.pow(2, semi / 12);
+        osc.detune.value = (Math.random() - 0.5) * 9; // cosmetic shimmer — never world.rng
+        const gg = ctx.createGain();
+        gg.gain.value = 0.0001;
+        osc.connect(gg);
+        gg.connect(this.droneFilter);
+        osc.start(t);
+        this.choirVoices.push({ osc, gain: gg });
+      }
+    }
+    const per = (COHERENCE_AUDIO.choirGain / AudioEngine.CHOIR_SEMIS.length) * lvl;
+    this.choirVoices.forEach((v, i) => {
+      v.gain.gain.setTargetAtTime(lvl > 0.001 ? Math.max(0.0001, per) : 0.0001, t, CA.choirGlide);
+      const semi = AudioEngine.CHOIR_SEMIS[i] ?? 0;
+      v.osc.frequency.setTargetAtTime(110 * this.rootMul * Math.pow(2, semi / 12), t, CA.transposeGlide);
+    });
+  }
+
+  /** Perfect on-beat dash — a tight on-grid snare tick ("remembers cleanly"),
+   *  scheduled at the quantized next-grid time; routed to sfxBus. */
+  perfectDashSnare(at: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = Math.max(at, ctx.currentTime);
+    const n = this.noiseSource();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1900;
+    bp.Q.value = 0.8;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.12);
+    n.connect(bp);
+    bp.connect(g);
+    g.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.14);
+    n.onended = () => {
+      n.disconnect();
+      bp.disconnect();
+      g.disconnect();
+    };
+    // a faint tonal click for sparkle
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(880, t);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(0.05, t + 0.004);
+    og.gain.exponentialRampToValueAtTime(0.0006, t + 0.08);
+    o.connect(og);
+    og.connect(this.sfxBus);
+    o.start(t);
+    o.stop(t + 0.1);
+    o.onended = () => {
+      o.disconnect();
+      og.disconnect();
+    };
   }
 
   // ── procedural music: a lookahead beat sequencer ──────────────────────
@@ -678,6 +793,7 @@ export class AudioEngine {
     if (!ctx || this.musicTimer) return;
     this.musicStep = 0;
     this.nextNoteT = ctx.currentTime + 0.1;
+    this.musicEpoch = this.nextNoteT;
     this.musicTimer = window.setInterval(() => this.scheduleMusic(), 25);
   }
 
@@ -708,14 +824,14 @@ export class AudioEngine {
     // KICK on every beat — drive
     if (s % 4 === 0) this.kick(t, 0.16);
     // BASS pulse on beats 1 and 3
-    if (s === 0 || s === 8) this.bassNote(t, 110, 0.18);
-    if (s === 8 && heat > 0.5) this.bassNote(t, 146.83, 0.12); // a little movement when hot
+    if (s === 0 || s === 8) this.bassNote(t, 110 * this.rootMul, 0.18);
+    if (s === 8 && heat > 0.5) this.bassNote(t, 146.83 * this.rootMul, 0.12); // a little movement when hot
     // ARP on offbeat 8ths, density rising with heat
     const onArp = heat > 0.25 && s % 2 === 1 && (heat > 0.6 || s % 4 === 1);
     if (onArp) {
       const idx = Math.floor(this.musicStep / 2) % AudioEngine.ARP.length;
       const base = AudioEngine.PENTA[AudioEngine.ARP[idx] % AudioEngine.PENTA.length];
-      const freq = this.bossArp ? base * this.bossArpMul : base; // per-boss arp colour
+      const freq = (this.bossArp ? base * this.bossArpMul : base) * this.rootMul; // per-boss colour + coherence transpose
       this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
     }
   }
@@ -864,6 +980,17 @@ export class AudioEngine {
         v.gain.disconnect();
       };
     }
+    // teardown the coherence choir pad (mirrors the drone/bossVoices teardown)
+    for (const v of this.choirVoices) {
+      v.gain.gain.setTargetAtTime(0.0001, t, 0.1);
+      v.osc.stop(t + 0.6);
+      v.osc.onended = () => {
+        v.osc.disconnect();
+        v.gain.disconnect();
+      };
+    }
+    this.choirVoices = [];
+    this.rootMul = 1;
     this.droneFilter?.disconnect();
     this.drone = [];
     this.droneFilter = null;
