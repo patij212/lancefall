@@ -25,8 +25,9 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **#2 THE SOVEREIGN** — the 6th & final boss: armored crown + 3 orbiting Cores, gravity-warped bullets, CROWN BEAMS + NOVA SPIRAL; now in Endless / Arena (15 waves) / Boss Rush; +2 achievements. (`a11a36d`)
 - ✅ **#3 CLUTCH moments** — LAST BREATH (auto bullet-time second wind) + COMBO ERUPTION (bullet-clearing nova at ×50/×100…). (`a78892a`)
 - ✅ **Adversarial review** — 22 agents / 4 dimensions; 8 verified findings, all fixed (Sovereign armor invariant centralised in `spearBlocked()`; Cores made dash-only; ERUPTION spares boss bullets; `gravityPull` hot-path alloc inlined; nova ring camera-projected). (`5465800`)
-- ✅ Redeployed to the live alpha; **194 tests**, tsc clean, build clean, zero console errors; owner save restored.
+- ✅ **#4 POWER-UP DROPS** — 5 temporary build-agnostic buffs (OVERREACH / HASTE / FRENZY / GREED / AEGIS) from bosses + elites; HUD badge + aura + pickup orbs. (`8b36d8e`) + focused review (8 agents): the **Daily-determinism break** (drops drew from the shared `world.rng`) fixed with a separate per-run `dropRng`. (`04dc822`)
+- ✅ Redeployed to the live alpha; **205 tests**, tsc clean, build clean, zero console errors; owner save restored.
 
-Deferred (room for a future v5): power-up drops, weekly challenge + board, cosmetic dash-trail unlocks.
+Deferred (room for a future v5): weekly challenge + board, cosmetic dash-trail unlocks, per-boss music themes.
 
-— v4.0 shipped: **OVERDRIVE ultimate · THE SOVEREIGN (6th boss) · LAST BREATH + COMBO ERUPTION**, capped by a 4-dimension adversarial review.
+— v4.0 shipped: **OVERDRIVE ultimate · THE SOVEREIGN (6th boss) · LAST BREATH + COMBO ERUPTION · POWER-UP DROPS**, capped by two adversarial-review passes (12 findings fixed).
