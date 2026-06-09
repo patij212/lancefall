@@ -26,6 +26,7 @@ import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore } from './api';
+import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -105,6 +106,8 @@ export class Game {
   private activeMutators: MutatorId[] = []; // run mutators in effect this run
   private eliteMods = { chanceMul: 1, maxAdd: 0 }; // champion-spawn mods from mutators
   private runHeat = 0; // heat level locked in for the active run
+  private onboarding = false; // first-run progressive tutorial active
+  private onboardStep = 0;
   private intensityTimer = 0;
   // adaptive perf: scale particle density down when frames run slow, restore when fast
   private baseDensity = 1;
@@ -272,15 +275,26 @@ export class Game {
     this.audio.startDrone();
     this.audio.duckMusic(false);
 
-    // first-run stealth onboarding via toasts
+    // first-run progressive onboarding — hints surface as you perform each action
     if (!this.save.seenTutorial) {
       this.save.seenTutorial = true;
       saveSave(this.save);
-      this.ui.toast('Hold to charge — release to DASH through enemies');
-      setTimeout(() => {
-        if (this.state === 'playing') this.ui.toast('Graze bullets (skim them) to refill stamina');
-      }, 4200);
+      this.onboarding = true;
+      this.onboardStep = 0;
+      this.tryHint('start');
+    } else {
+      this.onboarding = false;
     }
+  }
+
+  /** Advance the first-run onboarding when the current step's trigger fires. */
+  private tryHint(trigger: import('./onboarding').OnboardTrigger): void {
+    if (!this.onboarding) return;
+    const h = hintFor(this.onboardStep, trigger);
+    if (!h) return;
+    this.ui.toast(h.text);
+    this.onboardStep++;
+    if (this.onboardStep >= ONBOARDING_STEPS) this.onboarding = false;
   }
 
   private resume(): void {
@@ -667,6 +681,7 @@ export class Game {
       this.ui.comboBreakFlash();
       w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
       w.lastTierAnnounced = 0;
+      this.tryHint('comboBreak');
     }
     w.combo = c.combo;
     w.comboTimer = c.timer;
@@ -694,6 +709,7 @@ export class Game {
       w.particles.streaks(p.x, p.y, p.dashDirX, p.dashDirY, comboColor(w.combo));
       this.cam.zoom = Math.max(this.cam.zoom, 1.03);
       this.input.rumble(0.0, 0.3, 70);
+      this.tryHint('dash');
     }
     if (this.ev.landed) {
       w.particles.dust(p.x, p.y, '#22d3ee');
@@ -800,6 +816,7 @@ export class Game {
     const y = e.y;
     const color = e.color;
     w.killCount++;
+    this.tryHint('kill');
     if (fromDash) {
       w.player.killsThisDash++;
       if (w.player.killsThisDash > w.maxDashChain) w.maxDashChain = w.player.killsThisDash;
