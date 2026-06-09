@@ -62,6 +62,7 @@ export interface Settings {
   reduceMotion: boolean;
   particleDensity: 'low' | 'med' | 'high';
   colorblind: boolean;
+  clarity: boolean; // high-contrast Clarity mode — tames the coherence visuals for readability
   hudScale: number; // 0.8..1.4
   chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
   rumble: boolean; // gamepad rumble on/off
@@ -115,6 +116,7 @@ export function defaultSettings(): Settings {
     reduceMotion: prefersReducedMotion(),
     particleDensity: 'high',
     colorblind: false,
+    clarity: false,
     hudScale: 1,
     chromAberration: 1,
     rumble: true,

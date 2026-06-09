@@ -237,6 +237,7 @@ export class Game {
     if (next !== this.perfScale) {
       this.perfScale = next;
       this.world.particles.density = this.baseDensity * this.perfScale;
+      this.renderer.setQuality(this.perfScale); // gate the skyline window-lights under load
       this.perfCooldown = 3; // avoid thrash
     }
   }
@@ -707,12 +708,16 @@ export class Game {
       cw.clutch.lastBreathActive,
     );
     tickCoherence(this.coherence, realDt);
+    // THE ONE BUS (render half): push the eased Coherence value + focus-snap each frame
+    this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse);
 
     this.renderer.render(this.world, this.cam, {
       reduceFlashing: this.settings.reduceFlashing,
       colorblind: this.settings.colorblind,
       combo: this.world.combo,
       caScale: this.settings.chromAberration,
+      reduceMotion: this.settings.reduceMotion,
+      clarity: this.settings.clarity,
     });
     if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density);
 
