@@ -1,5 +1,8 @@
 # ⚔️ LANCEFALL
 
+> 🎮 **Play the open alpha: https://lancefall.pages.dev** &nbsp;·&nbsp; global leaderboards live (set a handle on the RANKS screen).
+> Hosted on Cloudflare Pages; leaderboard backend on a Cloudflare Worker + D1 (`worker/`). Redeploy the client with `npm run deploy`.
+
 > **A neon dash-combat bullet-hell.** Your only weapon is a *momentum dash* — charge it, release, and rocket through the swarm leaving a glowing trail that shreds everything in its path. Phase through a wall of bullets, skewer four enemies in one line, land, drift, recharge, repeat. Chain kills before the combo decays. Survive.
 
 LANCEFALL is the playground's first **juicy real-time action game** — Geometry Wars meets Luftrausers meets a Hyper-Light dash-attack, running at 60fps in a single browser tab with zero downloads.

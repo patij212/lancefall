@@ -10,7 +10,8 @@
     "dev": "vite --port 5197",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "vite build && wrangler pages deploy dist --project-name lancefall --branch main --commit-dirty=true"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
