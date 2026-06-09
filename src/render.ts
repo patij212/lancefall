@@ -22,6 +22,7 @@ export interface RenderOpts {
   reduceFlashing: boolean;
   colorblind: boolean;
   combo: number;
+  caScale: number; // 0..1 chromatic-aberration intensity (accessibility setting)
 }
 
 export class Renderer {
@@ -892,7 +893,7 @@ export class Renderer {
 
     const shift = opts.reduceFlashing
       ? 0
-      : clamp(TUNE.juice.aberrationBase + opts.combo * TUNE.juice.aberrationPerCombo, 0, TUNE.juice.aberrationMax);
+      : clamp(TUNE.juice.aberrationBase + opts.combo * TUNE.juice.aberrationPerCombo, 0, TUNE.juice.aberrationMax) * opts.caScale;
 
     if (shift < 1.8) {
       sctx.globalCompositeOperation = 'source-over';

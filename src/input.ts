@@ -276,8 +276,11 @@ export class InputManager {
     };
   }
 
+  /** gamepad rumble toggle (settings) */
+  rumbleEnabled = true;
+
   rumble(strong: number, weak: number, ms: number): void {
-    if (!navigator.getGamepads) return;
+    if (!this.rumbleEnabled || !navigator.getGamepads) return;
     for (const p of navigator.getGamepads()) {
       if (!p) continue;
       const act = (p as unknown as GamepadVibration).vibrationActuator;

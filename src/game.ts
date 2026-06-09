@@ -182,6 +182,7 @@ export class Game {
     saveSettings(s);
     this.audio.setVolumes(s.master, s.sfx, s.music);
     this.shake.intensity = s.shake * (s.reduceFlashing ? 0.4 : 1);
+    this.input.rumbleEnabled = s.rumble;
     this.baseDensity = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);
     this.world.particles.density = this.baseDensity * this.perfScale;
     // reduce-motion disables decorative UI animations/transitions (CSS)
@@ -569,6 +570,7 @@ export class Game {
       reduceFlashing: this.settings.reduceFlashing,
       colorblind: this.settings.colorblind,
       combo: this.world.combo,
+      caScale: this.settings.chromAberration,
     });
     if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density);
 

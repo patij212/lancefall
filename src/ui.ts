@@ -390,6 +390,8 @@ export class UI {
       slider('Music volume', 0, 1, 0.05, s.music, (v) => this.patch({ music: v })),
       slider('Screen shake', 0, 1.5, 0.05, s.shake, (v) => this.patch({ shake: v })),
       slider('HUD scale', 0.8, 1.4, 0.05, s.hudScale, (v) => this.patch({ hudScale: v })),
+      slider('Chromatic aberration', 0, 1, 0.05, s.chromAberration, (v) => this.patch({ chromAberration: v })),
+      toggle('Controller rumble', s.rumble, (v) => this.patch({ rumble: v })),
       toggle('Reduce flashing', s.reduceFlashing, (v) => this.patch({ reduceFlashing: v })),
       toggle('Reduce motion', s.reduceMotion, (v) => this.patch({ reduceMotion: v })),
       toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),

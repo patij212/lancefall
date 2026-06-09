@@ -59,6 +59,8 @@ export interface Settings {
   particleDensity: 'low' | 'med' | 'high';
   colorblind: boolean;
   hudScale: number; // 0.8..1.4
+  chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
+  rumble: boolean; // gamepad rumble on/off
 }
 
 function prefersReducedMotion(): boolean {
@@ -108,6 +110,8 @@ export function defaultSettings(): Settings {
     particleDensity: 'high',
     colorblind: false,
     hudScale: 1,
+    chromAberration: 1,
+    rumble: true,
   };
 }
 
