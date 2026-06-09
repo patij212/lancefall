@@ -33,6 +33,8 @@ export interface UICallbacks {
   onPickEvent: (index: number) => void;
   onCopyScore: () => void;
   onCopyBuildDna: () => void;
+  onChoice: (c: 'catch' | 'fall') => void;
+  onSaveReplay: () => void;
   onSettingsChange: (s: Settings) => void;
   onSelectShip: (id: string) => void;
   onUnlockShip: (id: string) => void;
@@ -48,6 +50,10 @@ export interface UICallbacks {
 
 export interface GameOverInfo {
   score: number;
+  /** first Sovereign kill → present THE CHOICE (catch the star / let it fall) */
+  choicePending?: boolean;
+  /** a shareable replay clip exists → show the SAVE REPLAY button */
+  canReplay?: boolean;
   combo: number;
   wave: number;
   time: number;
@@ -107,6 +113,8 @@ export class UI {
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
+  private choiceRow!: HTMLElement;
+  private saveReplayBtn!: HTMLButtonElement;
   private announceTimer = 0;
   private saveRef: SaveData | null = null;
 
@@ -367,8 +375,22 @@ export class UI {
     dna.addEventListener('click', () => this.cb.onCopyBuildDna());
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
-    const row = el('div', { class: 'go-row' }, again, copy, dna, menu);
-    const panel = el('div', { class: 'panel' }, this.goHead, this.goSub, this.goBadge, this.goScore, this.goDelta, this.goStats, this.goBuild, this.goAch, row);
+    this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SAVE REPLAY ⬇') as HTMLButtonElement;
+    this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
+    const row = el('div', { class: 'go-row' }, again, copy, dna, this.saveReplayBtn, menu);
+    // THE CHOICE — shown only on the first Sovereign kill (catch the star / let it fall)
+    const catchBtn = el('button', { class: 'btn btn-primary' }, 'CATCH THE STAR');
+    catchBtn.addEventListener('click', () => this.cb.onChoice('catch'));
+    const fallBtn = el('button', { class: 'btn btn-ghost' }, 'LET IT FALL');
+    fallBtn.addEventListener('click', () => this.cb.onChoice('fall'));
+    this.choiceRow = el(
+      'div',
+      { class: 'go-row go-choice hidden' },
+      el('div', { class: 'go-choice-prompt' }, 'The star is falling. Will you catch it?'),
+      catchBtn,
+      fallBtn,
+    );
+    const panel = el('div', { class: 'panel' }, this.goHead, this.goSub, this.goBadge, this.goScore, this.goDelta, this.goStats, this.goBuild, this.goAch, this.choiceRow, row);
     this.gameover = el('div', { class: 'screen screen-dim' }, panel);
   }
 
@@ -908,12 +930,22 @@ export class UI {
     this.show('draft');
   }
 
+  /** After THE CHOICE is made: show the chosen ending + retire the prompt. */
+  resolveChoice(head: string, line: string): void {
+    this.goHead.textContent = head;
+    this.goHead.style.color = 'var(--amber)';
+    this.goSub.textContent = line;
+    this.choiceRow.classList.add('hidden');
+  }
+
   showGameOver(info: GameOverInfo): void {
     this.displayScore = 0;
     this.goScore.textContent = '0';
     this.goHead.textContent = info.won ? 'THE LIGHT HOLDS' : 'THE LIGHT DIMS';
     this.goHead.style.color = info.won ? 'var(--amber)' : 'var(--pink)';
     this.goSub.textContent = info.won ? 'Lancefall remembers itself' : `the kingdom forgets a little more · ${info.deathCause}`;
+    this.choiceRow.classList.toggle('hidden', !info.choicePending);
+    this.saveReplayBtn.classList.toggle('hidden', !info.canReplay);
     this.goBadge.classList.toggle('hidden', !info.newBest);
     this.goBadge.textContent = info.newBest ? '★ NEW BEST ★' : '';
     // personal-best delta vs your previous high

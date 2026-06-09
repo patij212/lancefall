@@ -62,6 +62,8 @@ import type { Enemy, EnemyKind } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
+import { ReplayRecorder } from './replay';
+import { choiceEnding, echoLine } from './stillpoint';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
@@ -79,6 +81,7 @@ const COMBO_TIERS: { at: number; name: string; color: string }[] = [
 
 export class Game {
   private renderer: Renderer;
+  private canvas: HTMLCanvasElement;
   private ui: UI;
   private input: InputManager;
   private audio = new AudioEngine();
@@ -110,6 +113,7 @@ export class Game {
   /** the dead-world narrator — own rng (cosmetic), surfaces on toast/announce */
   private narrator = newNarrator();
   private narratedFirstKill = false;
+  private replay = new ReplayRecorder();
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -140,6 +144,7 @@ export class Game {
   private perfCooldown = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
+    this.canvas = canvas;
     this.renderer = new Renderer(canvas);
     this.input = new InputManager(canvas);
     this.save = loadSave();
@@ -156,6 +161,8 @@ export class Game {
       onPickEvent: (i) => this.pickEvent(i),
       onCopyScore: () => this.copyScore(),
       onCopyBuildDna: () => this.copyBuildDna(),
+      onChoice: (c) => this.makeChoice(c),
+      onSaveReplay: () => this.replay.download(),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
@@ -316,6 +323,8 @@ export class Game {
     this.audio.startDrone();
     this.audio.duckMusic(false);
     this.narrate('run_start', 'announce', NARRATOR.runStart);
+    if (cfg.seedKind === 'date') this.narrateOne('toast', echoLine(this.seed)); // ECHO OF THE FALL
+    this.replay.start(this.canvas);
 
     // first-run progressive onboarding — hints surface as you perform each action
     if (!this.save.seenTutorial) {
@@ -465,6 +474,7 @@ export class Game {
     this.cam.zoom = Math.max(this.cam.zoom, 1.18);
     this.input.rumble(0.8, 1, 280);
     this.ui.announce('REMEMBER EVERYTHING', '#ffffff');
+    coherenceBeatKick(this.coherence, true); // THE DROP — REMEMBER EVERYTHING floods the world back to neon
   }
 
   private openEvent(id: RunEventId): void {
@@ -1524,12 +1534,15 @@ export class Game {
     this.dying = false;
     this.winning = false;
     this.audio.stopDrone();
+    this.replay.stop();
     const wave = this.director.wave;
     const prevHigh = this.save.highScore;
     const newBest = w.score > this.save.highScore;
     this.save.highScore = Math.max(this.save.highScore, w.score);
     this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
     this.save.bestWave = Math.max(this.save.bestWave, wave);
+    this.save.deepestWave = Math.max(this.save.deepestWave, wave);
+    if (!won && this.deathCause) this.save.nemesis[this.deathCause] = (this.save.nemesis[this.deathCause] ?? 0) + 1;
     this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
     this.save.totalRuns++;
     // bank shards: in-run gems × meta Treasure Hunter × mode bonus
@@ -1599,9 +1612,20 @@ export class Game {
       pbDelta: w.score - prevHigh,
       newAchievements: newAch.map((a) => a.name),
       mutators: this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })),
+      choicePending: won && w.sovereignDown && this.save.stillpointChoice === 'none',
+      canReplay: this.replay.hasClip(),
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
+  }
+
+  /** THE CHOICE — the player decides the kingdom's fate after felling the
+   *  Sovereign. Cosmetic/personal: saved to localStorage, never touches rng. */
+  private makeChoice(c: 'catch' | 'fall'): void {
+    this.save.stillpointChoice = c;
+    saveSave(this.save);
+    const end = choiceEnding(c);
+    this.ui.resolveChoice(end.head, end.line);
   }
 
   private applyDirector(spawn: EnemyKind[]): void {

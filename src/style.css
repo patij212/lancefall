@@ -447,6 +447,23 @@ body {
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* THE CHOICE — the Sovereign-kill decision, stacked above the standard go-row */
+.go-choice {
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.go-choice-prompt {
+  width: 100%;
+  text-align: center;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+  font-size: 0.98rem;
+}
 .mode-row {
   display: flex;
   gap: 8px;
