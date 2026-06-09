@@ -208,7 +208,7 @@ export function buildShareString(
   daily: boolean,
   build = '',
 ): string {
-  const head = daily ? `LANCEFALL Daily ${dateString()}` : 'LANCEFALL';
+  const head = daily ? `THE LAST LANCE · Echo of the Fall ${dateString()}` : 'THE LAST LANCE';
   const buildPart = build ? ` · ${build}` : '';
-  return `${head} — ${score.toLocaleString()} pts · x${combo} combo · wave ${wave}${buildPart}. Can you thread the swarm?`;
+  return `${head} — held the light for ${score.toLocaleString()} · x${combo} combo · descent ${wave}${buildPart}. How much can you hold? lancefall.pages.dev`;
 }
