@@ -1,14 +1,14 @@
 # LANCEFALL v3 — execution plan (multi-agent design → sequential build)
 
-> **RESUME POINTER:** Phases 0, 1, 2 are DONE and committed (134 tests green).
-> Next: **Phase 3** (Heat/Ghost/Archetypes/Relics/DNA). Phase-0 hooks ready to build on:
-> `deriveStats` has a `postApply` capstone slot; `World.postApply` + `World.boons[]`
-> compose into it (relics/heat go through `postApply`); `RunStats` has `dashCostMul`.
-> Draft chassis to extend for relics: `evolutions.ts` DraftCard union + `isEvolution`
-> guard (add `isRelic`), `rollDraftCards`, `ui.showDraft`, `game.pickPerk`. Use overlay
-> panels (no new State) for archetype/heat/DNA — only the 'event' State was added (Phase 2).
-> Full BP4 (polish) + BP5 (wildcard) blueprints: re-read via the workflow output file if needed
-> (task w3clu6gv7 output, or re-run a design agent). Reset save key is now `lancefall.save` (v2).
+> **RESUME POINTER:** Phases 0, 1, 2, 3 are DONE and committed (158 tests green, save v3).
+> Phase 3 shipped Heat, Archetypes, Relics, Build DNA; **Ghost replay was CUT** (synthesis
+> judged it the weakest value-per-line). A phase-3 adversarial-review workflow ran
+> (task wtjypnalw) — apply its confirmed findings.
+> Next: **Phase 4** (Steam polish: audio mix, render cinematics victory/boss-entrance/combo
+> pulse, perf hardening + particle cap, onboarding, pause/quit UX) then **Phase 5** (online
+> leaderboards + Cloudflare Workers backend). Full BP4/BP5 blueprints are in the design
+> workflow output (task w3clu6gv7). Reset save key is `lancefall.save` (v3); the clean owner
+> save shape includes selectedHeat/maxHeat/selectedArchetype now.
 
 
 Derived from a 5-architect design workflow + tech-lead synthesis. The five shared
@@ -43,7 +43,7 @@ in-browser) and committed.
 - `DirectorDecision.event`; new `'event'` State (the ONLY new State value) + handleMeta branch + ui 'event' ScreenId + event panel (draft chassis) + HUD mutator badges + fog-of-war render read.
 - save: `dailyMutators`, `weeklyMutators` (via migrate chokepoint).
 
-## Phase 3 — Endgame depth (Direction 5): Heat / Ghost / Archetypes / Relics / DNA  [XL]
+## Phase 3 — Endgame depth (Direction 5)  [DONE ✓ — Heat, Archetypes, Relics, Build DNA; Ghost CUT]
 - `heat.ts` (ascension ladder), `ghost.ts` (best-run replay shadow), `archetypes.ts` (build goals up-weight draft), `relics.ts` (cursed double-edged, extend DraftCard + isRelic guard), Build DNA export (save codec + share). Pure layers + tests first, then wiring on the settled draft chassis. Overlays only (NO new State).
 - Quick win subset: **Build DNA export** (~65 lines) + **Build Archetypes overlay**.
 
