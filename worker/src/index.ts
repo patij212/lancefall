@@ -10,6 +10,28 @@
 
 export interface Env {
   DB: D1Database;
+  /** optional KV namespace for IP rate-limiting; if unbound, limiting is skipped */
+  RL?: KVNamespace;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Soft IP rate limit via KV (eventually-consistent, best-effort). Allows all if
+ *  KV isn't configured, so the worker deploys and runs without it. */
+async function rateOk(env: Env, ip: string, bucket: string, limit: number): Promise<boolean> {
+  if (!env.RL) return true;
+  const key = `rl:${bucket}:${ip}`;
+  const cur = parseInt((await env.RL.get(key)) || '0', 10);
+  if (cur >= limit) return false;
+  await env.RL.put(key, String(cur + 1), { expirationTtl: 60 });
+  return true;
+}
+
+/** Valid YYYY-MM-DD that isn't in the future (1 day of timezone slack). */
+function validDaily(d: string): boolean {
+  if (!DATE_RE.test(d)) return false;
+  const t = Date.parse(d + 'T00:00:00Z');
+  return Number.isFinite(t) && t <= Date.now() + 86_400_000;
 }
 
 const CORS: Record<string, string> = {
@@ -47,11 +69,13 @@ interface ScoreRow {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const ip = req.headers.get('CF-Connecting-IP') || 'anon';
 
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     // ── submit a score ──
     if (req.method === 'POST' && url.pathname === '/score') {
+      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429);
       let b: Record<string, unknown>;
       try {
         b = (await req.json()) as Record<string, unknown>;
@@ -69,7 +93,11 @@ export default {
         return json({ error: 'rejected' }, 422);
       }
       const name = sanitizeName(b.name);
-      const daily = mode === 'daily' ? String(b.daily ?? '').slice(0, 10) : null;
+      let daily: string | null = null;
+      if (mode === 'daily') {
+        daily = String(b.daily ?? '').slice(0, 10);
+        if (!validDaily(daily)) return json({ error: 'bad daily date' }, 400);
+      }
       await env.DB.prepare(
         'INSERT INTO scores (mode, daily, name, score, wave, combo, heat, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
@@ -80,9 +108,11 @@ export default {
 
     // ── read a board (best score per handle, top 100) ──
     if (req.method === 'GET' && url.pathname === '/leaderboard') {
+      if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429);
       const mode = url.searchParams.get('mode') ?? '';
       if (!MODES.has(mode)) return json({ error: 'bad mode' }, 400);
       const daily = url.searchParams.get('daily');
+      if (daily !== null && !DATE_RE.test(daily)) return json({ error: 'bad daily date' }, 400);
       // SQLite bare-column rule: with MAX(score), the other columns come from that row.
       const sql =
         mode === 'daily'

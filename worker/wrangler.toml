@@ -8,3 +8,11 @@ compatibility_date = "2024-09-23"
 binding = "DB"
 database_name = "lancefall"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Optional (recommended for a public board): IP rate-limiting via KV. Create with
+#   wrangler kv namespace create RL
+# then uncomment and paste the printed id. Without it the worker still runs,
+# just without rate limiting.
+# [[kv_namespaces]]
+# binding = "RL"
+# id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

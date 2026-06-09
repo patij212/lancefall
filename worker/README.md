@@ -26,6 +26,16 @@ VITE_LEADERBOARD_URL=https://lancefall-leaderboard.<your-subdomain>.workers.dev
 ```
 and rebuild (`npm run build`). The RANKS panel and online submission go live.
 
+## Rate limiting (recommended for a public board)
+IP rate-limiting (20 POST/min, 120 GET/min) activates automatically **if** a KV
+namespace is bound. It's optional — the worker runs fine without it:
+```bash
+npx wrangler kv namespace create RL    # prints an id
+# uncomment the [[kv_namespaces]] block in wrangler.toml and paste the id, then redeploy
+npx wrangler deploy
+```
+Invalid `daily` dates and out-of-range scores are always rejected (400/422).
+
 ## Anti-cheat note
 The run is client-authoritative, so scores are validated pragmatically (sanity
 caps on score/wave/combo, handle sanitization, best-per-handle aggregation) rather
