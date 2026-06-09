@@ -59,7 +59,8 @@ import {
 } from './save';
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind } from './types';
-import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier } from './coherence';
+import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick } from './coherence';
+import { BeatClock, makeGrid, gradeRelease } from './beat';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
@@ -99,6 +100,10 @@ export class Game {
 
   /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
   private coherence = newCoherence();
+  /** pure beat clock — advanced on realDt, reconciled toward the audio clock */
+  private beat = new BeatClock(makeGrid(112));
+  /** latched when a dash commits in step(); graded in frame() (out of the substep loop) */
+  private dashFiredThisStep = false;
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -290,6 +295,8 @@ export class Game {
     this.announcedEvos.clear();
     this.intensityTimer = 0;
     resetCoherence(this.coherence);
+    this.beat = new BeatClock(makeGrid(112)); // fresh epoch — never grade against a stale one
+    this.dashFiredThisStep = false;
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
@@ -635,12 +642,17 @@ export class Game {
       }
       if (steps >= MAX_SUBSTEPS) this.accumulator = 0;
 
-      // throttled drone intensity
+      // throttled drone intensity + the audio half of the COHERENCE one-bus
       this.intensityTimer -= realDt;
       if (this.intensityTimer <= 0) {
         this.intensityTimer = 0.4;
         this.audio.setIntensity(intensity(this.world.time));
+        this.audio.setCoherence(this.coherence.value, this.coherence.tier);
       }
+
+      // advance the pure beat clock every frame, reconciled toward the audio truth
+      this.beat.advance(realDt);
+      this.beat.reconcile(this.audio.musicTime, realDt);
 
       // biome cycling
       if (!this.dying && !this.winning) {
@@ -668,9 +680,21 @@ export class Game {
 
     this.updateCamera(realDt);
 
+    // DASH ON THE BEAT — grade the committed dash release (latched in step())
+    // against the pure beat clock. A graded on-beat dash kicks Coherence (the
+    // ONLY beat reward) and, on Perfect, schedules an on-grid snare. Off-beat
+    // loses nothing; this path reads/writes NO rng stream.
+    if (this.dashFiredThisStep) {
+      this.dashFiredThisStep = false;
+      const grade = gradeRelease(this.beat.beatError(), this.beat.synced);
+      if (grade !== 'off') coherenceBeatKick(this.coherence, grade === 'perfect');
+      if (grade === 'perfect' && !this.settings.reduceFlashing)
+        this.audio.perfectDashSnare(this.audio.clock + (this.beat.nextGridTime() - this.beat.t));
+    }
+
     // COHERENCE — the soul dial, computed each display frame on realDt. A Game
-    // field (never on world / never in step()) → structurally rng-free. Read by
-    // render + audio in later phases; computed-but-unread here (no behavior yet).
+    // field (never on world / never in step()) → structurally rng-free. The
+    // render half reads it in Phase 3; the audio half rides the 0.4s throttle.
     const cw = this.world;
     this.coherence.tier = comboTier(cw.combo);
     this.coherence.target = coherenceTarget(
@@ -823,6 +847,7 @@ export class Game {
     if (p.phase === 'charging') this.audio.setCharge(p.charge);
     if (wasCharging && p.phase !== 'charging' && !this.ev.dashFired) this.audio.endCharge();
     if (this.ev.dashFired) {
+      this.dashFiredThisStep = true; // latch the committed release; graded in frame() (out of step)
       this.audio.endCharge();
       this.audio.whoosh();
       this.shake.add(TUNE.juice.traumaDash);
