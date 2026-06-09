@@ -2,17 +2,13 @@ name = "lancefall-leaderboard"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
-# Created with:  wrangler d1 create lancefall
-# then paste the printed database_id below.
+# D1 database "lancefall" (provisioned via the Cloudflare MCP; schema applied).
 [[d1_databases]]
 binding = "DB"
 database_name = "lancefall"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "8142e75f-a9a7-46e6-a939-558db73adae2"
 
-# Optional (recommended for a public board): IP rate-limiting via KV. Create with
-#   wrangler kv namespace create RL
-# then uncomment and paste the printed id. Without it the worker still runs,
-# just without rate limiting.
-# [[kv_namespaces]]
-# binding = "RL"
-# id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+# KV namespace "lancefall-rl" for IP rate-limiting (provisioned via the MCP).
+[[kv_namespaces]]
+binding = "RL"
+id = "6aa41e3558344759aec349d3c233948c"

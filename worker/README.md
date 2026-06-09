@@ -9,15 +9,26 @@ without it — this just lights up the **RANKS** screen and online score submiss
 - `GET /leaderboard?mode=<mode>[&daily=YYYY-MM-DD]` → `{ entries: [{rank,name,score,wave,combo,heat}] }`
 - `GET /daily` → `{ seed, date }` (shared daily seed, optional)
 
-## Deploy (one-time, ~5 min)
+## Deploy
+The D1 database (`lancefall`), its schema, and the KV namespace (`lancefall-rl`)
+are **already provisioned** in the Cloudflare account (done via the Cloudflare MCP),
+and their ids are wired into `wrangler.toml`. Only the Worker script upload remains,
+which needs an interactive login:
 ```bash
 cd worker
 npm install
-npx wrangler login                       # opens a browser to auth your Cloudflare account
-npx wrangler d1 create lancefall         # prints a database_id — paste it into wrangler.toml
-npx wrangler d1 execute lancefall --remote --file=schema.sql   # create the table
-npx wrangler deploy                      # prints your worker URL
+npx wrangler login     # opens a browser to auth your Cloudflare account
+npx wrangler deploy    # uploads the script (D1 + KV already bound) → prints your worker URL
 ```
+
+<details><summary>If you ever need to re-provision from scratch</summary>
+
+```bash
+npx wrangler d1 create lancefall                                # paste database_id into wrangler.toml
+npx wrangler d1 execute lancefall --remote --file=schema.sql
+npx wrangler kv namespace create RL                             # paste id into wrangler.toml
+```
+</details>
 
 Then point the game client at it: in the **lancefall** root create `.env` (see
 `.env.example`) with:
