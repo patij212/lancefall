@@ -115,6 +115,7 @@ export class World {
   killCount = 0;
   maxDashChain = 0; // most kills in a single dash this run
   bossKills = 0; // bosses downed this run
+  sovereignDown = false; // the Sovereign (final boss) fell this run
   collectStreak = 0;
   collectStreakTimer = 0;
   time = 0;
@@ -179,6 +180,7 @@ export class World {
     this.killCount = 0;
     this.maxDashChain = 0;
     this.bossKills = 0;
+    this.sovereignDown = false;
     this.collectStreak = 0;
     this.collectStreakTimer = 0;
     this.time = 0;

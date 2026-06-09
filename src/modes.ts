@@ -31,7 +31,7 @@ const ENDLESS: RunConfig = {
 export const MODES: RunConfig[] = [
   ENDLESS,
   {
-    id: 'arena', name: 'ARENA', desc: '13 hand-built waves + 5 bosses. Clear it to WIN.',
+    id: 'arena', name: 'ARENA', desc: '15 hand-built waves + 6 bosses. Clear it to WIN.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
     shieldStart: 70, shieldMax: 0.35, shardMul: 1.1, perks: true, canFail: true, arena: true, bossrush: false,
   },
@@ -46,7 +46,7 @@ export const MODES: RunConfig[] = [
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
   },
   {
-    id: 'bossrush', name: 'BOSS RUSH', desc: 'All five bosses, back to back. No chaff.',
+    id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0.06,
     shieldStart: 999, shieldMax: 0, shardMul: 1.3, perks: true, canFail: true, arena: false, bossrush: true,
   },
@@ -60,7 +60,8 @@ export type ArenaWave =
   | { kind: 'wave'; budget: number; enemies: EnemyKind[] }
   | { kind: 'boss'; boss: EnemyKind };
 
-/** The 12-wave Arena gauntlet. Each wave must be fully cleared to advance. */
+/** The 15-wave Arena gauntlet (6 bosses, capped by the Sovereign). Each wave
+ *  must be fully cleared to advance. */
 export const ARENA_SCRIPT: ArenaWave[] = [
   { kind: 'wave', budget: 6, enemies: ['darter'] },
   { kind: 'wave', budget: 8, enemies: ['darter', 'orbiter'] },
@@ -80,6 +81,9 @@ export const ARENA_SCRIPT: ArenaWave[] = [
   { kind: 'wave', budget: 28, enemies: ['drifter', 'shade', 'orbiter', 'bomber'] },
   { kind: 'wave', budget: 30, enemies: ['shade', 'drifter', 'splitter', 'bloomer'] },
   { kind: 'boss', boss: 'hollow' },
+  { kind: 'wave', budget: 30, enemies: ['shade', 'drifter', 'lancer', 'bomber'] },
+  { kind: 'wave', budget: 32, enemies: ['drifter', 'shade', 'bloomer', 'splitter'] },
+  { kind: 'boss', boss: 'sovereign' },
 ];
 
-export const BOSSRUSH_SEQUENCE: EnemyKind[] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow'];
+export const BOSSRUSH_SEQUENCE: EnemyKind[] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];

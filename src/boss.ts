@@ -3,7 +3,7 @@
 // bursts with a rest window that is your damage opening. HP scales each
 // appearance. Takes 1 "dash-hit" per dash (one-hit-per-dashId enforced upstream).
 
-import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW } from './tune';
+import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -14,10 +14,11 @@ export function bossName(kind: Enemy['kind']): string {
   if (kind === 'beacon') return 'THE BEACON';
   if (kind === 'mirrorblade') return 'THE MIRRORBLADE';
   if (kind === 'hollow') return 'THE HOLLOW';
+  if (kind === 'sovereign') return 'THE SOVEREIGN';
   return 'THE WARDEN';
 }
 
-const BOSS_CYCLE: Enemy['kind'][] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow'];
+const BOSS_CYCLE: Enemy['kind'][] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
 
 /** Is the Beacon's sweep beam currently lethal? (active sub-phase of sweep). */
 export function beaconBeamActive(e: Enemy): boolean {
@@ -35,6 +36,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
     : kind === 'beacon' ? BEACON
     : kind === 'mirrorblade' ? MIRRORBLADE
     : kind === 'hollow' ? HOLLOW
+    : kind === 'sovereign' ? SOVEREIGN
     : WARDEN;
   e.kind = kind;
   e.x = edge.x;
@@ -51,6 +53,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
     : kind === 'beacon' ? BEACON.color
     : kind === 'mirrorblade' ? MIRRORBLADE.color
     : kind === 'hollow' ? HOLLOW.color
+    : kind === 'sovereign' ? SOVEREIGN.color
     : '#ff3b6b';
   e.baseScore = 0;
   e.timer =
@@ -58,6 +61,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
     : kind === 'weaver' ? WEAVER.phaseDuration
     : kind === 'beacon' ? BEACON.phaseDuration
     : kind === 'hollow' ? HOLLOW.syncEvery
+    : kind === 'sovereign' ? SOVEREIGN.phaseDuration
     : WARDEN.phaseDuration;
   e.phase = 0;
   e.telegraph = 0;
@@ -76,6 +80,10 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.subPhase = 0;
   world.bossAlive = true;
   world.boss = e;
+  if (kind === 'sovereign') {
+    e.fireTimer = SOVEREIGN.beamTelegraph; // start CROWN BEAMS in their telegraph
+    spawnSovereignCores(world, e);
+  }
   return e;
 }
 
@@ -84,6 +92,7 @@ export function updateBoss(e: Enemy, world: World, dt: number): void {
   else if (e.kind === 'beacon') updateBeacon(e, world, dt);
   else if (e.kind === 'mirrorblade') updateMirrorblade(e, world, dt);
   else if (e.kind === 'hollow') updateHollow(e, world, dt);
+  else if (e.kind === 'sovereign') updateSovereign(e, world, dt);
   else updateWarden(e, world, dt);
 }
 
@@ -448,6 +457,132 @@ function updateHollow(e: Enemy, world: World, dt: number): void {
       e.phase = 0;
       e.timer = enraged ? HOLLOW.syncEvery * 0.6 : HOLLOW.syncEvery;
       e.telegraph = 0;
+    }
+  }
+}
+
+/** Fire an aimed fan of `n` bullets at the player. */
+function fireAimedFan(e: Enemy, world: World, n: number, spread: number, sp: number, color: string): void {
+  const p = world.player;
+  const base = Math.atan2(p.y - e.y, p.x - e.x);
+  const half = (n - 1) / 2;
+  for (let i = 0; i < n; i++) {
+    const a = base + (i - half) * spread;
+    world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, color, true);
+  }
+}
+
+/** Seed the Sovereign's orbiting Cores, evenly spaced around the body. */
+export function spawnSovereignCores(world: World, boss: Enemy): void {
+  for (let i = 0; i < SOVEREIGN.coreCount; i++) {
+    const a = (i / SOVEREIGN.coreCount) * Math.PI * 2;
+    const c = world.spawnEnemy(
+      'sovereign_core',
+      boss.x + Math.cos(a) * SOVEREIGN.coreOrbitRadius,
+      boss.y + Math.sin(a) * SOVEREIGN.coreOrbitRadius,
+      1, 1, false,
+    );
+    if (c) {
+      c.angle = a; // current orbit angle (advances each frame)
+      c.phase = i; // orbit index (render variety)
+    }
+  }
+}
+
+/** Release any Cores still alive when the Sovereign falls (so they don't linger). */
+export function cleanupSovereignCores(world: World): void {
+  world.enemies.forEachActive((e) => {
+    if (e.kind === 'sovereign_core') world.enemies.release(e);
+  });
+}
+
+/** How many Cores are still orbiting (0 → crack the crown open). */
+export function countSovereignCores(world: World): number {
+  let n = 0;
+  world.enemies.forEachActive((e) => {
+    if (e.kind === 'sovereign_core') n++;
+  });
+  return n;
+}
+
+function updateSovereign(e: Enemy, world: World, dt: number): void {
+  e.spawnTime += dt;
+  if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 1.5);
+  if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+
+  // regal drift near arena centre
+  const cx = world.width / 2;
+  const cy = world.height / 2;
+  const tx = cx + Math.cos(e.spawnTime * 0.3) * world.width * 0.12;
+  const ty = cy + Math.sin(e.spawnTime * 0.42) * world.height * 0.1;
+  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  e.vx = nx * SOVEREIGN.moveSpeed;
+  e.vy = ny * SOVEREIGN.moveSpeed;
+  e.x += e.vx * dt;
+  e.y += e.vy * dt;
+
+  const hpFrac = e.hp / e.maxHp;
+  const rate = hpFrac < 0.4 ? 0.82 : 1;
+
+  if (e.phase === 2) {
+    // EXPOSED — the crown is open: body vulnerable, light aimed fans (punish window)
+    e.telegraph = 1;
+    e.timer -= dt;
+    e.fireTimer -= dt;
+    if (e.fireTimer <= 0) {
+      if (e.subPhase < SOVEREIGN.fanShots) {
+        fireAimedFan(e, world, SOVEREIGN.fanBullets, SOVEREIGN.fanSpread, SOVEREIGN.fanBulletSpeed, SOVEREIGN.coreColor);
+        e.subPhase++;
+        e.fireTimer = SOVEREIGN.fanGap;
+      } else {
+        e.subPhase = 0;
+        e.fireTimer = SOVEREIGN.fanRest;
+      }
+    }
+    if (e.timer <= 0) {
+      // crown re-armors: reform the cores and resume the assault
+      spawnSovereignCores(world, e);
+      e.phase = 0;
+      e.timer = SOVEREIGN.phaseDuration;
+      e.fireTimer = SOVEREIGN.beamTelegraph;
+      e.subPhase = 0;
+      e.telegraph = 0;
+    }
+    return;
+  }
+
+  // armored — alternate CROWN BEAMS (phase 0) and NOVA SPIRAL (phase 1)
+  e.timer -= dt;
+  if (e.timer <= 0) {
+    e.phase = e.phase === 0 ? 1 : 0;
+    e.timer = SOVEREIGN.phaseDuration;
+    e.fireTimer = e.phase === 0 ? SOVEREIGN.beamTelegraph : 0;
+    e.subPhase = 0;
+    e.angle = 0;
+  }
+
+  if (e.phase === 0) {
+    // CROWN BEAMS — rotating star: telegraph → active → off
+    e.angle += SOVEREIGN.beamSpin * dt;
+    e.fireTimer -= dt;
+    if (e.fireTimer <= 0) {
+      if (e.subPhase === 0) { e.subPhase = 1; e.fireTimer = SOVEREIGN.beamActive; }
+      else if (e.subPhase === 1) { e.subPhase = 2; e.fireTimer = SOVEREIGN.beamOff; }
+      else { e.subPhase = 0; e.fireTimer = SOVEREIGN.beamTelegraph; }
+    }
+    e.telegraph = e.subPhase === 0 ? 1 - e.fireTimer / SOVEREIGN.beamTelegraph : e.subPhase === 1 ? 1 : 0;
+  } else {
+    // NOVA SPIRAL — golden-angle arms (bent by the gravity well in updateBullets)
+    e.telegraph = 0;
+    e.fireTimer -= dt;
+    while (e.fireTimer <= 0) {
+      const sp = SOVEREIGN.spiralSpeed;
+      for (let i = 0; i < SOVEREIGN.spiralArms; i++) {
+        const a = e.angle + (i / SOVEREIGN.spiralArms) * Math.PI * 2;
+        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, SOVEREIGN.color, true);
+      }
+      e.angle += SOVEREIGN.spiralSpin;
+      e.fireTimer += SOVEREIGN.spiralEvery * rate;
     }
   }
 }

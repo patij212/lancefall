@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -43,6 +43,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'hollow_echo':
       hollowEcho(e, world, dt);
+      break;
+    case 'sovereign_core':
+      sovereignCore(e, world, dt);
       break;
     default:
       break;
@@ -273,6 +276,22 @@ function hollowEcho(e: Enemy, world: World, dt: number): void {
     const sp = HOLLOW.echoBulletSpeed * e.bulletMul;
     world.spawnBullet(e.x, e.y, nx * sp, ny * sp, 6, HOLLOW.echoColor, true);
   }
+}
+
+/** A Sovereign Core: rigidly orbits the crown. Dash through it to shatter it
+ *  (that's the only way to chip the armored body). Orphaned if the boss is gone. */
+function sovereignCore(e: Enemy, world: World, dt: number): void {
+  const b = world.boss;
+  if (!b || b.kind !== 'sovereign') {
+    e.vx = 0;
+    e.vy = 0;
+    return;
+  }
+  e.angle += SOVEREIGN.coreOrbitSpin * dt;
+  e.x = b.x + Math.cos(e.angle) * SOVEREIGN.coreOrbitRadius;
+  e.y = b.y + Math.sin(e.angle) * SOVEREIGN.coreOrbitRadius;
+  e.vx = 0; // position is set rigidly; the common integrate step adds nothing
+  e.vy = 0;
 }
 
 /** Splitter death → spawn 2 fast mini-splitters. */

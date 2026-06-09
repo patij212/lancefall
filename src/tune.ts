@@ -141,6 +141,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   drifter: { kind: 'drifter', hp: 2, radius: 14, color: '#10b981', baseScore: 230, speed: 80 },
   shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240, speed: 150 },
   hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300, speed: 0 },
+  sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150, speed: 0 },
 };
 
 export const DARTER = {
@@ -349,6 +350,51 @@ export const BEACON = {
   fanSpread: 0.28,
   fanRest: 1.7,
   fanBulletSpeed: 215,
+} as const;
+
+// SIXTH & FINAL boss: THE SOVEREIGN — a crowned monarch that warps space. Its
+// body is ARMORED (dash deals nothing) while its three orbiting Cores live;
+// shatter all three to crack the crown EXPOSED for a punish window, after which
+// the cores reform. Every Sovereign bullet curves under a gravity well, bending
+// volleys into sweeping galaxy arms. Two armored phases alternate: a rotating
+// star of CROWN BEAMS, and a golden-angle NOVA SPIRAL.
+export const SOVEREIGN = {
+  baseHp: 16,
+  hpPerInterval: 3, // 6th boss → ~31 effective (mostly chewed by core weak-point chunks)
+  radius: 50,
+  color: '#fde047',
+  coreColor: '#fff3a8',
+  moveSpeed: 55,
+  // orbiting Cores — the weak points
+  coreCount: 3,
+  coreOrbitRadius: 132,
+  coreOrbitSpin: 0.95, // rad/s
+  coreWeakBonus: 4, // dash-damage chunk dealt to the crown when a core shatters
+  exposeDuration: 4.0, // s the body is vulnerable after all cores fall
+  // armored phase cadence
+  phaseDuration: 7,
+  // PHASE 0 — CROWN BEAMS: a rotating star of diameter beams (telegraph→fire→off)
+  beamArms: 3, // 3 diameters = 6 spokes
+  beamSpin: 0.5, // rad/s
+  beamWidth: 30,
+  beamTelegraph: 0.85,
+  beamActive: 1.4,
+  beamOff: 0.7,
+  // PHASE 1 — NOVA SPIRAL: golden-angle arms, bent by the well
+  spiralEvery: 0.05,
+  spiralSpin: 2.39996, // golden angle (rad)
+  spiralSpeed: 235,
+  spiralArms: 2,
+  // EXPOSED — light aimed fans (your damage window)
+  fanShots: 3,
+  fanGap: 0.5,
+  fanBullets: 5,
+  fanSpread: 0.3,
+  fanBulletSpeed: 200,
+  fanRest: 1.4,
+  // gravity well — bends every Sovereign bullet toward the body
+  gravity: 34000, // accel coefficient before softening
+  gravitySoftening: 140, // px — prevents blow-up near the body
 } as const;
 
 // Combo color ramp stops (by combo count)

@@ -21,7 +21,9 @@ export type EnemyKind =
   | 'beacon'
   | 'mirrorblade'
   | 'hollow'
-  | 'hollow_echo';
+  | 'hollow_echo'
+  | 'sovereign'
+  | 'sovereign_core';
 
 /** Player charge/dash state machine. */
 export type DashPhase = 'idle' | 'charging' | 'dashing';

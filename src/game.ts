@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -17,7 +17,8 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, E
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes } from './boss';
+import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores } from './boss';
+import { gravityPull, beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
@@ -787,6 +788,16 @@ export class Game {
       if (!e.active || e.lastDashId === p.dashId) continue;
       // the Hollow is an intangible phantom — only damageable during its sync window
       if (e.kind === 'hollow' && !hollowSyncActive(e)) continue;
+      // the Sovereign's body is armored while any Core lives — clang, no damage
+      if (sovereignBodyArmored(e)) {
+        if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
+          e.lastDashId = p.dashId;
+          e.hitFlash = 0.08;
+          w.particles.burst(e.x, e.y, 8, '#fff3a8');
+          w.particles.floatText(e.x, e.y - e.radius - 10, 'ARMORED', '#fde047', 0.7);
+        }
+        continue;
+      }
       if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
         e.lastDashId = p.dashId;
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
@@ -856,6 +867,10 @@ export class Game {
     const w = this.world;
     if (e.isBoss) {
       this.bossDeath(e);
+      return;
+    }
+    if (e.kind === 'sovereign_core') {
+      this.shatterCore(e, fromDash);
       return;
     }
     const x = e.x;
@@ -939,6 +954,49 @@ export class Game {
     }
   }
 
+  /** Shatter a Sovereign Core: combo + score reward, a weak-point chunk to the
+   *  crown, and — if it was the last core — crack the body EXPOSED. */
+  private shatterCore(e: Enemy, fromDash: boolean): void {
+    const w = this.world;
+    const x = e.x;
+    const y = e.y;
+    w.killCount++;
+    if (fromDash) {
+      w.player.killsThisDash++;
+      if (w.player.killsThisDash > w.maxDashChain) w.maxDashChain = w.player.killsThisDash;
+    }
+    const rk = registerKill(w.combo);
+    w.combo = rk.combo;
+    w.comboTimer = rk.timer + w.stats.comboWindowBonus;
+    if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
+    chargeFromKill(w.overdrive, w.combo);
+    const gained = Math.round(180 * comboMultiplier(w.combo) * w.stats.scoreMul);
+    w.score += gained;
+    w.particles.burst(x, y, 26, SOVEREIGN.coreColor);
+    w.particles.ring(x, y, 70, '#ffffff', 0.4);
+    w.particles.floatText(x, y - 16, `CORE +${gained}`, '#fde047', 0.95);
+    this.audio.thunk(w.combo);
+    this.shake.add(0.3);
+    this.scheduler.requestHitstop(0.07);
+    this.input.rumble(0.1, 0.3, 50);
+    for (let i = 0; i < 3; i++) w.spawnGem(x, y, 1);
+    w.enemies.release(e);
+    this.checkComboTier();
+    const boss = w.boss;
+    if (!boss || boss.kind !== 'sovereign') return;
+    // weak-point chunk to the crown (may kill it → bossDeath cleans up the rest)
+    this.damageEnemy(boss, SOVEREIGN.coreWeakBonus, true);
+    // last core down? crack the crown open
+    if (w.bossAlive && w.boss && countSovereignCores(w) === 0) {
+      exposeSovereign(w.boss);
+      this.ui.announce('CROWN EXPOSED', '#fde047');
+      this.renderer.flash('#fde047', 0.22);
+      this.audio.bossStinger();
+      w.particles.ring(w.boss.x, w.boss.y, w.boss.radius + 30, '#fde047', 0.5);
+      this.shake.add(0.5);
+    }
+  }
+
   /** Fire an arcade announcement when the combo crosses a new milestone tier. */
   private checkComboTier(): void {
     const w = this.world;
@@ -983,6 +1041,10 @@ export class Game {
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
     w.bossKills++;
     if (e.kind === 'hollow') cleanupHollowEchoes(w); // clear lingering echo clones
+    if (e.kind === 'sovereign') {
+      cleanupSovereignCores(w); // clear orbiting cores
+      w.sovereignDown = true;
+    }
     w.enemies.release(e);
     w.bossAlive = false;
     w.boss = null;
@@ -994,7 +1056,14 @@ export class Game {
     const p = w.player;
     const grazeR = w.stats.grazeRadius;
     const hitR = p.radius;
+    // THE SOVEREIGN warps space: its bullets curve toward the crown (galaxy arms)
+    const sov = w.boss && w.boss.kind === 'sovereign' ? w.boss : null;
     w.bullets.forEachActive((b) => {
+      if (sov && b.fromBoss) {
+        const g = gravityPull(b.x, b.y, sov.x, sov.y, dt);
+        b.vx += g.dvx;
+        b.vy += g.dvy;
+      }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -1112,6 +1181,13 @@ export class Game {
       const perp = Math.abs(dx * -Math.sin(w.boss.angle) + dy * Math.cos(w.boss.angle));
       if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie('the beam');
     }
+    // Sovereign CROWN BEAMS: a rotating star of diameter beams. Dash i-frames
+    // already exclude us, so you can dash through the safe wedges.
+    if (w.boss && sovereignBeamActive(w.boss)) {
+      if (beamHitsPoint(w.boss.x, w.boss.y, w.boss.angle, SOVEREIGN.beamArms, SOVEREIGN.beamWidth / 2 + p.radius, p.x, p.y)) {
+        this.playerDie('the crown beam');
+      }
+    }
   }
 
   private playerDie(cause = 'a bullet'): void {
@@ -1184,6 +1260,7 @@ export class Game {
       won,
       modeId: this.mode.id,
       heat: this.runHeat,
+      sovereignDown: w.sovereignDown,
       lifeRuns: this.save.totalRuns,
       lifeKills: this.save.lifeKills,
       lifeBoss: this.save.lifeBoss,
@@ -1283,10 +1360,14 @@ export class Game {
     this.audio.bossWarn();
     this.audio.bossMusic(true);
     this.shake.add(TUNE.juice.traumaBossSpawn);
-    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : boss?.kind === 'hollow' ? '#6ee7b7' : '#ff3b6b';
+    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : boss?.kind === 'hollow' ? '#6ee7b7' : boss?.kind === 'sovereign' ? '#fde047' : '#ff3b6b';
     this.renderer.flash(col, 0.3);
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
+    // teach the Sovereign's core gimmick on arrival
+    if (boss?.kind === 'sovereign') {
+      w.particles.floatText(w.width / 2, w.height / 2 + 90, 'SHATTER THE CORES', '#fde047', 1.2);
+    }
   }
 
   private setBiome(index: number, announce: boolean): void {

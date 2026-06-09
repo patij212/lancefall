@@ -14,6 +14,7 @@ const base: AchCtx = {
   won: false,
   modeId: 'endless',
   heat: 0,
+  sovereignDown: false,
   lifeRuns: 0,
   lifeKills: 0,
   lifeBoss: 0,
@@ -69,5 +70,12 @@ describe('achievements', () => {
     expect(evaluate([], { ...base, won: false, modeId: 'arena' }).map((a) => a.id)).not.toContain('gauntlet');
     expect(evaluate([], { ...base, won: true, modeId: 'bossrush' }).map((a) => a.id)).toContain('bossbane');
     expect(evaluate([], { ...base, modeId: 'nightmare', wave: 8 }).map((a) => a.id)).toContain('nightmarewalker');
+  });
+
+  it('Sovereign achievements need the final boss down', () => {
+    expect(evaluate([], { ...base, sovereignDown: true }).map((a) => a.id)).toContain('regicide');
+    expect(evaluate([], { ...base, sovereignDown: false }).map((a) => a.id)).not.toContain('regicide');
+    expect(evaluate([], { ...base, sovereignDown: true, heat: 3 }).map((a) => a.id)).toContain('coronation');
+    expect(evaluate([], { ...base, sovereignDown: true, heat: 2 }).map((a) => a.id)).not.toContain('coronation');
   });
 });

@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW } from './tune';
+import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN } from './tune';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
@@ -552,6 +552,12 @@ export class Renderer {
       case 'mirrorblade':
         this.drawMirrorblade(ctx, e, r);
         break;
+      case 'sovereign':
+        this.drawSovereign(ctx, e, r);
+        break;
+      case 'sovereign_core':
+        this.drawSovereignCore(ctx, e, r);
+        break;
     }
 
     // shield arc
@@ -773,6 +779,106 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(0, 0, r * 1.7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
     ctx.stroke();
+  }
+
+  private drawSovereign(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const exposed = e.phase === 2;
+    const tele = e.telegraph || 0;
+    // CROWN BEAMS (phase 0): a rotating star of diameter beams — thin warning
+    // during telegraph, hot beams when active.
+    if (e.phase === 0 && e.subPhase !== 2) {
+      const active = e.subPhase === 1;
+      const w = active ? SOVEREIGN.beamWidth : 5;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < SOVEREIGN.beamArms; k++) {
+        ctx.save();
+        ctx.rotate(e.angle + (k * Math.PI) / SOVEREIGN.beamArms);
+        ctx.globalAlpha = active ? 0.8 : 0.2 + 0.45 * tele;
+        ctx.fillStyle = active ? '#fff7c2' : '#fde047';
+        ctx.fillRect(-3000, -w / 2, 6000, w);
+        if (active) {
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-3000, -w / 6, 6000, w / 3); // bright core
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    // EXPOSED aura — the crown cracks open (vulnerable punish window)
+    if (exposed) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.35 + 0.3 * Math.sin(e.spawnTime * 12);
+      ctx.fillStyle = '#fff3a8';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // faint gravity-well rings (signals the bend on its bullets)
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 1.5;
+    for (let g = 1; g <= 3; g++) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (1.35 + g * 0.55), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // outer crown ring (8-point) — brightens toward white on telegraph/expose
+    ctx.save();
+    ctx.rotate(e.spawnTime * 0.5);
+    ctx.strokeStyle = exposed ? '#ffffff' : mix(SOVEREIGN.color, '#ffffff', tele * 0.6);
+    ctx.lineWidth = 3;
+    ngon(ctx, 8, r * 1.05);
+    ctx.restore();
+    // inner counter-rotating diamond
+    ctx.save();
+    ctx.rotate(-e.spawnTime * 0.8);
+    ctx.strokeStyle = 'rgba(255,243,168,0.7)';
+    ctx.lineWidth = 2;
+    ngon(ctx, 4, r * 0.6);
+    ctx.restore();
+    // molten core
+    ctx.fillStyle = exposed || e.hitFlash > 0 ? '#ffffff' : '#fff3a8';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2);
+    ctx.fill();
+    // hp ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = SOVEREIGN.color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.75, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  private drawSovereignCore(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const flash = e.hitFlash > 0;
+    // glow
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.45 + 0.3 * Math.sin(e.spawnTime * 6 + e.phase);
+    ctx.fillStyle = SOVEREIGN.coreColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // spinning diamond shell
+    ctx.save();
+    ctx.rotate(Math.PI / 4 + e.spawnTime * 2);
+    ctx.strokeStyle = flash ? '#ffffff' : '#fde047';
+    ctx.lineWidth = 2.5;
+    rect(ctx, r * 1.1);
+    ctx.restore();
+    // bright pip
+    ctx.fillStyle = flash ? '#ffffff' : '#fff7c2';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawPlayer(world: World): void {

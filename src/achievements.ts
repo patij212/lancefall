@@ -13,6 +13,7 @@ export interface AchCtx {
   won: boolean;
   modeId: string;
   heat: number;
+  sovereignDown: boolean; // the Sovereign (final boss) fell this run
   lifeRuns: number;
   lifeKills: number;
   lifeBoss: number;
@@ -44,6 +45,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'nightmarewalker', name: 'Nightmare Walker', desc: 'Reach wave 8 in Nightmare.', check: (c) => c.modeId === 'nightmare' && c.wave >= 8 },
   { id: 'ignis', name: 'Playing with Fire', desc: 'Reach wave 5+ at Heat 3 or above.', check: (c) => c.heat >= 3 && (c.won || c.wave >= 5) },
   { id: 'crucible', name: 'The Crucible', desc: 'Reach wave 5+ at Heat 7 (maximum heat).', check: (c) => c.heat >= 7 && (c.won || c.wave >= 5) },
+  { id: 'regicide', name: 'Regicide', desc: 'Bring down the Sovereign.', check: (c) => c.sovereignDown },
+  { id: 'coronation', name: 'Long Live the Lance', desc: 'Defeat the Sovereign at Heat 3 or above.', check: (c) => c.sovereignDown && c.heat >= 3 },
 ];
 
 /** Returns the achievements newly satisfied by this context (not already in `unlocked`). */
