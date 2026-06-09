@@ -89,6 +89,7 @@ export class UI {
   // screens
   private title!: HTMLElement;
   private pause!: HTMLElement;
+  private pauseBuild!: HTMLElement;
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
   private eventPanel!: HTMLElement;
@@ -307,6 +308,7 @@ export class UI {
 
   private buildPause(): void {
     const h = el('h2', {}, 'PAUSED');
+    this.pauseBuild = el('div', { class: 'go-build pause-build' }, '');
     const resume = el('button', { class: 'btn btn-primary' }, 'RESUME');
     resume.addEventListener('click', () => this.cb.onResume());
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
@@ -328,8 +330,17 @@ export class UI {
     });
     const quit = el('button', { class: 'btn btn-ghost' }, 'QUIT TO MENU');
     quit.addEventListener('click', () => this.cb.onQuit());
-    const panel = el('div', { class: 'panel' }, h, resume, settingsBtn, restart, quit);
+    const panel = el('div', { class: 'panel' }, h, this.pauseBuild, resume, settingsBtn, restart, quit);
     this.pause = el('div', { class: 'screen screen-dim' }, panel);
+  }
+
+  /** Populate the pause screen's current-build summary (called when pausing). */
+  setPauseBuild(buildLine: string, ship: string, heat: number): void {
+    const heatStr = heat > 0 ? ` · HEAT ${heat}` : '';
+    this.pauseBuild.replaceChildren(
+      el('span', { class: 'go-ship' }, `${ship}${heatStr}`),
+      el('span', { class: 'go-perks' }, buildLine ? ` · ${buildLine}` : ' · no perks yet'),
+    );
   }
 
   private buildGameOver(): void {

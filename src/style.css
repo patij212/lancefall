@@ -777,6 +777,14 @@ body {
 @keyframes odPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 .reduce-motion .hud-overdrive.od-ready .hud-od-label { animation: none; }
 
+/* ── Pause-screen current-build summary ── */
+.pause-build {
+  margin: 2px 0 14px;
+  text-align: center;
+  max-width: 440px;
+  line-height: 1.5;
+}
+
 /* ── Active power-up badge (above the OVERDRIVE meter; hidden unless active) ── */
 .hud-powerup {
   position: absolute;
