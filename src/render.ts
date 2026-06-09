@@ -11,6 +11,15 @@ import type { ThemeDef } from './themes';
 import { trailById, trailGhostColor } from './trails';
 import type { TrailDef } from './trails';
 import { themeById } from './themes';
+import {
+  washSaturation,
+  cityGlowAlpha,
+  skylineAlpha,
+  showWindows,
+  bgExposure,
+  vignetteDeepenFactor,
+  trailBrightness,
+} from './renderMath';
 
 export interface Camera {
   leanX: number;
@@ -26,6 +35,8 @@ export interface RenderOpts {
   colorblind: boolean;
   combo: number;
   caScale: number; // 0..1 chromatic-aberration intensity (accessibility setting)
+  reduceMotion: boolean;
+  clarity: boolean; // high-contrast Clarity mode (tames the coherence visuals)
 }
 
 export class Renderer {
@@ -46,6 +57,15 @@ export class Renderer {
   private theme: ThemeDef = themeById('neon');
   private trail: TrailDef = trailById('pulse');
   private biomeTint: [string, string, string] | null = null;
+  // ── THE LAST LANCE one-bus (render half) — pushed each frame by setCoherence ──
+  private coherence = 0;
+  private focusPulse = 0;
+  private quality = 1; // perf-adaptive (1 = full; lower under load)
+  private reduceMotionR = false;
+  private clarityR = false;
+  private colorblindR = false;
+  private reduceFlashingR = false;
+  private towers: { x: number; w: number; h: number; band: number }[] = [];
 
   setTheme(t: ThemeDef): void {
     this.theme = t;
@@ -58,6 +78,17 @@ export class Renderer {
   /** Override the nebula tint during a run (biome stage); null = use theme. */
   setBiomeTint(c: [string, string, string] | null): void {
     this.biomeTint = c;
+  }
+
+  /** THE ONE BUS (render half) — pushed each frame: the eased Coherence value +
+   *  the Perfect-dash focus-snap envelope. Read by the wash, skyline, and glow. */
+  setCoherence(c: number, focus: number): void {
+    this.coherence = c;
+    this.focusPulse = focus;
+  }
+  /** Perf-adaptive quality 0.4..1 (mirrors the director's perfScale). */
+  setQuality(q: number): void {
+    this.quality = q;
   }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -86,6 +117,7 @@ export class Renderer {
     this.screen.style.width = w + 'px';
     this.screen.style.height = h + 'px';
     this.initStars();
+    this.initTowers();
   }
 
   private initStars(): void {
@@ -122,6 +154,10 @@ export class Renderer {
   /** Full frame: world buffer → composite → vignette. */
   render(world: World, cam: Camera, opts: RenderOpts): void {
     const { bctx, dpr } = this;
+    this.reduceFlashingR = opts.reduceFlashing;
+    this.reduceMotionR = opts.reduceMotion;
+    this.clarityR = opts.clarity;
+    this.colorblindR = opts.colorblind;
     // ── draw the world to the buffer ──
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.globalCompositeOperation = 'source-over';
@@ -131,6 +167,7 @@ export class Renderer {
     // deep-space background (screen-space, behind the camera so it stays calm)
     this.bgT += 1 / 60;
     this.drawBackground(opts.combo);
+    this.drawSkyline(this.coherence);
 
     bctx.save();
     bctx.scale(dpr, dpr);
@@ -267,12 +304,73 @@ export class Renderer {
     sctx.restore();
   }
 
+  private initTowers(): void {
+    // Static city geometry — uses Math.random (cosmetic, never world.rng), so a
+    // session's skyline shape is personal and CANNOT affect a seeded run.
+    this.towers = [];
+    const bands = [
+      { minH: 0.1, maxH: 0.2, minW: 28, maxW: 64, gap: 26 }, // far
+      { minH: 0.16, maxH: 0.34, minW: 40, maxW: 92, gap: 14 }, // near
+    ];
+    bands.forEach((b, band) => {
+      let x = -80;
+      while (x < this.w + 80) {
+        const w = b.minW + Math.random() * (b.maxW - b.minW);
+        const h = (b.minH + Math.random() * (b.maxH - b.minH)) * this.h;
+        this.towers.push({ x, w, h, band });
+        x += w + b.gap * (0.5 + Math.random());
+      }
+    });
+  }
+
+  /** The City of Lancefall skyline — neon tower silhouettes behind the bullet-hell.
+   *  Drawn in COLOUR to the buffer so the global wash (present) desaturates it to
+   *  gray static at low coherence and blooms it to neon as the city is remembered.
+   *  A11y: reduceMotion freezes the parallax drift; colorblind uses a luminance
+   *  tone; quality gates the window-lights; the wash itself is luminance-safe. */
+  private drawSkyline(c: number): void {
+    if (this.towers.length === 0) return;
+    const alpha = skylineAlpha(c);
+    if (alpha <= 0.003) return;
+    const ctx = this.bctx;
+    const expo = bgExposure(c, this.reduceFlashingR);
+    const city = this.colorblindR ? '#aebfe0' : this.biomeTint ? this.biomeTint[1] : this.theme.accent;
+    const win = this.colorblindR ? '#ffffff' : this.theme.accent2;
+    const baseY = this.h;
+    const drift = this.reduceMotionR ? 0 : this.bgT * 6;
+    const span = this.w + 160;
+    const lights = showWindows(c) && this.quality >= 1;
+    ctx.save();
+    ctx.scale(this.dpr, this.dpr);
+    ctx.globalCompositeOperation = 'source-over';
+    for (const t of this.towers) {
+      const far = t.band === 0;
+      const par = far ? 0.4 : 0.9; // near towers drift more (parallax)
+      const x = ((((t.x + drift * par) % span) + span) % span) - 80;
+      ctx.fillStyle = city;
+      ctx.globalAlpha = alpha * (far ? 0.55 : 1) * expo;
+      ctx.fillRect(x, baseY - t.h, t.w, t.h);
+      if (lights && !far) {
+        ctx.fillStyle = win;
+        ctx.globalAlpha = Math.min(1, alpha * 1.5) * expo;
+        for (let wy = baseY - t.h + 8; wy < baseY - 6; wy += 16) {
+          for (let wx = x + 5; wx < x + t.w - 4; wx += 12) {
+            if (((wx + wy) & 3) === 0) ctx.fillRect(wx, wy, 4, 6); // sparse, deterministic
+          }
+        }
+      }
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   private drawBackground(combo: number): void {
     const ctx = this.bctx;
     ctx.save();
     ctx.scale(this.dpr, this.dpr);
     ctx.globalCompositeOperation = 'lighter';
     const heat = 1 + Math.min(combo, 40) * 0.012;
+    const expo = bgExposure(this.coherence, this.reduceFlashingR); // dims as the world loses coherence
 
     // drifting nebula clouds (biome tint during a run, else the cosmetic theme)
     const nb = this.biomeTint ?? this.theme.nebula;
@@ -288,7 +386,7 @@ export class Renderer {
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
       g.addColorStop(0, col);
       g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.globalAlpha = 0.10 * heat;
+      ctx.globalAlpha = 0.1 * heat * expo;
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.w, this.h);
     }
@@ -299,7 +397,7 @@ export class Renderer {
       const dy = (this.bgT * 7 * s.z) % this.h;
       const y = (s.y + dy) % this.h;
       const tw = 0.45 + 0.55 * Math.sin(this.bgT * s.tw + s.phase);
-      const a = s.z * tw * 0.5 * heat;
+      const a = s.z * tw * 0.5 * heat * expo;
       if (a <= 0.02) continue;
       ctx.globalAlpha = a;
       ctx.fillStyle = s.z > 0.75 ? '#bfe9ff' : '#8aa0c8';
@@ -1041,12 +1139,14 @@ export class Renderer {
       ctx.strokeStyle = blaze > 0.5 ? mix(ghostBase, '#ffffff', (blaze - 0.5) * 2) : ghostBase;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
+      // the ink-ribbon trail dims as coherence drops (fixed high under Clarity)
+      const tb = trailBrightness(this.coherence, this.reduceFlashingR, this.clarityR);
       for (let i = 1; i <= ghosts; i++) {
         const t = i / (ghosts + 1);
         const gx = p.dashFromX + (p.x - p.dashFromX) * t;
         const gy = p.dashFromY + (p.y - p.dashFromY) * t;
         const s = 0.7 + 0.3 * t; // ghosts grow toward the ship
-        ctx.globalAlpha = Math.min(1, (0.22 + 0.4 * t) * (1 + 0.5 * blaze));
+        ctx.globalAlpha = Math.min(1, (0.22 + 0.4 * t) * (1 + 0.5 * blaze) * tb);
         ctx.save();
         ctx.translate(gx, gy);
         ctx.rotate(p.angle);
@@ -1195,6 +1295,41 @@ export class Renderer {
       }
     }
     sctx.restore();
+
+    // ── THE ONE BUS (render half): a global gray→neon saturation wash over the
+    // whole composited frame — the unmistakable "dead world coming alive" read.
+    // 'saturation' blend with a gray top layer at alpha (1-sat) linearly desaturates
+    // toward grayscale; one full-screen GPU-backed draw, no per-pixel JS. ──
+    const sat = washSaturation(
+      this.coherence,
+      this.focusPulse,
+      this.reduceFlashingR,
+      this.reduceMotionR,
+      this.clarityR,
+    );
+    if (sat < 0.999) {
+      sctx.globalCompositeOperation = 'saturation';
+      sctx.globalAlpha = 1 - sat;
+      sctx.fillStyle = '#808080';
+      sctx.fillRect(0, 0, W, H);
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.globalAlpha = 1;
+    }
+    // foreground neon city-glow band rising from the bottom edge (the anchor the
+    // eye lands on in a compressed GIF — the City of Lancefall's edge resolving)
+    const glow = cityGlowAlpha(this.coherence, this.reduceFlashingR);
+    if (glow > 0.003) {
+      const bandH = H * 0.16;
+      const grad = sctx.createLinearGradient(0, H - bandH, 0, H);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, this.colorblindR ? '#cfe2ff' : this.biomeTint ? this.biomeTint[1] : this.theme.accent);
+      sctx.globalCompositeOperation = 'lighter';
+      sctx.globalAlpha = glow;
+      sctx.fillStyle = grad;
+      sctx.fillRect(0, H - bandH, W, bandH);
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.globalAlpha = 1;
+    }
   }
 
   private drawVignette(opts: RenderOpts, world: World): void {
@@ -1204,7 +1339,13 @@ export class Renderer {
     sctx.setTransform(1, 0, 0, 1, 0, 0);
     sctx.globalCompositeOperation = 'source-over';
     const lowHp = world.player.alive && world.player.iframe <= 0 && world.player.stamina < 100;
-    const edge = 0.5 + (lowHp ? 0.12 : 0);
+    // low coherence deepens the vignette (the dead world closing in); capped so it
+    // never fully blacks out, and gated off under reduceFlashing/reduceMotion/clarity.
+    const edge = Math.min(
+      0.92,
+      (0.5 + (lowHp ? 0.12 : 0)) *
+        vignetteDeepenFactor(this.coherence, this.reduceFlashingR, this.reduceMotionR, this.clarityR),
+    );
     const grad = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
     grad.addColorStop(1, `rgba(0,0,0,${edge})`);
