@@ -18,7 +18,7 @@ import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
 import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores } from './boss';
-import { gravityPull, beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
+import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
@@ -382,14 +382,15 @@ export class Game {
     const r2 = OVERDRIVE.novaRadius * OVERDRIVE.novaRadius;
     const victims: import('./types').Enemy[] = [];
     w.enemies.forEachActive((e) => {
-      if (e.isBoss) return;
+      if (e.isBoss || e.kind === 'sovereign_core') return; // Cores are a dash-only target
       const dx = e.x - p.x;
       const dy = e.y - p.y;
       if (dx * dx + dy * dy <= r2) victims.push(e);
     });
     for (const e of victims) if (e.active) this.killEnemy(e, false);
-    // chunk a boss too (a fair reward, not a oneshot)
-    if (w.bossAlive && w.boss) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
+    // chunk a boss too (a fair reward, not a oneshot) — but respect the Sovereign's
+    // armor: the nova only bites the crown once it's EXPOSED, like the dash.
+    if (w.bossAlive && w.boss && !sovereignBodyArmored(w.boss)) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
     // score + spectacle
     const bonus = Math.round(OVERDRIVE.scoreBonus * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.score += bonus;
@@ -790,11 +791,9 @@ export class Game {
     w.hash.queryAABB(minX, minY, maxX, maxY, this.candidates);
     for (const e of this.candidates) {
       if (!e.active || e.lastDashId === p.dashId) continue;
-      // the Hollow is an intangible phantom — only damageable during its sync window
-      if (e.kind === 'hollow' && !hollowSyncActive(e)) continue;
-      // the Sovereign's body is armored while any Core lives — clang, no damage
-      if (sovereignBodyArmored(e)) {
-        if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
+      if (this.spearBlocked(e)) {
+        // Sovereign body armored → an "ARMORED" clang (the Hollow is silent)
+        if (e.kind === 'sovereign' && segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
           e.lastDashId = p.dashId;
           e.hitFlash = 0.08;
           w.particles.burst(e.x, e.y, 8, '#fff3a8');
@@ -845,6 +844,7 @@ export class Game {
     w.hash.queryAABB(minX, minY, maxX, maxY, this.candidates);
     for (const e of this.candidates) {
       if (!e.active || e.lastDashId === w.ghostDashId) continue;
+      if (this.spearBlocked(e)) continue; // the ghost obeys the same armor/intangibility rules
       if (segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, e.x, e.y, e.radius, r)) {
         e.lastDashId = w.ghostDashId;
         this.damageEnemy(e, w.stats.dashDamage, true);
@@ -852,8 +852,20 @@ export class Game {
     }
   }
 
+  /** Can the spear (a dash OR its afterimage ghost) damage this enemy right now?
+   *  The Sovereign body is armored until EXPOSED; the Hollow is intangible outside
+   *  its sync window. Enforced on EVERY spear path here so the two can never drift. */
+  private spearBlocked(e: Enemy): boolean {
+    if (e.kind === 'hollow' && !hollowSyncActive(e)) return true;
+    if (sovereignBodyArmored(e)) return true;
+    return false;
+  }
+
   /** Apply damage; on death run the kill cascade (combo, score, particles, chain). */
   private damageEnemy(e: Enemy, dmg: number, fromDash: boolean): void {
+    // Sovereign Cores are a dash-skill target — only the spear shatters them, never
+    // graze-burn / eruption / other AoE. (The OVERDRIVE nova excludes them upstream.)
+    if (e.kind === 'sovereign_core' && !fromDash) return;
     e.hp -= dmg;
     e.hitFlash = 0.1;
     if (e.hp > 0) {
@@ -990,7 +1002,10 @@ export class Game {
     if (!boss || boss.kind !== 'sovereign') return;
     // weak-point chunk to the crown (may kill it → bossDeath cleans up the rest)
     this.damageEnemy(boss, SOVEREIGN.coreWeakBonus, true);
-    // last core down? crack the crown open
+    // last core down? crack the crown open. (Intentional: if the SAME dash that
+    // shattered the final core also clips the now-unarmored body later in the hit
+    // pass, that one bonus hit lands — a satisfying, hard-to-pull-off flourish,
+    // bounded to a single hit by lastDashId.)
     if (w.bossAlive && w.boss && countSovereignCores(w) === 0) {
       exposeSovereign(w.boss);
       this.ui.announce('CROWN EXPOSED', '#fde047');
@@ -1028,9 +1043,12 @@ export class Game {
   private comboErupt(milestone: number): void {
     const w = this.world;
     const p = w.player;
-    // shatter enemy bullets in the clear radius
+    // shatter NON-boss bullets in the clear radius (boss patterns stay lethal, like
+    // Riposte + the OVERDRIVE nova — high combo earns breathing room from chaff, not
+    // a boss-pattern eraser)
     const cr2 = CLUTCH.eruptClearRadius * CLUTCH.eruptClearRadius;
     w.bullets.forEachActive((b) => {
+      if (b.fromBoss) return;
       const dx = b.x - p.x;
       const dy = b.y - p.y;
       if (dx * dx + dy * dy < cr2) {
@@ -1038,11 +1056,11 @@ export class Game {
         w.bullets.release(b);
       }
     });
-    // scorch nearby non-boss enemies
+    // scorch nearby non-boss enemies (Cores excluded — they're a dash-only target)
     const dr = CLUTCH.eruptDamageRadius;
     w.hash.rebuild(w.enemies.items);
     w.hash.queryAABB(p.x - dr, p.y - dr, p.x + dr, p.y + dr, this.chainBuf);
-    const hits = this.chainBuf.filter((e) => e.active && !e.isBoss && circleHit(p.x, p.y, dr, e.x, e.y, e.radius));
+    const hits = this.chainBuf.filter((e) => e.active && !e.isBoss && e.kind !== 'sovereign_core' && circleHit(p.x, p.y, dr, e.x, e.y, e.radius));
     for (const e of hits) {
       if (e.active) this.damageEnemy(e, CLUTCH.eruptDamage, false);
     }
@@ -1105,13 +1123,18 @@ export class Game {
     const p = w.player;
     const grazeR = w.stats.grazeRadius;
     const hitR = p.radius;
-    // THE SOVEREIGN warps space: its bullets curve toward the crown (galaxy arms)
+    // THE SOVEREIGN warps space: its bullets curve toward the crown (galaxy arms).
+    // Math inlined (kept identical to the pure gravityPull, which the tests cover)
+    // so the hottest loop in the game stays allocation-free.
     const sov = w.boss && w.boss.kind === 'sovereign' ? w.boss : null;
     w.bullets.forEachActive((b) => {
       if (sov && b.fromBoss) {
-        const g = gravityPull(b.x, b.y, sov.x, sov.y, dt);
-        b.vx += g.dvx;
-        b.vy += g.dvy;
+        const gx = sov.x - b.x;
+        const gy = sov.y - b.y;
+        const gd = Math.hypot(gx, gy) || 1;
+        const ga = (SOVEREIGN.gravity * dt) / (gd + SOVEREIGN.gravitySoftening);
+        b.vx += (gx / gd) * ga;
+        b.vy += (gy / gd) * ga;
       }
       b.x += b.vx * dt;
       b.y += b.vy * dt;

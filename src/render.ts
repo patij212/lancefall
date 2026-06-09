@@ -148,7 +148,7 @@ export class Renderer {
     this.present(opts, cam);
     this.drawVignette(opts, world);
     this.drawLastBreath();
-    this.drawOverdriveNova(world);
+    this.drawOverdriveNova(world, cam);
     this.drawBossEntrance();
   }
 
@@ -190,15 +190,19 @@ export class Renderer {
     this.overdriveNovaColor = color;
   }
 
-  private drawOverdriveNova(world: World): void {
+  private drawOverdriveNova(world: World, cam: Camera): void {
     if (this.overdriveNovaT <= 0) return;
     this.overdriveNovaT = Math.max(0, this.overdriveNovaT - 1 / 36); // ~0.6s
     const sctx = this.sctx;
     const W = this.screen.width;
     const H = this.screen.height;
     const k = 1 - this.overdriveNovaT; // 0 → 1
-    const px = world.player.x * this.dpr;
-    const py = world.player.y * this.dpr;
+    // project the player through the same camera (zoom about centre + lean) the
+    // world buffer used, so the ring stays centred on the player under zoom/lean
+    const cx = this.w / 2;
+    const cy = this.h / 2;
+    const px = (cx + cam.zoom * (world.player.x - cam.leanX - cx)) * this.dpr;
+    const py = (cy + cam.zoom * (world.player.y - cam.leanY - cy)) * this.dpr;
     const r = k * Math.max(W, H) * 0.9;
     sctx.save();
     sctx.setTransform(1, 0, 0, 1, 0, 0);
