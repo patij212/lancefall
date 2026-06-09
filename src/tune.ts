@@ -300,6 +300,69 @@ export const CLUTCH = {
   eruptSlowmoHold: 0.5,
 };
 
+// ─────────────────────────────────────────────────────────────────────────
+// THE LAST LANCE — the SOUL layer. COHERENCE is ONE eased 0..1 value (a Game
+// field, updated in frame() on realDt) that drives the gray→neon render wash
+// AND the lone-drone→choir audio bloom AND the narrator — one bus. It consumes
+// NO rng (Daily-safe). BEAT grades a dash release as a reward-only coherence
+// kick (off-beat loses nothing). Every magnitude lives here.
+// ─────────────────────────────────────────────────────────────────────────
+
+// COHERENCE — the soul dial. Cosmetic & personal: never touches world.rng.
+export const COHERENCE = {
+  // ── target shaping (pure read of combo/dash/clutch) ──
+  floor: 0.06, // gray-static baseline when the chain is dead
+  comboHalf: 14, // combo at which the soft-knee reaches ~63% (1 - e^-1)
+  comboWeight: 0.7, // share of target from combo
+  dashChainFull: 5, // killsThisDash that maxes the hot-dash contribution
+  dashWeight: 0.3, // share of target from a hot dash-chain
+  lastBreathDim: 0.35, // multiply target during LAST BREATH (THE HUSH; softened by a11y)
+  // ── easing (blooms fast, collapses gently) ──
+  riseRate: 4.5, // value→target lerp rate/s when rising
+  fallRate: 1.1, // …when falling
+  // ── beat focus-snap (the ONLY beat reward feeds these two) ──
+  perfectKick: 0.18, // bus jump on a Perfect on-beat dash
+  onbeatKick: 0.06, // smaller jump for a Good on-beat dash
+  focusPulseDecay: 0.5, // seconds for focusPulse 1→0
+  focusSnapLift: 0.35, // added to the wash strength at peak focusPulse
+  // ── render wash ──
+  satFloor: 0.12, // min saturation multiplier at coherence 0 (never fully gray — readability)
+  washGain: 0.88, // saturation lift from full coherence (satFloor..satFloor+washGain)
+  cityGlowBase: 0.1, // bottom neon city-glow band alpha at coherence 0
+  cityGlowGain: 0.55, // …added at coherence 1
+  windowThreshold: 0.55, // coherence above which skyline window-lights appear
+  exposureBase: 0.7, // background exposure floor
+  exposureGain: 0.3, // exposure added by full coherence
+  vignetteDeepen: 0.4, // how much LOW coherence deepens the vignette (world closing in)
+  trailDim: 0.4, // ink-trail ghost dimmer floor at coherence 0
+  // ── accessibility caps ──
+  flashCap: 0.85, // max coherence-driven brightness swing under reduceFlashing
+  clarityFloor: 0.85, // min gameplay-layer alpha under Clarity (play layer never dims below this)
+  // ── combo → audio tier (monotone; reuses COMBO_TIERS cut points) ──
+  tierCombo: [10, 20, 35, 50, 75, 100], // combo thresholds → tier 1..6
+} as const;
+
+// COHERENCE_AUDIO — the audio half of the one bus (drone bloom + root transpose).
+export const COHERENCE_AUDIO = {
+  tierSemis: [0, 2, 3, 5, 7, 9, 12], // semitone transpose per tier 0..6 (A-minor-pentatonic-safe)
+  transposeGlide: 0.25,
+  droneGlide: 0.5,
+  filterBloom: 3200, // Hz added to the 700 base lowpass at coherence 1
+  filterGlide: 0.5,
+  choirOnset: 0.6, // coherence below which the choir is silent
+  choirGain: 0.1, // total choir bus gain at full bloom (under the limiter)
+  choirGlide: 0.6,
+} as const;
+
+// BEAT — dash-release grading (reward-only). Windows in seconds @ the music BPM.
+export const BEAT = {
+  perfectWindow: 0.045, // ±45ms (after grace) → Perfect
+  goodWindow: 0.11, // ±110ms (after grace) → Good
+  graceOnLanding: 0.06, // pad ~1 display-frame of input-poll quantization (60–144Hz fairness)
+  reseedSnapTolerance: 0.25, // pure-clock drift beyond this → hard snap to audio truth
+  reseedEase: 6, // per-second ease rate toward audio truth below the snap tolerance
+} as const;
+
 // POWER-UP DROPS — temporary power-fantasy buffs. Bosses always drop one; elite
 // Champions drop one sometimes. One active at a time (a new pickup replaces it).
 export const POWERUP_DROP = {
