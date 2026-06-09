@@ -47,7 +47,7 @@ in-browser) and committed.
 - `heat.ts` (ascension ladder), `ghost.ts` (best-run replay shadow), `archetypes.ts` (build goals up-weight draft), `relics.ts` (cursed double-edged, extend DraftCard + isRelic guard), Build DNA export (save codec + share). Pure layers + tests first, then wiring on the settled draft chassis. Overlays only (NO new State).
 - Quick win subset: **Build DNA export** (~65 lines) + **Build Archetypes overlay**.
 
-## Phase 4 — Steam polish (Direction 4)
+## Phase 4 — Steam polish (Direction 4)  [DONE ✓ — adaptive perf, dash-trail blaze, victory cinematic; settings-depth/onboarding/boss-entrance deferred as lower-value]
 - Audio mix pass (isolated, quick win). tune additive consts (MAX_PARTICLES, comboTierPulseAlpha).
 - render cinematics: victory sequence, boss entrance, combo-tier pulse (LAST render.ts toucher).
 - perf hardening (particle cap + frame-time auto-scale), onboarding refinement, pause/quit UX.

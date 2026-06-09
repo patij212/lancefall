@@ -55,3 +55,14 @@ Goal: make it the best in its category. Driven by build-depth, in-run variety, a
 - **AEGIS — 7th evolution (the defensive fortress).** Riposte 2 + Second Wind 2 → a wide bullet-shattering dash wall (+40 shatter), deeper stamina, faster regen, longer graze. Gives the new defensive perk a fusion goal and balances the offence-heavy evolution set. Auto-listed in the codex. `evolutions.ts` (+test), `perks.ts`, `ui.ts`.
 
 — v2.1 shipped: 11 perks + **7 fusion evolutions**, **elite Champions**, a **dash afterimage trail**, **combo heat**, dash-hit sparks, and a **HOW TO PLAY codex** — all built on the three best-in-class levers (build depth, in-run variety, game feel), capped by a 2-agent adversarial review. 116 tests, clean build, zero console errors.
+
+## v3 — "best in its category" expansion (multi-agent workflow driven)
+A 5-architect design workflow + tech-lead synthesis produced a sequenced, conflict-aware plan (`V3_PLAN.md`); built sequentially, each step verified + committed; design and review done with dynamic workflows.
+
+- **Phase 0 — shared groundwork.** Save schema versioning (`migrate.ts`, one-time legacy-key migration, zero loss) + a `postApply` stat-pipeline capstone (so heat/relics/mutators compose without fighting over `deriveStats`). Canonical order: base→meta→mutator→ship→perks→evo→postApply→boons.
+- **Phase 1 — content.** New enemies **Drifter** (arc-fan zoner) + **Shade** (teleporting ambusher) → 9 archetypes. 5th boss **THE HOLLOW** — an intangible phantom you can only damage by dashing through it during telegraphed Clone-Sync windows, with killable echo clones. Arena → 13-wave/5-boss gauntlet; Boss Rush → 5 bosses; both climax on the Hollow.
+- **Phase 2 — variety.** 6 **run mutators** (the Daily picks 1-2 deterministically — Champion Tide / Glass Cannon / Bullet Storm / Fog of War / Berserk / Windfall) + 5 **mid-run events** (Shrine / Gambler / Treasure / Champion Hunt / Cursed Pact, pause-and-choose on a ~75s cadence).
+- **Phase 3 — endgame depth.** 🔥 **Heat ascension** (8 levels, up to ×3.2 score), ◈ **build archetypes** (draft-biasing build paths, zero-extra-rng so Daily stays deterministic), ☠ **cursed relics** (6 double-edged draft items on the same chassis), ⧬ **build DNA** (shareable build codec). Ghost-replay cut by the synthesis. Capped by a 2-agent review that caught a **critical dash-lock** (relic+mutator could make dashing unaffordable → now clamped) + balance fixes.
+- **Phase 4 — Steam polish.** Adaptive perf (frame-time particle auto-scale), combo-blazing dash trail (4→6 ghosts, whitening at high combo), and a victory-cinematic money moment (concentric shockwaves + fountain + punch-zoom).
+
+— v3.0: **9 enemies + Champions + 5 bosses · Heat ladder · mutators + events · archetypes · relics · build DNA · adaptive perf.** 158 tests, clean build, zero console errors. Remaining: Phase 5 — online leaderboards + cloud daily (Cloudflare Workers backend).

@@ -23,8 +23,11 @@ You don't shoot. You **dash**.
 ## Features
 
 - ⚔️ **Charge-dash combat** — swept-capsule spear collision, i-frames, momentum carry, commit-on-release routing.
-- 🎮 **5 game modes** — **Endless**, **Arena** (a hand-built 12-wave gauntlet you can actually **win**), **Daily Challenge** (seeded, same for everyone), **Nightmare** (cranked + ×1.75 shards), and **Boss Rush** (every boss back-to-back).
-- 💀 **7 enemy archetypes + elite Champions + 4 mini-bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, **lancers** (telegraphed snipers), **bombers** (detonate on death), **wisp** swarms, gold-aura **Champions** (rare buffed elites that rain shards but detonate on death) — and a rotating boss cast: **Warden** (spiral), **Weaver** (pinwheel + safe lanes), **Beacon** (sweeping laser), **Mirrorblade** (a dash-duelist that lunges like you).
+- 🎮 **5 game modes** — **Endless**, **Arena** (a hand-built **13-wave / 5-boss** gauntlet you can actually **win**), **Daily Challenge** (seeded + a rotating mutator, same for everyone), **Nightmare** (cranked + ×1.75 shards), and **Boss Rush** (all five bosses back-to-back).
+- 💀 **9 enemy archetypes + elite Champions + 5 bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, **lancers** (snipers), **bombers**, **wisp** swarms, **drifters** (arc-fan zoners), **shades** (teleporting ambushers), gold-aura **Champions** — and a boss cast: **Warden**, **Weaver**, **Beacon**, **Mirrorblade**, and **THE HOLLOW** (an intangible phantom — damage it only by dashing through its Clone-Sync windows).
+- 🔥 **Heat ascension** — an 8-level prestige ladder (COLD→MELTDOWN) that stacks difficulty for up to ×3.2 score. The veteran score-chase.
+- 🎲 **Run mutators + mid-run events** — the Daily rolls 1-2 mutators (Glass Cannon, Bullet Storm, Fog of War, Berserk…) for a distinct identity; mid-run shrines/gambles/treasures/cursed pacts offer pause-and-choose risk/reward.
+- ◈ **Build archetypes + ☠ cursed relics + ⧬ build DNA** — pick a build path that biases your draft; grab double-edged relics for high-risk power; copy your whole build as a shareable code.
 - 🌍 **Evolving biomes** — a run cycles through The Void → Emberfield → The Lattice → Bloomgarden → Nullspace, each retinting the world, shifting the enemy mix, and twisting the rules.
 - ⬆️ **Permanent meta-progression** — a 12-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**) bought with banked shards. The "one more run" engine.
 - 🚀 **5-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge). Each a genuinely different playstyle.
