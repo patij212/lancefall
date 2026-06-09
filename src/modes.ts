@@ -36,7 +36,7 @@ export const MODES: RunConfig[] = [
     shieldStart: 70, shieldMax: 0.35, shardMul: 1.1, perks: true, canFail: true, arena: true, bossrush: false,
   },
   {
-    id: 'daily', name: 'DAILY', desc: "Today's seeded run — same for everyone.",
+    id: 'daily', name: 'ECHO OF THE FALL', desc: "One citizen's last memory of the fall — the same echo for everyone today.",
     seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
   },

@@ -17,8 +17,8 @@ export interface ShipDef {
 export const SHIPS: ShipDef[] = [
   {
     id: 'lance',
-    name: 'LANCE',
-    desc: 'Balanced. The standard blade — 3 stamina, even handling.',
+    name: 'THE LAST LANCE',
+    desc: 'The last spear left standing when Lancefall fell. Even in every way — 3 stamina, true handling.',
     accent: '#22d3ee',
     unlockShards: 0,
     apply: () => {},

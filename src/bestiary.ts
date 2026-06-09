@@ -26,12 +26,12 @@ export const BESTIARY: CodexEntry[] = [
   // ── special ──
   { id: 'champion', name: 'Champion', cat: 'special', accent: '#fde047', blurb: 'A gold-aura elite: tanky, rains shards, but detonates a volatile ring on death.' },
   // ── bosses ──
-  { id: 'warden', name: 'The Warden', cat: 'boss', accent: '#ff3b6b', blurb: 'Rotating bullet spiral, then aimed fans with a rest window. Dash the gaps, punish the rest.' },
-  { id: 'weaver', name: 'The Weaver', cat: 'boss', accent: '#a855f7', blurb: 'A pinwheel of arms and pulse rings with a moving safe lane. Thread the lane.' },
-  { id: 'beacon', name: 'The Beacon', cat: 'boss', accent: '#38bdf8', blurb: 'A rotating laser sweep (dash the safe arcs), then aimed fans — its damage window.' },
-  { id: 'mirrorblade', name: 'The Mirrorblade', cat: 'boss', accent: '#ef4444', blurb: 'A dash-duelist that lunges like you. Dodge the lunge, strike on its recover.' },
-  { id: 'hollow', name: 'The Hollow', cat: 'boss', accent: '#6ee7b7', blurb: 'An intangible phantom with echo clones. Only damageable by dashing it during its white Clone-Sync window.' },
-  { id: 'sovereign', name: 'The Sovereign', cat: 'boss', accent: '#fde047', blurb: 'The crowned finale: an ARMORED body, three orbiting CORES, and gravity-warped volleys. Shatter all three cores to crack the crown EXPOSED, then punish it.' },
+  { id: 'warden', name: 'THE WARDEN · Keeper of the Gates', cat: 'boss', accent: '#ff3b6b', blurb: 'Sworn to hold the gates, he barred them from the inside — duty curdled into contempt. "I only locked the doors you forgot to guard."' },
+  { id: 'weaver', name: 'THE WEAVER · Spinner of the Lie', cat: 'boss', accent: '#a855f7', blurb: 'Court chronicler who rewove the record until no one remembered the kingdom was worth saving. "I unspun every thread that held you."' },
+  { id: 'beacon', name: 'THE BEACON · The Light That Lied', cat: 'boss', accent: '#38bdf8', blurb: 'Signal-keeper who let the call for aid go dark, so no help ever came. "I shone for everyone but you."' },
+  { id: 'mirrorblade', name: 'THE MIRRORBLADE · Your Own Doubt', cat: 'boss', accent: '#ef4444', blurb: "Not a person — your doubt made flesh; it lunges as you do, in your own colour. \"You were always going to falter. I'm the proof.\"" },
+  { id: 'hollow', name: 'THE HOLLOW · What Grief Left', cat: 'boss', accent: '#6ee7b7', blurb: 'The last mourner, emptied out by grief — untouchable until it remembers it was real. "There was nothing left in me to hold."' },
+  { id: 'sovereign', name: 'THE SOVEREIGN · The Crown That Fell First', cat: 'boss', accent: '#fde047', blurb: 'The one who could have saved it and chose the crown instead; now warps gravity to stop you undoing it. "I was the kingdom. I chose to let it end."' },
 ];
 
 export const CODEX_CATEGORIES: { cat: CodexEntry['cat']; label: string }[] = [
