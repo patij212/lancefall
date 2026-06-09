@@ -24,8 +24,16 @@ export function maxStamina(segments: number): number {
   return segments * TUNE.stamina.perSegment;
 }
 
-export function canDash(stamina: number, costMul = 1): boolean {
-  return stamina >= TUNE.stamina.dashCost * costMul - 1e-6;
+/** The actual stamina a dash costs — the base cost times the relic/mutator
+ *  multiplier, but CLAMPED to a full bar so a costly dash can never become
+ *  literally unaffordable (which would soft-lock the run, e.g. Glass Spear ×2 on
+ *  a single Glass Cannon segment). At worst a dash drains your whole bar. */
+export function effectiveDashCost(costMul: number, segments: number): number {
+  return Math.min(TUNE.stamina.dashCost * costMul, segments * TUNE.stamina.perSegment);
+}
+
+export function canDash(stamina: number, cost: number = TUNE.stamina.dashCost): boolean {
+  return stamina >= cost - 1e-6;
 }
 
 /** Advance stamina by dt seconds given the regen lockout timer (also returned). */

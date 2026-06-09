@@ -278,6 +278,10 @@ export function deriveStats(
   if (evoApply) evoApply(s); // evolutions build on top of perks
   if (postApply) postApply(s); // relics + heat — the final capstone, after evolutions
 
+  // safety floor: no stack of graze-shrinking modifiers (Heat + Overcharge + …)
+  // may collapse the graze band below a readable, playable minimum.
+  s.grazeRadius = Math.max(s.grazeRadius, TUNE.player.radius * 1.8);
+
   return s;
 }
 

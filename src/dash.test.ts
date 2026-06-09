@@ -5,6 +5,7 @@ import {
   iframeFor,
   maxStamina,
   canDash,
+  effectiveDashCost,
   regenStamina,
 } from './dash';
 import { TUNE } from './tune';
@@ -51,16 +52,21 @@ describe('stamina', () => {
     expect(maxStamina(4)).toBe(400);
   });
 
-  it('canDash needs a full segment', () => {
+  it('canDash needs at least the dash cost', () => {
     expect(canDash(TUNE.stamina.dashCost)).toBe(true);
     expect(canDash(TUNE.stamina.dashCost - 5)).toBe(false);
+    expect(canDash(TUNE.stamina.dashCost - 5, TUNE.stamina.dashCost - 5)).toBe(true); // cheaper cost
   });
 
-  it('canDash scales the required stamina by the cost multiplier (relics)', () => {
-    const base = TUNE.stamina.dashCost;
-    expect(canDash(base, 2)).toBe(false); // a 2x-cost dash needs two segments' worth
-    expect(canDash(base * 2, 2)).toBe(true);
-    expect(canDash(base * 0.5, 0.5)).toBe(true); // a cheaper dash needs less
+  it('effectiveDashCost scales by the multiplier but is clamped to a full bar (no soft-lock)', () => {
+    const c = TUNE.stamina.dashCost;
+    // 3 segments: 2x cost = 2 segments' worth, under the cap
+    expect(effectiveDashCost(2, 3)).toBeCloseTo(c * 2);
+    // 1 segment (Glass Cannon): 2x cost would be 200 but a full bar is 100 — clamp so it's affordable
+    expect(effectiveDashCost(2, 1)).toBeCloseTo(maxStamina(1));
+    expect(effectiveDashCost(3, 1)).toBeCloseTo(maxStamina(1)); // even 3x can't exceed the bar
+    // a full single-segment bar can therefore always dash
+    expect(canDash(maxStamina(1), effectiveDashCost(2, 1))).toBe(true);
   });
 
   it('regen waits out the lockout delay, then refills', () => {

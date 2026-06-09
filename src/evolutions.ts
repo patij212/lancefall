@@ -226,14 +226,16 @@ export function rollDraftCards(
     cards = [evo, ...perks]; // evolution always leads
   }
 
-  // cursed relic offer — fixed rng consumption (2 calls) for Daily determinism
-  if (opts.relicChance && opts.relicChance > 0) {
+  // cursed relic offer — when relics are enabled (relicChance defined), ALWAYS
+  // consume a fixed 2 rng calls so the seeded stream can never desync between
+  // players regardless of their taken set / chance value (Daily determinism).
+  if (opts.relicChance !== undefined) {
     const roll = rng.next();
     const idx = Math.floor(rng.next() * RELIC_IDS.length);
     const id = RELIC_IDS[idx];
     const taken = opts.takenRelics ?? [];
     const last = cards[cards.length - 1];
-    if (roll < opts.relicChance && !taken.includes(id) && !isEvolution(last)) {
+    if (opts.relicChance > 0 && roll < opts.relicChance && !taken.includes(id) && !isEvolution(last)) {
       cards[cards.length - 1] = RELICS[id]; // swap the last perk slot for the relic
     }
   }

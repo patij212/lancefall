@@ -4,7 +4,7 @@
 // shake). No DOM/audio here.
 
 import { TUNE } from './tune';
-import { chargeToLen, dashDuration, iframeFor, canDash, regenStamina, maxStamina } from './dash';
+import { chargeToLen, dashDuration, iframeFor, canDash, effectiveDashCost, regenStamina, maxStamina } from './dash';
 import { clamp, angleDiff, norm } from './vec';
 import type { Player, InputState } from './types';
 import type { RunStats } from './perks';
@@ -70,7 +70,7 @@ export function updatePlayer(
     p.y += p.vy * dt;
 
     // ── charge / dash input ──
-    if (input.dashHeld && canDash(p.stamina, stats.dashCostMul)) {
+    if (input.dashHeld && canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
       if (p.phase !== 'charging') {
         p.phase = 'charging';
         p.charge = 0;
@@ -79,7 +79,7 @@ export function updatePlayer(
       p.charge = clamp(p.charge + dt / TUNE.dash.chargeTimeMax, 0, 1);
     } else if (p.phase === 'charging' && !input.dashHeld) {
       // released → fire
-      if (canDash(p.stamina, stats.dashCostMul)) {
+      if (canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
         fireDash(p, aimAngle, input, stats, width, height, ev);
       } else {
         p.phase = 'idle';
@@ -143,7 +143,7 @@ function fireDash(
   p.dashId++;
   p.killsThisDash = 0;
   p.iframe = iframeFor(len);
-  p.stamina -= TUNE.stamina.dashCost * stats.dashCostMul;
+  p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout
   p.charge = 0;
   ev.dashFired = true;

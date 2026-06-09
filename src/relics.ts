@@ -26,8 +26,8 @@ export const RELICS: Record<RelicId, RelicDef> = {
   },
   berserker: {
     id: 'berserker', name: "BERSERKER'S MARK", glyph: '⚔', accent: '#ef4444', isRelic: true,
-    desc: '+2 dash damage — but you lose a stamina segment.',
-    apply: (s) => { s.dashDamage += 2; s.staminaSegments = Math.max(1, s.staminaSegments - 1); },
+    desc: '+2 dash damage — but a stamina segment is gone and the spear is thinner.',
+    apply: (s) => { s.dashDamage += 2; s.staminaSegments = Math.max(1, s.staminaSegments - 1); s.dashHitboxRadius = Math.max(8, s.dashHitboxRadius - 4); },
   },
   hoarder: {
     id: 'hoarder', name: "HOARDER'S CURSE", glyph: '💰', accent: '#34d399', isRelic: true,
@@ -42,7 +42,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   volatile: {
     id: 'volatile', name: 'VOLATILE CORE', glyph: '💥', accent: '#fb923c', isRelic: true,
     desc: 'Grants chain + nova blasts (or supercharges them) — but dashes cost ×1.5.',
-    apply: (s) => { s.chainRadius += 70; s.chainDmg = Math.max(s.chainDmg, 1) + 1; s.dashNovaRadius += 70; s.dashCostMul *= 1.5; },
+    apply: (s) => { s.chainRadius += 70; s.chainDmg = Math.max(s.chainDmg + 1, 2); s.dashNovaRadius += 70; s.dashCostMul *= 1.5; },
   },
   zealot: {
     id: 'zealot', name: 'ZEALOT', glyph: '✠', accent: '#a855f7', isRelic: true,

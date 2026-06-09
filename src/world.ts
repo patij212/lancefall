@@ -176,6 +176,7 @@ export class World {
     this.maxDashChain = 0;
     this.bossKills = 0;
     this.collectStreak = 0;
+    this.collectStreakTimer = 0;
     this.time = 0;
     this.stacks = {};
     this.evolutions = [];
