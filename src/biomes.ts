@@ -35,6 +35,10 @@ export const BIOMES: Biome[] = [
     nebula: ['#241040', '#1a3a20', '#2e1030'], bias: { splitter: 1.6, bloomer: 1.6, wisp: 1.6 }, speedMul: 1, shieldBonus: 0,
   },
   {
+    id: 'warren', name: 'THE WARREN', accent: '#a78bfa',
+    nebula: ['#1a1030', '#0e2a2a', '#221838'], bias: { brooder: 2.0, shade: 1.5, drifter: 1.4 }, speedMul: 1, shieldBonus: 0,
+  },
+  {
     id: 'null', name: 'NULLSPACE', accent: '#94a3b8',
     nebula: ['#1a1f2a', '#15151a', '#202028'], bias: {}, speedMul: 1.12, shieldBonus: 0.12,
   },
