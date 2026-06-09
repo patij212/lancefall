@@ -27,8 +27,9 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **Adversarial review** — 22 agents / 4 dimensions; 8 verified findings, all fixed (Sovereign armor invariant centralised in `spearBlocked()`; Cores made dash-only; ERUPTION spares boss bullets; `gravityPull` hot-path alloc inlined; nova ring camera-projected). (`5465800`)
 - ✅ **#4 POWER-UP DROPS** — 5 temporary build-agnostic buffs (OVERREACH / HASTE / FRENZY / GREED / AEGIS) from bosses + elites; HUD badge + aura + pickup orbs. (`8b36d8e`) + focused review (8 agents): the **Daily-determinism break** (drops drew from the shared `world.rng`) fixed with a separate per-run `dropRng`. (`04dc822`)
 - ✅ **#5 Cosmetic dash-trail unlocks** — 6 trail styles on the title (PULSE/EMBER/FROST/VOID/ACID + CROWN, the Sovereign-kill prestige trail); pure-cosmetic, save schema v3→v4. (`9a26b05`)
-- ✅ Redeployed to the live alpha; **210 tests**, tsc clean, build clean, zero console errors; owner save restored.
+- ✅ **#6 Per-boss music themes** — each of the 6 bosses layers a distinct drone chord + arp colour over the soundtrack (Sovereign = grand 4-voice). Pure `bossThemes.ts`. (`39b5b2d`)
+- ✅ Redeployed to the live alpha; **216 tests**, tsc clean, build clean, zero console errors; owner save restored.
 
-Deferred (room for a future v5): weekly challenge + board, per-boss music themes.
+Deferred (room for a future v5): weekly challenge + board.
 
-— v4.0 shipped: **OVERDRIVE ultimate · THE SOVEREIGN (6th boss) · LAST BREATH + COMBO ERUPTION · POWER-UP DROPS · cosmetic dash trails**, capped by adversarial-review passes (12 findings fixed).
+— v4.0 shipped: **OVERDRIVE ultimate · THE SOVEREIGN (6th boss) · LAST BREATH + COMBO ERUPTION · POWER-UP DROPS · cosmetic dash trails · per-boss music**, capped by adversarial-review passes (12 findings fixed).
