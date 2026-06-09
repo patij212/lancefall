@@ -268,6 +268,44 @@ export class AudioEngine {
     });
   }
 
+  /** POWER-UP pickup — a bright ascending arpeggio (a clear "you got something good"). */
+  powerup(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // C-E-G-C arpeggio, quick staggered triangle blips
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      const st = t + i * 0.05;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.2, st + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.22);
+      o.connect(g);
+      g.connect(this.sfxBus);
+      o.start(st);
+      o.stop(st + 0.24);
+      o.onended = () => { o.disconnect(); g.disconnect(); };
+    });
+    // a soft shimmer tail
+    const n = this.noiseSource();
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 3000;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.12, t + 0.06);
+    ng.gain.exponentialRampToValueAtTime(0.0006, t + 0.4);
+    n.connect(f);
+    f.connect(ng);
+    ng.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.42);
+    n.onended = () => { n.disconnect(); f.disconnect(); ng.disconnect(); };
+  }
+
   /** Bass "thunk" on a kill — pitched UP with the combo so a clean run plays an
    *  ascending scale. */
   thunk(combo: number): void {

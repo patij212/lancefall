@@ -777,6 +777,42 @@ body {
 @keyframes odPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 .reduce-motion .hud-overdrive.od-ready .hud-od-label { animation: none; }
 
+/* ── Active power-up badge (above the OVERDRIVE meter; hidden unless active) ── */
+.hud-powerup {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.hud-powerup.on { display: flex; }
+.hud-pu-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px currentColor;
+}
+.hud-pu-track {
+  width: 150px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.hud-pu-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  transform: scaleX(1);
+  border-radius: 3px;
+}
+
 /* ── Run mutators (HUD badges + debrief chips) ── */
 .hud-mutators {
   display: flex;

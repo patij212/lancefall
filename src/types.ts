@@ -147,6 +147,21 @@ export interface Gem {
   life: number;
 }
 
+/** Temporary power-up kinds dropped by bosses + elite Champions. */
+export type PowerupKind = 'overreach' | 'haste' | 'frenzy' | 'greed' | 'aegis';
+
+/** A floating power-up pickup (collected like a gem; grants a timed buff). */
+export interface PowerupPickup {
+  active: boolean;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  kind: PowerupKind;
+  life: number;
+  spin: number;
+}
+
 export interface InputState {
   moveX: number; // -1..1
   moveY: number; // -1..1

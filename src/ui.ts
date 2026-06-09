@@ -17,6 +17,7 @@ import { THEMES } from './themes';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById } from './modes';
+import { POWERUPS } from './powerups';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
@@ -111,6 +112,9 @@ export class UI {
   private odWrap!: HTMLElement;
   private odFill!: HTMLElement;
   private odLabel!: HTMLElement;
+  private puWrap!: HTMLElement;
+  private puFill!: HTMLElement;
+  private puLabel!: HTMLElement;
   private dailyCaption!: HTMLElement;
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
@@ -206,7 +210,12 @@ export class UI {
     this.odFill = el('div', { class: 'hud-od-fill' });
     this.odWrap = el('div', { class: 'hud-overdrive' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
 
-    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap);
+    // active POWER-UP badge (hidden unless one is active)
+    this.puLabel = el('div', { class: 'hud-pu-label' }, '');
+    this.puFill = el('div', { class: 'hud-pu-fill' });
+    this.puWrap = el('div', { class: 'hud-powerup' }, this.puLabel, el('div', { class: 'hud-pu-track' }, this.puFill));
+
+    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap);
     this.rebuildStamina(TUNE.stamina.segments);
   }
 
@@ -948,6 +957,18 @@ export class UI {
     this.odFill.style.transform = `scaleX(${Math.max(0, Math.min(1, od.meter))})`;
     this.odWrap.classList.toggle('od-ready', ready);
     this.odLabel.textContent = od.cooldown > 0 ? `RECHARGING ${Math.ceil(od.cooldown)}s` : ready ? 'OVERDRIVE READY [F]' : 'OVERDRIVE';
+
+    // active POWER-UP badge
+    const pu = world.powerup;
+    const puActive = pu.active != null;
+    this.puWrap.classList.toggle('on', puActive);
+    if (puActive) {
+      const def = POWERUPS[pu.active!];
+      this.puLabel.textContent = `${def.name} ${Math.ceil(pu.timer)}s`;
+      this.puLabel.style.color = def.color;
+      this.puFill.style.transform = `scaleX(${Math.max(0, Math.min(1, pu.total > 0 ? pu.timer / pu.total : 0))})`;
+      this.puFill.style.background = def.color;
+    }
   }
 }
 

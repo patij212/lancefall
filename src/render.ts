@@ -3,6 +3,7 @@
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
 import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN } from './tune';
+import { POWERUPS } from './powerups';
 import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
@@ -136,6 +137,7 @@ export class Renderer {
 
     this.drawGrid(bctx);
     this.drawGems(world);
+    this.drawPowerups(world);
     this.drawParticlesBelow(world);
     this.drawBullets(world);
     this.drawEnemies(world, opts);
@@ -343,6 +345,39 @@ export class Renderer {
       ctx.fill();
     });
     ctx.restore();
+  }
+
+  private drawPowerups(world: World): void {
+    const ctx = this.bctx;
+    world.pickups.forEachActive((u) => {
+      const def = POWERUPS[u.kind];
+      const fade = u.life < 2 ? Math.max(0.2, u.life / 2) : 1; // blink-out near the end
+      const pulse = 0.6 + 0.4 * Math.sin(u.spin * 2.5);
+      ctx.save();
+      ctx.translate(u.x, u.y);
+      // glow halo
+      ctx.globalCompositeOperation = 'lighter';
+      const glow = this.getGlow(def.color);
+      ctx.globalAlpha = 0.7 * fade * pulse;
+      ctx.drawImage(glow, -28, -28, 56, 56);
+      // spinning hexagon shell
+      ctx.globalAlpha = fade;
+      ctx.rotate(u.spin);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ngon(ctx, 6, 13);
+      ctx.rotate(-u.spin * 2);
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = 2.5;
+      ngon(ctx, 6, 9);
+      // bright core
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
   }
 
   private drawParticlesBelow(world: World): void {
@@ -915,6 +950,21 @@ export class Renderer {
   private drawPlayer(world: World): void {
     const ctx = this.bctx;
     const p = world.player;
+
+    // active POWER-UP aura — a coloured pulsing ring around the ship
+    if (world.powerup.active) {
+      const def = POWERUPS[world.powerup.active];
+      const pulse = 0.5 + 0.5 * Math.sin(this.bgT * 6);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = def.color;
+      ctx.globalAlpha = 0.3 + 0.35 * pulse;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, TUNE.player.spriteRadius * (2.1 + 0.2 * pulse), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // OVERDRIVE charge aura — a ring that fills + pulses brighter as the meter climbs,
     // and pulses urgently when READY to fire.

@@ -4,11 +4,13 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE } from './tune';
+import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import { makeOverdrive, resetOverdrive } from './overdrive';
 import { makeClutch, resetClutch } from './clutch';
+import { makePowerup, resetPowerup, applyPowerup } from './powerups';
+import type { PowerupKind, PowerupPickup } from './types';
 import type { RunStats, PerkStacks } from './perks';
 import type { EvolutionId } from './evolutions';
 import type { RelicId } from './relics';
@@ -67,6 +69,10 @@ function makeGem(): Gem {
   return { active: false, x: 0, y: 0, vx: 0, vy: 0, value: 0, life: 0 };
 }
 
+function makePowerupPickup(): PowerupPickup {
+  return { active: false, x: 0, y: 0, vx: 0, vy: 0, kind: 'overreach', life: 0, spin: 0 };
+}
+
 function makePlayer(): Player {
   return {
     x: 0,
@@ -100,6 +106,7 @@ export class World {
   enemies = new Pool<Enemy>(makeEnemy, 360);
   bullets = new Pool<Bullet>(makeBullet, 1600);
   gems = new Pool<Gem>(makeGem, 400);
+  pickups = new Pool<PowerupPickup>(makePowerupPickup, 24);
   particles: Particles;
   hash = new SpatialHash<Enemy>(72);
 
@@ -147,6 +154,9 @@ export class World {
 
   /** CLUTCH state — LAST BREATH cooldown/window + COMBO ERUPTION milestone */
   clutch = makeClutch();
+
+  /** active temporary POWER-UP (one at a time; rides the stat pipeline) */
+  powerup = makePowerup();
 
   // afterimage perk: a lingering damaging ghost of the last dash
   ghostX0 = 0;
@@ -198,6 +208,8 @@ export class World {
     this.ghostTimer = 0;
     resetOverdrive(this.overdrive);
     resetClutch(this.clutch);
+    this.pickups.clear();
+    resetPowerup(this.powerup);
   }
 
   recomputeStats(): void {
@@ -206,10 +218,12 @@ export class World {
       this.metaApply(s);
       this.mutatorApply(s);
     };
-    // capstone slot: relic/heat postApply, then accumulated run boons
+    // capstone slot: relic/heat postApply, then accumulated run boons, then the
+    // active temporary power-up (recomputed whenever a power-up starts/expires)
     const post = (s: RunStats): void => {
       this.postApply(s);
       for (const b of this.boons) b(s);
+      applyPowerup(this.powerup, s);
     };
     this.stats = deriveStats(this.stacks, this.shipApply, metaThenMutator, evoApplier(this.evolutions), post);
   }
@@ -296,5 +310,19 @@ export class World {
     g.vy = Math.sin(a) * sp;
     g.value = value;
     g.life = TUNE.gems.life;
+  }
+
+  spawnPowerup(x: number, y: number, kind: PowerupKind): void {
+    const u = this.pickups.obtain();
+    if (!u) return;
+    u.x = x;
+    u.y = y;
+    const a = this.rng.range(0, Math.PI * 2);
+    const sp = this.rng.range(20, 60);
+    u.vx = Math.cos(a) * sp;
+    u.vy = Math.sin(a) * sp;
+    u.kind = kind;
+    u.life = POWERUP_DROP.pickupLife;
+    u.spin = 0;
   }
 }

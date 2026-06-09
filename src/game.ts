@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, TUNE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -30,6 +30,7 @@ import { submitScore } from './api';
 import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
+import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
 import { OVERDRIVE } from './tune';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
@@ -700,6 +701,9 @@ export class Game {
     // gems
     this.updateGems(dt);
 
+    // power-up pickups
+    this.updatePowerups(dt);
+
     // player death by contact
     if (w.player.alive && !this.dying && w.player.iframe <= 0) {
       this.checkBodyCollisions();
@@ -720,6 +724,12 @@ export class Game {
     tickOverdrive(w.overdrive, dt);
     // CLUTCH timers (LAST BREATH cooldown/window)
     tickClutch(w.clutch, dt);
+    // POWER-UP buff timer — recompute stats the instant it expires
+    if (tickPowerup(w.powerup, dt)) {
+      w.recomputeStats();
+      this.audio.comboBreak();
+      w.particles.floatText(w.player.x, w.player.y - 34, 'POWER-UP FADED', '#94a3b8', 0.8);
+    }
 
     // combo decay — frozen during the OVERDRIVE lock window (keep the combo alive)
     if (w.overdrive.lockTimer > 0) {
@@ -928,6 +938,7 @@ export class Game {
     // champion payoff — a fountain of shards, a score pop, and a volatile burst
     if (e.elite) {
       for (let i = 0; i < ELITE.shardDrops; i++) w.spawnGem(x, y, 5);
+      if (w.rng.next() < POWERUP_DROP.eliteChance) w.spawnPowerup(x, y, rollPowerup(w.rng));
       const bonus = Math.round(800 * comboMultiplier(w.combo) * w.stats.scoreMul);
       w.score += bonus;
       w.particles.floatText(x, y - 30, `CHAMPION +${bonus}`, ELITE.aura, 1.3);
@@ -1080,6 +1091,49 @@ export class Game {
     this.input.rumble(0.3, 0.4, 120);
   }
 
+  private updatePowerups(dt: number): void {
+    const w = this.world;
+    const p = w.player;
+    w.pickups.forEachActive((u) => {
+      u.life -= dt;
+      u.spin += dt * 2.2;
+      const dx = p.x - u.x;
+      const dy = p.y - u.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < POWERUP_DROP.magnetRadius) {
+        u.vx += (dx / d) * POWERUP_DROP.magnetAccel * dt;
+        u.vy += (dy / d) * POWERUP_DROP.magnetAccel * dt;
+      }
+      u.x += u.vx * dt;
+      u.y += u.vy * dt;
+      u.vx *= 0.9;
+      u.vy *= 0.9;
+      if (d < p.radius + POWERUP_DROP.pickupRadius) {
+        this.collectPowerup(u.kind);
+        w.pickups.release(u);
+        return;
+      }
+      if (u.life <= 0) w.pickups.release(u);
+    });
+  }
+
+  /** Grant a power-up: activate the timed buff, recompute stats, and sell it. */
+  private collectPowerup(kind: import('./types').PowerupKind): void {
+    const w = this.world;
+    const p = w.player;
+    const def = POWERUPS[kind];
+    activatePowerup(w.powerup, kind);
+    w.recomputeStats();
+    this.ui.announce(`${def.name} — ${def.blurb}`, def.color);
+    w.particles.ring(p.x, p.y, 120, def.color, 0.5);
+    w.particles.burst(p.x, p.y, 40, def.color);
+    this.renderer.flash(def.color, 0.2);
+    this.scheduler.requestHitstop(0.06);
+    this.shake.add(0.35);
+    this.audio.powerup();
+    this.input.rumble(0.3, 0.5, 120);
+  }
+
   private chainExplode(x: number, y: number, radius: number, dmg: number, fromDash: boolean): void {
     const w = this.world;
     w.particles.ring(x, y, radius, '#ec4899', 0.35);
@@ -1106,6 +1160,7 @@ export class Game {
     this.shake.add(0.9);
     this.scheduler.requestHitstop(0.18);
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
+    w.spawnPowerup(e.x, e.y, rollPowerup(w.rng)); // bosses always drop a power-up
     w.bossKills++;
     if (e.kind === 'hollow') cleanupHollowEchoes(w); // clear lingering echo clones
     if (e.kind === 'sovereign') {

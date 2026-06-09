@@ -289,6 +289,16 @@ export const CLUTCH = {
   eruptSlowmoHold: 0.5,
 };
 
+// POWER-UP DROPS — temporary power-fantasy buffs. Bosses always drop one; elite
+// Champions drop one sometimes. One active at a time (a new pickup replaces it).
+export const POWERUP_DROP = {
+  eliteChance: 0.4, // chance an elite Champion drops a power-up on death
+  pickupLife: 14, // s a floating pickup lingers before fading
+  magnetRadius: 150, // px — vacuum range (matches gem magnet feel)
+  magnetAccel: 900,
+  pickupRadius: 26, // px — collect range
+};
+
 export const WARDEN = {
   baseHp: 12, // dash-hits
   hpPerInterval: 4, // +per boss appearance
