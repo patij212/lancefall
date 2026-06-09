@@ -14,6 +14,7 @@ import type { PowerupKind, PowerupPickup } from './types';
 import type { RunStats, PerkStacks } from './perks';
 import type { EvolutionId } from './evolutions';
 import type { RelicId } from './relics';
+import { createRng } from './rng';
 import type { Rng } from './rng';
 import type { Player, Enemy, Bullet, Gem, EnemyKind } from './types';
 
@@ -167,9 +168,14 @@ export class World {
   ghostDashId = -1;
 
   rng: Rng;
+  /** A SEPARATE stream for power-up drops so death-event draws (which happen at
+   *  player-driven timing) never perturb the seeded director/spawn stream — keeps
+   *  the Daily's wave composition identical for everyone. Re-seeded per run. */
+  dropRng: Rng;
 
   constructor(rng: Rng) {
     this.rng = rng;
+    this.dropRng = createRng(0xc0ffee);
     this.particles = new Particles(rng);
   }
 
@@ -202,14 +208,14 @@ export class World {
     this.evolutions = [];
     this.relics = [];
     this.boons = [];
+    this.pickups.clear();
+    resetPowerup(this.powerup); // clear BEFORE recompute so no stale buff leaks into stats
     this.recomputeStats();
     this.bossAlive = false;
     this.boss = null;
     this.ghostTimer = 0;
     resetOverdrive(this.overdrive);
     resetClutch(this.clutch);
-    this.pickups.clear();
-    resetPowerup(this.powerup);
   }
 
   recomputeStats(): void {
@@ -313,12 +319,14 @@ export class World {
   }
 
   spawnPowerup(x: number, y: number, kind: PowerupKind): void {
+    // draw from dropRng FIRST (unconditionally) so a full pickup pool can't skip
+    // draws and desync the drop stream; uses dropRng so the director stays clean
+    const a = this.dropRng.range(0, Math.PI * 2);
+    const sp = this.dropRng.range(20, 60);
     const u = this.pickups.obtain();
     if (!u) return;
     u.x = x;
     u.y = y;
-    const a = this.rng.range(0, Math.PI * 2);
-    const sp = this.rng.range(20, 60);
     u.vx = Math.cos(a) * sp;
     u.vy = Math.sin(a) * sp;
     u.kind = kind;

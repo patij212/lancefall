@@ -226,6 +226,9 @@ export class Game {
     this.mode = cfg;
     this.seed = cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.world.rng = createRng(this.seed);
+    // power-up drops draw from a SEPARATE stream so death-timed draws never perturb
+    // the seeded director/spawn stream (keeps the Daily's waves identical for all)
+    this.world.dropRng = createRng((this.seed ^ 0x1f83d9ab) >>> 0);
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
     // run mutators — the Daily picks a deterministic set from the date seed
@@ -938,7 +941,7 @@ export class Game {
     // champion payoff — a fountain of shards, a score pop, and a volatile burst
     if (e.elite) {
       for (let i = 0; i < ELITE.shardDrops; i++) w.spawnGem(x, y, 5);
-      if (w.rng.next() < POWERUP_DROP.eliteChance) w.spawnPowerup(x, y, rollPowerup(w.rng));
+      if (w.dropRng.next() < POWERUP_DROP.eliteChance) w.spawnPowerup(x, y, rollPowerup(w.dropRng));
       const bonus = Math.round(800 * comboMultiplier(w.combo) * w.stats.scoreMul);
       w.score += bonus;
       w.particles.floatText(x, y - 30, `CHAMPION +${bonus}`, ELITE.aura, 1.3);
@@ -1160,7 +1163,7 @@ export class Game {
     this.shake.add(0.9);
     this.scheduler.requestHitstop(0.18);
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
-    w.spawnPowerup(e.x, e.y, rollPowerup(w.rng)); // bosses always drop a power-up
+    w.spawnPowerup(e.x, e.y, rollPowerup(w.dropRng)); // bosses always drop a power-up (separate rng)
     w.bossKills++;
     if (e.kind === 'hollow') cleanupHollowEchoes(w); // clear lingering echo clones
     if (e.kind === 'sovereign') {
