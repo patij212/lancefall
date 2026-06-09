@@ -34,6 +34,7 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **Cumulative review (10 agents)** — over the not-yet-reviewed features + cross-feature interactions. Clean except 2 real BROODER bugs (subPhase not reset on pool recycle → inert duds; hatches drew world.rng → Daily desync), both fixed + 3 regression tests. (`83684dc`)
 - ✅ **#10 THE WARREN biome** — a 6th evolving-biome stage biasing brooders/shades/drifters (priority targets); array-driven, purely additive. (`cec5fea`)
 - ✅ **Daily-determinism hardening** — routed the remaining kill-timed draws (gem scatter + bomber/elite detonations) to dropRng so kills never perturb the seeded director; Daily waves now identical for all. (`2f56595`)
+- ✅ **#11 Pause build summary** — the pause screen now shows the current ship + stacked build (evos/relics/perks) for mid-run review. (`f170988`)
 - ✅ Redeployed to the live alpha; **225 tests**, tsc clean, build clean, zero console errors; owner save restored.
 
 Deferred (needs the user's go-ahead — touches the live worker backend): weekly challenge + online board.
