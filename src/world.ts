@@ -250,7 +250,10 @@ export class World {
     }
   }
 
-  spawnEnemy(kind: EnemyKind, x: number, y: number, speedMul: number, bulletMul: number, shielded: boolean, elite = false): Enemy | null {
+  /** `angle` (optional) sets the spawn facing deterministically; omit it and a
+   *  world.rng draw picks one. Death-spawned children (splits, brooder hatches)
+   *  pass an explicit angle so they never perturb the seeded director stream. */
+  spawnEnemy(kind: EnemyKind, x: number, y: number, speedMul: number, bulletMul: number, shielded: boolean, elite = false, angle?: number): Enemy | null {
     const def = ENEMY_DEFS[kind];
     if (!def) return null;
     const e = this.enemies.obtain();
@@ -273,7 +276,9 @@ export class World {
       : 0;
     e.phase = 0;
     e.telegraph = 0;
-    e.angle = this.rng.range(0, Math.PI * 2);
+    e.subPhase = 0; // CRITICAL: the pool recycles slots — a stale subPhase (from a
+    // prior brooder/boss) would otherwise make a fresh brooder hatch nothing
+    e.angle = angle ?? this.rng.range(0, Math.PI * 2);
     e.spawnTime = 0;
     e.hitFlash = 0;
     e.lastDashId = -1;

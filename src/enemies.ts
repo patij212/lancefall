@@ -164,8 +164,10 @@ function brooder(e: Enemy, world: World, dt: number): void {
     e.timer = BROODER.spawnEvery;
     e.telegraph = 0;
     if (e.subPhase < BROODER.maxSpawns) {
-      const a = world.rng.range(0, Math.PI * 2);
-      const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false);
+      // deterministic hatch angle (golden-angle spread) — NEVER draw world.rng here:
+      // hatch COUNT is player-kill-timed, so an rng draw would desync the Daily
+      const a = e.subPhase * 2.39996; // golden angle, in radians
+      const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false, false, a);
       if (child) {
         child.vx = Math.cos(a) * BROODER.childSpeed;
         child.vy = Math.sin(a) * BROODER.childSpeed;
@@ -323,12 +325,15 @@ function sovereignCore(e: Enemy, world: World, dt: number): void {
   e.vy = 0;
 }
 
-/** Splitter death → spawn 2 fast mini-splitters. */
+/** Splitter death → spawn 2 fast mini-splitters. Directions are DETERMINISTIC
+ *  (derived from the parent, not world.rng): splitter death is player-kill-timed,
+ *  so an rng draw here would desync the seeded Daily director stream. */
 export function splitInto(e: Enemy, world: World): void {
+  const base = e.spawnTime * 2.7; // varies per splitter, but deterministic given the seed
   for (let i = 0; i < 2; i++) {
-    const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false);
+    const a = base + i * Math.PI; // the two children fly apart
+    const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false, false, a);
     if (child) {
-      const a = world.rng.range(0, Math.PI * 2);
       child.vx = Math.cos(a) * 120;
       child.vy = Math.sin(a) * 120;
       child.scale = 0.4;
