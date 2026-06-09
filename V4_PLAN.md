@@ -35,7 +35,9 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **#10 THE WARREN biome** — a 6th evolving-biome stage biasing brooders/shades/drifters (priority targets); array-driven, purely additive. (`cec5fea`)
 - ✅ **Daily-determinism hardening** — routed the remaining kill-timed draws (gem scatter + bomber/elite detonations) to dropRng so kills never perturb the seeded director; Daily waves now identical for all. (`2f56595`)
 - ✅ **#11 Pause build summary** — the pause screen now shows the current ship + stacked build (evos/relics/perks) for mid-run review. (`f170988`)
-- ✅ Redeployed to the live alpha; **225 tests**, tsc clean, build clean, zero console errors; owner save restored.
+- ✅ **End-to-end QA capstone** — sustained-run verification (boss fight, biome cycle, all v4 systems firing, no NaN/leaks). All green.
+- ✅ **#12 CODEX** — a title-screen bestiary of all 11 enemies + Champion + 6 bosses (behaviour + counter per card). (`c351459`)
+- ✅ Redeployed to the live alpha; **229 tests**, tsc clean, build clean, zero console errors; owner save restored.
 
 Deferred (needs the user's go-ahead — touches the live worker backend): weekly challenge + online board.
 
