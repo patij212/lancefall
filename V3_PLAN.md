@@ -1,6 +1,13 @@
 # LANCEFALL v3 — execution plan (multi-agent design → sequential build)
 
-> **RESUME POINTER:** Phases 0, 1, 2, 3 are DONE and committed (158 tests green, save v3).
+> **STATUS: ALL PHASES (0–5) COMPLETE.** v3 shipped — 161 tests green, build clean, save v3.
+> Phase 4 polish: adaptive perf + dash blaze + victory cinematic (settings-depth/onboarding deferred as low-value).
+> Phase 5: offline-first leaderboard client + RANKS panel + a deploy-ready Cloudflare Worker
+> (`worker/` — the owner deploys with their account; game is fully offline until `VITE_LEADERBOARD_URL` is set).
+> Optional future polish: onboarding refresh, boss-entrance cinematic, settings depth (rumble/fps), ghost replay (cut).
+>
+> ---
+> (historical) **RESUME POINTER:** Phases 0, 1, 2, 3 were done at 158 tests, save v3.
 > Phase 3 shipped Heat, Archetypes, Relics, Build DNA; **Ghost replay was CUT** (synthesis
 > judged it the weakest value-per-line). A phase-3 adversarial-review workflow ran
 > (task wtjypnalw) — apply its confirmed findings.
@@ -52,7 +59,7 @@ in-browser) and committed.
 - render cinematics: victory sequence, boss entrance, combo-tier pulse (LAST render.ts toucher).
 - perf hardening (particle cap + frame-time auto-scale), onboarding refinement, pause/quit UX.
 
-## Phase 5 — Online (Direction 3): leaderboards + cloud daily  [lowest coupling]
+## Phase 5 — Online (Direction 3): leaderboards + cloud daily  [DONE ✓ — offline-first client + RANKS panel + deploy-ready Worker]
 - `api.ts` (offline-noop first, fire-and-forget), `worker/` (Cloudflare Workers + D1; schema.sql, wrangler.toml, validate.ts, index.ts), `.env.example`.
 - Wiring: `submitRun()` one-liner in finishGameOver, daily-seed fetch in start(), leaderboard overlay panel + title button. Deploy steps documented.
 

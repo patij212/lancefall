@@ -32,7 +32,8 @@ You don't shoot. You **dash**.
 - ⬆️ **Permanent meta-progression** — a 12-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**) bought with banked shards. The "one more run" engine.
 - 🚀 **5-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge). Each a genuinely different playstyle.
 - 🃏 **In-run perk draft + fusion evolutions** — 3-of-**11** stacking upgrades that compound into wild builds (offensive *and* defensive — Riposte shatters bullets on the dash), plus **7 evolutions** (IMPALER, SUPERNOVA, PERPETUAL, WRAITH, INFERNO, JUGGERNAUT, AEGIS): stack the right recipe and a build-defining fusion capstone unlocks as a guaranteed glowing draft slot.
-- 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **12 achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
+- 🏅 **Optional online leaderboards** — per-mode global boards + a shared daily, served by a tiny deploy-ready Cloudflare Worker (`worker/`). Offline-first: the game is identical without it; set `VITE_LEADERBOARD_URL` to light up the RANKS screen.
+- 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
 - 🌀 **The juice stack** — parallax starfield + nebula, trauma shake, hitstop, slow-mo, bloom, chromatic aberration, dash-trail ribbons, `+score` popups, combo-tier callouts (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, screen flashes.
 - 🔊 **Fully-synthesized audio** (Web Audio, no assets) — combo-pitched *thunks*, a beat-driven adaptive **soundtrack** (kick/bass/pentatonic arp that builds with intensity), a tense boss layer + victory stinger.
 - 🎮 **Keyboard + mouse, gamepad, and touch** (twin virtual sticks on phones).
