@@ -336,6 +336,8 @@ export const COHERENCE = {
   exposureGain: 0.3, // exposure added by full coherence
   vignetteDeepen: 0.4, // how much LOW coherence deepens the vignette (world closing in)
   trailDim: 0.4, // ink-trail ghost dimmer floor at coherence 0
+  skylineFloor: 0.05, // skyline band alpha at coherence 0 (a ghost of the dead city)
+  skylineGain: 0.7, // …added at coherence 1 (the City of Lancefall resolves)
   // ── accessibility caps ──
   flashCap: 0.85, // max coherence-driven brightness swing under reduceFlashing
   clarityFloor: 0.85, // min gameplay-layer alpha under Clarity (play layer never dims below this)
