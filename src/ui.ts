@@ -19,6 +19,7 @@ import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById } from './modes';
 import { POWERUPS } from './powerups';
+import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
@@ -99,6 +100,7 @@ export class UI {
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
   private howtoPanel!: HTMLElement;
+  private codexPanel!: HTMLElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
   private leaderPanel!: HTMLElement;
@@ -168,12 +170,13 @@ export class UI {
     this.buildStats();
     this.buildUpgrades();
     this.buildHowTo();
+    this.buildCodex();
     this.buildHeat();
     this.buildArchetype();
     this.buildLeaderboard();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -258,13 +261,15 @@ export class UI {
     statsBtn.addEventListener('click', () => this.openStats());
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
+    const codexBtn = el('button', { class: 'btn btn-ghost' }, '📖 CODEX');
+    codexBtn.addEventListener('click', () => this.showCodex());
     const heatBtn = el('button', { class: 'btn btn-ghost' }, '🔥 HEAT');
     heatBtn.addEventListener('click', () => this.openHeat());
     const archBtn = el('button', { class: 'btn btn-ghost' }, '◈ BUILD');
     archBtn.addEventListener('click', () => this.openArchetype());
     const leaderBtn = el('button', { class: 'btn btn-ghost' }, '🏅 RANKS');
     leaderBtn.addEventListener('click', () => this.openLeaderboard());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, leaderBtn, settingsBtn, how);
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, leaderBtn, settingsBtn, how, codexBtn);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -560,6 +565,33 @@ export class UI {
     close.addEventListener('click', () => this.howtoPanel.classList.add('hidden'));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private buildCodex(): void {
+    const h = el('h2', {}, 'CODEX');
+    const body = el('div', { class: 'codex-body' });
+    for (const { cat, label } of CODEX_CATEGORIES) {
+      body.append(el('div', { class: 'stats-label' }, label));
+      const grid = el('div', { class: 'codex-grid' });
+      for (const e of BESTIARY.filter((x) => x.cat === cat)) {
+        const card = el('div', { class: 'codex-entry' });
+        card.style.setProperty('--accent', e.accent);
+        card.append(
+          el('div', { class: 'codex-name' }, e.name),
+          el('div', { class: 'codex-blurb' }, e.blurb),
+        );
+        grid.append(card);
+      }
+      body.append(grid);
+    }
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.codexPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    this.codexPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private showCodex(): void {
+    this.codexPanel.classList.remove('hidden');
   }
 
   private showHowTo(): void {

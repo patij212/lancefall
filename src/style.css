@@ -642,6 +642,42 @@ body {
   .howto-rule { grid-template-columns: 90px 1fr; }
 }
 
+/* ── Codex / bestiary panel ── */
+.codex-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 780px;
+  text-align: left;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.codex-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.codex-entry {
+  --accent: var(--cyan);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 9px;
+  padding: 8px 11px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-raised));
+}
+.codex-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  font-size: 14px;
+}
+.codex-blurb { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 2px; }
+@media (max-width: 640px) {
+  .codex-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Leaderboard panel ── */
 .leader-body { display: flex; flex-direction: column; gap: 14px; min-width: 420px; max-width: 560px; }
 .leader-name { display: flex; align-items: center; gap: 10px; justify-content: center; }
