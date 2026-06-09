@@ -1554,7 +1554,7 @@ export class Game {
     // bossCount is the true boss-appearance ordinal in every mode (drives HP scaling)
     const boss = spawnBoss(w, this.director.bossCount, force);
     this.audio.bossWarn();
-    this.audio.bossMusic(true);
+    this.audio.bossMusic(true, boss?.kind); // per-boss tension theme
     this.shake.add(TUNE.juice.traumaBossSpawn);
     const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : boss?.kind === 'hollow' ? '#6ee7b7' : boss?.kind === 'sovereign' ? '#fde047' : '#ff3b6b';
     this.renderer.flash(col, 0.3);

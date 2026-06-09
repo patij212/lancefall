@@ -2,6 +2,9 @@
 // scheduled against ctx.currentTime so combo-pitched thunks and the adaptive
 // drone never drift. Lazily created on the first user gesture (autoplay policy).
 
+import { bossTheme } from './bossThemes';
+import type { EnemyKind } from './types';
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
@@ -27,8 +30,8 @@ export class AudioEngine {
   private drone: { osc: OscillatorNode; gain: GainNode }[] = [];
   private droneFilter: BiquadFilterNode | null = null;
   private droneOn = false;
-  // boss tension layer
-  private bossVoice: { osc: OscillatorNode; gain: GainNode } | null = null;
+  // boss tension layer — a per-boss chord of drone voices (see bossThemes.ts)
+  private bossVoices: { osc: OscillatorNode; gain: GainNode }[] = [];
 
   // procedural music (beat-driven, A-minor pentatonic — can't sound "wrong")
   private musicTimer = 0;
@@ -36,6 +39,7 @@ export class AudioEngine {
   private nextNoteT = 0;
   private musicHeat = 0;
   private bossArp = false;
+  private bossArpMul = 1; // per-boss arp pitch shift (set from the active boss theme)
   private readonly bpm = 112;
 
   get ready(): boolean {
@@ -711,7 +715,7 @@ export class AudioEngine {
     if (onArp) {
       const idx = Math.floor(this.musicStep / 2) % AudioEngine.ARP.length;
       const base = AudioEngine.PENTA[AudioEngine.ARP[idx] % AudioEngine.PENTA.length];
-      const freq = this.bossArp ? base * 0.75 : base; // boss: drop a touch, darker
+      const freq = this.bossArp ? base * this.bossArpMul : base; // per-boss arp colour
       this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
     }
   }
@@ -778,35 +782,44 @@ export class AudioEngine {
     };
   }
 
-  /** Layer in a dissonant tritone voice while a boss is alive (and remove it). */
-  bossMusic(on: boolean): void {
+  /** Layer in a per-boss tension chord while a boss is alive (and remove it).
+   *  Each boss kind has its own drone chord + arp colour (see bossThemes.ts). */
+  bossMusic(on: boolean, kind?: EnemyKind): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    this.bossArp = on; // the arp drops darker during a boss fight
+    this.bossArp = on; // the arp recolours during a boss fight
     const t = ctx.currentTime;
     if (on) {
-      if (this.bossVoice || !this.droneFilter) return;
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.value = 55 * Math.pow(2, 6 / 12); // tritone above the root — tension
-      osc.detune.value = 5;
-      const g = ctx.createGain();
-      g.gain.value = 0.0001;
-      osc.connect(g);
-      g.connect(this.droneFilter);
-      osc.start(t);
-      g.gain.setTargetAtTime(0.06, t, 0.4);
-      this.bossVoice = { osc, gain: g };
+      if (this.bossVoices.length || !this.droneFilter) return;
+      const theme = bossTheme(kind ?? 'warden');
+      this.bossArpMul = theme.arpMul;
+      const per = Math.min(0.06, 0.12 / theme.drone.length); // share headroom across voices
+      for (const semi of theme.drone) {
+        const osc = ctx.createOscillator();
+        osc.type = theme.wave;
+        osc.frequency.value = 55 * Math.pow(2, semi / 12);
+        osc.detune.value = theme.detune;
+        const g = ctx.createGain();
+        g.gain.value = 0.0001;
+        osc.connect(g);
+        g.connect(this.droneFilter);
+        osc.start(t);
+        g.gain.setTargetAtTime(per, t, 0.4);
+        this.bossVoices.push({ osc, gain: g });
+      }
     } else {
-      if (!this.bossVoice) return;
-      const v = this.bossVoice;
-      this.bossVoice = null;
-      v.gain.gain.setTargetAtTime(0.0001, t, 0.2);
-      v.osc.stop(t + 0.6);
-      v.osc.onended = () => {
-        v.osc.disconnect();
-        v.gain.disconnect();
-      };
+      if (!this.bossVoices.length) return;
+      this.bossArpMul = 1;
+      const voices = this.bossVoices;
+      this.bossVoices = [];
+      for (const v of voices) {
+        v.gain.gain.setTargetAtTime(0.0001, t, 0.2);
+        v.osc.stop(t + 0.6);
+        v.osc.onended = () => {
+          v.osc.disconnect();
+          v.gain.disconnect();
+        };
+      }
     }
   }
 
