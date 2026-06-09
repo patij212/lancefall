@@ -6,6 +6,8 @@
 
 import { PERKS, rollDraft } from './perks';
 import type { PerkId, PerkDef, PerkStacks, PerkGlyph, RunStats } from './perks';
+import { RELICS, RELIC_IDS } from './relics';
+import type { RelicDef, RelicId } from './relics';
 import type { Rng } from './rng';
 
 export type EvolutionId =
@@ -165,10 +167,14 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
   },
 };
 
-export type DraftCard = PerkDef | EvolutionDef;
+export type DraftCard = PerkDef | EvolutionDef | RelicDef;
 
 export function isEvolution(c: DraftCard): c is EvolutionDef {
   return 'evolved' in c;
+}
+
+export function isRelic(c: DraftCard): c is RelicDef {
+  return 'isRelic' in c;
 }
 
 /** Evolutions whose perk requirements are met and not yet taken this run. */
@@ -195,10 +201,14 @@ export function describeEvolutions(taken: EvolutionId[]): string {
  *  positional args (archetype weightMap now; relics will add fields later). */
 export interface DraftOpts {
   weightMap?: Partial<Record<PerkId, number>>;
+  takenRelics?: RelicId[];
+  relicChance?: number; // 0..1 chance to swap a perk slot for a cursed relic
 }
 
 /** Roll a draft. If an evolution is available it claims one guaranteed slot
- *  (the big payoff should never be missed); the rest are normal perks. */
+ *  (the big payoff should never be missed); the rest are normal perks. A cursed
+ *  relic may replace one perk slot. Relic rolling consumes a FIXED 2 rng calls
+ *  (when relicChance is set) so it never desyncs Daily seeds. */
 export function rollDraftCards(
   rng: Rng,
   stacks: PerkStacks,
@@ -207,13 +217,27 @@ export function rollDraftCards(
   opts: DraftOpts = {},
 ): DraftCard[] {
   const evos = availableEvolutions(stacks, takenEvolutions);
-  if (evos.length === 0) return rollDraft(rng, stacks, size, opts.weightMap);
+  let cards: DraftCard[];
+  if (evos.length === 0) {
+    cards = rollDraft(rng, stacks, size, opts.weightMap);
+  } else {
+    const evo = evos[Math.floor(rng.next() * evos.length)];
+    const perks = rollDraft(rng, stacks, Math.max(0, size - 1), opts.weightMap);
+    cards = [evo, ...perks]; // evolution always leads
+  }
 
-  // pick one available evolution at random
-  const evo = evos[Math.floor(rng.next() * evos.length)];
-  const perks = rollDraft(rng, stacks, Math.max(0, size - 1), opts.weightMap);
-  // evolution always leads the draft so it reads as special
-  return [evo, ...perks];
+  // cursed relic offer — fixed rng consumption (2 calls) for Daily determinism
+  if (opts.relicChance && opts.relicChance > 0) {
+    const roll = rng.next();
+    const idx = Math.floor(rng.next() * RELIC_IDS.length);
+    const id = RELIC_IDS[idx];
+    const taken = opts.takenRelics ?? [];
+    const last = cards[cards.length - 1];
+    if (roll < opts.relicChance && !taken.includes(id) && !isEvolution(last)) {
+      cards[cards.length - 1] = RELICS[id]; // swap the last perk slot for the relic
+    }
+  }
+  return cards;
 }
 
 // re-export so callers can grab a perk def without importing perks too

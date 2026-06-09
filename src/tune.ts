@@ -113,6 +113,7 @@ export const TUNE = {
     perkInterval: 30, // then every 30s
     eventFirst: 50, // first mid-run event at t=50s
     eventInterval: 75, // then roughly every 75s
+    relicChance: 0.22, // chance a perk draft swaps a slot for a cursed relic
     shieldStartTime: 110, // shielded variants appear after this many seconds
     shieldMaxChance: 0.35,
   },

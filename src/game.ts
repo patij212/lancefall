@@ -21,8 +21,9 @@ import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, is
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
-import { rollDraftCards, isEvolution, availableEvolutions, describeEvolutions } from './evolutions';
+import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
+import { RELICS, describeRelics } from './relics';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -276,6 +277,8 @@ export class Game {
     const w = this.world;
     this.draftCards = rollDraftCards(w.rng, w.stacks, w.evolutions, w.stats.draftSize, {
       weightMap: archetypeById(this.save.selectedArchetype).weights,
+      takenRelics: w.relics,
+      relicChance: TUNE.director.relicChance,
     });
     this.state = 'draft';
     this.ui.showDraft(this.draftCards);
@@ -293,6 +296,14 @@ export class Game {
       this.ui.announce(`EVOLVED · ${card.name}`, card.accent);
       this.renderer.flash(card.accent, 0.3);
       this.shake.add(0.4);
+      this.audio.bossStinger();
+    } else if (isRelic(card)) {
+      w.relics.push(card.id);
+      w.boons.push(RELICS[card.id].apply);
+      w.recomputeStats();
+      this.ui.announce(`CURSED · ${card.name}`, card.accent);
+      this.renderer.flash(card.accent, 0.26);
+      this.shake.add(0.35);
       this.audio.bossStinger();
     } else if (card.id === 'shardcache') {
       w.score += 200;
@@ -404,11 +415,12 @@ export class Game {
     this.ui.openUpgrades();
   }
 
-  /** The full run build summary: evolutions (caps) lead, then perk stacks. */
+  /** The full run build summary: evolutions (caps) lead, then relics, then perks. */
   private buildLine(): string {
     const evo = describeEvolutions(this.world.evolutions);
+    const relics = describeRelics(this.world.relics);
     const perks = describeStacks(this.world.stacks);
-    return [evo, perks].filter(Boolean).join(' · ');
+    return [evo, relics, perks].filter(Boolean).join(' · ');
   }
 
   private setHeat(level: number): void {

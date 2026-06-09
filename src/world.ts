@@ -9,6 +9,7 @@ import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import type { RunStats, PerkStacks } from './perks';
 import type { EvolutionId } from './evolutions';
+import type { RelicId } from './relics';
 import type { Rng } from './rng';
 import type { Player, Enemy, Bullet, Gem, EnemyKind } from './types';
 
@@ -120,6 +121,8 @@ export class World {
   stacks: PerkStacks = {};
   /** evolutions taken this run — fusion capstones built on top of perks */
   evolutions: EvolutionId[] = [];
+  /** cursed relics taken this run */
+  relics: RelicId[] = [];
   /** ship stat profile applied before perks (set by the game from the roster) */
   shipApply: (s: RunStats) => void = () => {};
   /** permanent meta-upgrade application (set by the game from the save) */
@@ -176,6 +179,7 @@ export class World {
     this.time = 0;
     this.stacks = {};
     this.evolutions = [];
+    this.relics = [];
     this.boons = [];
     this.recomputeStats();
     this.bossAlive = false;

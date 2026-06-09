@@ -570,6 +570,21 @@ body {
 }
 .reduce-motion .perk-card-evo { animation: none; }
 
+/* Cursed relic draft card — risk/reward, reads as ominous */
+.perk-card-relic {
+  border: 1px dashed var(--accent);
+  border-left: 4px solid var(--accent);
+  background:
+    repeating-linear-gradient(45deg, color-mix(in srgb, var(--accent) 8%, transparent) 0 6px, transparent 6px 12px),
+    var(--bg-raised);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.perk-card-relic .perk-name {
+  color: var(--accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.perk-card-relic .perk-glyph { font-size: 40px; }
+
 /* ── How to play ── */
 .howto-body {
   display: flex;

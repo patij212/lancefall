@@ -5,8 +5,8 @@
 import type { World } from './world';
 import type { Settings, SaveData } from './save';
 import type { PerkDef } from './perks';
-import { isEvolution, EVOLUTIONS } from './evolutions';
-import type { DraftCard } from './evolutions';
+import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
+import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
 import { HEAT_LEVELS } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
@@ -720,14 +720,18 @@ export class UI {
     wrap.replaceChildren();
     cards.forEach((c, i) => {
       const evo = isEvolution(c);
-      const card = el('button', { class: evo ? 'perk-card perk-card-evo' : 'perk-card' });
+      const relic = isRelic(c);
+      const cls = evo ? 'perk-card perk-card-evo' : relic ? 'perk-card perk-card-relic' : 'perk-card';
+      const card = el('button', { class: cls });
       card.style.setProperty('--accent', c.accent);
+      const glyph = relic ? (c as { glyph: string }).glyph : perkGlyph((c as PerkDef).glyph);
       card.append(
         ...(evo ? [el('div', { class: 'perk-tag' }, 'EVOLUTION')] : []),
-        el('div', { class: 'perk-glyph' }, perkGlyph(c.glyph)),
+        ...(relic ? [el('div', { class: 'perk-tag' }, 'CURSED RELIC')] : []),
+        el('div', { class: 'perk-glyph' }, glyph),
         el('div', { class: 'perk-name' }, c.name),
         el('div', { class: 'perk-desc' }, c.desc),
-        ...(evo ? [el('div', { class: 'perk-from' }, c.from)] : []),
+        ...(evo ? [el('div', { class: 'perk-from' }, (c as EvolutionDef).from)] : []),
         el('div', { class: 'perk-key' }, String(i + 1)),
       );
       card.addEventListener('click', () => this.cb.onPick(i));
