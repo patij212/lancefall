@@ -108,6 +108,9 @@ export class UI {
   private waveEl!: HTMLElement;
   private dailyBadge!: HTMLElement;
   private mutatorRow!: HTMLElement;
+  private odWrap!: HTMLElement;
+  private odFill!: HTMLElement;
+  private odLabel!: HTMLElement;
   private dailyCaption!: HTMLElement;
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
@@ -198,7 +201,12 @@ export class UI {
     this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
     const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.bestComboEl);
 
-    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom);
+    // OVERDRIVE meter (below the stamina bar)
+    this.odLabel = el('div', { class: 'hud-od-label' }, 'OVERDRIVE');
+    this.odFill = el('div', { class: 'hud-od-fill' });
+    this.odWrap = el('div', { class: 'hud-overdrive' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
+
+    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap);
     this.rebuildStamina(TUNE.stamina.segments);
   }
 
@@ -933,6 +941,13 @@ export class UI {
 
     this.grazeEl.textContent = world.grazeCount > 0 ? `GRAZE ${world.grazeCount}` : '';
     this.bestComboEl.textContent = world.bestComboRun > 0 ? `best x${world.bestComboRun}` : '';
+
+    // OVERDRIVE meter
+    const od = world.overdrive;
+    const ready = od.meter >= 1 && od.cooldown <= 0;
+    this.odFill.style.transform = `scaleX(${Math.max(0, Math.min(1, od.meter))})`;
+    this.odWrap.classList.toggle('od-ready', ready);
+    this.odLabel.textContent = od.cooldown > 0 ? `RECHARGING ${Math.ceil(od.cooldown)}s` : ready ? 'OVERDRIVE READY [F]' : 'OVERDRIVE';
   }
 }
 

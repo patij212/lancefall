@@ -27,6 +27,8 @@ import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore } from './api';
 import { hintFor, ONBOARDING_STEPS } from './onboarding';
+import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
+import { OVERDRIVE } from './tune';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -367,6 +369,42 @@ export class Game {
     this.audio.duckMusic(false);
   }
 
+  /** OVERDRIVE burst — clear bullets, obliterate nearby chaff, dilate time, big score. */
+  private activateBurst(): void {
+    const w = this.world;
+    if (!activateOverdrive(w.overdrive)) return;
+    const p = w.player;
+    // clear every non-boss bullet on screen
+    w.bullets.forEachActive((b) => { if (!b.fromBoss) w.bullets.release(b); });
+    // obliterate non-boss enemies within the nova radius (snapshot first — killEnemy mutates the pool)
+    const r2 = OVERDRIVE.novaRadius * OVERDRIVE.novaRadius;
+    const victims: import('./types').Enemy[] = [];
+    w.enemies.forEachActive((e) => {
+      if (e.isBoss) return;
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      if (dx * dx + dy * dy <= r2) victims.push(e);
+    });
+    for (const e of victims) if (e.active) this.killEnemy(e, false);
+    // chunk a boss too (a fair reward, not a oneshot)
+    if (w.bossAlive && w.boss) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
+    // score + spectacle
+    const bonus = Math.round(OVERDRIVE.scoreBonus * comboMultiplier(w.combo) * w.stats.scoreMul);
+    w.score += bonus;
+    w.particles.floatText(p.x, p.y - 44, `OVERDRIVE +${bonus.toLocaleString()}`, '#ffffff', 1.7);
+    w.particles.ring(p.x, p.y, OVERDRIVE.novaRadius, '#ffffff', 0.5);
+    w.particles.ring(p.x, p.y, OVERDRIVE.novaRadius * 0.6, '#5beaff', 0.4);
+    w.particles.burst(p.x, p.y, 70, '#ffffff');
+    this.scheduler.requestSlowmo(OVERDRIVE.slowmoHold);
+    this.shake.add(1.0);
+    this.renderer.flash('#ffffff', 0.7);
+    this.renderer.startOverdriveNova('#5beaff');
+    this.audio.overdriveBurst();
+    this.cam.zoom = Math.max(this.cam.zoom, 1.18);
+    this.input.rumble(0.8, 1, 280);
+    this.ui.announce('OVERDRIVE', '#ffffff');
+  }
+
   private openEvent(id: RunEventId): void {
     const def = RUN_EVENTS[id];
     this.eventChoices = rollEventChoices(id, this.world.rng, this.world);
@@ -597,6 +635,7 @@ export class Game {
       if (this.input.consumeStart()) this.start(MODES[0]);
     } else if (this.state === 'playing') {
       if (inp.pausePressed) this.pause();
+      if (inp.overdrivePressed && canActivate(this.world.overdrive)) this.activateBurst();
     } else if (this.state === 'paused') {
       if (inp.pausePressed) this.resume();
     } else if (this.state === 'draft') {
@@ -674,17 +713,24 @@ export class Game {
       if (dec.win) this.winRun();
     }
 
-    // combo decay
-    const c = tickCombo(w.combo, w.comboTimer, dt);
-    if (c.broke) {
-      this.audio.comboBreak();
-      this.ui.comboBreakFlash();
-      w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
-      w.lastTierAnnounced = 0;
-      this.tryHint('comboBreak');
+    // OVERDRIVE meter/cooldown ticks
+    tickOverdrive(w.overdrive, dt);
+
+    // combo decay — frozen during the OVERDRIVE lock window (keep the combo alive)
+    if (w.overdrive.lockTimer > 0) {
+      w.comboTimer = Math.max(w.comboTimer, 1); // hold the window open
+    } else {
+      const c = tickCombo(w.combo, w.comboTimer, dt);
+      if (c.broke) {
+        this.audio.comboBreak();
+        this.ui.comboBreakFlash();
+        w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
+        w.lastTierAnnounced = 0;
+        this.tryHint('comboBreak');
+      }
+      w.combo = c.combo;
+      w.comboTimer = c.timer;
     }
-    w.combo = c.combo;
-    w.comboTimer = c.timer;
 
     // collect streak decay
     if (w.collectStreakTimer > 0) {
@@ -826,6 +872,7 @@ export class Game {
     w.combo = rk.combo;
     w.comboTimer = rk.timer + w.stats.comboWindowBonus; // Slipstream extends the window
     if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
+    chargeFromKill(w.overdrive, w.combo); // build the OVERDRIVE meter
 
     // Siphon: dash-kills refund stamina
     if (fromDash && w.stats.killStaminaRefund > 0) {
@@ -981,6 +1028,7 @@ export class Game {
     const p = w.player;
     b.grazeCd = TUNE.graze.cooldown;
     w.grazeCount++;
+    chargeFromGraze(w.overdrive); // grazing trickles the OVERDRIVE meter
     const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
     p.stamina = Math.min(max, p.stamina + w.stats.grazeStaminaRefund);
     w.score += Math.round(grazeScore(w.combo) * w.stats.scoreMul);

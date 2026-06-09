@@ -147,12 +147,50 @@ export class Renderer {
     // ── composite buffer → screen ──
     this.present(opts, cam);
     this.drawVignette(opts, world);
+    this.drawOverdriveNova(world);
     this.drawBossEntrance();
   }
 
   private bossEntranceT = 0;
   private bossEntranceName = '';
   private bossEntranceColor = '#ffffff';
+  private overdriveNovaT = 0;
+  private overdriveNovaColor = '#5beaff';
+
+  /** Trigger the OVERDRIVE nova shockwave (a ~0.6s expanding screen ring). */
+  startOverdriveNova(color: string): void {
+    this.overdriveNovaT = 1;
+    this.overdriveNovaColor = color;
+  }
+
+  private drawOverdriveNova(world: World): void {
+    if (this.overdriveNovaT <= 0) return;
+    this.overdriveNovaT = Math.max(0, this.overdriveNovaT - 1 / 36); // ~0.6s
+    const sctx = this.sctx;
+    const W = this.screen.width;
+    const H = this.screen.height;
+    const k = 1 - this.overdriveNovaT; // 0 → 1
+    const px = world.player.x * this.dpr;
+    const py = world.player.y * this.dpr;
+    const r = k * Math.max(W, H) * 0.9;
+    sctx.save();
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.globalCompositeOperation = 'lighter';
+    sctx.globalAlpha = (1 - k) * 0.9;
+    sctx.strokeStyle = this.overdriveNovaColor;
+    sctx.lineWidth = (10 + 40 * (1 - k)) * this.dpr;
+    sctx.beginPath();
+    sctx.arc(px, py, r, 0, Math.PI * 2);
+    sctx.stroke();
+    // a brighter leading edge
+    sctx.globalAlpha = (1 - k) * 0.5;
+    sctx.strokeStyle = '#ffffff';
+    sctx.lineWidth = 3 * this.dpr;
+    sctx.beginPath();
+    sctx.arc(px, py, r, 0, Math.PI * 2);
+    sctx.stroke();
+    sctx.restore();
+  }
 
   /** Trigger the ~1s boss-arrival cinematic (cinematic bands + name slam). */
   startBossEntrance(name: string, color: string): void {
@@ -740,6 +778,25 @@ export class Renderer {
   private drawPlayer(world: World): void {
     const ctx = this.bctx;
     const p = world.player;
+
+    // OVERDRIVE charge aura — a ring that fills + pulses brighter as the meter climbs,
+    // and pulses urgently when READY to fire.
+    const od = world.overdrive;
+    if (od.meter > 0.01) {
+      const ready = od.meter >= 1 && od.cooldown <= 0;
+      const pulse = 0.5 + 0.5 * Math.sin(this.bgT * (ready ? 9 : 4));
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = ready ? '#ffffff' : this.theme.accent;
+      ctx.globalAlpha = (ready ? 0.5 + 0.5 * pulse : 0.25 + 0.45 * od.meter);
+      ctx.lineWidth = ready ? 3 : 2;
+      const rr = TUNE.player.spriteRadius * (1.8 + (ready ? pulse * 0.5 : 0.3));
+      // arc that fills clockwise with the meter
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, od.meter));
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // dash spear line + streaking ship afterimages (the "snap" of the dash)
     if (p.phase === 'dashing') {

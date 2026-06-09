@@ -16,6 +16,7 @@ export class InputManager {
   private hasMouse = false;
   private prevDash = false;
   private pauseEdge = false;
+  private overdriveEdge = false;
   private selectEdge = -1;
   private anyEdge = false;
   private restartEdge = false;
@@ -41,6 +42,7 @@ export class InputManager {
     dashHeld: false,
     dashReleased: false,
     pausePressed: false,
+    overdrivePressed: false,
     selectIndex: -1,
     anyPressed: false,
   };
@@ -57,6 +59,7 @@ export class InputManager {
       this.keys.add(k);
       this.anyEdge = true;
       if (k === 'escape' || k === 'p') this.pauseEdge = true;
+      if (k === 'f' || k === 'shift') this.overdriveEdge = true; // OVERDRIVE ultimate
       if (k === '1') this.selectEdge = 0;
       if (k === '2') this.selectEdge = 1;
       if (k === '3') this.selectEdge = 2;
@@ -182,6 +185,7 @@ export class InputManager {
       }
       if (gp.dash) dashHeld = true;
       if (gp.pauseEdge) this.pauseEdge = true;
+      if (gp.overdriveEdge) this.overdriveEdge = true;
       if (gp.anyEdge) this.anyEdge = true;
     }
 
@@ -192,9 +196,11 @@ export class InputManager {
     this.prevDash = dashHeld;
 
     s.pausePressed = this.pauseEdge;
+    s.overdrivePressed = this.overdriveEdge;
     s.selectIndex = this.selectEdge;
     s.anyPressed = this.anyEdge;
     this.pauseEdge = false;
+    this.overdriveEdge = false;
     this.selectEdge = -1;
     this.anyEdge = false;
     return s;
@@ -211,6 +217,7 @@ export class InputManager {
     this.startEdge = false;
     this.confirmEdge = false;
     this.selectEdge = -1;
+    this.overdriveEdge = false;
   }
 
   /** Consume the one-shot restart edge (R key). */
@@ -236,7 +243,7 @@ export class InputManager {
 
   private prevGpButtons: boolean[] = [];
   private pollGamepad():
-    | { moveX: number; moveY: number; aimX: number; aimY: number; dash: boolean; pauseEdge: boolean; anyEdge: boolean }
+    | { moveX: number; moveY: number; aimX: number; aimY: number; dash: boolean; pauseEdge: boolean; overdriveEdge: boolean; anyEdge: boolean }
     | null {
     if (!navigator.getGamepads) return null;
     const pads = navigator.getGamepads();
@@ -249,12 +256,14 @@ export class InputManager {
     const dash = btn(0) || btn(7) || btn(5);
     const start = btn(9);
     let pauseEdge = false;
+    let overdriveEdge = false;
     let anyEdge = false;
     for (let i = 0; i < pad.buttons.length; i++) {
       const pressed = pad.buttons[i]?.pressed ?? false;
       if (pressed && !this.prevGpButtons[i]) {
         anyEdge = true;
         if (i === 9) pauseEdge = true;
+        if (i === 4) overdriveEdge = true; // LB/L1 → OVERDRIVE
         if (i === 0) {
           this.startEdge = true;
           this.confirmEdge = true;
@@ -272,6 +281,7 @@ export class InputManager {
       aimY: dz(ax[3] ?? 0),
       dash,
       pauseEdge: pauseEdge && start,
+      overdriveEdge,
       anyEdge,
     };
   }

@@ -252,6 +252,21 @@ export const ELITE = {
   aura: '#fde047', // gold champion aura
 };
 
+// OVERDRIVE — a combo-charged ultimate. Fill the meter (kills + grazes), then
+// unleash a screen-clearing time-dilated nova. The power-fantasy release.
+export const OVERDRIVE = {
+  chargePerKill: 0.055,
+  chargePerHighComboKill: 0.09,
+  highComboThreshold: 20,
+  chargePerGraze: 0.012,
+  cooldown: 18, // seconds before it can charge/fire again after a burst
+  lockDuration: 3.2, // seconds the combo is frozen (no decay) after the burst
+  novaRadius: 360, // px — non-boss enemies inside are obliterated
+  novaDmg: 99,
+  scoreBonus: 5000, // flat bonus (× combo mult × scoreMul)
+  slowmoHold: 1.8, // seconds of slow-mo on activation
+};
+
 export const WARDEN = {
   baseHp: 12, // dash-hits
   hpPerInterval: 4, // +per boss appearance

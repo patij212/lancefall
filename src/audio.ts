@@ -122,6 +122,60 @@ export class AudioEngine {
     return src;
   }
 
+  /** OVERDRIVE activation — a 3-layer hero stinger: sub sweep (weight) + rising
+   *  noise shred (bullets dissolving) + a bright staggered F-A-C chord (triumph). */
+  overdriveBurst(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // (a) deep sub sweep 90 → 32 Hz
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    const sg = ctx.createGain();
+    sub.frequency.setValueAtTime(90, t);
+    sub.frequency.exponentialRampToValueAtTime(32, t + 0.5);
+    sg.gain.setValueAtTime(0.0001, t);
+    sg.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+    sg.gain.exponentialRampToValueAtTime(0.0008, t + 0.6);
+    sub.connect(sg);
+    sg.connect(this.sfxBus);
+    sub.start(t);
+    sub.stop(t + 0.62);
+    sub.onended = () => { sub.disconnect(); sg.disconnect(); };
+    // (b) rising high-passed noise shred
+    const n = this.noiseSource();
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.setValueAtTime(800, t);
+    f.frequency.exponentialRampToValueAtTime(5000, t + 0.4);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.28, t + 0.03);
+    ng.gain.exponentialRampToValueAtTime(0.0006, t + 0.5);
+    n.connect(f);
+    f.connect(ng);
+    ng.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.5);
+    n.onended = () => { n.disconnect(); f.disconnect(); ng.disconnect(); };
+    // (c) bright sawtooth chord F-A-C, staggered attack
+    [349.23, 440, 523.25].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      const st = t + i * 0.04;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.17, st + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.6);
+      o.connect(g);
+      g.connect(this.sfxBus);
+      o.start(st);
+      o.stop(st + 0.62);
+      o.onended = () => { o.disconnect(); g.disconnect(); };
+    });
+  }
+
   /** Bass "thunk" on a kill — pitched UP with the combo so a clean run plays an
    *  ascending scale. */
   thunk(combo: number): void {

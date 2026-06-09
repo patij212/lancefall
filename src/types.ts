@@ -155,6 +155,8 @@ export interface InputState {
   /** edge: released this frame */
   dashReleased: boolean;
   pausePressed: boolean;
+  /** edge: OVERDRIVE ultimate activation pressed this frame */
+  overdrivePressed: boolean;
   /** perk-draft selection edge: 0/1/2 or -1 */
   selectIndex: number;
   anyPressed: boolean; // any start input (to leave title)

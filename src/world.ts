@@ -7,6 +7,7 @@ import { Particles } from './particles';
 import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
+import { makeOverdrive, resetOverdrive } from './overdrive';
 import type { RunStats, PerkStacks } from './perks';
 import type { EvolutionId } from './evolutions';
 import type { RelicId } from './relics';
@@ -139,6 +140,9 @@ export class World {
   bossAlive = false;
   boss: Enemy | null = null;
 
+  /** OVERDRIVE ultimate meter/cooldown state */
+  overdrive = makeOverdrive();
+
   // afterimage perk: a lingering damaging ghost of the last dash
   ghostX0 = 0;
   ghostY0 = 0;
@@ -186,6 +190,7 @@ export class World {
     this.bossAlive = false;
     this.boss = null;
     this.ghostTimer = 0;
+    resetOverdrive(this.overdrive);
   }
 
   recomputeStats(): void {
