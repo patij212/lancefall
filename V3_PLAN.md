@@ -1,10 +1,12 @@
 # LANCEFALL v3 — execution plan (multi-agent design → sequential build)
 
 > **STATUS: ALL PHASES (0–5) COMPLETE.** v3 shipped — 161 tests green, build clean, save v3.
-> Phase 4 polish: adaptive perf + dash blaze + victory cinematic (settings-depth/onboarding deferred as low-value).
-> Phase 5: offline-first leaderboard client + RANKS panel + a deploy-ready Cloudflare Worker
-> (`worker/` — the owner deploys with their account; game is fully offline until `VITE_LEADERBOARD_URL` is set).
-> Optional future polish: onboarding refresh, boss-entrance cinematic, settings depth (rumble/fps), ghost replay (cut).
+> Phase 4 polish: adaptive perf + dash blaze + victory cinematic + boss-entrance cinematic + settings depth (CA slider, rumble toggle) + progressive onboarding.
+> Phase 5: offline-first leaderboard client + RANKS panel + a Cloudflare Worker (`worker/`) —
+> VALIDATED LOCALLY (typecheck, dry-run bundle, and live endpoints via `wrangler dev`: submit,
+> leaderboard ranking, sanity-cap rejection, name sanitization, CORS all confirmed). The owner
+> deploys to the cloud with their account (`worker/README.md`, ~5 min); game is fully offline
+> until `VITE_LEADERBOARD_URL` is set. Only ghost-replay remains cut.
 >
 > ---
 > (historical) **RESUME POINTER:** Phases 0, 1, 2, 3 were done at 158 tests, save v3.
@@ -54,7 +56,7 @@ in-browser) and committed.
 - `heat.ts` (ascension ladder), `ghost.ts` (best-run replay shadow), `archetypes.ts` (build goals up-weight draft), `relics.ts` (cursed double-edged, extend DraftCard + isRelic guard), Build DNA export (save codec + share). Pure layers + tests first, then wiring on the settled draft chassis. Overlays only (NO new State).
 - Quick win subset: **Build DNA export** (~65 lines) + **Build Archetypes overlay**.
 
-## Phase 4 — Steam polish (Direction 4)  [DONE ✓ — adaptive perf, dash-trail blaze, victory cinematic; settings-depth/onboarding/boss-entrance deferred as lower-value]
+## Phase 4 — Steam polish (Direction 4)  [DONE ✓ — adaptive perf, dash-trail blaze, victory cinematic, boss-entrance cinematic, settings depth (CA slider + rumble toggle), progressive onboarding]
 - Audio mix pass (isolated, quick win). tune additive consts (MAX_PARTICLES, comboTierPulseAlpha).
 - render cinematics: victory sequence, boss entrance, combo-tier pulse (LAST render.ts toucher).
 - perf hardening (particle cap + frame-time auto-scale), onboarding refinement, pause/quit UX.
