@@ -105,6 +105,12 @@ export class Game {
   private eliteMods = { chanceMul: 1, maxAdd: 0 }; // champion-spawn mods from mutators
   private runHeat = 0; // heat level locked in for the active run
   private intensityTimer = 0;
+  // adaptive perf: scale particle density down when frames run slow, restore when fast
+  private baseDensity = 1;
+  private perfScale = 1;
+  private frameAccum = 0;
+  private frameCount = 0;
+  private perfCooldown = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.renderer = new Renderer(canvas);
@@ -174,9 +180,32 @@ export class Game {
     saveSettings(s);
     this.audio.setVolumes(s.master, s.sfx, s.music);
     this.shake.intensity = s.shake * (s.reduceFlashing ? 0.4 : 1);
-    this.world.particles.density = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);
+    this.baseDensity = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);
+    this.world.particles.density = this.baseDensity * this.perfScale;
     // reduce-motion disables decorative UI animations/transitions (CSS)
     document.documentElement.classList.toggle('reduce-motion', s.reduceMotion);
+  }
+
+  /** Adaptive perf: average frame time over ~0.5s windows and scale particle
+   *  density down if we're dropping frames, back up when there's headroom. Keeps
+   *  the game smooth on weaker machines under extreme load without a config toggle. */
+  private adaptPerf(realDt: number): void {
+    this.frameAccum += realDt;
+    this.frameCount++;
+    if (this.perfCooldown > 0) this.perfCooldown -= realDt;
+    if (this.frameCount < 30) return;
+    const avg = this.frameAccum / this.frameCount;
+    this.frameAccum = 0;
+    this.frameCount = 0;
+    if (this.perfCooldown > 0) return;
+    let next = this.perfScale;
+    if (avg > 0.022 && this.perfScale > 0.4) next = Math.max(0.4, this.perfScale - 0.2); // <~45fps → ease off
+    else if (avg < 0.015 && this.perfScale < 1) next = Math.min(1, this.perfScale + 0.2); // >~66fps → restore
+    if (next !== this.perfScale) {
+      this.perfScale = next;
+      this.world.particles.density = this.baseDensity * this.perfScale;
+      this.perfCooldown = 3; // avoid thrash
+    }
   }
 
   // ── state transitions ──
@@ -475,6 +504,8 @@ export class Game {
     let realDt = (now - this.lastTime) / 1000;
     this.lastTime = now;
     if (realDt > 0.1) realDt = 0.1;
+
+    if (this.state === 'playing') this.adaptPerf(realDt);
 
     this.input.poll(this.world.player.x, this.world.player.y);
     this.handleMeta();

@@ -718,17 +718,19 @@ export class Renderer {
       // ghost silhouettes along the travelled segment — crisp outlines that
       // read as a streak of ships, fading toward the tail
       const gsr = TUNE.player.spriteRadius;
+      const blaze = Math.min(1, world.combo / 50); // the trail intensifies as the chain climbs
+      const ghosts = 4 + Math.round(2 * blaze); // 4 → 6 at high combo
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = this.theme.accent2;
+      ctx.strokeStyle = blaze > 0.5 ? mix(this.theme.accent2, '#ffffff', (blaze - 0.5) * 2) : this.theme.accent2;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
-      for (let i = 1; i <= 4; i++) {
-        const t = i / 5;
+      for (let i = 1; i <= ghosts; i++) {
+        const t = i / (ghosts + 1);
         const gx = p.dashFromX + (p.x - p.dashFromX) * t;
         const gy = p.dashFromY + (p.y - p.dashFromY) * t;
         const s = 0.7 + 0.3 * t; // ghosts grow toward the ship
-        ctx.globalAlpha = 0.22 + 0.4 * t;
+        ctx.globalAlpha = Math.min(1, (0.22 + 0.4 * t) * (1 + 0.5 * blaze));
         ctx.save();
         ctx.translate(gx, gy);
         ctx.rotate(p.angle);
