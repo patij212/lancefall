@@ -607,6 +607,29 @@ export class Renderer {
         ctx.fill();
         break;
       }
+      case 'brooder': {
+        const tele = e.telegraph || 0;
+        // hexagonal carrier pod
+        ctx.save();
+        ctx.rotate(e.spawnTime * 0.3);
+        ngon(ctx, 6, r);
+        ctx.restore();
+        // pulsing hatch core — brightens + flickers in the windup before a hatch
+        const pulse = tele > 0 ? 0.4 + 0.6 * Math.abs(Math.sin(e.spawnTime * 22)) : 0.3;
+        ctx.fillStyle = flash ? '#ffffff' : `rgba(216,180,254,${pulse})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (0.38 + 0.18 * tele), 0, Math.PI * 2);
+        ctx.fill();
+        // egg dots orbiting the pod (drones waiting to hatch)
+        ctx.fillStyle = '#ddd6fe';
+        for (let i = 0; i < 3; i++) {
+          const a = e.spawnTime * 1.6 + (i / 3) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
       case 'hollow':
         this.drawHollow(ctx, e, r);
         break;

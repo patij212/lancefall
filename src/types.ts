@@ -16,6 +16,7 @@ export type EnemyKind =
   | 'wisp'
   | 'drifter'
   | 'shade'
+  | 'brooder'
   | 'warden'
   | 'weaver'
   | 'beacon'

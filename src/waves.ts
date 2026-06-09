@@ -79,6 +79,7 @@ export function unlockedKinds(t: number): EnemyKind[] {
   if (t >= 75) out.push('drifter');
   if (t >= 85) out.push('bloomer');
   if (t >= 105) out.push('bomber');
+  if (t >= 120) out.push('brooder');
   if (t >= 130) out.push('wisp');
   if (t >= 150) out.push('shade');
   return out;
@@ -96,6 +97,7 @@ export function enemyWeights(t: number, I: number): { v: EnemyKind; w: number }[
     wisp: 0.5,
     drifter: 0.4 + 0.2 * clamp(I, 0, 1),
     shade: 0.25 + 0.2 * clamp(I, 0, 1),
+    brooder: 0.22 + 0.16 * clamp(I, 0, 1), // a few carriers; kept modest (each births up to 4)
     mini: 0,
     warden: 0,
     weaver: 0,

@@ -4,7 +4,7 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP } from './tune';
+import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import { makeOverdrive, resetOverdrive } from './overdrive';
@@ -266,7 +266,11 @@ export class World {
     e.color = def.color;
     e.baseScore = def.baseScore;
     e.timer =
-      kind === 'darter' ? DARTER.cadence : kind === 'drifter' ? DRIFTER_TUNE.repositionTime : kind === 'shade' ? SHADE_TUNE.blinkCadence : 0;
+      kind === 'darter' ? DARTER.cadence
+      : kind === 'drifter' ? DRIFTER_TUNE.repositionTime
+      : kind === 'shade' ? SHADE_TUNE.blinkCadence
+      : kind === 'brooder' ? BROODER.spawnEvery // wait before the first hatch
+      : 0;
     e.phase = 0;
     e.telegraph = 0;
     e.angle = this.rng.range(0, Math.PI * 2);

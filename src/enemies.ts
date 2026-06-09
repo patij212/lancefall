@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -40,6 +40,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'shade':
       shade(e, world, dt);
+      break;
+    case 'brooder':
+      brooder(e, world, dt);
       break;
     case 'hollow_echo':
       hollowEcho(e, world, dt);
@@ -142,6 +145,32 @@ function bloomer(e: Enemy, world: World, dt: number): void {
     for (let i = 0; i < n; i++) {
       const a = off + (i / n) * Math.PI * 2;
       world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#ffd23b', false);
+    }
+  }
+}
+
+function brooder(e: Enemy, world: World, dt: number): void {
+  // wander slowly on a lazy lissajous near arena centre
+  const cx = world.width / 2;
+  const cy = world.height / 2;
+  const tx = cx + Math.cos(e.spawnTime * 0.5) * world.width * 0.18;
+  const ty = cy + Math.sin(e.spawnTime * 0.6) * world.height * 0.16;
+  steerToward(e, tx, ty, BROODER.driftSpeed * e.speedMul);
+
+  e.timer -= dt;
+  // pulse the core in the windup before a hatch (the tell)
+  e.telegraph = e.subPhase < BROODER.maxSpawns && e.timer < BROODER.windup ? clamp(1 - e.timer / BROODER.windup, 0, 1) : 0;
+  if (e.timer <= 0) {
+    e.timer = BROODER.spawnEvery;
+    e.telegraph = 0;
+    if (e.subPhase < BROODER.maxSpawns) {
+      const a = world.rng.range(0, Math.PI * 2);
+      const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false);
+      if (child) {
+        child.vx = Math.cos(a) * BROODER.childSpeed;
+        child.vy = Math.sin(a) * BROODER.childSpeed;
+      }
+      e.subPhase++;
     }
   }
 }

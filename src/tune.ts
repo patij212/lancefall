@@ -140,6 +140,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   wisp: { kind: 'wisp', hp: 1, radius: 8, color: '#67e8f9', baseScore: 45, speed: 210 },
   drifter: { kind: 'drifter', hp: 2, radius: 14, color: '#10b981', baseScore: 230, speed: 80 },
   shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240, speed: 150 },
+  brooder: { kind: 'brooder', hp: 2, radius: 17, color: '#a78bfa', baseScore: 280, speed: 45 },
   hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300, speed: 0 },
   sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150, speed: 0 },
 };
@@ -161,6 +162,16 @@ export const ORBITER = {
 export const SPLITTER = {
   childCount: 2,
   childSpeed: 150,
+};
+
+// Brooder — a slow "carrier" that periodically hatches a fast mini drone (up to a
+// cap). The tactical hook: prioritise dashing it down before it floods the screen.
+export const BROODER = {
+  driftSpeed: 45,
+  spawnEvery: 2.6, // s between hatches
+  windup: 0.6, // telegraph (core pulse) before a hatch
+  maxSpawns: 4, // total drones one brooder births, then it's just a slow target
+  childSpeed: 140,
 };
 
 export const BLOOMER = {
