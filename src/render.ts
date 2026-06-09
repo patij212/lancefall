@@ -146,6 +146,46 @@ export class Renderer {
     // ── composite buffer → screen ──
     this.present(opts, cam);
     this.drawVignette(opts, world);
+    this.drawBossEntrance();
+  }
+
+  private bossEntranceT = 0;
+  private bossEntranceName = '';
+  private bossEntranceColor = '#ffffff';
+
+  /** Trigger the ~1s boss-arrival cinematic (cinematic bands + name slam). */
+  startBossEntrance(name: string, color: string): void {
+    this.bossEntranceT = 1.0;
+    this.bossEntranceName = name;
+    this.bossEntranceColor = color;
+  }
+
+  private drawBossEntrance(): void {
+    if (this.bossEntranceT <= 0) return;
+    this.bossEntranceT = Math.max(0, this.bossEntranceT - 1 / 60);
+    const sctx = this.sctx;
+    const W = this.screen.width;
+    const H = this.screen.height;
+    const t = 1 - this.bossEntranceT; // 0 → 1 over the second
+    const a = Math.sin(Math.min(1, t) * Math.PI); // ease in/out 0→1→0
+    sctx.save();
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    // letterbox bands sweeping in behind the name
+    sctx.globalAlpha = a * 0.55;
+    sctx.fillStyle = '#05060c';
+    const bandH = H * 0.16;
+    sctx.fillRect(0, H * 0.5 - bandH, W, bandH * 2);
+    // the boss name — large, glowing, sliding to centre
+    sctx.globalAlpha = a;
+    sctx.fillStyle = this.bossEntranceColor;
+    sctx.textAlign = 'center';
+    sctx.textBaseline = 'middle';
+    sctx.font = `700 ${Math.round(H * 0.085)}px 'Space Grotesk', system-ui, sans-serif`;
+    sctx.shadowColor = this.bossEntranceColor;
+    sctx.shadowBlur = 28;
+    const slide = (1 - a) * 50 * this.dpr;
+    sctx.fillText(this.bossEntranceName, W / 2 + slide, H * 0.5);
+    sctx.restore();
   }
 
   private drawBackground(combo: number): void {

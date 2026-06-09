@@ -1218,7 +1218,8 @@ export class Game {
     this.shake.add(TUNE.juice.traumaBossSpawn);
     const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : boss?.kind === 'hollow' ? '#6ee7b7' : '#ff3b6b';
     this.renderer.flash(col, 0.3);
-    this.ui.toast(`⚠ ${bossName(boss?.kind ?? 'warden')} APPROACHES`);
+    // a proper arrival cinematic (replaces the old toast)
+    this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
   }
 
   private setBiome(index: number, announce: boolean): void {
