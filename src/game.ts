@@ -24,6 +24,7 @@ import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
+import { encodeBuildDna } from './buildDna';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -121,6 +122,7 @@ export class Game {
       onPick: (i) => this.pickPerk(i),
       onPickEvent: (i) => this.pickEvent(i),
       onCopyScore: () => this.copyScore(),
+      onCopyBuildDna: () => this.copyBuildDna(),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
@@ -434,6 +436,25 @@ export class Game {
     this.save.selectedArchetype = archetypeById(id).id;
     saveSave(this.save);
     this.ui.refreshTitle(this.save);
+  }
+
+  private copyBuildDna(): void {
+    const w = this.world;
+    const dna = encodeBuildDna({
+      v: 1,
+      ship: this.save.selectedShip,
+      heat: this.runHeat,
+      arch: this.save.selectedArchetype,
+      stacks: { ...w.stacks },
+      evos: w.evolutions.slice(),
+      relics: w.relics.slice(),
+    });
+    try {
+      void navigator.clipboard?.writeText(dna);
+      this.ui.toast('Build DNA copied — share your build!');
+    } catch {
+      this.ui.toast(dna);
+    }
   }
 
   private copyScore(): void {

@@ -28,6 +28,7 @@ export interface UICallbacks {
   onPick: (index: number) => void;
   onPickEvent: (index: number) => void;
   onCopyScore: () => void;
+  onCopyBuildDna: () => void;
   onSettingsChange: (s: Settings) => void;
   onSelectShip: (id: string) => void;
   onUnlockShip: (id: string) => void;
@@ -312,9 +313,11 @@ export class UI {
     again.addEventListener('click', () => this.cb.onRestart());
     const copy = el('button', { class: 'btn btn-ghost' }, 'COPY SCORE');
     copy.addEventListener('click', () => this.cb.onCopyScore());
+    const dna = el('button', { class: 'btn btn-ghost' }, 'COPY BUILD ⧬');
+    dna.addEventListener('click', () => this.cb.onCopyBuildDna());
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
-    const row = el('div', { class: 'go-row' }, again, copy, menu);
+    const row = el('div', { class: 'go-row' }, again, copy, dna, menu);
     const panel = el('div', { class: 'panel' }, this.goHead, this.goSub, this.goBadge, this.goScore, this.goDelta, this.goStats, this.goBuild, this.goAch, row);
     this.gameover = el('div', { class: 'screen screen-dim' }, panel);
   }
