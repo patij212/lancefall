@@ -44,13 +44,13 @@ export function ambientReady(n: NarratorState, bucket: string, nowSec: number, g
 // The dead world is mostly silent — restraint IS the soul. ~30 terse,
 // second-person lines, surfaced on the existing non-blocking toast/announce.
 export const NARRATOR = {
-  runStart: ['The city is gray. You remember it lit.', 'One lance. One descent. Begin.'],
+  runStart: ['The city is grey. You remember it lit.', 'One lance. One last descent.'],
   firstKill: ['One. The dark notices.'],
   // keyed by the combo-tier cut point (COHERENCE.tierCombo); only some tiers speak
   comboTier: {
     10: 'Ten. The streets begin to remember.',
     20: 'Twenty. A whole street remembers.',
-    50: 'Fifty. The skyline burns awake.',
+    50: 'Fifty. The whole skyline remembers now.',
     100: 'A hundred. Lancefall stands again.',
   } as Record<number, string>,
   comboBreak: ['The colour drains. Get it back.', 'The city forgets a little. Remind it again.'],
@@ -66,7 +66,7 @@ export const NARRATOR = {
     warden: '"I only locked the doors you forgot."',
     weaver: 'The threads fall slack. The story is yours now.',
     beacon: 'The false light goes out for good.',
-    mirrorblade: 'Your doubt, face-down. You meant it more.',
+    mirrorblade: 'Your doubt, face-down. You outlasted it.',
     hollow: 'You caught it in the one true moment.',
     sovereign: 'The crown is bare. You proved it could be saved.',
   } as Partial<Record<EnemyKind, string>>,

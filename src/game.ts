@@ -1478,7 +1478,7 @@ export class Game {
       this.shake.add(0.5);
       this.audio.lastBreath();
       this.ui.announce('LAST BREATH', '#c4b5fd');
-    this.narrate('last_breath', 'toast', NARRATOR.lastBreath);
+      this.narrate('last_breath', 'toast', NARRATOR.lastBreath);
       w.particles.ring(p.x, p.y, CLUTCH.lastBreathPushRadius, '#a78bfa', 0.6);
       w.particles.burst(p.x, p.y, 30, '#c4b5fd');
       this.input.rumble(0.4, 0.4, 200);

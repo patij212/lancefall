@@ -19,27 +19,27 @@ export const BIOME_DURATION = 45; // seconds per biome before cycling
 
 export const BIOMES: Biome[] = [
   {
-    id: 'void', name: 'THE VOID', accent: '#22d3ee',
+    id: 'void', name: 'THE COURT', accent: '#22d3ee',
     nebula: ['#103040', '#241046', '#2e1030'], bias: {}, speedMul: 1, shieldBonus: 0,
   },
   {
-    id: 'ember', name: 'EMBERFIELD', accent: '#fb923c',
+    id: 'ember', name: 'THE EMBERWALL', accent: '#fb923c',
     nebula: ['#3a1810', '#3a1020', '#2a1428'], bias: { darter: 1.6, bomber: 1.6 }, speedMul: 1.08, shieldBonus: 0,
   },
   {
-    id: 'lattice', name: 'THE LATTICE', accent: '#38bdf8',
+    id: 'lattice', name: 'THE VAULTS', accent: '#38bdf8',
     nebula: ['#0e2840', '#103048', '#142038'], bias: { orbiter: 1.7, lancer: 1.7 }, speedMul: 1, shieldBonus: 0.05,
   },
   {
-    id: 'bloom', name: 'BLOOMGARDEN', accent: '#a855f7',
+    id: 'bloom', name: 'THE BLOOMGARDENS', accent: '#a855f7',
     nebula: ['#241040', '#1a3a20', '#2e1030'], bias: { splitter: 1.6, bloomer: 1.6, wisp: 1.6 }, speedMul: 1, shieldBonus: 0,
   },
   {
-    id: 'warren', name: 'THE WARREN', accent: '#a78bfa',
+    id: 'warren', name: 'THE WARRENS', accent: '#a78bfa',
     nebula: ['#1a1030', '#0e2a2a', '#221838'], bias: { brooder: 2.0, shade: 1.5, drifter: 1.4 }, speedMul: 1, shieldBonus: 0,
   },
   {
-    id: 'null', name: 'NULLSPACE', accent: '#94a3b8',
+    id: 'null', name: 'THE NULL', accent: '#94a3b8',
     nebula: ['#1a1f2a', '#15151a', '#202028'], bias: {}, speedMul: 1.12, shieldBonus: 0.12,
   },
 ];

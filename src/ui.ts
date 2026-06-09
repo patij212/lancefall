@@ -177,7 +177,7 @@ export class UI {
     // aria-live so the narrator's SOUL payload reaches screen-reader users:
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
-    this.announceEl = el('div', { class: 'announce', role: 'alert', 'aria-live': 'assertive' });
+    this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
     this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
