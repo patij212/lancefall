@@ -26,6 +26,9 @@ describe('save migration', () => {
     expect(out.meta).toEqual({});
     expect(out.achievements).toEqual([]);
     expect(out.bestWave).toBe(0);
+    // v4 cosmetic dash-trail fields default-fill for pre-v4 saves
+    expect(out.unlockedTrails).toEqual(['pulse']);
+    expect(out.selectedTrail).toBe('pulse');
   });
 
   it('always reports the current version even if an older one was stored', () => {

@@ -29,6 +29,10 @@ export interface SaveData {
   unlockedThemes: string[];
   /** currently-selected theme id */
   selectedTheme: string;
+  /** cosmetic dash-trail ids the player has unlocked */
+  unlockedTrails: string[];
+  /** currently-selected dash-trail id */
+  selectedTrail: string;
   /** lifetime totals */
   lifeKills: number;
   lifeBoss: number;
@@ -86,6 +90,8 @@ export function defaultSave(): SaveData {
     selectedShip: 'lance',
     unlockedThemes: ['neon'],
     selectedTheme: 'neon',
+    unlockedTrails: ['pulse'],
+    selectedTrail: 'pulse',
     lifeKills: 0,
     lifeBoss: 0,
     lifeShards: 0,

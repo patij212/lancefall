@@ -8,6 +8,8 @@ import { clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, Bullet } from './types';
 import type { ThemeDef } from './themes';
+import { trailById, trailGhostColor } from './trails';
+import type { TrailDef } from './trails';
 import { themeById } from './themes';
 
 export interface Camera {
@@ -42,10 +44,15 @@ export class Renderer {
   private stars: { x: number; y: number; z: number; phase: number; tw: number }[] = [];
   private bgT = 0;
   private theme: ThemeDef = themeById('neon');
+  private trail: TrailDef = trailById('pulse');
   private biomeTint: [string, string, string] | null = null;
 
   setTheme(t: ThemeDef): void {
     this.theme = t;
+  }
+
+  setTrail(t: TrailDef): void {
+    this.trail = t;
   }
 
   /** Override the nebula tint during a run (biome stage); null = use theme. */
@@ -1007,7 +1014,8 @@ export class Renderer {
       const ghosts = 4 + Math.round(2 * blaze); // 4 → 6 at high combo
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = blaze > 0.5 ? mix(this.theme.accent2, '#ffffff', (blaze - 0.5) * 2) : this.theme.accent2;
+      const ghostBase = trailGhostColor(this.trail, this.theme.accent2);
+      ctx.strokeStyle = blaze > 0.5 ? mix(ghostBase, '#ffffff', (blaze - 0.5) * 2) : ghostBase;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
       for (let i = 1; i <= ghosts; i++) {

@@ -14,6 +14,7 @@ import { leaderboardEnabled, fetchLeaderboard } from './api';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
+import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById } from './modes';
@@ -36,6 +37,8 @@ export interface UICallbacks {
   onUnlockShip: (id: string) => void;
   onSelectTheme: (id: string) => void;
   onUnlockTheme: (id: string) => void;
+  onSelectTrail: (id: string) => void;
+  onUnlockTrail: (id: string) => void;
   onBuyMeta: (id: string) => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
@@ -128,6 +131,7 @@ export class UI {
   private titleBest!: HTMLElement;
   private shipRow!: HTMLElement;
   private themeRow!: HTMLElement;
+  private trailRow!: HTMLElement;
   private shardLine!: HTMLElement;
 
   // gameover refs
@@ -267,6 +271,8 @@ export class UI {
     const shipSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'SHIP'), this.shipRow);
     this.themeRow = el('div', { class: 'theme-row' });
     const themeSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'PALETTE'), this.themeRow);
+    this.trailRow = el('div', { class: 'theme-row' });
+    const trailSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'DASH TRAIL'), this.trailRow);
     this.soundHint = el('div', { class: 'sound-hint' }, '♪ click PLAY to enable sound');
 
     const legend = el(
@@ -289,6 +295,7 @@ export class UI {
       this.dailyCaption,
       shipSection,
       themeSection,
+      trailSection,
       legend,
       this.titleBest,
       this.shardLine,
@@ -782,6 +789,23 @@ export class UI {
         else this.cb.onUnlockTheme(theme.id);
       });
       this.themeRow.append(sw);
+    }
+
+    this.trailRow.replaceChildren();
+    for (const trail of TRAILS) {
+      const unlocked = save.unlockedTrails.includes(trail.id);
+      const selected = save.selectedTrail === trail.id;
+      const sw = el('button', { class: 'theme-sw' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
+      sw.style.setProperty('--a', trail.combo ? '#22d3ee' : trail.base);
+      sw.style.setProperty('--b', trail.bright);
+      const req = trail.unlockAch ? '★' : `◆${trail.unlockShards}`;
+      sw.title = unlocked ? trail.name : `${trail.name} — ${trail.unlockAch ? 'beat the Sovereign' : `◆ ${trail.unlockShards}`}`;
+      sw.append(el('span', { class: 'theme-name' }, unlocked ? trail.name : req));
+      sw.addEventListener('click', () => {
+        if (unlocked) this.cb.onSelectTrail(trail.id);
+        else this.cb.onUnlockTrail(trail.id);
+      });
+      this.trailRow.append(sw);
     }
   }
 

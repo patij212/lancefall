@@ -36,6 +36,8 @@ import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
+import { TRAILS, trailById, trailParticleColor, canUnlockTrail } from './trails';
+import type { TrailDef } from './trails';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString } from './rng';
@@ -85,6 +87,7 @@ export class Game {
   private world: World;
   private state: State = 'title';
   private mode: RunConfig = MODES[0];
+  private trail: TrailDef = trailById('pulse');
   private seed = 1;
   private winning = false;
   private winTimer = 0;
@@ -143,6 +146,8 @@ export class Game {
       onUnlockShip: (id) => this.unlockShip(id),
       onSelectTheme: (id) => this.selectTheme(id),
       onUnlockTheme: (id) => this.unlockTheme(id),
+      onSelectTrail: (id) => this.selectTrail(id),
+      onUnlockTrail: (id) => this.unlockTrail(id),
       onBuyMeta: (id) => this.buyMeta(id),
       onHeatChange: (level) => this.setHeat(level),
       onArchetypeChange: (id) => this.setArchetype(id),
@@ -169,6 +174,12 @@ export class Game {
     const t = themeById(this.save.selectedTheme);
     this.renderer.setTheme(t);
     document.documentElement.style.setProperty('--cyan', t.accent);
+    this.applyTrail();
+  }
+
+  private applyTrail(): void {
+    this.trail = trailById(this.save.selectedTrail);
+    this.renderer.setTrail(this.trail);
   }
 
   boot(): void {
@@ -490,6 +501,30 @@ export class Game {
     this.ui.refreshTitle(this.save);
   }
 
+  private selectTrail(id: string): void {
+    if (!this.save.unlockedTrails.includes(id)) return;
+    this.save.selectedTrail = id;
+    saveSave(this.save);
+    this.applyTrail();
+    this.ui.refreshTitle(this.save);
+  }
+
+  private unlockTrail(id: string): void {
+    const trail = TRAILS.find((t) => t.id === id);
+    if (!trail || this.save.unlockedTrails.includes(id)) return;
+    if (!canUnlockTrail(trail, this.save.shards, this.save.achievements)) {
+      this.ui.toast(trail.unlockAch ? 'Defeat the Sovereign to unlock CROWN' : `Need ${trail.unlockShards - this.save.shards} more shards`);
+      return;
+    }
+    if (!trail.unlockAch) this.save.shards -= trail.unlockShards; // achievement trails are free
+    this.save.unlockedTrails.push(id);
+    this.save.selectedTrail = id;
+    saveSave(this.save);
+    this.applyTrail();
+    this.ui.toast(`${trail.name} trail unlocked!`);
+    this.ui.refreshTitle(this.save);
+  }
+
   private buyMeta(id: string): void {
     const node = metaNode(id);
     if (!node) return;
@@ -676,7 +711,7 @@ export class Game {
     const dashing = w.player.phase === 'dashing' || this.ev.landed;
     if (dashing || w.ghostTimer > 0) w.hash.rebuild(w.enemies.items);
     if (dashing) {
-      w.particles.trail(w.player.x, w.player.y, 5, comboColor(w.combo));
+      w.particles.trail(w.player.x, w.player.y, 5, trailParticleColor(this.trail, comboColor(w.combo)));
       // Nova Dash: detonate a shockwave at the launch point
       if (this.ev.dashFired && w.stats.dashNovaRadius > 0) {
         this.chainExplode(w.player.dashFromX, w.player.dashFromY, w.stats.dashNovaRadius, 1, true);
@@ -771,7 +806,7 @@ export class Game {
       this.audio.whoosh();
       this.shake.add(TUNE.juice.traumaDash);
       this.dashSlowmoTriggered = false;
-      w.particles.streaks(p.x, p.y, p.dashDirX, p.dashDirY, comboColor(w.combo));
+      w.particles.streaks(p.x, p.y, p.dashDirX, p.dashDirY, trailParticleColor(this.trail, comboColor(w.combo)));
       this.cam.zoom = Math.max(this.cam.zoom, 1.03);
       this.input.rumble(0.0, 0.3, 70);
       this.tryHint('dash');
