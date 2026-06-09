@@ -37,7 +37,10 @@ build sequentially → verify (tsc + vitest + build + in-browser) → commit →
 - ✅ **#11 Pause build summary** — the pause screen now shows the current ship + stacked build (evos/relics/perks) for mid-run review. (`f170988`)
 - ✅ **End-to-end QA capstone** — sustained-run verification (boss fight, biome cycle, all v4 systems firing, no NaN/leaks). All green.
 - ✅ **#12 CODEX** — a title-screen bestiary of all 11 enemies + Champion + 6 bosses (behaviour + counter per card). (`c351459`)
-- ✅ Redeployed to the live alpha; **229 tests**, tsc clean, build clean, zero console errors; owner save restored.
+- ✅ **#13 v4 achievements** — Unleashed / Overcharged / Cheating Death / Power Player (OVERDRIVE, Last Breath, power-up goals). (`a18b058`)
+- ✅ Redeployed to the live alpha; **230 tests**, tsc clean, build clean, zero console errors; owner save restored.
+
+— **v4.0 build complete.** 13 player-facing additions + 3 adversarial reviews + an E2E QA pass, all live. The only remaining roadmap item — the **weekly online leaderboard** — is intentionally held for the owner's go-ahead (it modifies the live Cloudflare Worker).
 
 Deferred (needs the user's go-ahead — touches the live worker backend): weekly challenge + online board.
 
