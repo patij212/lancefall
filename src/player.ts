@@ -70,7 +70,7 @@ export function updatePlayer(
     p.y += p.vy * dt;
 
     // ── charge / dash input ──
-    if (input.dashHeld && canDash(p.stamina)) {
+    if (input.dashHeld && canDash(p.stamina, stats.dashCostMul)) {
       if (p.phase !== 'charging') {
         p.phase = 'charging';
         p.charge = 0;
@@ -79,7 +79,7 @@ export function updatePlayer(
       p.charge = clamp(p.charge + dt / TUNE.dash.chargeTimeMax, 0, 1);
     } else if (p.phase === 'charging' && !input.dashHeld) {
       // released → fire
-      if (canDash(p.stamina)) {
+      if (canDash(p.stamina, stats.dashCostMul)) {
         fireDash(p, aimAngle, input, stats, width, height, ev);
       } else {
         p.phase = 'idle';
@@ -143,7 +143,7 @@ function fireDash(
   p.dashId++;
   p.killsThisDash = 0;
   p.iframe = iframeFor(len);
-  p.stamina -= TUNE.stamina.dashCost;
+  p.stamina -= TUNE.stamina.dashCost * stats.dashCostMul;
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout
   p.charge = 0;
   ev.dashFired = true;

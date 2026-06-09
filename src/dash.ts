@@ -24,8 +24,8 @@ export function maxStamina(segments: number): number {
   return segments * TUNE.stamina.perSegment;
 }
 
-export function canDash(stamina: number): boolean {
-  return stamina >= TUNE.stamina.dashCost - 1e-6;
+export function canDash(stamina: number, costMul = 1): boolean {
+  return stamina >= TUNE.stamina.dashCost * costMul - 1e-6;
 }
 
 /** Advance stamina by dt seconds given the regen lockout timer (also returned). */

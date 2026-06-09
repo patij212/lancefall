@@ -56,6 +56,13 @@ describe('stamina', () => {
     expect(canDash(TUNE.stamina.dashCost - 5)).toBe(false);
   });
 
+  it('canDash scales the required stamina by the cost multiplier (relics)', () => {
+    const base = TUNE.stamina.dashCost;
+    expect(canDash(base, 2)).toBe(false); // a 2x-cost dash needs two segments' worth
+    expect(canDash(base * 2, 2)).toBe(true);
+    expect(canDash(base * 0.5, 0.5)).toBe(true); // a cheaper dash needs less
+  });
+
   it('regen waits out the lockout delay, then refills', () => {
     // during lockout: no regen
     let r = regenStamina(0, 0.35, 0.1, 300);
