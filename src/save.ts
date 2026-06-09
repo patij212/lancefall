@@ -39,6 +39,10 @@ export interface SaveData {
   meta: Record<string, number>;
   /** mutator ids active on the most recently played Daily (for title/debrief display) */
   dailyMutators: string[];
+  /** selected Heat ascension level (0..MAX_HEAT) */
+  selectedHeat: number;
+  /** highest Heat level ever played */
+  maxHeat: number;
 }
 
 export interface Settings {
@@ -82,6 +86,8 @@ export function defaultSave(): SaveData {
     achievements: [],
     meta: {},
     dailyMutators: [],
+    selectedHeat: 0,
+    maxHeat: 0,
   };
 }
 

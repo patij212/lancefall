@@ -627,6 +627,53 @@ body {
   .howto-rule { grid-template-columns: 90px 1fr; }
 }
 
+/* ── Heat ascension panel ── */
+.heat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 720px;
+}
+.heat-card {
+  --accent: var(--cyan);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 8px;
+  background: var(--bg-raised);
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.heat-card:hover { transform: translateY(-3px); }
+.heat-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-raised));
+}
+.heat-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+}
+.heat-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.heat-desc { font-size: 11px; color: var(--text-muted); line-height: 1.35; min-height: 44px; }
+.heat-mul {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  margin-top: 6px;
+}
+@media (max-width: 640px) { .heat-grid { grid-template-columns: repeat(2, 1fr); } }
+
 /* ── Mid-run event panel ── */
 .event-head {
   font-family: 'Space Grotesk', sans-serif;

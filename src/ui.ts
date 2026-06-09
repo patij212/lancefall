@@ -8,6 +8,7 @@ import type { PerkDef } from './perks';
 import { isEvolution, EVOLUTIONS } from './evolutions';
 import type { DraftCard } from './evolutions';
 import type { EventChoice } from './events';
+import { HEAT_LEVELS } from './heat';
 import { comboColor } from './render';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
@@ -32,6 +33,7 @@ export interface UICallbacks {
   onSelectTheme: (id: string) => void;
   onUnlockTheme: (id: string) => void;
   onBuyMeta: (id: string) => void;
+  onHeatChange: (level: number) => void;
 }
 
 export interface GameOverInfo {
@@ -87,6 +89,7 @@ export class UI {
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
   private howtoPanel!: HTMLElement;
+  private heatPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
@@ -146,9 +149,10 @@ export class UI {
     this.buildStats();
     this.buildUpgrades();
     this.buildHowTo();
+    this.buildHeat();
     this.toastLayer = el('div', { class: 'toast-layer' });
     this.announceEl = el('div', { class: 'announce' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.heatPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -223,7 +227,9 @@ export class UI {
     statsBtn.addEventListener('click', () => this.openStats());
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, settingsBtn, how);
+    const heatBtn = el('button', { class: 'btn btn-ghost' }, '🔥 HEAT');
+    heatBtn.addEventListener('click', () => this.openHeat());
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, settingsBtn, how);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -534,6 +540,41 @@ export class UI {
     this.howtoPanel.classList.remove('hidden');
   }
 
+  private buildHeat(): void {
+    const h = el('h2', {}, 'HEAT ASCENSION');
+    const sub = el('div', { class: 'event-flavor' }, 'Crank the difficulty for a bigger score multiplier. Your call — every run.');
+    const grid = el('div', { class: 'heat-grid' });
+    grid.id = 'heat-grid';
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.heatPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, sub, grid, close);
+    this.heatPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  openHeat(): void {
+    const s = this.saveRef;
+    if (!s) return;
+    const grid = this.heatPanel.querySelector('#heat-grid')!;
+    grid.replaceChildren();
+    for (const lvl of HEAT_LEVELS) {
+      const selected = s.selectedHeat === lvl.level;
+      const card = el('button', { class: 'heat-card' + (selected ? ' selected' : '') });
+      card.style.setProperty('--accent', lvl.accent);
+      card.append(
+        el('div', { class: 'heat-num' }, lvl.level === 0 ? 'OFF' : `H${lvl.level}`),
+        el('div', { class: 'heat-name' }, lvl.name),
+        el('div', { class: 'heat-desc' }, lvl.desc),
+        el('div', { class: 'heat-mul' }, `×${lvl.scoreMul.toFixed(2)} score`),
+      );
+      card.addEventListener('click', () => {
+        this.cb.onHeatChange(lvl.level);
+        this.openHeat(); // re-render selection
+      });
+      grid.append(card);
+    }
+    this.heatPanel.classList.remove('hidden');
+  }
+
   // ── screen control ──
   private current: ScreenId = 'title';
   show(s: ScreenId): void {
@@ -549,6 +590,7 @@ export class UI {
     this.statsPanel.classList.add('hidden');
     this.upgradesPanel.classList.add('hidden');
     this.howtoPanel.classList.add('hidden');
+    this.heatPanel.classList.add('hidden');
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }
@@ -566,7 +608,7 @@ export class UI {
       save.highScore > 0
         ? `BEST ${save.highScore.toLocaleString()}  ·  x${save.bestCombo} combo`
         : 'no runs yet — go make a mess';
-    this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards`;
+    this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards${save.selectedHeat > 0 ? `  ·  🔥 HEAT ${save.selectedHeat}` : ''}`;
 
     // daily challenge caption — today's seed + your best for it
     let daily = `Daily Challenge · ${dateString()}`;

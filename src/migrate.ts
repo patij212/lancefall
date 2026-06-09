@@ -9,7 +9,7 @@
 
 import type { SaveData } from './save';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -17,8 +17,10 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   const data = raw as Partial<SaveData> & { version?: number };
 
   // --- version-stepped transforms ---
-  // v1 (no `version` field) → v2: no field renames; new fields are default-filled
-  // by the spread below. Add future steps here, keyed on `(data.version ?? 1)`.
+  // v1 (no `version` field) → v2: no field renames; new fields default-filled by the spread.
+  // v2 → v3: added selectedHeat, maxHeat, selectedArchetype, bestRunPath — all
+  //          default-filled by the spread below; no explicit transform needed.
+  // Add future steps here, keyed on `(data.version ?? 1)`.
 
   return { ...base, ...data, version: SAVE_VERSION };
 }

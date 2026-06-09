@@ -35,6 +35,7 @@ import { MODES } from './modes';
 import type { RunConfig } from './modes';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
+import { HEAT_LEVELS, applyHeatStats, applyHeatConfig } from './heat';
 import { BIOMES, biomeAt } from './biomes';
 import {
   loadSave,
@@ -99,6 +100,7 @@ export class Game {
   private announcedEvos = new Set<EvolutionId>(); // evolutions we've already flagged as ready
   private activeMutators: MutatorId[] = []; // run mutators in effect this run
   private eliteMods = { chanceMul: 1, maxAdd: 0 }; // champion-spawn mods from mutators
+  private runHeat = 0; // heat level locked in for the active run
   private intensityTimer = 0;
 
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
@@ -123,6 +125,7 @@ export class Game {
       onSelectTheme: (id) => this.selectTheme(id),
       onUnlockTheme: (id) => this.unlockTheme(id),
       onBuyMeta: (id) => this.buyMeta(id),
+      onHeatChange: (level) => this.setHeat(level),
     });
 
     this.resize();
@@ -184,7 +187,10 @@ export class Game {
     this.activeMutators = cfg.id === 'daily' ? pickDailyMutators(this.seed) : [];
     this.world.mutatorApply = buildMutatorApply(this.activeMutators);
     this.eliteMods = mutatorElite(this.activeMutators);
-    const effCfg = applyMutatorConfig(cfg, this.activeMutators);
+    // Heat ascension — stat effects via the postApply capstone, director effects via a cloned cfg
+    this.runHeat = this.save.selectedHeat;
+    this.world.postApply = (s) => applyHeatStats(s, this.runHeat);
+    const effCfg = applyHeatConfig(applyMutatorConfig(cfg, this.activeMutators), this.runHeat);
     this.world.reset(window.innerWidth, window.innerHeight);
     // head-start perks (Head Start meta node) — use a SEPARATE rng so they don't
     // consume the seeded world.rng (keeps Daily runs identical regardless of meta)
@@ -223,7 +229,9 @@ export class Game {
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
-    this.ui.setMutators(this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })));
+    const hudBadges = this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent }));
+    if (this.runHeat > 0) hudBadges.unshift({ name: `HEAT ${this.runHeat}`, accent: HEAT_LEVELS[this.runHeat].accent });
+    this.ui.setMutators(hudBadges);
     this.audio.startDrone();
     this.audio.duckMusic(false);
 
@@ -397,6 +405,13 @@ export class Game {
     const evo = describeEvolutions(this.world.evolutions);
     const perks = describeStacks(this.world.stacks);
     return [evo, perks].filter(Boolean).join(' · ');
+  }
+
+  private setHeat(level: number): void {
+    this.save.selectedHeat = Math.max(0, Math.min(HEAT_LEVELS.length - 1, Math.floor(level)));
+    this.save.maxHeat = Math.max(this.save.maxHeat, this.save.selectedHeat);
+    saveSave(this.save);
+    this.ui.refreshTitle(this.save);
   }
 
   private copyScore(): void {
@@ -1000,6 +1015,7 @@ export class Game {
     this.save.highScore = Math.max(this.save.highScore, w.score);
     this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
     this.save.bestWave = Math.max(this.save.bestWave, wave);
+    this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
     this.save.totalRuns++;
     // bank shards: in-run gems × meta Treasure Hunter × mode bonus
     const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
@@ -1019,6 +1035,7 @@ export class Game {
       daily: this.mode.id === 'daily',
       won,
       modeId: this.mode.id,
+      heat: this.runHeat,
       lifeRuns: this.save.totalRuns,
       lifeKills: this.save.lifeKills,
       lifeBoss: this.save.lifeBoss,

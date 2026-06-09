@@ -13,6 +13,7 @@ const base: AchCtx = {
   daily: false,
   won: false,
   modeId: 'endless',
+  heat: 0,
   lifeRuns: 0,
   lifeKills: 0,
   lifeBoss: 0,
@@ -54,6 +55,13 @@ describe('achievements', () => {
   it('daily achievement needs a daily run', () => {
     expect(evaluate([], { ...base, daily: true }).map((a) => a.id)).toContain('daily');
     expect(evaluate([], { ...base, daily: false }).map((a) => a.id)).not.toContain('daily');
+  });
+
+  it('heat achievements need both the heat level and a meaningful run', () => {
+    expect(evaluate([], { ...base, heat: 3, wave: 6 }).map((a) => a.id)).toContain('ignis');
+    expect(evaluate([], { ...base, heat: 3, wave: 2 }).map((a) => a.id)).not.toContain('ignis'); // bailed early
+    expect(evaluate([], { ...base, heat: 7, won: true }).map((a) => a.id)).toContain('crucible');
+    expect(evaluate([], { ...base, heat: 5, wave: 9 }).map((a) => a.id)).not.toContain('crucible');
   });
 
   it('mode achievements need a win in the right mode', () => {

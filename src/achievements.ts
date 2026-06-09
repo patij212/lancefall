@@ -12,6 +12,7 @@ export interface AchCtx {
   daily: boolean;
   won: boolean;
   modeId: string;
+  heat: number;
   lifeRuns: number;
   lifeKills: number;
   lifeBoss: number;
@@ -41,6 +42,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'gauntlet', name: 'Gauntlet Cleared', desc: 'Win the Arena.', check: (c) => c.won && c.modeId === 'arena' },
   { id: 'bossbane', name: 'Boss Bane', desc: 'Clear Boss Rush.', check: (c) => c.won && c.modeId === 'bossrush' },
   { id: 'nightmarewalker', name: 'Nightmare Walker', desc: 'Reach wave 8 in Nightmare.', check: (c) => c.modeId === 'nightmare' && c.wave >= 8 },
+  { id: 'ignis', name: 'Playing with Fire', desc: 'Reach wave 5+ at Heat 3 or above.', check: (c) => c.heat >= 3 && (c.won || c.wave >= 5) },
+  { id: 'crucible', name: 'The Crucible', desc: 'Reach wave 5+ at Heat 7 (maximum heat).', check: (c) => c.heat >= 7 && (c.won || c.wave >= 5) },
 ];
 
 /** Returns the achievements newly satisfied by this context (not already in `unlocked`). */
