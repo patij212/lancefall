@@ -164,7 +164,7 @@ export class Game {
       onCopyScore: () => this.copyScore(),
       onCopyBuildDna: () => this.copyBuildDna(),
       onChoice: (c) => this.makeChoice(c),
-      onSaveReplay: () => this.replay.download(),
+      onSaveReplay: () => this.replay.saveGif(),
       onUnlockLore: (id) => this.unlockLore(id),
       onToggleNgPlus: () => this.toggleNgPlus(),
       onSettingsChange: (s) => this.applySettings(s),

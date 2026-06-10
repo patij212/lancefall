@@ -382,7 +382,7 @@ export class UI {
     dna.addEventListener('click', () => this.cb.onCopyBuildDna());
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
-    this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SAVE REPLAY ⬇') as HTMLButtonElement;
+    this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SAVE GIF ⬇') as HTMLButtonElement;
     this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
     const row = el('div', { class: 'go-row' }, again, copy, dna, this.saveReplayBtn, menu);
     // THE CHOICE — shown only on the first Sovereign kill (catch the star / let it fall)
