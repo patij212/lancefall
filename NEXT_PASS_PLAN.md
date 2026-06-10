@@ -88,7 +88,7 @@
 
 **Effort.** M (M1) + M-L (M2) + M (M3) + S-M (M4) + S (M5). **Risk.** M1/M5 Low. M2 Med (bounds-clamp desync trap). M3 Med (save bump only if persisting best clear-time). M4 Low-Med (oneLife × revive interactions).
 
-**OPEN QUESTION (owner).** Retire NIGHTMARE into the Heat ladder, or keep it with the Sudden-Death rule (recommended: **keep + Sudden Death**)? And: is `oneLife` Daily acceptable for the public board, or must Daily stay a plain Endless seed for fairness? Recommendation: oneLife Daily is the classic framing and stays deterministic — ship it behind owner sign-off.
+**✅ RESOLVED (owner).** Keep NIGHTMARE + Sudden Death. **Daily = best-of-3 ATTEMPTS** (owner refined one-life → too harsh): run today's seed up to 3×, best score submitted; `dailyAttempts`/`dailyAttemptDate` in the 5→6 bump; "Attempt N/3" on the card + debrief; lock when exhausted (offer Endless). The Daily run uses the standard armor cushion; attempt accounting is cosmetic save state, never `world.rng`. (Open NIGHTMARE-vs-Heat question deferred — keep both for v6.)
 
 ---
 
@@ -125,7 +125,7 @@
 
 **Effort.** ~4-5h total, text-only. **Risk.** None to sim. Only taste + a few test-string guards (stillpoint heads, lore ids/costs). Keep rewrites in the same buckets so `game.ts` wiring is untouched.
 
-**OPEN QUESTION (owner).** (a) Expand the ECHO vignette pool (the most grounded surface)? Growing it changes which citizen a past date maps to (cosmetic-only, Daily score still bit-identical) — recommend yes, flag it. (b) Keep both motif anchors, or rename the ultimate to free the word entirely (higher blast radius — touches game.ts:497/508, ui.ts:723/1177, 2 achievement strings)? Recommendation: keep both anchors, de-tic only the incidental uses.
+**✅ RESOLVED (owner): FULL rename.** Rename the OVERDRIVE ultimate ("REMEMBER EVERYTHING" → a new light/dark-themed name) AND purge incidental "remember" — touches game.ts:497/508, ui.ts:723/1177, 2 achievement strings, and any test on the old string (grep first; higher blast radius accepted). The tagline may keep one deliberate echo. (a) Also expand the ECHO vignette pool (recommended yes — cosmetic, Daily score still bit-identical; flag the citizen-mapping shift).
 
 ---
 
@@ -189,7 +189,7 @@
 
 ## BUILD ORDER (prioritized + sequenced, with dependencies)
 
-**Phase 0 — UNLOCK (owner answers, ~0 code).** Resolve the 4 gating questions: §7 (A/B/C cushion + on-by-default?), §8a (hybrid-procedural-stems confirmed?), §4 (oneLife Daily OK?), §6b (keep both motif anchors?). Everything else can proceed in parallel on defaults.
+**Phase 0 — RESOLVED (owner-confirmed 2026-06-10).** ✅ **§7** = Option A ARMOR hit-buffer, `defaultShields: 2`, ON for everyone incl. Daily. ✅ **§8a** = procedural stems (no authored assets). ✅ **§4 Daily = best-of-3 ATTEMPTS** (the owner found one-life too harsh — run today's seed up to 3×, best score submitted; track attempts in the 5→6 save bump; the run still uses the armor cushion). ✅ **§6 = FULL rename** of the OVERDRIVE ultimate ("REMEMBER EVERYTHING" → a new light/dark name) + purge incidental "remember". No further gating — all phases may start.
 
 **Phase 1 — FOUNDATIONS (parallel, low-risk, no cross-deps).**
 - Story rewrites §6 S1-S5 (text-only, zero risk — ship first, builds momentum).
