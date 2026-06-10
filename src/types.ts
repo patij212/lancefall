@@ -91,7 +91,7 @@ export interface Enemy {
   bossWave: number;
   scale: number; // render pop scale (juice tween target)
   fireTimer: number; // boss: time to next shot
-  subPhase: number; // boss: fan counter within a phase
+  subPhase: number; // generic sub-state: boss fan-counter / brooder hatch-count / herald gap-offset px
 }
 
 export interface Bullet {
