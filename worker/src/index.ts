@@ -34,6 +34,14 @@ function validDaily(d: string): boolean {
   return Number.isFinite(t) && t <= Date.now() + 86_400_000;
 }
 
+/** Start-of-week (Monday 00:00 UTC) in ms — the boundary for the weekly board, so
+ *  it resets each Monday and everyone competes in the same window. */
+function weekStartMs(now: number): number {
+  const d = new Date(now);
+  const sinceMonday = (d.getUTCDay() + 6) % 7; // 0=Sun..6=Sat → days since Monday
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - sinceMonday);
+}
+
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -114,14 +122,18 @@ export default {
       const daily = url.searchParams.get('daily');
       if (daily !== null && !DATE_RE.test(daily)) return json({ error: 'bad daily date' }, 400);
       // SQLite bare-column rule: with MAX(score), the other columns come from that row.
-      const sql =
-        mode === 'daily'
-          ? 'SELECT name, MAX(score) AS score, wave, combo, heat FROM scores WHERE mode = ? AND daily = ? GROUP BY name ORDER BY score DESC LIMIT 100'
-          : 'SELECT name, MAX(score) AS score, wave, combo, heat FROM scores WHERE mode = ? GROUP BY name ORDER BY score DESC LIMIT 100';
-      const stmt =
-        mode === 'daily'
-          ? env.DB.prepare(sql).bind(mode, daily ?? '')
-          : env.DB.prepare(sql).bind(mode);
+      // scope=weekly restricts a non-daily board to the current calendar week.
+      const scope = url.searchParams.get('scope');
+      const SELECT = 'SELECT name, MAX(score) AS score, wave, combo, heat FROM scores';
+      const TAIL = 'GROUP BY name ORDER BY score DESC LIMIT 100';
+      let stmt: D1PreparedStatement;
+      if (mode === 'daily') {
+        stmt = env.DB.prepare(`${SELECT} WHERE mode = ? AND daily = ? ${TAIL}`).bind(mode, daily ?? '');
+      } else if (scope === 'weekly') {
+        stmt = env.DB.prepare(`${SELECT} WHERE mode = ? AND ts >= ? ${TAIL}`).bind(mode, weekStartMs(Date.now()));
+      } else {
+        stmt = env.DB.prepare(`${SELECT} WHERE mode = ? ${TAIL}`).bind(mode);
+      }
       const rs = await stmt.all<ScoreRow>();
       const entries = (rs.results ?? []).map((r, i) => ({
         rank: i + 1,

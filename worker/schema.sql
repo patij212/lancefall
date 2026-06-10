@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS scores (
   ts     INTEGER NOT NULL
 );
 
--- the read path: top scores per mode (and per daily date)
-CREATE INDEX IF NOT EXISTS idx_scores_mode  ON scores (mode, score DESC);
-CREATE INDEX IF NOT EXISTS idx_scores_daily ON scores (mode, daily, score DESC);
+-- the read path: top scores per mode (and per daily date), + the weekly board
+CREATE INDEX IF NOT EXISTS idx_scores_mode    ON scores (mode, score DESC);
+CREATE INDEX IF NOT EXISTS idx_scores_daily   ON scores (mode, daily, score DESC);
+CREATE INDEX IF NOT EXISTS idx_scores_mode_ts ON scores (mode, ts);

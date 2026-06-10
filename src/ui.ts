@@ -807,16 +807,25 @@ export class UI {
     }
 
     const modeRow = el('div', { class: 'leader-modes' });
+    const scopeRow = el('div', { class: 'leader-modes' });
     const listWrap = el('div', { class: 'leader-list' }, el('div', { class: 'event-flavor' }, 'Loading…'));
     const modes: { id: string; name: string }[] = [
       { id: 'endless', name: 'ENDLESS' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' },
     ];
-    const load = async (mode: string) => {
+    let curMode = 'endless';
+    let curWeekly = false;
+    const allBtn = el('button', { class: 'btn btn-ghost btn-sm' }, 'ALL-TIME');
+    const wkBtn = el('button', { class: 'btn btn-ghost btn-sm' }, '★ THIS WEEK');
+    const load = async () => {
+      const weekly = curWeekly && curMode !== 'daily'; // daily is already date-scoped
+      scopeRow.classList.toggle('hidden', curMode === 'daily');
+      allBtn.classList.toggle('btn-primary', !weekly);
+      wkBtn.classList.toggle('btn-primary', weekly);
       listWrap.replaceChildren(el('div', { class: 'event-flavor' }, 'Loading…'));
-      const entries = await fetchLeaderboard(mode, mode === 'daily' ? dateString() : undefined);
+      const entries = await fetchLeaderboard(curMode, curMode === 'daily' ? dateString() : undefined, weekly);
       listWrap.replaceChildren();
       if (entries.length === 0) {
-        listWrap.append(el('div', { class: 'event-flavor' }, 'No scores yet — be the first.'));
+        listWrap.append(el('div', { class: 'event-flavor' }, weekly ? 'No scores this week yet — be the first.' : 'No scores yet — be the first.'));
         return;
       }
       entries.forEach((e, i) => {
@@ -828,13 +837,16 @@ export class UI {
         ));
       });
     };
+    allBtn.addEventListener('click', () => { curWeekly = false; void load(); });
+    wkBtn.addEventListener('click', () => { curWeekly = true; void load(); });
+    scopeRow.append(allBtn, wkBtn);
     for (const m of modes) {
       const b = el('button', { class: 'btn btn-ghost btn-sm' }, m.name);
-      b.addEventListener('click', () => { void load(m.id); });
+      b.addEventListener('click', () => { curMode = m.id; void load(); });
       modeRow.append(b);
     }
-    body.append(modeRow, listWrap);
-    void load('endless');
+    body.append(modeRow, scopeRow, listWrap);
+    void load();
     this.leaderPanel.classList.remove('hidden');
   }
 

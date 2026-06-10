@@ -48,11 +48,12 @@ export async function submitScore(p: SubmitPayload): Promise<void> {
 
 /** Fetch the top entries for a mode (optionally a specific daily date). Returns
  *  [] on any failure so callers can render an empty/offline state. */
-export async function fetchLeaderboard(mode: string, daily?: string): Promise<ScoreEntry[]> {
+export async function fetchLeaderboard(mode: string, daily?: string, weekly = false): Promise<ScoreEntry[]> {
   if (!BASE) return [];
   try {
     const q = new URLSearchParams({ mode });
     if (daily) q.set('daily', daily);
+    else if (weekly) q.set('scope', 'weekly'); // this-week board (worker filters by ts)
     const r = await fetch(`${BASE}/leaderboard?${q.toString()}`);
     if (!r.ok) return [];
     const j = (await r.json()) as { entries?: ScoreEntry[] };
