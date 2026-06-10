@@ -65,6 +65,8 @@ import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul } from './stillpoint';
 import { fragmentBalance, loreById } from './lore';
+import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost } from './ghost';
+import type { Ghost } from './ghost';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
 
@@ -116,6 +118,8 @@ export class Game {
   private narratedFirstKill = false;
   private replay = new ReplayRecorder();
   private runNgPlus = 0; // active NG+ level this run (0 = off / seeded run)
+  private ghostRec: Ghost | null = null; // recording the current run's path
+  private ghostRace: Ghost | null = null; // the ghost being raced (daily PB / a challenge)
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -322,6 +326,14 @@ export class Game {
     // re-seed the narrator per run (cosmetic variety; totalRuns is save state, never world.rng)
     this.narrator = newNarrator((0x9e3779b1 ^ Math.imul(this.save.totalRuns + 1, 2654435761)) >>> 0);
     this.narratedFirstKill = false;
+    // GHOST — record this run; race the stored ghost on seeded (daily) runs.
+    // Render-only overlay; reads positions, never the sim → Daily stays deterministic.
+    this.ghostRec = null;
+    this.ghostRace = null;
+    if (cfg.seedKind === 'date') {
+      this.ghostRec = newGhost(this.seed, 'daily');
+      this.ghostRace = this.loadGhost(this.dailyGhostKey(this.seed));
+    }
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
@@ -332,6 +344,7 @@ export class Game {
     this.audio.duckMusic(false);
     this.narrate('run_start', 'announce', this.runNgPlus > 0 ? NARRATOR.loop : NARRATOR.runStart);
     if (cfg.seedKind === 'date') this.narrateOne('toast', echoLine(this.seed)); // ECHO OF THE FALL
+    if (this.ghostRace) this.ui.toast(`◌ Racing ${this.ghostRace.name || 'your best'} · ${this.ghostRace.score.toLocaleString()}`);
     this.replay.start(this.canvas);
 
     // first-run progressive onboarding — hints surface as you perform each action
@@ -766,6 +779,15 @@ export class Game {
         this.narrate('first_kill', 'toast', NARRATOR.firstKill);
       }
       if (this.coherence.value >= 0.85) this.narrate('high_coherence', 'toast', NARRATOR.highCoherence, true);
+    }
+
+    // GHOST — record this run's path + replay the raced ghost (render-only; no sim)
+    if (this.state === 'playing' && this.ghostRec) recordGhost(this.ghostRec, cw.time, cw.player.x, cw.player.y);
+    if (this.ghostRace && this.state === 'playing') {
+      const gp = ghostAt(this.ghostRace, cw.time);
+      this.renderer.setGhost(gp && !gp.done ? gp.x : null, gp ? gp.y : 0);
+    } else {
+      this.renderer.setGhost(null, 0);
     }
 
     this.renderer.render(this.world, this.cam, {
@@ -1575,6 +1597,17 @@ export class Game {
     })) {
       if (!this.save.stillpointFragments.includes(f)) this.save.stillpointFragments.push(f);
     }
+    // GHOST — finalize + persist this run as the new daily PB if it beat the old
+    if (this.ghostRec) {
+      this.ghostRec.score = w.score;
+      this.ghostRec.wave = wave;
+      this.ghostRec.name = this.save.handle || 'YOU';
+      if (this.mode.seedKind === 'date') {
+        const key = this.dailyGhostKey(this.seed);
+        const pb = this.loadGhost(key);
+        if (!pb || w.score > pb.score) this.saveGhost(key, this.ghostRec);
+      }
+    }
     // bank shards: in-run gems × meta Treasure Hunter × mode bonus
     const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
     this.save.shards += banked; // bank shards toward unlocks + meta upgrades
@@ -1676,6 +1709,25 @@ export class Game {
     this.save.ngPlusActive = !this.save.ngPlusActive;
     saveSave(this.save);
     this.ui.refreshTitle(this.save);
+  }
+
+  private dailyGhostKey(seed: number): string {
+    return `lancefall.ghost.daily.${seed}`;
+  }
+  private loadGhost(key: string): Ghost | null {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? deserializeGhost(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+  private saveGhost(key: string, g: Ghost): void {
+    try {
+      localStorage.setItem(key, serializeGhost(g));
+    } catch {
+      /* storage disabled — ignore */
+    }
   }
 
   private applyDirector(spawn: EnemyKind[]): void {

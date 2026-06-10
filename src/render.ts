@@ -69,6 +69,8 @@ export class Renderer {
   private colorblindR = false;
   private reduceFlashingR = false;
   private slingshotR = false;
+  private ghostX: number | null = null;
+  private ghostY = 0;
   private towers: { x: number; w: number; h: number; band: number }[] = [];
 
   setTheme(t: ThemeDef): void {
@@ -93,6 +95,11 @@ export class Renderer {
   /** Perf-adaptive quality 0.4..1 (mirrors the director's perfScale). */
   setQuality(q: number): void {
     this.quality = q;
+  }
+  /** Position of the racing ghost in world coords (null = no ghost this frame). */
+  setGhost(x: number | null, y: number): void {
+    this.ghostX = x;
+    this.ghostY = y;
   }
 
   constructor(canvas: HTMLCanvasElement) {
@@ -190,6 +197,7 @@ export class Renderer {
     this.drawParticlesBelow(world);
     this.drawBullets(world);
     this.drawEnemies(world, opts);
+    this.drawGhost();
     if (world.player.alive || world.player.hitFlash > 0) this.drawPlayer(world);
     this.drawBeatRing(world, opts);
     this.drawParticlesAbove(world);
@@ -366,6 +374,29 @@ export class Renderer {
         }
       }
     }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /** A faint translucent ghost ship at the raced run's recorded position. */
+  private drawGhost(): void {
+    if (this.ghostX === null) return;
+    const ctx = this.bctx;
+    const r = TUNE.player.spriteRadius;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(this.ghostX, this.ghostY);
+    ctx.globalAlpha = 0.45;
+    ctx.strokeStyle = this.colorblindR ? '#cbd5e1' : '#a78bfa';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle = '#a78bfa';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
   }
