@@ -1584,31 +1584,17 @@ export class Game {
     this.replay.stop();
     const wave = this.director.wave;
     const prevHigh = this.save.highScore;
-    const newBest = w.score > this.save.highScore;
-    this.save.highScore = Math.max(this.save.highScore, w.score);
-    this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
-    this.save.bestWave = Math.max(this.save.bestWave, wave);
-    this.save.deepestWave = Math.max(this.save.deepestWave, wave);
-    if (!won && this.deathCause) this.save.nemesis[this.deathCause] = (this.save.nemesis[this.deathCause] ?? 0) + 1;
-    this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
-    if (won && w.sovereignDown) {
-      // NG+ — felling the Sovereign deepens the loop. Pure save state; the EFFECT
-      // is gated to non-seeded runs at start(), so this never affects a Daily.
-      this.save.ngPlusLevel = Math.min(NG_PLUS.maxLoop, this.save.ngPlusLevel + 1);
-      this.save.ngPlusActive = true; // queued for the next run; toggle off on the title
-    }
-    this.save.totalRuns++;
-    // MEMORY FRAGMENTS — carry one out of every descent + earn milestone fragments
-    for (const f of fragmentsForRun({
-      runOrdinal: this.save.totalRuns,
-      bossKills: w.bossKills,
-      deepestWave: this.save.deepestWave,
-      bestComboRun: w.bestComboRun,
-      sovereignDown: w.sovereignDown,
-    })) {
-      if (!this.save.stillpointFragments.includes(f)) this.save.stillpointFragments.push(f);
-    }
-    // GHOST — finalize + persist this run as the new daily PB if it beat the old
+    // shards this run (shown in the debrief; only BANKED to save on a real run below)
+    const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
+    // A DUEL is a private 1v1 on a fixed seed — bragging rights only. It must NOT
+    // touch ANY persistent progression (high score, bests, shards, NG+, fragments,
+    // achievements, daily best, the online board) or a known-good seed could be
+    // farmed for records/currency. Only the duel toast + this run's ghost (so you
+    // can re-challenge) survive a challenge run.
+    const newBest = !this.inChallenge && w.score > this.save.highScore;
+
+    // GHOST — finalize the run's ghost (ALWAYS, for "challenge a friend"); persist
+    // it as the daily PB only on a genuine (non-duel) daily run.
     if (this.ghostRec) {
       this.ghostRec.score = w.score;
       this.ghostRec.wave = wave;
@@ -1627,45 +1613,71 @@ export class Game {
           : `⚔ Fell short of ${this.challengeName || 'them'} · ${this.challengeTarget.toLocaleString()}`,
       );
     }
-    // bank shards: in-run gems × meta Treasure Hunter × mode bonus
-    const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
-    this.save.shards += banked; // bank shards toward unlocks + meta upgrades
-    this.save.lifeKills += w.killCount;
-    this.save.lifeBoss += w.bossKills;
-    this.save.lifeShards += banked;
-    // achievements (evaluate against updated lifetime totals)
-    const newAch = evalAchievements(this.save.achievements, {
-      score: w.score,
-      combo: w.bestComboRun,
-      wave,
-      kills: w.killCount,
-      grazes: w.grazeCount,
-      maxDashChain: w.maxDashChain,
-      bossKills: w.bossKills,
-      daily: this.mode.id === 'daily',
-      won,
-      modeId: this.mode.id,
-      heat: this.runHeat,
-      sovereignDown: w.sovereignDown,
-      overdriveUses: w.overdriveUses,
-      lastBreathUses: w.clutch.lastBreathUses,
-      powerupsCollected: w.powerupsCollected,
-      lifeRuns: this.save.totalRuns,
-      lifeKills: this.save.lifeKills,
-      lifeBoss: this.save.lifeBoss,
-      lifeShards: this.save.lifeShards,
-    });
-    for (const a of newAch) this.save.achievements.push(a.id);
-    if (this.mode.id === 'daily' && !this.inChallenge) {
-      const seed = seedFromDate();
-      if (this.save.dailySeed !== seed) {
-        this.save.dailySeed = seed;
-        this.save.dailyBest = 0;
+
+    let newAch: ReturnType<typeof evalAchievements> = [];
+    if (!this.inChallenge) {
+      this.save.highScore = Math.max(this.save.highScore, w.score);
+      this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
+      this.save.bestWave = Math.max(this.save.bestWave, wave);
+      this.save.deepestWave = Math.max(this.save.deepestWave, wave);
+      if (!won && this.deathCause) this.save.nemesis[this.deathCause] = (this.save.nemesis[this.deathCause] ?? 0) + 1;
+      this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
+      if (won && w.sovereignDown) {
+        // NG+ — felling the Sovereign deepens the loop. Pure save state; the EFFECT
+        // is gated to non-seeded runs at start(), so this never affects a Daily.
+        this.save.ngPlusLevel = Math.min(NG_PLUS.maxLoop, this.save.ngPlusLevel + 1);
+        this.save.ngPlusActive = true; // queued for the next run; toggle off on the title
       }
-      this.save.dailyBest = Math.max(this.save.dailyBest, w.score);
-      this.save.dailyMutators = this.activeMutators.slice();
+      this.save.totalRuns++;
+      // MEMORY FRAGMENTS — carry one out of every descent + earn milestone fragments
+      for (const f of fragmentsForRun({
+        runOrdinal: this.save.totalRuns,
+        bossKills: w.bossKills,
+        deepestWave: this.save.deepestWave,
+        bestComboRun: w.bestComboRun,
+        sovereignDown: w.sovereignDown,
+      })) {
+        if (!this.save.stillpointFragments.includes(f)) this.save.stillpointFragments.push(f);
+      }
+      // bank shards: in-run gems × meta Treasure Hunter × mode bonus
+      this.save.shards += banked; // bank shards toward unlocks + meta upgrades
+      this.save.lifeKills += w.killCount;
+      this.save.lifeBoss += w.bossKills;
+      this.save.lifeShards += banked;
+      // achievements (evaluate against updated lifetime totals)
+      newAch = evalAchievements(this.save.achievements, {
+        score: w.score,
+        combo: w.bestComboRun,
+        wave,
+        kills: w.killCount,
+        grazes: w.grazeCount,
+        maxDashChain: w.maxDashChain,
+        bossKills: w.bossKills,
+        daily: this.mode.id === 'daily',
+        won,
+        modeId: this.mode.id,
+        heat: this.runHeat,
+        sovereignDown: w.sovereignDown,
+        overdriveUses: w.overdriveUses,
+        lastBreathUses: w.clutch.lastBreathUses,
+        powerupsCollected: w.powerupsCollected,
+        lifeRuns: this.save.totalRuns,
+        lifeKills: this.save.lifeKills,
+        lifeBoss: this.save.lifeBoss,
+        lifeShards: this.save.lifeShards,
+      });
+      for (const a of newAch) this.save.achievements.push(a.id);
+      if (this.mode.id === 'daily') {
+        const seed = seedFromDate();
+        if (this.save.dailySeed !== seed) {
+          this.save.dailySeed = seed;
+          this.save.dailyBest = 0;
+        }
+        this.save.dailyBest = Math.max(this.save.dailyBest, w.score);
+        this.save.dailyMutators = this.activeMutators.slice();
+      }
+      saveSave(this.save);
     }
-    saveSave(this.save);
     // fire-and-forget online leaderboard submission (no-op if not configured).
     // A duel is a private 1v1 on a fixed seed — never submit it to the public boards.
     if (!this.inChallenge)
@@ -1696,7 +1708,7 @@ export class Game {
       pbDelta: w.score - prevHigh,
       newAchievements: newAch.map((a) => a.name),
       mutators: this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })),
-      choicePending: won && w.sovereignDown && this.save.stillpointChoice === 'none',
+      choicePending: !this.inChallenge && won && w.sovereignDown && this.save.stillpointChoice === 'none',
       canReplay: this.replay.hasClip(),
     };
     this.state = 'gameover';
