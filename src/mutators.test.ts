@@ -54,6 +54,15 @@ describe('mutators', () => {
     expect(out.speedBonus).toBeCloseTo(base.speedBonus + 0.15);
   });
 
+  it('warlords quickens the boss cadence and rewards extra shards', () => {
+    const base = modeById('daily');
+    const intervalBefore = base.bossInterval;
+    const out = applyMutatorConfig(base, ['warlords']);
+    expect(base.bossInterval).toBe(intervalBefore); // original untouched
+    expect(out.bossInterval).toBeCloseTo(intervalBefore * 0.6);
+    expect(deriveStats({}, undefined, buildMutatorApply(['warlords'])).shardMul).toBeCloseTo(1.4);
+  });
+
   it('mutatorElite folds chance + cap mods', () => {
     expect(mutatorElite([])).toEqual({ chanceMul: 1, maxAdd: 0 });
     const e = mutatorElite(['doubleChampions']);

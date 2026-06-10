@@ -18,7 +18,8 @@ export type MutatorId =
   | 'bulletStorm'
   | 'fogOfWar'
   | 'berserk'
-  | 'windfall';
+  | 'windfall'
+  | 'warlords';
 
 export interface MutatorDef {
   id: MutatorId;
@@ -90,6 +91,18 @@ export const MUTATORS: Record<MutatorId, MutatorDef> = {
     accent: '#34d399',
     apply: (s) => {
       s.shardMul *= 3;
+    },
+  },
+  warlords: {
+    id: 'warlords',
+    name: 'WARLORDS',
+    desc: 'The fallen muster without rest — bosses arrive far more often. +40% shards for holding the siege.',
+    accent: '#ef4444',
+    config: (c) => {
+      c.bossInterval *= 0.6; // a relentless boss cadence woven through the run
+    },
+    apply: (s) => {
+      s.shardMul *= 1.4;
     },
   },
 };
