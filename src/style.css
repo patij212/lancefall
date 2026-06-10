@@ -709,6 +709,12 @@ body {
   background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); padding: 6px 10px; font-family: 'JetBrains Mono', monospace; width: 120px; text-transform: uppercase;
 }
+.duel-input {
+  width: 100%; box-sizing: border-box; resize: vertical; margin: 12px 0;
+  background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 12px; font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; line-height: 1.5; word-break: break-all;
+}
 .leader-modes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
 .leader-list { display: flex; flex-direction: column; gap: 3px; min-height: 120px; }
 .leader-row {

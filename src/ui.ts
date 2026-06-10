@@ -46,6 +46,8 @@ export interface UICallbacks {
   onBuyMeta: (id: string) => void;
   onUnlockLore: (id: string) => void;
   onToggleNgPlus: () => void;
+  onCreateChallenge: () => void;
+  onAcceptChallenge: (code: string) => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
   onSetHandle: (name: string) => void;
@@ -115,6 +117,7 @@ export class UI {
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
   private leaderPanel!: HTMLElement;
+  private duelPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
   private announceEl!: HTMLElement;
@@ -187,11 +190,12 @@ export class UI {
     this.buildHeat();
     this.buildArchetype();
     this.buildLeaderboard();
+    this.buildDuel();
     // aria-live so the narrator's SOUL payload reaches screen-reader users:
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -284,9 +288,11 @@ export class UI {
     archBtn.addEventListener('click', () => this.openArchetype());
     const leaderBtn = el('button', { class: 'btn btn-ghost' }, '🏅 RANKS');
     leaderBtn.addEventListener('click', () => this.openLeaderboard());
+    const duelBtn = el('button', { class: 'btn btn-ghost' }, '⚔ DUEL');
+    duelBtn.addEventListener('click', () => this.openDuel());
     this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
     this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, settingsBtn, how, codexBtn);
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, settingsBtn, how, codexBtn);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -380,11 +386,13 @@ export class UI {
     copy.addEventListener('click', () => this.cb.onCopyScore());
     const dna = el('button', { class: 'btn btn-ghost' }, 'COPY BUILD ⧬');
     dna.addEventListener('click', () => this.cb.onCopyBuildDna());
+    const duel = el('button', { class: 'btn btn-ghost' }, '⚔ DUEL A FRIEND');
+    duel.addEventListener('click', () => this.cb.onCreateChallenge());
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
     this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SAVE GIF ⬇') as HTMLButtonElement;
     this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
-    const row = el('div', { class: 'go-row' }, again, copy, dna, this.saveReplayBtn, menu);
+    const row = el('div', { class: 'go-row' }, again, copy, dna, duel, this.saveReplayBtn, menu);
     // THE CHOICE — shown only on the first Sovereign kill (catch the star / let it fall)
     const catchBtn = el('button', { class: 'btn btn-primary' }, 'CATCH THE STAR');
     catchBtn.addEventListener('click', () => this.cb.onChoice('catch'));
@@ -601,6 +609,38 @@ export class UI {
     close.addEventListener('click', () => this.howtoPanel.classList.add('hidden'));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private buildDuel(): void {
+    const h = el('h2', {}, '⚔ ACCEPT A DUEL');
+    const blurb = el(
+      'div',
+      { class: 'event-flavor' },
+      'A friend sent you a duel code? Paste it below. You\'ll fall through their exact seed, racing their translucent ghost — beat their score to win.',
+    );
+    const input = el('textarea', {
+      class: 'duel-input',
+      rows: '4',
+      placeholder: 'Paste duel code…',
+    }) as HTMLTextAreaElement;
+    const accept = el('button', { class: 'btn btn-primary' }, 'ACCEPT DUEL');
+    accept.addEventListener('click', () => {
+      const code = input.value.trim();
+      if (!code) return;
+      this.duelPanel.classList.add('hidden');
+      input.value = '';
+      this.cb.onAcceptChallenge(code);
+    });
+    const close = el('button', { class: 'btn btn-ghost' }, 'CANCEL');
+    close.addEventListener('click', () => this.duelPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel' }, h, blurb, input, el('div', { class: 'go-row' }, accept, close));
+    this.duelPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private openDuel(): void {
+    this.duelPanel.classList.remove('hidden');
+    const input = this.duelPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
+    input?.focus();
   }
 
   private buildCodex(): void {

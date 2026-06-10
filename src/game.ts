@@ -65,7 +65,7 @@ import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul } from './stillpoint';
 import { fragmentBalance, loreById } from './lore';
-import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost } from './ghost';
+import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode } from './ghost';
 import type { Ghost } from './ghost';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
@@ -120,6 +120,11 @@ export class Game {
   private runNgPlus = 0; // active NG+ level this run (0 = off / seeded run)
   private ghostRec: Ghost | null = null; // recording the current run's path
   private ghostRace: Ghost | null = null; // the ghost being raced (daily PB / a challenge)
+  private lastRunGhost: Ghost | null = null; // the finished run's ghost (for "challenge a friend")
+  private pendingChallenge: Ghost | null = null; // a decoded challenge to start on the next run
+  private inChallenge = false;
+  private challengeTarget = 0;
+  private challengeName = '';
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -171,6 +176,8 @@ export class Game {
       onSaveReplay: () => this.replay.saveGif(),
       onUnlockLore: (id) => this.unlockLore(id),
       onToggleNgPlus: () => this.toggleNgPlus(),
+      onCreateChallenge: () => this.createChallenge(),
+      onAcceptChallenge: (code) => this.acceptChallenge(code),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
@@ -266,7 +273,9 @@ export class Game {
     this.audio.ensure();
     this.ui.hideSoundHint();
     this.mode = cfg;
-    this.seed = cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
+    const challenge = this.pendingChallenge;
+    this.pendingChallenge = null;
+    this.seed = challenge ? challenge.seed : cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.world.rng = createRng(this.seed);
     // power-up drops draw from a SEPARATE stream so death-timed draws never perturb
     // the seeded director/spawn stream (keeps the Daily's waves identical for all)
@@ -328,17 +337,19 @@ export class Game {
     this.narratedFirstKill = false;
     // GHOST — record this run; race the stored ghost on seeded (daily) runs.
     // Render-only overlay; reads positions, never the sim → Daily stays deterministic.
-    this.ghostRec = null;
-    this.ghostRace = null;
-    if (cfg.seedKind === 'date') {
-      this.ghostRec = newGhost(this.seed, 'daily');
-      this.ghostRace = this.loadGhost(this.dailyGhostKey(this.seed));
-    }
+    // GHOST — record EVERY run (for "challenge a friend" + the daily PB); race the
+    // stored ghost: a challenge's challenger, or your daily PB.
+    this.ghostRec = newGhost(this.seed, challenge ? 'challenge' : cfg.id);
+    this.inChallenge = !!challenge;
+    this.challengeTarget = challenge?.score ?? 0;
+    this.challengeName = challenge?.name ?? '';
+    this.ghostRace = challenge ?? (cfg.seedKind === 'date' ? this.loadGhost(this.dailyGhostKey(this.seed)) : null);
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
     const hudBadges = this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent }));
     if (this.runHeat > 0) hudBadges.unshift({ name: `HEAT ${this.runHeat}`, accent: HEAT_LEVELS[this.runHeat].accent });
+    if (this.inChallenge) hudBadges.unshift({ name: `⚔ BEAT ${this.challengeTarget.toLocaleString()}`, accent: '#f472b6' });
     this.ui.setMutators(hudBadges);
     this.audio.startDrone();
     this.audio.duckMusic(false);
@@ -1602,11 +1613,19 @@ export class Game {
       this.ghostRec.score = w.score;
       this.ghostRec.wave = wave;
       this.ghostRec.name = this.save.handle || 'YOU';
-      if (this.mode.seedKind === 'date') {
+      this.lastRunGhost = this.ghostRec; // for "challenge a friend"
+      if (this.mode.seedKind === 'date' && !this.inChallenge) {
         const key = this.dailyGhostKey(this.seed);
         const pb = this.loadGhost(key);
         if (!pb || w.score > pb.score) this.saveGhost(key, this.ghostRec);
       }
+    }
+    if (this.inChallenge) {
+      this.ui.toast(
+        w.score > this.challengeTarget
+          ? `⚔ DUEL WON — you beat ${this.challengeName || 'them'} (${this.challengeTarget.toLocaleString()})!`
+          : `⚔ Fell short of ${this.challengeName || 'them'} · ${this.challengeTarget.toLocaleString()}`,
+      );
     }
     // bank shards: in-run gems × meta Treasure Hunter × mode bonus
     const banked = Math.round(w.shards * w.stats.shardMul * this.mode.shardMul);
@@ -1637,7 +1656,7 @@ export class Game {
       lifeShards: this.save.lifeShards,
     });
     for (const a of newAch) this.save.achievements.push(a.id);
-    if (this.mode.id === 'daily') {
+    if (this.mode.id === 'daily' && !this.inChallenge) {
       const seed = seedFromDate();
       if (this.save.dailySeed !== seed) {
         this.save.dailySeed = seed;
@@ -1647,16 +1666,18 @@ export class Game {
       this.save.dailyMutators = this.activeMutators.slice();
     }
     saveSave(this.save);
-    // fire-and-forget online leaderboard submission (no-op if not configured)
-    void submitScore({
-      mode: this.mode.id,
-      name: this.save.handle,
-      score: w.score,
-      wave,
-      combo: w.bestComboRun,
-      heat: this.runHeat,
-      daily: this.mode.id === 'daily' ? dateString() : undefined,
-    });
+    // fire-and-forget online leaderboard submission (no-op if not configured).
+    // A duel is a private 1v1 on a fixed seed — never submit it to the public boards.
+    if (!this.inChallenge)
+      void submitScore({
+        mode: this.mode.id,
+        name: this.save.handle,
+        score: w.score,
+        wave,
+        combo: w.bestComboRun,
+        heat: this.runHeat,
+        daily: this.mode.id === 'daily' ? dateString() : undefined,
+      });
     const info: GameOverInfo = {
       score: w.score,
       combo: w.bestComboRun,
@@ -1728,6 +1749,29 @@ export class Game {
     } catch {
       /* storage disabled — ignore */
     }
+  }
+
+  /** Copy a shareable duel code for the just-finished run (seed + score + ghost path). */
+  private createChallenge(): void {
+    if (!this.lastRunGhost) return;
+    const code = toChallengeCode(this.lastRunGhost);
+    try {
+      void navigator.clipboard?.writeText(code);
+      this.ui.toast('⚔ Duel code copied — send it to a friend to race your run!');
+    } catch {
+      this.ui.toast(code);
+    }
+  }
+
+  /** Accept a pasted duel code → start that exact seed, racing the challenger's ghost. */
+  private acceptChallenge(code: string): void {
+    const g = fromChallengeCode(code);
+    if (!g) {
+      this.ui.toast('That duel code is not valid.');
+      return;
+    }
+    this.pendingChallenge = g;
+    this.start(MODES.find((m) => m.id === g.mode) ?? MODES[0]);
   }
 
   private applyDirector(spawn: EnemyKind[]): void {
