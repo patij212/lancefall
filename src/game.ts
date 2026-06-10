@@ -777,6 +777,7 @@ export class Game {
       clarity: this.settings.clarity,
       beatRing: this.settings.rhythmAssist,
       beatPhase: this.beat.beatPhase(),
+      slingshot: this.settings.dashStyle === 'slingshot',
     });
     if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density);
 
@@ -814,7 +815,7 @@ export class Game {
     // player
     resetEvents(this.ev);
     const wasCharging = w.player.phase === 'charging';
-    updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev);
+    updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev, this.settings.dashStyle === 'slingshot');
     this.handlePlayerEvents(wasCharging);
 
     // dash + afterimage hits (share one hash rebuild).

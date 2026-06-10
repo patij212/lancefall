@@ -39,6 +39,7 @@ export interface RenderOpts {
   clarity: boolean; // high-contrast Clarity mode (tames the coherence visuals)
   beatRing: boolean; // draw the opt-in beat-ring (rhythm assist)
   beatPhase: number; // 0..1 within the current beat (drives the ring radius)
+  slingshot: boolean; // slingshot dash style → draw the load tether while charging
 }
 
 export class Renderer {
@@ -67,6 +68,7 @@ export class Renderer {
   private clarityR = false;
   private colorblindR = false;
   private reduceFlashingR = false;
+  private slingshotR = false;
   private towers: { x: number; w: number; h: number; band: number }[] = [];
 
   setTheme(t: ThemeDef): void {
@@ -160,6 +162,7 @@ export class Renderer {
     this.reduceMotionR = opts.reduceMotion;
     this.clarityR = opts.clarity;
     this.colorblindR = opts.colorblind;
+    this.slingshotR = opts.slingshot;
     // ── draw the world to the buffer ──
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.globalCompositeOperation = 'source-over';
@@ -1231,6 +1234,21 @@ export class Renderer {
       ctx.lineTo(len - 4, -7);
       ctx.closePath();
       ctx.fill();
+      // SLINGSHOT — the load tether stretched BACKWARD (the tension you're building)
+      if (this.slingshotR) {
+        const loadLen = 14 + 56 * p.charge; // the band stretches as you load
+        ctx.strokeStyle = `rgba(255,180,90,${0.35 + 0.5 * p.charge})`;
+        ctx.lineWidth = 1.5 + 2 * p.charge;
+        ctx.beginPath();
+        ctx.moveTo(-6, -6);
+        ctx.lineTo(-loadLen, 0);
+        ctx.lineTo(-6, 6);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(255,210,140,${0.5 + 0.4 * p.charge})`;
+        ctx.beginPath();
+        ctx.arc(-loadLen, 0, 2.5 + 1.5 * p.charge, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     }
 

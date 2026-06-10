@@ -470,6 +470,9 @@ export class UI {
       toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
       toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
       toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v })),
+      toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) =>
+        this.patch({ dashStyle: v ? 'slingshot' : 'lance' }),
+      ),
     );
 
     const densityWrap = el('div', { class: 'setting' }, el('span', {}, 'Particle density'));

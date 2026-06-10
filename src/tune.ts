@@ -373,6 +373,16 @@ export const NG_PLUS = {
   maxLoop: 8,
 } as const;
 
+// SLINGSHOT TETHER — an OPTIONAL alternate dash style (title toggle). The default
+// Lance dash is left byte-identical; the slingshot adds a backward "load" drift
+// while charging (you're pulled against the tether, exposed) then SNAPS forward
+// farther + faster on release. Same swept-spear / i-frame mechanism fires it.
+export const SLINGSHOT = {
+  loadDrift: 540, // px/s backward pull while loading (drift away from aim — the wind-up)
+  lenMul: 1.5, // the snap flings ~50% farther than the Lance
+  durMul: 0.8, // …and snaps faster (shorter travel time for the same length → higher speed)
+} as const;
+
 // POWER-UP DROPS — temporary power-fantasy buffs. Bosses always drop one; elite
 // Champions drop one sometimes. One active at a time (a new pickup replaces it).
 export const POWERUP_DROP = {

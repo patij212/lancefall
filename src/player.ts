@@ -4,7 +4,8 @@
 // shake). No DOM/audio here.
 
 import { TUNE } from './tune';
-import { chargeToLen, dashDuration, iframeFor, canDash, effectiveDashCost, regenStamina, maxStamina } from './dash';
+import { chargeToLen, dashDuration, canDash, effectiveDashCost, regenStamina, maxStamina } from './dash';
+import { loadDrift, slingshotLen, slingshotDuration } from './slingshot';
 import { clamp, angleDiff, norm } from './vec';
 import type { Player, InputState } from './types';
 import type { RunStats } from './perks';
@@ -33,6 +34,7 @@ export function updatePlayer(
   width: number,
   height: number,
   ev: PlayerEvents,
+  slingshot = false,
 ): void {
   const max = maxStamina(stats.staminaSegments);
 
@@ -77,10 +79,17 @@ export function updatePlayer(
         ev.beganCharge = true;
       }
       p.charge = clamp(p.charge + dt / TUNE.dash.chargeTimeMax, 0, 1);
+      if (slingshot) {
+        // SLINGSHOT load — drift backward against the tether (away from aim), so
+        // loading a big snap leaves you briefly exposed. The risk for the reward.
+        const back = loadDrift(p.charge);
+        p.vx -= Math.cos(aimAngle) * back * dt;
+        p.vy -= Math.sin(aimAngle) * back * dt;
+      }
     } else if (p.phase === 'charging' && !input.dashHeld) {
       // released → fire
       if (canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
-        fireDash(p, aimAngle, input, stats, width, height, ev);
+        fireDash(p, aimAngle, input, stats, width, height, ev, slingshot);
       } else {
         p.phase = 'idle';
         ev.denied = true;
@@ -121,8 +130,9 @@ function fireDash(
   width: number,
   height: number,
   ev: PlayerEvents,
+  slingshot: boolean,
 ): void {
-  const len = chargeToLen(p.charge) * stats.dashLenMul;
+  const len = slingshot ? slingshotLen(p.charge, stats.dashLenMul) : chargeToLen(p.charge) * stats.dashLenMul;
   const dx = Math.cos(aimAngle);
   const dy = Math.sin(aimAngle);
   p.dashFromX = p.x;
@@ -139,10 +149,10 @@ function fireDash(
   p.angle = aimAngle;
   p.phase = 'dashing';
   p.dashTime = 0;
-  p.dashDuration = dashDuration(len);
+  p.dashDuration = slingshot ? slingshotDuration(len) : dashDuration(len);
   p.dashId++;
   p.killsThisDash = 0;
-  p.iframe = iframeFor(len);
+  p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(len) for the Lance
   p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout
   p.charge = 0;

@@ -84,6 +84,7 @@ export interface Settings {
   colorblind: boolean;
   clarity: boolean; // high-contrast Clarity mode — tames the coherence visuals for readability
   rhythmAssist: boolean; // opt-in: the contracting beat-ring that teaches dash-on-the-beat
+  dashStyle: 'lance' | 'slingshot'; // dash style — Lance (default) or the Slingshot Tether
   hudScale: number; // 0.8..1.4
   chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
   rumble: boolean; // gamepad rumble on/off
@@ -148,6 +149,7 @@ export function defaultSettings(): Settings {
     colorblind: false,
     clarity: false,
     rhythmAssist: false,
+    dashStyle: 'lance',
     hudScale: 1,
     chromAberration: 1,
     rumble: true,
