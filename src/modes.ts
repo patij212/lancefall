@@ -76,13 +76,13 @@ export const ARENA_SCRIPT: ArenaWave[] = [
   { kind: 'wave', budget: 24, enemies: ['darter', 'orbiter', 'splitter', 'bloomer'] },
   { kind: 'boss', boss: 'beacon' },
   { kind: 'wave', budget: 24, enemies: ['darter', 'orbiter', 'lancer', 'bloomer'] },
-  { kind: 'wave', budget: 26, enemies: ['drifter', 'lancer', 'bloomer'] },
+  { kind: 'wave', budget: 26, enemies: ['drifter', 'lancer', 'herald'] },
   { kind: 'boss', boss: 'mirrorblade' },
   { kind: 'wave', budget: 28, enemies: ['drifter', 'shade', 'orbiter', 'bomber'] },
   { kind: 'wave', budget: 30, enemies: ['shade', 'drifter', 'splitter', 'bloomer'] },
   { kind: 'boss', boss: 'hollow' },
-  { kind: 'wave', budget: 30, enemies: ['shade', 'drifter', 'lancer', 'bomber'] },
-  { kind: 'wave', budget: 32, enemies: ['drifter', 'shade', 'bloomer', 'splitter'] },
+  { kind: 'wave', budget: 30, enemies: ['shade', 'drifter', 'herald', 'bomber'] },
+  { kind: 'wave', budget: 32, enemies: ['drifter', 'shade', 'bloomer', 'herald'] },
   { kind: 'boss', boss: 'sovereign' },
 ];
 

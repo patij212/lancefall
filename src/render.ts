@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN } from './tune';
+import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD } from './tune';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
 import type { World } from './world';
@@ -789,6 +789,43 @@ export class Renderer {
           ctx.arc(Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, 2.1, 0, Math.PI * 2);
           ctx.fill();
         }
+        break;
+      }
+      case 'herald': {
+        // wall-preview: a broken dashed line across the firing direction, with the
+        // safe lane (gap) shown — the read window. e.subPhase holds the gap offset.
+        if (e.telegraph > 0) {
+          ctx.save();
+          ctx.rotate(e.angle);
+          const a = 0.16 + 0.5 * e.telegraph;
+          ctx.strokeStyle = `rgba(163,230,53,${a})`;
+          ctx.lineWidth = 1.5 + 2.5 * e.telegraph;
+          ctx.setLineDash([8, 7]);
+          const wh = HERALD.wallHalf;
+          const gh = HERALD.gapHalf;
+          const g = e.subPhase;
+          ctx.beginPath();
+          ctx.moveTo(0, -wh);
+          ctx.lineTo(0, g - gh);
+          ctx.moveTo(0, g + gh);
+          ctx.lineTo(0, wh);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // a short stem through the gap centre showing which way the wall sweeps
+          ctx.globalAlpha = a;
+          ctx.beginPath();
+          ctx.moveTo(0, g);
+          ctx.lineTo(26, g);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.restore();
+        }
+        // body: a tall bar perpendicular to aim — reads as a wall segment
+        ctx.rotate(e.angle);
+        ctx.beginPath();
+        ctx.rect(-r * 0.42, -r * 1.15, r * 0.84, r * 2.3);
+        ctx.fill();
+        ctx.stroke();
         break;
       }
       case 'hollow':

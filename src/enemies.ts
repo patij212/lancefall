@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -43,6 +43,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'brooder':
       brooder(e, world, dt);
+      break;
+    case 'herald':
+      herald(e, world, dt);
       break;
     case 'hollow_echo':
       hollowEcho(e, world, dt);
@@ -173,6 +176,75 @@ function brooder(e: Enemy, world: World, dt: number): void {
         child.vy = Math.sin(a) * BROODER.childSpeed;
       }
       e.subPhase++;
+    }
+  }
+}
+
+/** One bullet of a herald wall. */
+export interface WallShot {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
+/** Build a perpendicular WALL of bullets across `angle`, centred on (ex,ey), with
+ *  one clear safe lane (gap) centred at perpendicular offset `gapOffset`. Pure
+ *  geometry — every shot flies along `angle` at `speed`; the gap is simply the
+ *  band of omitted positions. Shared by the sim (spawn) and the test. */
+export function heraldWall(ex: number, ey: number, angle: number, gapOffset: number, speed: number): WallShot[] {
+  const px = Math.cos(angle + Math.PI / 2);
+  const py = Math.sin(angle + Math.PI / 2);
+  const vx = Math.cos(angle) * speed;
+  const vy = Math.sin(angle) * speed;
+  const out: WallShot[] = [];
+  for (let off = -HERALD.wallHalf; off <= HERALD.wallHalf + 1e-6; off += HERALD.spacing) {
+    if (Math.abs(off - gapOffset) < HERALD.gapHalf) continue; // the safe lane
+    out.push({ x: ex + px * off, y: ey + py * off, vx, vy });
+  }
+  return out;
+}
+
+function herald(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  const dx = p.x - e.x;
+  const dy = p.y - e.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const sp = HERALD.strafeSpeed * e.speedMul;
+  if (e.phase === 0) {
+    // hold a standoff, strafing
+    if (dist < HERALD.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    else if (dist > HERALD.range * 1.25) steerToward(e, p.x, p.y, sp);
+    else {
+      e.vx = (-dy / dist) * sp * 0.7;
+      e.vy = (dx / dist) * sp * 0.7;
+    }
+    e.timer -= dt;
+    e.telegraph = 0;
+    if (e.timer <= 0) {
+      e.phase = 1;
+      e.timer = HERALD.lockTime;
+      e.angle = Math.atan2(dy, dx); // LOCK the aim now — frozen during the telegraph
+      // seeded gap offset, kept fully inside the wall. This draw is cadence-timed
+      // (the timer is director-seeded + ticks on sim dt), exactly like the bloomer
+      // ring offset, so a seeded Daily stays bit-identical. NEVER draw rng on a
+      // player-kill-timed path — that would desync the stream.
+      const maxOff = HERALD.wallHalf - HERALD.gapHalf;
+      e.subPhase = world.rng.range(-maxOff, maxOff);
+    }
+  } else {
+    // telegraphing — brace in place; the gap is previewed by the renderer
+    e.vx *= 0.16;
+    e.vy *= 0.16;
+    e.timer -= dt;
+    e.telegraph = clamp(1 - e.timer / HERALD.lockTime, 0, 1);
+    if (e.timer <= 0) {
+      const base = HERALD.bulletSpeed * e.bulletMul;
+      const shots = heraldWall(e.x, e.y, e.angle, e.subPhase, base);
+      for (const s of shots) world.spawnBullet(s.x, s.y, s.vx, s.vy, 6, '#bef264', false);
+      e.phase = 0;
+      e.timer = HERALD.repositionTime;
+      e.telegraph = 0;
     }
   }
 }

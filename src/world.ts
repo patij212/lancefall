@@ -4,7 +4,7 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER } from './tune';
+import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER, HERALD } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import { makeOverdrive, resetOverdrive } from './overdrive';
@@ -277,6 +277,7 @@ export class World {
       : kind === 'drifter' ? DRIFTER_TUNE.repositionTime
       : kind === 'shade' ? SHADE_TUNE.blinkCadence
       : kind === 'brooder' ? BROODER.spawnEvery // wait before the first hatch
+      : kind === 'herald' ? HERALD.repositionTime // strafe before the first wall
       : 0;
     e.phase = 0;
     e.telegraph = 0;

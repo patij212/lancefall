@@ -142,6 +142,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   drifter: { kind: 'drifter', hp: 2, radius: 14, color: '#10b981', baseScore: 230, speed: 80 },
   shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240, speed: 150 },
   brooder: { kind: 'brooder', hp: 2, radius: 17, color: '#a78bfa', baseScore: 280, speed: 45 },
+  herald: { kind: 'herald', hp: 2, radius: 16, color: '#a3e635', baseScore: 260, speed: 75 },
   hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300, speed: 0 },
   sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150, speed: 0 },
 };
@@ -212,6 +213,21 @@ export const DRIFTER_TUNE = {
   outerSpeedMul: 0.78, // outer bullets slower → arced wavefront
   strafeSpeed: 80,
 };
+
+// Herald — a mid-range "wall" zoner. Locks its aim, then casts a perpendicular
+// WALL of slow bullets with one clear safe lane (gap). The gap is PREVIEWED during
+// the telegraph (a broken dashed line), so threading it is hard-but-fair: read the
+// lane, then dash or walk through it. The only chaff that demands gap-finding.
+export const HERALD = {
+  range: 330, // preferred standoff distance
+  repositionTime: 1.5, // strafe/reposition window between walls
+  lockTime: 0.85, // telegraph; aim + gap are frozen at lock start (the read window)
+  strafeSpeed: 75,
+  wallHalf: 200, // half-width of the bullet wall (px)
+  spacing: 24, // px between wall bullets
+  gapHalf: 44, // half-width of the safe lane — dash/walk through it
+  bulletSpeed: 150,
+} as const;
 
 // Shade — a teleporting ambusher. Chases, then blinks to a fresh edge angle.
 // No bullets; contact kill. Fills the gap between wisp + bomber.

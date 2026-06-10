@@ -23,6 +23,7 @@ export const BESTIARY: CodexEntry[] = [
   { id: 'drifter', name: 'Drifter', cat: 'enemy', accent: '#10b981', blurb: 'Mid-range zoner firing curved arc-fans. Read the curve and slip the wavefront.' },
   { id: 'shade', name: 'Shade', cat: 'enemy', accent: '#f97316', blurb: 'Teleporting ambusher — no bullets, but contact-lethal. Watch for the blink tell.' },
   { id: 'brooder', name: 'Brooder', cat: 'enemy', accent: '#a78bfa', blurb: 'Slow carrier that hatches minis (pulsing core tells the hatch). Prioritise it before the screen floods.' },
+  { id: 'herald', name: 'Herald', cat: 'enemy', accent: '#a3e635', blurb: 'Locks its aim, then casts a wall of slow bullets with one safe lane — the gap is previewed in the telegraph. Read the lane and dash through it.' },
   // ── special ──
   { id: 'champion', name: 'Champion', cat: 'special', accent: '#fde047', blurb: 'A gold-aura elite: tanky, rains shards, but detonates a volatile ring on death.' },
   // ── bosses ──
