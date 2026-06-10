@@ -828,6 +828,38 @@ export class Renderer {
         ctx.stroke();
         break;
       }
+      case 'seeker': {
+        // lock-on aim line — the bolt's initial heading (it homes from here)
+        if (e.telegraph > 0) {
+          ctx.save();
+          ctx.rotate(e.angle);
+          ctx.strokeStyle = `rgba(232,121,249,${0.18 + 0.5 * e.telegraph})`;
+          ctx.lineWidth = 1.5 + 2 * e.telegraph;
+          ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          ctx.moveTo(r, 0);
+          ctx.lineTo(900, 0);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+        }
+        // body: a ringed "eye" — reads as a tracker
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = baseColor;
+        ctx.globalAlpha = 0.6 + 0.4 * (e.telegraph || 0);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2); // reticle ring
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); // pupil
+        ctx.fill();
+        break;
+      }
       case 'hollow':
         this.drawHollow(ctx, e, r);
         break;

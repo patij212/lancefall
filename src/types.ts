@@ -18,6 +18,7 @@ export type EnemyKind =
   | 'shade'
   | 'brooder'
   | 'herald'
+  | 'seeker'
   | 'warden'
   | 'weaver'
   | 'beacon'
@@ -105,6 +106,9 @@ export interface Bullet {
   life: number;
   fromBoss: boolean;
   grazeCd: number; // per-bullet graze cooldown remaining
+  /** seconds of homing budget left: while >0 the bullet curves toward the player
+   *  at a bounded turn rate (the SEEKER's bolt), then flies straight. 0 = ballistic. */
+  homing: number;
 }
 
 export type ParticleKind = 'spark' | 'trail' | 'debris' | 'ring' | 'streak';

@@ -4,7 +4,7 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER, HERALD } from './tune';
+import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER, HERALD, SEEKER_TUNE } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import { makeOverdrive, resetOverdrive } from './overdrive';
@@ -63,6 +63,7 @@ function makeBullet(): Bullet {
     life: 0,
     fromBoss: false,
     grazeCd: 0,
+    homing: 0,
   };
 }
 
@@ -278,6 +279,7 @@ export class World {
       : kind === 'shade' ? SHADE_TUNE.blinkCadence
       : kind === 'brooder' ? BROODER.spawnEvery // wait before the first hatch
       : kind === 'herald' ? HERALD.repositionTime // strafe before the first wall
+      : kind === 'seeker' ? SEEKER_TUNE.repositionTime // strafe before the first bolt
       : 0;
     e.phase = 0;
     e.telegraph = 0;
@@ -316,6 +318,7 @@ export class World {
     b.life = 8;
     b.fromBoss = fromBoss;
     b.grazeCd = 0;
+    b.homing = 0; // CRITICAL: reset on pool reuse, or a recycled SEEKER bolt keeps homing
     return b;
   }
 

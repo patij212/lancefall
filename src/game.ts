@@ -31,7 +31,7 @@ import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE } from './tune';
+import { OVERDRIVE, SEEKER_TUNE } from './tune';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -1379,6 +1379,21 @@ export class Game {
         const ga = (SOVEREIGN.gravity * dt) / (gd + SOVEREIGN.gravitySoftening);
         b.vx += (gx / gd) * ga;
         b.vy += (gy / gd) * ga;
+      }
+      // SEEKER homing: while its budget lasts, curve the bolt toward the player at a
+      // bounded turn rate (math inlined from the pure homingSteer the tests cover, so
+      // the hottest loop stays allocation-free). Reads positions only → determinism-safe.
+      if (b.homing > 0 && p.alive) {
+        b.homing -= dt;
+        const speed = Math.hypot(b.vx, b.vy) || 1;
+        const cur = Math.atan2(b.vy, b.vx);
+        const des = Math.atan2(p.y - b.y, p.x - b.x);
+        const dA = Math.atan2(Math.sin(des - cur), Math.cos(des - cur));
+        const maxTurn = SEEKER_TUNE.turnRate * dt;
+        const turn = dA < -maxTurn ? -maxTurn : dA > maxTurn ? maxTurn : dA;
+        const a = cur + turn;
+        b.vx = Math.cos(a) * speed;
+        b.vy = Math.sin(a) * speed;
       }
       b.x += b.vx * dt;
       b.y += b.vy * dt;

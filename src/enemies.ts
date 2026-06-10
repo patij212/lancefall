@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD } from './tune';
+import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -46,6 +46,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
     case 'herald':
       herald(e, world, dt);
+      break;
+    case 'seeker':
+      seeker(e, world, dt);
       break;
     case 'hollow_echo':
       hollowEcho(e, world, dt);
@@ -244,6 +247,66 @@ function herald(e: Enemy, world: World, dt: number): void {
       for (const s of shots) world.spawnBullet(s.x, s.y, s.vx, s.vy, 6, '#bef264', false);
       e.phase = 0;
       e.timer = HERALD.repositionTime;
+      e.telegraph = 0;
+    }
+  }
+}
+
+/** Turn a velocity vector toward a target by at most `turnRate*dt` radians,
+ *  preserving speed. PURE — the SEEKER's homing. The hot bullet loop in game.ts
+ *  inlines this exact math (allocation-free); this copy is what the tests cover. */
+export function homingSteer(
+  vx: number,
+  vy: number,
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  turnRate: number,
+  dt: number,
+): { vx: number; vy: number } {
+  const speed = Math.hypot(vx, vy) || 1;
+  const cur = Math.atan2(vy, vx);
+  const des = Math.atan2(ty - sy, tx - sx);
+  const dA = Math.atan2(Math.sin(des - cur), Math.cos(des - cur)); // shortest signed turn
+  const maxTurn = turnRate * dt;
+  const turn = dA < -maxTurn ? -maxTurn : dA > maxTurn ? maxTurn : dA;
+  const a = cur + turn;
+  return { vx: Math.cos(a) * speed, vy: Math.sin(a) * speed };
+}
+
+function seeker(e: Enemy, world: World, dt: number): void {
+  const p = world.player;
+  const dx = p.x - e.x;
+  const dy = p.y - e.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const sp = SEEKER_TUNE.strafeSpeed * e.speedMul;
+  if (e.phase === 0) {
+    // hold a standoff, strafing
+    if (dist < SEEKER_TUNE.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    else if (dist > SEEKER_TUNE.range * 1.25) steerToward(e, p.x, p.y, sp);
+    else {
+      e.vx = (-dy / dist) * sp * 0.7;
+      e.vy = (dx / dist) * sp * 0.7;
+    }
+    e.timer -= dt;
+    e.telegraph = 0;
+    if (e.timer <= 0) {
+      e.phase = 1;
+      e.timer = SEEKER_TUNE.lockTime;
+      e.angle = Math.atan2(dy, dx); // initial heading of the bolt (it homes from here)
+    }
+  } else {
+    e.vx *= 0.2;
+    e.vy *= 0.2;
+    e.timer -= dt;
+    e.telegraph = clamp(1 - e.timer / SEEKER_TUNE.lockTime, 0, 1);
+    if (e.timer <= 0) {
+      const bs = SEEKER_TUNE.bulletSpeed * e.bulletMul;
+      const b = world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#f5d0fe', false);
+      if (b) b.homing = SEEKER_TUNE.homeTime; // the bolt curves toward you, then flies straight
+      e.phase = 0;
+      e.timer = SEEKER_TUNE.fireCadence;
       e.telegraph = 0;
     }
   }

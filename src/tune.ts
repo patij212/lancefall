@@ -143,6 +143,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240, speed: 150 },
   brooder: { kind: 'brooder', hp: 2, radius: 17, color: '#a78bfa', baseScore: 280, speed: 45 },
   herald: { kind: 'herald', hp: 2, radius: 16, color: '#a3e635', baseScore: 260, speed: 75 },
+  seeker: { kind: 'seeker', hp: 2, radius: 14, color: '#e879f9', baseScore: 250, speed: 80 },
   hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300, speed: 0 },
   sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150, speed: 0 },
 };
@@ -227,6 +228,22 @@ export const HERALD = {
   spacing: 24, // px between wall bullets
   gapHalf: 44, // half-width of the safe lane — dash/walk through it
   bulletSpeed: 150,
+} as const;
+
+// Seeker — the roster's first TRACKER. A mid-range zoner that fires a single SLOW
+// homing bolt: it curves toward you at a gentle, bounded turn rate for `homeTime`
+// then flies straight. The fair counter is the dash (i-frames phase through it) or
+// a wide juke — the turn rate is deliberately too low to corner you, and the bolt
+// is slow enough to read. A new dodge vocabulary alongside the HERALD's walls.
+export const SEEKER_TUNE = {
+  range: 300, // preferred standoff
+  repositionTime: 1.0,
+  fireCadence: 2.4, // s between bolts
+  lockTime: 0.5, // brief telegraph (aim line) before firing
+  strafeSpeed: 72,
+  bulletSpeed: 150, // slow → dash-through-able / jukeable
+  turnRate: 1.7, // rad/s — gentle curve; can't out-turn a committed dodge
+  homeTime: 1.8, // s the bolt tracks, then it flies straight (escapable)
 } as const;
 
 // Shade — a teleporting ambusher. Chases, then blinks to a fresh edge angle.
