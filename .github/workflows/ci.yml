@@ -14,7 +14,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+        # npm install (not ci): the lockfile's platform-specific optional deps (@emnapi/* etc.)
+        # resolve differently across OSes, and `npm ci`'s strict in-sync check is brittle for that.
+      - run: npm install --no-audit --no-fund
       - name: Unit tests + typecheck (vitest runs through tsc-checked sources)
         run: npm test
       - name: Production build
