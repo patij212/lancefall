@@ -119,6 +119,21 @@ export class AudioEngine {
     return this.ctx?.currentTime ?? 0;
   }
 
+  private analyser: AnalyserNode | null = null;
+  /** DEV (audio lab): a parallel AnalyserNode tapped off the master sum for live
+   *  scope / meter / spectrum. Built on the engine's OWN context (lazily, once) and
+   *  connected non-destructively — it only reads, never alters the audible path. */
+  getAnalyser(): AnalyserNode | null {
+    if (!this.ctx || !this.master) return null;
+    if (!this.analyser) {
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 2048;
+      this.analyser.smoothingTimeConstant = 0.6;
+      this.master.connect(this.analyser);
+    }
+    return this.analyser;
+  }
+
   /** DEV/VERIFY harness — render the music OFFLINE to an AudioBuffer at fixed
    *  (coherence, tier, heat, track, boss). For ear-tests (bounce to WAV) + objective
    *  analysis (peak/RMS/brightness) + a determinism null-test. Call on a THROWAWAY

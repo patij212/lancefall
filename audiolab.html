@@ -4,65 +4,200 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:," />
-    <title>LANCEFALL · AUDIO LAB</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>LANCEFALL · AUDIO CONSOLE</title>
     <style>
       :root {
-        --bg: #07080f;
-        --panel: #11131f;
-        --ink: #e7e9f3;
-        --dim: #8a8fb0;
-        --neon: #5beaff;
-        --neon2: #c084fc;
+        --bg: #08090d;
+        --chassis: #0e1016;
+        --panel: #14161d;
+        --raised: #1a1d27;
+        --well: #0b0c12;
         --line: #232742;
+        --line-soft: #1d2029;
+        --ink: #e6e8ef;
+        --dim: #8a8fb0;
+        --faint: #565a72;
+        --amber: #ffb347;
+        --cyan: #57e2ff;
+        --magenta: #ff4d9d;
+        --green: #3ddc97;
+        --danger: #ff5c5c;
+        --bloom: 0; /* set live from coherence (0..1) → chassis warms */
+        --font-ui: 'Space Grotesk', ui-monospace, monospace;
+        --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
       }
       * { box-sizing: border-box; }
+      html, body { height: 100%; }
       body {
         margin: 0;
-        background: radial-gradient(1200px 600px at 50% -10%, #16213f 0%, var(--bg) 70%);
+        background:
+          radial-gradient(1400px 520px at 50% -12%, color-mix(in srgb, var(--cyan) calc(var(--bloom) * 7%), #161b2e) 0%, transparent 60%),
+          var(--bg);
         color: var(--ink);
-        font: 14px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-        padding: 24px;
+        font-family: var(--font-ui);
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
       }
-      h1 { font-size: 18px; letter-spacing: 0.18em; margin: 0 0 4px; color: var(--neon); }
-      .sub { color: var(--dim); margin: 0 0 18px; font-size: 12px; }
-      .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
-      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
-      .panel h2 { font-size: 11px; letter-spacing: 0.16em; color: var(--neon2); margin: 0 0 12px; text-transform: uppercase; }
-      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-      button {
-        background: #1a1e30; color: var(--ink); border: 1px solid var(--line);
-        border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; transition: 0.12s;
+      .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+      .lbl { font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+
+      #app {
+        display: grid;
+        grid-template-areas: 'transport transport' 'stage rail' 'mixer rail';
+        grid-template-rows: 58px minmax(220px, 1fr) minmax(200px, 230px);
+        grid-template-columns: minmax(0, 1fr) 340px;
+        height: 100vh;
+        gap: 1px;
+        background: var(--line);
       }
-      button:hover { border-color: var(--neon); color: var(--neon); transform: translateY(-1px); }
-      button.primary { background: var(--neon); color: #04121a; border-color: var(--neon); font-weight: 700; }
-      button.warn { border-color: #f87171; }
-      label { display: block; color: var(--dim); font-size: 11px; margin: 10px 0 2px; letter-spacing: 0.06em; }
-      .val { color: var(--neon); }
-      input[type="range"] { width: 100%; accent-color: var(--neon); }
-      select { background: #1a1e30; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; }
-      .hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
-      .wave { width: 100%; height: 90px; border: 1px solid var(--line); border-radius: 8px; display: block; cursor: pointer; margin-bottom: 8px; background: #1b2236; }
-      .nowlabel { color: var(--neon); font-size: 12px; }
-      .setting-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
-      .layergrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px; }
-      .layerrow { display: flex; align-items: center; gap: 6px; background: #1a1e30; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
-      .layername { flex: 1; color: var(--ink); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
-      button.ms { padding: 3px 9px; min-width: 30px; font-weight: 700; }
-      button.ms.on { background: #f87171; color: #1a0606; border-color: #f87171; }
-      button.ms.solo.on { background: #fde047; color: #1a1606; border-color: #fde047; }
-      select { background: #1a1e30; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; margin-bottom: 8px; }
-      .pill { display: inline-block; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; }
-      #gate {
-        position: fixed; inset: 0; background: rgba(5, 6, 14, 0.94); display: grid; place-items: center; z-index: 9;
+      .zone { background: var(--chassis); min-width: 0; min-height: 0; }
+
+      /* ── TRANSPORT ── */
+      #transport {
+        grid-area: transport;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 16px;
+        background: linear-gradient(var(--raised), var(--panel));
+        border-bottom: 1px solid var(--line);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
-      #gate button { font-size: 16px; padding: 16px 28px; }
+      .wordmark { font-weight: 700; letter-spacing: 0.16em; font-size: 12px; color: var(--amber); }
+      .wordmark small { color: var(--faint); font-weight: 500; }
+      .playbtn {
+        width: 38px; height: 38px; border-radius: 50%; flex: none;
+        background: radial-gradient(circle at 38% 32%, #2a2f42, #11131b);
+        border: 1px solid var(--line); color: var(--amber); font-size: 15px; cursor: pointer;
+        box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        transition: 0.12s;
+      }
+      .playbtn:hover { border-color: var(--amber); box-shadow: 0 0 14px -2px var(--amber); }
+      .playbtn:active { transform: translateY(1px); }
+      .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--well); }
+      .seg button { border: 0; background: transparent; color: var(--dim); padding: 6px 11px; font: 600 11px var(--font-ui); letter-spacing: 0.1em; cursor: pointer; }
+      .seg button.on { color: #06121a; background: var(--cyan); }
+      .seg.render button.on { color: #1a1206; background: var(--amber); }
+      .clock { font: 600 15px var(--font-mono); color: var(--amber); letter-spacing: 0.04em; white-space: nowrap; }
+      .clock .sub { color: var(--dim); font-size: 11px; }
+      .pips { display: inline-flex; gap: 4px; vertical-align: middle; margin: 0 6px; }
+      .pip { width: 7px; height: 7px; border-radius: 50%; background: #2a2f42; transition: 0.08s; }
+      .pip.on { background: var(--amber); box-shadow: 0 0 6px var(--amber); transform: scale(1.15); }
+      .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); font: 600 10px var(--font-ui); letter-spacing: 0.12em; cursor: pointer; color: var(--dim); }
+      .chip.aurora { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, var(--line)); }
+      .chip.surge { color: var(--magenta); border-color: color-mix(in srgb, var(--magenta) 40%, var(--line)); }
+      .spacer { flex: 1; }
+      .vmeter { display: flex; gap: 2px; align-items: flex-end; height: 30px; }
+      .vmeter canvas { height: 30px; width: 60px; }
+      .ticon { background: var(--raised); border: 1px solid var(--line); color: var(--dim); border-radius: 7px; padding: 6px 9px; font: 600 10px var(--font-ui); letter-spacing: 0.08em; cursor: pointer; }
+      .ticon:hover { color: var(--amber); border-color: var(--amber); }
+
+      /* ── STAGE ── */
+      #stage { grid-area: stage; display: flex; flex-direction: column; padding: 12px; gap: 8px; }
+      .well {
+        position: relative; background: var(--well); border: 1px solid var(--line); border-radius: 10px;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6); overflow: hidden;
+      }
+      .well::after {
+        content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+      }
+      .well canvas { display: block; width: 100%; position: relative; z-index: 1; }
+      #waveWell { flex: 1.2; min-height: 90px; cursor: crosshair; }
+      #ribbonWell { flex: none; height: 60px; cursor: pointer; }
+      #spectrumWell { flex: none; height: 46px; }
+      .welltag { position: absolute; top: 5px; left: 8px; z-index: 2; }
+
+      /* ── RAIL ── */
+      #rail { grid-area: rail; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); }
+      .tabs { display: flex; border-bottom: 1px solid var(--line); }
+      .tabs button { flex: 1; background: transparent; border: 0; color: var(--dim); padding: 10px; font: 600 11px var(--font-ui); letter-spacing: 0.14em; cursor: pointer; border-bottom: 2px solid transparent; }
+      .tabs button.on { color: var(--amber); border-bottom-color: var(--amber); }
+      .tabbody { flex: 1; overflow-y: auto; padding: 14px; }
+      .tabbody::-webkit-scrollbar { width: 8px; }
+      .tabbody::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+      /* drivers */
+      .driver { margin-bottom: 16px; }
+      .driver .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+      .driver .v { font: 700 13px var(--font-mono); color: var(--cyan); }
+      input[type='range'] { width: 100%; accent-color: var(--cyan); }
+      .cohwrap { display: flex; align-items: center; gap: 12px; }
+      .bloomring { width: 64px; height: 64px; flex: none; }
+      .sweep { background: var(--raised); border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 4px 8px; font: 600 9px var(--font-ui); letter-spacing: 0.1em; cursor: pointer; }
+      .sweep:hover { color: var(--cyan); border-color: var(--cyan); }
+
+      /* log */
+      .passbanner { background: linear-gradient(var(--raised), var(--panel)); border: 1px solid color-mix(in srgb, var(--amber) 30%, var(--line)); border-radius: 9px; padding: 10px 12px; margin-bottom: 12px; }
+      .passbanner .lbl { color: var(--amber); }
+      .logcard { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; margin-bottom: 9px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02); }
+      .logcard.owner { border-left: 3px solid var(--magenta); }
+      .logcard h4 { margin: 0 0 5px; font: 600 12px var(--font-ui); color: var(--ink); letter-spacing: 0.02em; }
+      .logcard .meta { font: 500 9.5px var(--font-mono); color: var(--faint); margin-bottom: 6px; }
+      .logcard ul { margin: 4px 0 8px; padding-left: 15px; color: var(--dim); font-size: 11px; }
+      .logcard li { margin-bottom: 2px; }
+      .chipset { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+      .lchip { font: 600 8.5px var(--font-mono); padding: 2px 6px; border-radius: 4px; background: var(--raised); color: var(--dim); border: 1px solid var(--line); }
+      .logbtns { display: flex; gap: 6px; flex-wrap: wrap; }
+      .logbtns button { background: var(--raised); border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 4px 8px; font: 600 9px var(--font-ui); letter-spacing: 0.06em; cursor: pointer; }
+      .logbtns button:hover { color: var(--amber); border-color: var(--amber); }
+      .deltas { font: 500 9.5px var(--font-mono); color: var(--faint); margin-top: 6px; }
+      .deltas b { color: var(--green); }
+      .markerform { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+      .markerform textarea { width: 100%; background: var(--well); border: 1px solid var(--line); color: var(--ink); border-radius: 7px; padding: 7px; font: 400 11px var(--font-mono); resize: vertical; min-height: 42px; }
+      .verdicts button { font-size: 14px; background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+      .verdicts button.on { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 18%, var(--raised)); }
+
+      /* ── MIXER ── */
+      #mixer { grid-area: mixer; display: grid; grid-template-columns: 1fr 360px; gap: 1px; background: var(--line); }
+      .mixhalf { background: var(--chassis); padding: 10px 12px; overflow: hidden; display: flex; flex-direction: column; }
+      .strips { display: flex; gap: 6px; overflow-x: auto; flex: 1; align-items: stretch; padding-bottom: 4px; }
+      .strip { flex: none; width: 52px; display: flex; flex-direction: column; align-items: center; gap: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 4px; }
+      .strip.dim { opacity: 0.4; }
+      .strip .sname { font: 600 8.5px var(--font-ui); letter-spacing: 0.04em; color: var(--dim); text-transform: uppercase; }
+      .strip .led { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--line); background: transparent; }
+      .strip .led.on { background: var(--cyan); box-shadow: 0 0 7px var(--cyan); border-color: var(--cyan); }
+      .strip .ms { display: flex; flex-direction: column; gap: 4px; margin-top: auto; width: 100%; }
+      .strip .ms button { border: 1px solid var(--line); background: var(--raised); color: var(--dim); border-radius: 5px; padding: 3px 0; font: 700 9px var(--font-ui); cursor: pointer; }
+      .strip .ms .m.on { background: var(--danger); color: #1a0606; border-color: var(--danger); }
+      .strip .ms .s.on { background: var(--amber); color: #1a1206; border-color: var(--amber); }
+      .deck { background: var(--chassis); padding: 10px 12px; overflow: hidden; display: flex; flex-direction: column; border-left: 1px solid var(--line); }
+      .deck .dtabs { display: flex; gap: 4px; margin-bottom: 10px; }
+      .deck .dtabs button { flex: 1; background: var(--raised); border: 1px solid var(--line); color: var(--dim); border-radius: 6px; padding: 5px; font: 600 9.5px var(--font-ui); letter-spacing: 0.08em; cursor: pointer; }
+      .deck .dtabs button.on { color: var(--amber); border-color: var(--amber); }
+      .pads { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; align-content: flex-start; }
+      .pad { background: var(--raised); border: 1px solid var(--line); color: var(--ink); border-radius: 7px; padding: 8px 11px; font: 600 11px var(--font-ui); cursor: pointer; transition: 0.1s; }
+      .pad:hover { border-color: var(--amber); }
+      .pad.fired { background: var(--amber); color: #1a1206; }
+      .pad.primary { border-color: color-mix(in srgb, var(--cyan) 40%, var(--line)); color: var(--cyan); }
+      .knobrow { display: flex; gap: 14px; margin-bottom: 9px; align-items: center; }
+      .knobrow label { font-size: 10px; color: var(--dim); display: flex; flex-direction: column; gap: 3px; }
+      select { background: var(--well); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; font: 500 11px var(--font-mono); }
+
+      #gate { position: fixed; inset: 0; background: radial-gradient(900px 500px at 50% 40%, #121626, #06070b); display: grid; place-items: center; z-index: 100; }
+      #gate button {
+        background: transparent; border: 1px solid var(--amber); color: var(--amber);
+        font: 600 15px var(--font-ui); letter-spacing: 0.2em; padding: 18px 34px; border-radius: 12px; cursor: pointer;
+        box-shadow: 0 0 40px -10px var(--amber); transition: 0.2s;
+      }
+      #gate button:hover { background: color-mix(in srgb, var(--amber) 12%, transparent); box-shadow: 0 0 60px -8px var(--amber); }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } .pip, .led { box-shadow: none; } }
     </style>
   </head>
   <body>
-    <h1>LANCEFALL · AUDIO LAB</h1>
-    <p class="sub">Dev-only sound bench — audition every SFX, drive the soundtrack by COHERENCE / heat / combo tier, swap boss themes, and A/B the mix states. Not shipped in the prod build.</p>
-    <div id="app"></div>
-    <div id="gate"><button class="primary" id="start">▶ CLICK TO START AUDIO</button></div>
+    <div id="app">
+      <div id="transport" class="zone"></div>
+      <div id="stage" class="zone"></div>
+      <div id="mixer" class="zone"></div>
+      <div id="rail" class="zone"></div>
+    </div>
+    <div id="gate"><button id="start">▶ &nbsp;START THE CONSOLE</button></div>
     <script type="module" src="/src/audioLab.ts"></script>
   </body>
 </html>
