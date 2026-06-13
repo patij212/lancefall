@@ -1,74 +1,235 @@
-// LANCEFALL — headless autoplay balance probe.
+// LANCEFALL — headless autoplay probe + a PRO autopilot you can watch.
 //
-// Paste this whole file into the devtools console on the running dev build
-// (`npm run dev`), then call `await __sweep()` for a full multi-mode report, or
-// `__runProbe(__MODES[0], 12, 7200)` for a single mode.
+// Paste this whole file into the devtools console on a running DEV build
+// (`npm run dev`). Then:
+//   __watch('endless')                 → watch the bot play LIVE (auto-restarts on death)
+//   await __sweep()                    → full multi-mode survival report (headless, fast)
+//   __runProbe(__MODES[0], 8, 20000)   → one mode, raw rows
+//   clearInterval(__watchTimer)        → stop the live auto-restart loop
 //
 // HOW IT WORKS: the game's `Game.frame(now)` is the real per-display-frame loop.
-// We stub `requestAnimationFrame`, `renderer.render`, and `ui.updateHud`, then call
-// `frame()` ourselves with synthetic, monotonically increasing timestamps — so the
-// genuine sim (director, spawns, drafts, bosses, clutch, overdrive) runs as fast as
-// JS allows. A bot overrides `input.poll` to fly the ship. Nothing in the shipped
-// game is modified; this is a console-only dev tool.
+// We override `input.poll` with an autopilot. For headless stats we also stub
+// `requestAnimationFrame`/`renderer.render`/`ui.updateHud` and call `frame()`
+// ourselves with synthetic timestamps, so the genuine sim runs as fast as JS
+// allows. Nothing in the shipped game is modified — this is a console-only tool.
 //
-// IMPORTANT per-run resets: align `lastTime` to the synthetic clock and clear the
-// substep `accumulator`, or the first frame of run N computes a huge negative
-// realDt (only the >0.1 upper clamp exists) and the sim can't step.
+// THE AUTOPILOT (what makes it a pro, not a flailer):
+//  • Dash i-frames are the dodge. A charged dash is invulnerable for its whole
+//    travel + grace (~0.2–0.3s), and body/bullet/beam checks all skip while
+//    iframe>0 — so the bot DASHES THROUGH danger and relocates to safety.
+//  • Emergency dashes pick the safest LANDING from 18 sampled directions, scored
+//    against where bullets will be after the i-frames lapse, walls, the arena
+//    centre, enemy bodies, and active boss beams.
+//  • Offensive dashes spear enemy clusters / the boss when a 1-charge reserve is
+//    spare (grazing refunds stamina, so the reserve refills itself).
+//  • Fine bullet-dodging steers PERPENDICULAR to incoming shots (tiny 9px hitbox).
+//  • OVERDRIVE is a panic button: fired full + crowded/threatened.
 
 (() => {
   const lf = window.__lf;
   if (!lf) { console.error('window.__lf not found — run a DEV build of LANCEFALL.'); return; }
 
-  const bot = { prevHeld: false };
+  const bot = { prevHeld: false, committed: false, aimX: 0, aimY: 0, charge: 0, threatFns: null };
   window.__botState = bot;
 
-  // ---- the bot: dodge bullets, avoid contact, grab gems when safe, dash enemies ----
-  lf.input.poll = function () {
+  // Boss-beam predicates (loaded once; the bot degrades gracefully until ready).
+  Promise.all([import('/src/boss.ts'), import('/src/sovereign.ts'), import('/src/tune.ts')])
+    .then(([b, sv, t]) => {
+      bot.threatFns = {
+        beaconBeamActive: b.beaconBeamActive,
+        sovereignBeamActive: sv.sovereignBeamActive,
+        beamHitsPoint: sv.beamHitsPoint,
+        BEACON: t.BEACON, SOVEREIGN: t.SOVEREIGN,
+      };
+    })
+    .catch(() => {});
+
+  const DASH_COST = 100;
+
+  const segDist = (px, py, ax, ay, bx, by) => {
+    const abx = bx - ax, aby = by - ay, apx = px - ax, apy = py - ay;
+    const L = abx * abx + aby * aby;
+    let t = L > 1e-9 ? (apx * abx + apy * aby) / L : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return Math.hypot(px - (ax + abx * t), py - (ay + aby * t));
+  };
+  // inverse of chargeToLen: len = lerp(180,560, easeOutQuad(c))
+  const chargeForLen = (len) => {
+    const y = Math.max(0, Math.min(1, (len - 180) / 380));
+    return Math.max(0, Math.min(1, 1 - Math.sqrt(1 - y)));
+  };
+  const beamHits = (b, x, y, R) => {
+    const tf = bot.threatFns; if (!tf || !b) return false;
+    if (b.kind === 'beacon' && tf.beaconBeamActive(b)) {
+      const dx = x - b.x, dy = y - b.y;
+      if (Math.abs(dx * -Math.sin(b.angle) + dy * Math.cos(b.angle)) < tf.BEACON.beamWidth / 2 + R) return true;
+    }
+    if (b.kind === 'sovereign' && tf.sovereignBeamActive(b)) {
+      if (tf.beamHitsPoint(b.x, b.y, b.angle, tf.SOVEREIGN.beamArms, tf.SOVEREIGN.beamWidth / 2 + R, x, y)) return true;
+    }
+    return false;
+  };
+
+  // Score sampled dash landing spots; return {aimX, aimY, charge} for the best.
+  // A good landing is OPEN (far from enemies — escapes the swarm), clear of where
+  // bullets will be after the i-frames lapse, off the walls, and ideally spears a
+  // few enemies on the way through.
+  function bestDash(p, w, bullets, enemies, boss, R, lens) {
+    const DIRS = 20;
+    let best = { aimX: p.x + 100, aimY: p.y, charge: 0 }, bestS = -1e18;
+    for (let li = 0; li < lens.length; li++) {
+      const len = lens[li];
+      for (let k = 0; k < DIRS; k++) {
+        const a = (k / DIRS) * Math.PI * 2, ux = Math.cos(a), uy = Math.sin(a);
+        let lx = Math.max(R + 6, Math.min(w.width - R - 6, p.x + ux * len));
+        let ly = Math.max(R + 6, Math.min(w.height - R - 6, p.y + uy * len));
+        let sc = 0;
+        const m = 80;
+        if (lx < m) sc -= (m - lx) * 1.6; if (lx > w.width - m) sc -= (lx - (w.width - m)) * 1.6;
+        if (ly < m) sc -= (m - ly) * 1.6; if (ly > w.height - m) sc -= (ly - (w.height - m)) * 1.6;
+        sc -= Math.hypot(lx - w.width / 2, ly - w.height / 2) * 0.03;
+        for (let bi = 0; bi < bullets.length; bi++) {
+          const b = bullets[bi];
+          let d = Math.hypot(lx - (b.x + b.vx * 0.22), ly - (b.y + b.vy * 0.22)); if (d < 36) sc -= (36 - d) * 2.4;
+          d = Math.hypot(lx - (b.x + b.vx * 0.42), ly - (b.y + b.vy * 0.42)); if (d < 36) sc -= (36 - d) * 1.5;
+        }
+        let kills = 0, nearestE = 1e9;
+        for (let ei = 0; ei < enemies.length; ei++) {
+          const e = enemies[ei]; if (!e.active) continue;
+          const dl = Math.hypot(lx - e.x, ly - e.y);
+          if (dl < nearestE) nearestE = dl;
+          if (dl < e.radius + R + 16) sc -= 60; // do NOT land on a body
+          if (!e.isBoss && segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) kills++;
+        }
+        sc += Math.min(nearestE, 200) * 0.45; // OPENNESS — the big one: land away from the swarm
+        sc += kills * 14;
+        if (boss) {
+          // dashing THROUGH the boss spears it (i-frames make it safe) — grind it
+          // down while we dodge, so the fight actually ends instead of going forever
+          if (segDist(boss.x, boss.y, p.x, p.y, lx, ly) < boss.radius + 24) sc += 12;
+          if (beamHits(boss, lx, ly, R)) sc -= 1000;
+        }
+        if (sc > bestS) { bestS = sc; best = { aimX: p.x + ux * 1000, aimY: p.y + uy * 1000, charge: chargeForLen(len) }; }
+      }
+    }
+    return best;
+  }
+
+  function decide() {
     const s = lf.input.state;
     s.pausePressed = false; s.overdrivePressed = false; s.anyPressed = false; s.selectIndex = -1;
     const st = lf.state;
-    if (st === 'draft' || st === 'event') { s.selectIndex = 0; s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; return s; }
-    if (st !== 'playing') { s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; return s; }
-    const w = lf.world, p = w.player;
-    let dx = 0, dy = 0;
-    const B = w.bullets.items;
-    for (let i = 0; i < B.length; i++) { const b = B[i]; if (!b.active) continue;
-      const rx = p.x - b.x, ry = p.y - b.y; const d = Math.hypot(rx, ry) || 1;
-      if (d < 150) { const toward = b.vx * (-rx) + b.vy * (-ry); const w8 = (150 - d) / 150;
-        const m = toward > 0 ? 1.7 : 0.5; dx += (rx / d) * w8 * w8 * m; dy += (ry / d) * w8 * w8 * m; } }
-    const E = w.enemies.items; let ne = null, ned = 1e9;
-    for (let i = 0; i < E.length; i++) { const e = E[i]; if (!e.active) continue;
-      const rx = p.x - e.x, ry = p.y - e.y; const d = Math.hypot(rx, ry) || 1;
-      if (d < e.radius + 46) { const w8 = (e.radius + 46 - d) / (e.radius + 46); dx += (rx / d) * w8 * 1.3; dy += (ry / d) * w8 * 1.3; }
-      if (!e.isBoss && d < ned) { ned = d; ne = e; } else if (e.isBoss && !ne) { ne = e; ned = d; } }
-    const mg = 70;
-    if (p.x < mg) dx += (mg - p.x) / mg; if (p.x > w.width - mg) dx -= (p.x - (w.width - mg)) / mg;
-    if (p.y < mg) dy += (mg - p.y) / mg; if (p.y > w.height - mg) dy -= (p.y - (w.height - mg)) / mg;
-    if (Math.hypot(dx, dy) < 0.4) { const G = w.gems.items; let ng = null, nd = 1e9;
-      for (let i = 0; i < G.length; i++) { const g = G[i]; if (!g.active) continue; const d = Math.hypot(p.x - g.x, p.y - g.y); if (d < nd) { nd = d; ng = g; } }
-      if (ng) { dx += (ng.x - p.x) / Math.max(1, nd) * 0.5; dy += (ng.y - p.y) / Math.max(1, nd) * 0.5; } }
-    let ml = Math.hypot(dx, dy); if (ml > 1) { dx /= ml; dy /= ml; }
-    let aimX = p.x + Math.cos(p.angle) * 100, aimY = p.y + Math.sin(p.angle) * 100;
-    if (ne) { aimX = ne.x; aimY = ne.y; }
+    if (st === 'draft' || st === 'event') { s.selectIndex = 0; s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
+    if (st !== 'playing') { s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
+
+    const w = lf.world, p = w.player, R = p.radius;
+    if (p.phase === 'dashing') { s.moveX = 0; s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
+
+    // ── bullets: perpendicular micro-dodge + hard-threat flag ──
+    let mvx = 0, mvy = 0, hard = false, threatN = 0;
+    const B = w.bullets.items, near = [];
+    for (let i = 0; i < B.length; i++) {
+      const b = B[i]; if (!b.active) continue;
+      if (Math.hypot(b.x - p.x, b.y - p.y) > 360) continue;
+      near.push(b);
+      const vv = b.vx * b.vx + b.vy * b.vy;
+      let ts = vv > 1e-3 ? -((b.x - p.x) * b.vx + (b.y - p.y) * b.vy) / vv : 0;
+      if (ts < 0) ts = 0; if (ts > 0.7) continue;
+      const cx = b.x + b.vx * ts, cy = b.y + b.vy * ts, minD = Math.hypot(cx - p.x, cy - p.y), hitR = R + b.radius;
+      if (minD < hitR + 18) {
+        const bl = Math.sqrt(vv) || 1; let nx = -b.vy / bl, ny = b.vx / bl;
+        if ((p.x - cx) * nx + (p.y - cy) * ny < 0) { nx = -nx; ny = -ny; }
+        const sev = (1 - Math.min(1, ts / 0.7)) * (1 - Math.min(1, minD / (hitR + 18)));
+        mvx += nx * sev * 1.8; mvy += ny * sev * 1.8;
+        if (minD < hitR + 8 && ts < 0.26) hard = true;
+        if (minD < hitR + 12 && ts < 0.4) threatN++; // count converging shots → a wall you can't drift out of
+      }
+    }
+    if (threatN >= 3) hard = true; // multiple shots closing → dash THROUGH on i-frames
+
+    // ── enemies: body avoidance, crowd pressure, nearest target, boss ──
+    const E = w.enemies.items; let nE = null, nED = 1e9, boss = null, crowd = 0, cgx = 0, cgy = 0;
+    for (let i = 0; i < E.length; i++) {
+      const e = E[i]; if (!e.active) continue;
+      const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
+      if (e.isBoss) boss = e;
+      if (d < 130) { crowd++; cgx += dx; cgy += dy; }
+      const al = d || 1;
+      if (d < e.radius + R + 26) {
+        mvx += (-dx / al) * 1.7; mvy += (-dy / al) * 1.7;
+        const closing = (e.vx * dx + e.vy * dy) < 0; // enemy heading toward us
+        if (d < e.radius + R + 6 || (closing && d < e.radius + R + 18)) hard = true;
+      }
+      if (!e.isBoss && d < nED) { nED = d; nE = e; }
+    }
+    if (crowd >= 3) hard = true; // surrounded → punch out now
+    if (crowd > 0) { mvx -= (cgx / crowd) * 0.004; mvy -= (cgy / crowd) * 0.004; } // steer off the crowd centroid
+    if (boss && beamHits(boss, p.x, p.y, R)) hard = true;
+
+    // ── dash decision (survive first: an escape dash also spears & thins the crowd) ──
+    const canDash = p.stamina >= DASH_COST - 1;
+    let wantDash = false, aimX = 0, aimY = 0, charge = 0;
+    // All dashes fire near-instantly (charge≈0). The charge window is unguarded —
+    // no i-frames, 55% move speed — so a slow charge is exactly where the bot dies.
+    // A min-length dash still grants the FULL i-frame window; direction matters, not
+    // length. Offence only fires at near-full stamina in total calm, so escapes
+    // (which also spear the crowd / chip the boss) always have a reserve.
+    if (canDash && hard) {
+      const bd = bestDash(p, w, near, E, boss, R, [190]); // openest safe hop, fired NOW
+      aimX = bd.aimX; aimY = bd.aimY; charge = 0; wantDash = true;
+      bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = 0;
+    } else if (bot.committed && p.phase === 'charging') {
+      aimX = bot.aimX; aimY = bot.aimY; charge = bot.charge; wantDash = true;
+    } else if (canDash && p.stamina >= DASH_COST * 2.9 && crowd === 0 && threatN === 0 && ((nE && nED < 420) || (boss && !nE))) {
+      const bd = bestDash(p, w, near, E, boss, R, [190]); // calm only: thin the field / chip the boss
+      aimX = bd.aimX; aimY = bd.aimY; charge = 0; wantDash = true;
+      bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = 0;
+    } else {
+      bot.committed = false;
+    }
+
+    // ── overdrive panic: clear a crush, or save us when we can't dash ──
+    if (w.overdrive.meter >= 1 && w.overdrive.cooldown <= 0 && (crowd >= 4 || (hard && !canDash))) s.overdrivePressed = true;
+
+    // ── movement: centre pull + opportunistic pickups when truly calm ──
+    mvx += (w.width / 2 - p.x) / w.width * 0.35; mvy += (w.height / 2 - p.y) / w.height * 0.35;
+    if (!hard && crowd === 0 && Math.hypot(mvx, mvy) < 0.45) {
+      let tgt = null, td = 1e9;
+      const PU = w.powerups && w.powerups.items;
+      if (PU) for (let i = 0; i < PU.length; i++) { const g = PU[i]; if (!g.active) continue; const d = Math.hypot(g.x - p.x, g.y - p.y); if (d < td) { td = d; tgt = g; } }
+      if (!tgt) { const G = w.gems.items; for (let i = 0; i < G.length; i++) { const g = G[i]; if (!g.active) continue; const d = Math.hypot(g.x - p.x, g.y - p.y); if (d < td) { td = d; tgt = g; } } }
+      if (tgt) { mvx += (tgt.x - p.x) / Math.max(1, td) * 0.6; mvy += (tgt.y - p.y) / Math.max(1, td) * 0.6; }
+    }
+    let ml = Math.hypot(mvx, mvy); if (ml > 1) { mvx /= ml; mvy /= ml; }
+    s.moveX = mvx; s.moveY = mvy;
+
+    // ── charge/release state machine ──
     let held = false;
-    const canDash = p.stamina >= 100 && p.phase !== 'dashing';
-    if (canDash && ne && ned < 560) { const desired = Math.max(0.12, Math.min(1, (ned - 150) / (560 - 150))); held = p.charge < desired; }
-    s.moveX = dx; s.moveY = dy; s.aimX = aimX; s.aimY = aimY;
+    if (wantDash) {
+      s.aimX = aimX; s.aimY = aimY;
+      held = p.phase === 'charging' ? p.charge < charge : true;
+      if (p.phase === 'charging' && !held) bot.committed = false; // releasing this frame → fire
+    } else {
+      s.aimX = nE ? nE.x : boss ? boss.x : p.x + Math.cos(p.angle) * 100;
+      s.aimY = nE ? nE.y : boss ? boss.y : p.y + Math.sin(p.angle) * 100;
+    }
     s.dashHeld = held; s.dashReleased = bot.prevHeld && !held; bot.prevHeld = held;
-    s.overdrivePressed = w.overdrive.meter >= 1 && w.overdrive.cooldown <= 0;
     return s;
-  };
+  }
+
+  lf.input.poll = decide;
 
   if (!lf.__origFGO) lf.__origFGO = lf.finishGameOver.bind(lf);
   lf.finishGameOver = function (won) { window.__lastWon = !!won; return lf.__origFGO(won); };
 
+  // ── headless probe (stats) ──
   window.__runProbe = function (mode, runs, capSteps) {
     const origRAF = window.requestAnimationFrame; window.requestAnimationFrame = () => 0;
     const oR = lf.renderer.render.bind(lf.renderer), oH = lf.ui.updateHud.bind(lf.ui);
     lf.renderer.render = () => {}; lf.ui.updateHud = () => {};
     const rows = [];
     for (let r = 0; r < runs; r++) {
-      bot.prevHeld = false; window.__lastWon = false;
+      bot.prevHeld = false; bot.committed = false; window.__lastWon = false;
       lf.start(mode);
       let t = performance.now(); lf.lastTime = t; lf.accumulator = 0; let steps = 0;
       while (lf.state !== 'gameover' && steps < capSteps) { t += 16.667; lf.frame(t); steps++; }
@@ -76,27 +237,41 @@
       rows.push({ time: +w.time.toFixed(1), score: w.score, kills: w.killCount, combo: w.bestComboRun, won: window.__lastWon, bossKills: w.bossKills ?? 0 });
     }
     window.requestAnimationFrame = origRAF; lf.renderer.render = oR; lf.ui.updateHud = oH;
-    const times = rows.map((x) => x.time).sort((a, b) => a - b);
-    const scores = rows.map((x) => x.score).sort((a, b) => a - b);
-    const med = (a) => a[Math.floor(a.length / 2)];
-    const mean = (a) => +(a.reduce((s, x) => s + x, 0) / a.length).toFixed(1);
-    return {
-      mode: mode.id, runs,
-      survTime: { min: times[0], median: med(times), mean: mean(times), max: times[times.length - 1] },
-      score: { median: med(scores), mean: mean(scores), max: scores[scores.length - 1] },
-      winRate: +(rows.filter((x) => x.won).length / runs).toFixed(2),
-      bossKillsMean: +(rows.reduce((s, x) => s + x.bossKills, 0) / runs).toFixed(2),
-    };
+    return rows;
+  };
+
+  // ── live watch (rendered, real time, auto-restart on death) ──
+  window.__watch = async function (modeId, loop) {
+    const { MODES } = await import('/src/modes.ts');
+    window.__MODES = MODES;
+    const mode = MODES.find((m) => m.id === (modeId || 'endless')) || MODES[0];
+    bot.mode = mode;
+    lf.start(mode);
+    if (window.__watchTimer) clearInterval(window.__watchTimer);
+    if (loop !== false) window.__watchTimer = setInterval(() => { if (lf.state === 'gameover') lf.start(mode); }, 1500);
+    console.log(`▶ watching the PRO bot play ${mode.id}. clearInterval(__watchTimer) to stop the auto-restart.`);
+    return 'watching ' + mode.id;
   };
 
   window.__sweep = async function () {
     const { MODES } = await import('/src/modes.ts');
     window.__MODES = MODES;
     const out = {};
-    for (const m of MODES) out[m.id] = window.__runProbe(m, m.seedKind === 'date' ? 3 : 12, m.id === 'arena' || m.id === 'bossrush' ? 9000 : 7200);
-    console.table(Object.values(out).map((r) => ({ mode: r.mode, median: r.survTime.median, max: r.survTime.max, medScore: r.score.median, winRate: r.winRate })));
+    for (const m of MODES) {
+      const rows = window.__runProbe(m, m.seedKind === 'date' ? 3 : 10, m.id === 'arena' || m.id === 'bossrush' ? 40000 : 30000);
+      const times = rows.map((x) => x.time).sort((a, b) => a - b);
+      out[m.id] = {
+        mode: m.id,
+        medianSec: times[Math.floor(times.length / 2)],
+        maxSec: times[times.length - 1],
+        medBosses: rows.map((x) => x.bossKills).sort((a, b) => a - b)[Math.floor(rows.length / 2)],
+        maxBosses: Math.max(...rows.map((x) => x.bossKills)),
+        winRate: +(rows.filter((x) => x.won).length / rows.length).toFixed(2),
+      };
+    }
+    console.table(Object.values(out));
     return out;
   };
 
-  console.log('LANCEFALL balance bot installed. Run: await __sweep()  —  or  __runProbe(__MODES[0], 12, 7200)');
+  console.log('LANCEFALL PRO bot installed.  ▶ watch: __watch("endless")   📊 stats: await __sweep()');
 })();
