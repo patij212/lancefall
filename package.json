@@ -11,12 +11,14 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "audio:conform": "node tools/audio/conform-flagship.mjs",
     "audio:encode": "node tools/audio/encode-flagship.mjs",
     "audio:validate": "node tools/audio/validate-flagship.mjs",
     "deploy": "vite build && npx wrangler pages deploy dist --project-name lancefall --branch main --commit-dirty=true"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "typescript": "~6.0.2",
     "vite": "^8.0.4",
     "vitest": "^3.2.4"
