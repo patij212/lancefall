@@ -8,6 +8,12 @@ import {
   BASS_PROG,
   bassOffsetAt,
   bassChordMul,
+  PROGRESSIONS,
+  CHORD_SHAPES,
+  chordAt,
+  chordVoicing,
+  chordRootMul,
+  brightnessTier,
 } from './musicScore';
 import { COHERENCE_AUDIO } from './tune';
 
@@ -104,5 +110,93 @@ describe('musicScore — moving bass progression', () => {
   it('bassChordMul matches 2^(semis/12)', () => {
     expect(bassChordMul(0)).toBeCloseTo(1, 6);
     expect(bassChordMul(1)).toBeCloseTo(Math.pow(2, -4 / 12), 6);
+  });
+});
+
+describe('musicScore — diatonic harmony layer', () => {
+  it('every chord shape starts on the root and is ascending', () => {
+    for (const q of Object.keys(CHORD_SHAPES) as (keyof typeof CHORD_SHAPES)[]) {
+      const s = CHORD_SHAPES[q];
+      expect(s[0]).toBe(0);
+      for (let i = 1; i < s.length; i++) expect(s[i]).toBeGreaterThan(s[i - 1]);
+    }
+  });
+
+  it('progressions have 4 bars; verse loops carry a leading-tone cadence on the dominant', () => {
+    for (const key of ['auroraVerse', 'surgeVerse']) {
+      const p = PROGRESSIONS[key];
+      expect(p.bars).toHaveLength(4);
+      expect(p.cadence).toBeTruthy();
+      // the dominant root is E (+7 from A) and contains a major 3rd (+4 = G#, the leading tone)
+      expect(p.cadence!.rootSemi).toBe(7);
+      expect(CHORD_SHAPES[p.cadence!.quality]).toContain(4);
+    }
+  });
+
+  it('chordAt substitutes the cadence on bar 3 ONLY when earned (scarcity)', () => {
+    const p = PROGRESSIONS.auroraVerse;
+    expect(chordAt(p, 3, false)).toEqual(p.bars[3]); // circular by default
+    expect(chordAt(p, 3, true)).toEqual(p.cadence); // earned → the V cadence
+    expect(chordAt(p, 0, true)).toEqual(p.bars[0]); // only bar 3 cadences
+    expect(chordAt(p, 7, true)).toEqual(p.cadence); // wraps (bar 7 = loop bar 3)
+  });
+
+  it('brightnessTier is monotonic, discrete 0..3', () => {
+    expect(brightnessTier(0.0)).toBe(0);
+    expect(brightnessTier(0.29)).toBe(0);
+    expect(brightnessTier(0.3)).toBe(1);
+    expect(brightnessTier(0.6)).toBe(2);
+    expect(brightnessTier(0.85)).toBe(3);
+    let prev = -1;
+    for (let c = 0; c <= 1.0001; c += 0.05) {
+      const t = brightnessTier(c);
+      expect(t).toBeGreaterThanOrEqual(prev);
+      prev = t;
+    }
+  });
+
+  it('low brightness = bare triad; higher = more colour voices', () => {
+    const am9 = PROGRESSIONS.auroraVerse.bars[0]; // m9
+    expect(chordVoicing(am9, 1, 0).length).toBeLessThan(chordVoicing(am9, 1, 2).length);
+    expect(chordVoicing(am9, 1, 0).length).toBe(3); // bare triad
+  });
+
+  it('PICARDY (tier 3) raises the minor 3rd to major', () => {
+    const am = { rootSemi: 0, quality: 'min' as const };
+    const dark = chordVoicing(am, 1, 0);
+    const picardy = chordVoicing(am, 1, 3);
+    // the minor-3rd voice (ratio 2^(3/12)) becomes a major 3rd (2^(4/12)) — within an octave fold
+    const hasRatio = (freqs: number[], semis: number) =>
+      freqs.some((f) => Math.abs((((Math.log2(f / 220) * 12) % 12) + 12) % 12 - semis) < 0.01);
+    expect(hasRatio(dark, 3)).toBe(true); // minor 3rd present in dark
+    expect(hasRatio(picardy, 4)).toBe(true); // major 3rd present in picardy
+    expect(hasRatio(picardy, 3)).toBe(false); // no minor 3rd
+  });
+
+  it('THE TWO-LAYER INVARIANT: every voiced freq stays on the equal-tempered grid under EVERY combo tier', () => {
+    // voice / (transposed key root) must be 2^(integer/12) — i.e. a chromatic semitone of
+    // the transposed key, so the harmony block is consonant with the pentatonic melodic
+    // layer at any tier (register-folding by octaves preserves the pitch class).
+    for (const semis of COHERENCE_AUDIO.tierSemis) {
+      const mul = Math.pow(2, semis / 12);
+      const keyRoot = 220 * mul;
+      for (const key of Object.keys(PROGRESSIONS)) {
+        for (const ch of PROGRESSIONS[key].bars.concat(PROGRESSIONS[key].cadence ? [PROGRESSIONS[key].cadence!] : [])) {
+          for (let tier = 0; tier <= 3; tier++) {
+            for (const f of chordVoicing(ch, mul, tier)) {
+              const semitones = Math.log2(f / keyRoot) * 12;
+              expect(Math.abs(semitones - Math.round(semitones))).toBeLessThan(1e-6); // exact ET grid
+              expect(f).toBeGreaterThan(150); // inside/around the pad slot
+              expect(f).toBeLessThan(1250);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('chordRootMul matches 2^(rootSemi/12)', () => {
+    expect(chordRootMul({ rootSemi: 0, quality: 'min' })).toBeCloseTo(1, 6);
+    expect(chordRootMul({ rootSemi: 7, quality: 'dom7' })).toBeCloseTo(Math.pow(2, 7 / 12), 6);
   });
 });

@@ -82,3 +82,102 @@ export function themeNotesAt(phraseStep: number): ThemeNote[] {
   const s = ((Math.floor(phraseStep) % 32) + 32) % 32;
   return LANCE_THEME.filter((n) => n.at === s);
 }
+
+// ── DIATONIC HARMONY LAYER (the bleakness fix) ───────────────────────────────
+// The melodic layer stays pure PENTA (transpose-safe). This NEW harmony layer carries
+// real triads/7ths/9ths + a leading tone + a true V→i cadence — the thirds, colour and
+// resolution pentatonic structurally lacks. It transposes as a RIGID BLOCK: every voice
+// is `220 * rootMul * 2^(rootSemi/12) * 2^(colorSemi/12)`, so because rootMul scales the
+// whole block uniformly, every internal interval (3rd, maj7, add9, the G# leading tone)
+// is invariant under EVERY combo tier — exactly as consonant as pentatonic, but with mode.
+
+export type ChordQuality = 'min' | 'maj' | 'sus2' | 'sus4' | 'm9' | 'maj9' | 'add9' | 'dom7' | 'dom7b9';
+
+/** Semitone stacks relative to a chord's own root. */
+export const CHORD_SHAPES: Record<ChordQuality, number[]> = {
+  min: [0, 3, 7],
+  maj: [0, 4, 7],
+  sus2: [0, 2, 7],
+  sus4: [0, 5, 7],
+  m9: [0, 3, 7, 10, 14],
+  maj9: [0, 4, 7, 11, 14],
+  add9: [0, 4, 7, 14],
+  dom7: [0, 4, 7, 10],
+  dom7b9: [0, 4, 7, 10, 13],
+};
+
+export interface Chord {
+  rootSemi: number; // chord root, semitones from the key root A
+  quality: ChordQuality;
+}
+
+export interface Progression {
+  name: string;
+  bars: Chord[]; // one chord per bar (4-bar loop); bars[3] is the DECEPTIVE/circular default
+  cadence?: Chord; // the dominant (with leading tone) — substituted on bar 3 only when EARNED
+}
+
+const C = (rootSemi: number, quality: ChordQuality): Chord => ({ rootSemi, quality });
+
+// Named, role-tagged progressions. Roots are offsets from A. Each loop CIRCLES by default
+// (no dominant → no resolution, so the V→i payoff doesn't habituate); the `cadence` E7/E7b9
+// (G# leading tone → A) is substituted on the last bar only when a boundary EARNS it.
+export const PROGRESSIONS: Record<string, Progression> = {
+  // AURORA verse — i9 · bVII · bVI · bIII, with E7 as the earned cadence (Neon Rise)
+  auroraVerse: { name: 'NEON RISE', bars: [C(0, 'm9'), C(-2, 'add9'), C(-4, 'maj9'), C(3, 'add9')], cadence: C(7, 'dom7') },
+  // AURORA chorus — relative-major brightness (starts on C): bIII · bVII · i · bVI (Triumph)
+  auroraChorus: { name: 'TRIUMPH', bars: [C(3, 'add9'), C(-2, 'maj'), C(0, 'add9'), C(-4, 'maj9')], cadence: C(7, 'dom7') },
+  // SURGE verse — driving darkness via the borrowed iv (Dm) for depth, riff-safe (the
+  // always-on A/C/E riff stays consonant — no b2 clash) + the F/C majors for light, E7b9
+  // cadence. Darkness comes from timbre/groove, not a clichéd Phrygian b2 (Fall Engine).
+  surgeVerse: { name: 'FALL ENGINE', bars: [C(0, 'm9'), C(-4, 'maj9'), C(5, 'min'), C(3, 'add9')], cadence: C(7, 'dom7b9') },
+  // SURGE chorus — driving dark: i · bIII · bVI · bVII (majors give brightness inside the aggression)
+  surgeChorus: { name: 'DRIVING DARK', bars: [C(0, 'm9'), C(3, 'add9'), C(-4, 'maj9'), C(-2, 'maj')], cadence: C(7, 'dom7b9') },
+  // BRIDGE — harmonic contrast, half-cadence OPEN on the dominant E (sets up the drop)
+  bridge: { name: 'CONTRAST', bars: [C(5, 'min'), C(3, 'add9'), C(7, 'maj'), C(7, 'maj')] },
+};
+
+/** The chord for an absolute bar. On the loop's last bar, the leading-tone cadence is
+ *  substituted only when `earned` (a section boundary / combo milestone) — so the V→i
+ *  reward stays scarce and never becomes wallpaper. */
+export function chordAt(prog: Progression, bar: number, earned: boolean): Chord {
+  const i = ((Math.floor(bar) % 4) + 4) % 4;
+  if (i === 3 && earned && prog.cadence) return prog.cadence;
+  return prog.bars[i];
+}
+
+/** Block-transpose multiplier for a chord root (preserves internal intervals). */
+export function chordRootMul(chord: Chord): number {
+  return Math.pow(2, chord.rootSemi / 12);
+}
+
+// Discrete COHERENCE → mode-brightness tier (snapped to steps, read per-bar, NOT a
+// continuous morph — continuous harmonic morphing reads as seasick, not composed):
+// 0 DARK (bare triads) · 1 DORIAN GLOW (+9ths) · 2 OPEN COLOR (maj7/9) · 3 PICARDY (major lift).
+export function brightnessTier(coherence: number): number {
+  if (coherence >= 0.85) return 3;
+  if (coherence >= 0.6) return 2;
+  if (coherence >= 0.3) return 1;
+  return 0;
+}
+
+/** Voice a chord to absolute frequencies, register-capped + frequency-slotted to the
+ *  pad band (~165–1200 Hz) so 9ths/maj7s never smear into the lead's 1.2–4 kHz pocket.
+ *  Colour tones are dropped at low brightness (bare triad) and a minor 3rd is raised to
+ *  major at PICARDY — the mode-brightness morph. `padLo/padHi` set the slot. */
+export function chordVoicing(chord: Chord, rootMul: number, tier: number, padLo = 165, padHi = 1200): number[] {
+  let semis = CHORD_SHAPES[chord.quality].slice();
+  if (tier <= 0)
+    semis = semis.filter((s) => s === 0 || s === 3 || s === 4 || s === 7); // bare triad
+  else if (tier === 1)
+    semis = semis.filter((s) => s !== 10 && s !== 11 && s !== 13); // triad + add9 (drop 7ths/b9)
+  // tier >= 2 keeps full colour (maj7/9)
+  if (tier >= 3) semis = semis.map((s) => (s === 3 ? 4 : s)); // PICARDY: minor 3rd → major
+  const rootHz = 220 * rootMul * chordRootMul(chord); // chord root in the A3 region
+  return semis.map((s) => {
+    let f = rootHz * Math.pow(2, s / 12);
+    while (f > padHi) f /= 2; // fold high voices down (register cap)
+    while (f < padLo) f *= 2; // keep inside the pad slot
+    return f;
+  });
+}

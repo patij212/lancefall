@@ -10,8 +10,8 @@
 // `riff` (ungated) — the baseline groove must be great with zero combo, and the
 // hook blooms ON TOP as the combo reward.
 
-import type { ThemeNote } from './musicScore';
-import { LANCE_THEME } from './musicScore';
+import type { ThemeNote, Progression } from './musicScore';
+import { LANCE_THEME, PROGRESSIONS } from './musicScore';
 
 export type SoundtrackId = 'aurora' | 'surge';
 
@@ -35,6 +35,9 @@ export interface TrackProfile {
   riffWave: OscillatorType;
   riffDrive: number;
   riffGain: number;
+  // ── diatonic harmony layer (real chords + cadence) — feeds the moving pad + bass ──
+  verseProg: Progression; // verse/baseline chord loop (chorus/bridge swap in with the form spine)
+  chorusProg: Progression; // brighter "chorus" progression (relative-major lift)
   // ── coherence-gated lead HOOK (2-bar phrase, indexed by phraseStep 0..31) ──
   theme: ThemeNote[];
   leadWave: OscillatorType;
@@ -106,6 +109,8 @@ export const TRACKS: Record<SoundtrackId, TrackProfile> = {
     riffWave: 'triangle',
     riffDrive: 1,
     riffGain: 0,
+    verseProg: PROGRESSIONS.auroraVerse,
+    chorusProg: PROGRESSIONS.auroraChorus,
     theme: LANCE_THEME,
     leadWave: 'sawtooth',
     leadDrive: 1,
@@ -137,6 +142,8 @@ export const TRACKS: Record<SoundtrackId, TrackProfile> = {
     riffWave: 'square',
     riffDrive: 1.5,
     riffGain: 0.07,
+    verseProg: PROGRESSIONS.surgeVerse,
+    chorusProg: PROGRESSIONS.surgeChorus,
     theme: SURGE_THEME,
     leadWave: 'sawtooth', // saw takes unison/detune better than square for a huge supersaw
     leadDrive: 1.9, // distorted, biting lead

@@ -7,7 +7,8 @@ import type { EnemyKind } from './types';
 import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP, AUDIO_MIX } from './tune';
 import { mulberry32 } from './rng';
 import { positionFromStep, formAt } from './musicTransport';
-import { PENTA, themeFreq, bassChordMul, sectionLift } from './musicScore';
+import { PENTA, themeFreq, sectionLift, chordAt, chordVoicing, brightnessTier, chordRootMul } from './musicScore';
+import type { Chord } from './musicScore';
 import { getTrack, notesAt, type TrackProfile, type SoundtrackId } from './soundtracks';
 
 export class AudioEngine {
@@ -88,7 +89,9 @@ export class AudioEngine {
   //    filter now; setIntensity keeps only its arp-density (musicHeat) role. ──
   private rootMul = 1; // current root transpose multiplier (by combo tier)
   private choirVoices: { osc: OscillatorNode; gain: GainNode }[] = [];
-  private static CHOIR_SEMIS = [0, 7, 12, 16, 19] as const; // add9 pad over the root
+  // m9 voicing with an AUDIBLE mid-register 3rd (+3) + 9th (+14) — the old [0,7,12,16,19]
+  // buried its only 3rd two octaves up where it read as a faint overtone, not a colour.
+  private static CHOIR_SEMIS = [0, 3, 7, 10, 14] as const;
 
   // THE LANCE THEME lead (the earworm) — its own coherence-gated gain + coherence-
   // opened filter, both SOLELY owned by setCoherence (one controller per knob). The
@@ -1148,16 +1151,19 @@ export class AudioEngine {
       this.pump(t);
     }
 
-    // L1 BASS — MOVING through the Am-F-C-G progression (bass-only chord motion so the
-    // pentatonic top floats safely over it). Base pattern + a hot-push when heat>0.6.
-    const chord = bassChordMul(pos.bar);
-    const bassF = 110 * this.rootMul * chord;
+    // L1 BASS + HARMONY — the diatonic chord layer. The cadence (dominant w/ the G#
+    // leading tone) is substituted on the loop's last bar only when EARNED (scarce, so
+    // the V→i reward never becomes wallpaper). The pentatonic top floats over it.
+    const earned = this.coherenceVal >= 0.6 && Math.floor(pos.bar / 4) % 2 === 1;
+    const chord = chordAt(tr.verseProg, pos.bar, earned);
+    const bassF = 110 * this.rootMul * chordRootMul(chord);
     if (tr.bassSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain);
     else if (heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain * 0.6);
 
-    // L1.6 MOVING CHORD PAD — a sustained power chord of the current progression
-    // chord, once per bar. Makes the harmony audibly move (complexity), and it's
-    // always-on so it enriches the out-of-combo baseline too.
+    // L1.6 MOVING CHORD PAD — the REAL chord (triad/7th/9th from the chord table),
+    // voiced + register-capped to the pad band, brightness-morphed by coherence
+    // (bare triad → maj7/9 → Picardy). Once per bar; always-on so it enriches the
+    // out-of-combo baseline too. THIS is where the thirds + cadence live.
     if (pos.sixteenthInBar === 0) this.padChord(t, 16 * sixteenth, chord);
 
     // ── TENSION & RELEASE — a build into the macro-form B section ("the drop"):
@@ -1358,14 +1364,19 @@ export class AudioEngine {
    *  safe under the pentatonic top) of the CURRENT progression chord, transposed by
    *  the combo tier. Played each bar on harmonyBus (so it pumps), it makes the harmony
    *  audibly MOVE A→F→C→G instead of sitting on one drone — the complexity lever. */
-  private padChord(t: number, dur: number, chordMul: number): void {
+  private padChord(t: number, dur: number, chord: Chord): void {
     const tr = this.track;
     if (tr.padGain <= 0 || !this.droneOn) return;
-    const root = 220 * this.rootMul * chordMul; // chord root, mid register (A3 for chord A)
-    for (const semi of [0, 7, 12]) {
+    // REAL chord voicing — triad at low coherence, maj7/9 colour as it brightens,
+    // Picardy major lift at peak. Register-capped to the pad slot (165–1200 Hz) so the
+    // 9ths/maj7s never smear into the lead's 1.2–4 kHz pocket. One controller: coherence.
+    const freqs = chordVoicing(chord, this.rootMul, brightnessTier(this.coherenceVal));
+    // keep total pad energy roughly constant across tiers (3-voice triad vs 5-voice 9th)
+    const per = tr.padGain * Math.sqrt(3 / Math.max(3, freqs.length));
+    for (const f of freqs) {
       this.voice({
         type: 'sawtooth',
-        freq: root * Math.pow(2, semi / 12),
+        freq: f,
         detune: 8,
         unison: 3,
         spread: 0.4,
@@ -1374,7 +1385,7 @@ export class AudioEngine {
         attack: 0.09,
         hold: Math.max(0, dur * 0.55),
         decay: Math.max(0.2, dur * 0.45),
-        peak: tr.padGain,
+        peak: per,
         bus: this.harmonyBus,
         at: t,
       });
