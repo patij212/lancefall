@@ -259,6 +259,7 @@ const stage = (() => {
 //  TRANSPORT
 // ════════════════════════════════════════════════════════════════════════════════
 let updateTransport: () => void = () => {};
+let setTrack: (t: 'aurora' | 'surge') => void = () => {};
 function buildTransport(): void {
   const t = $transport;
   t.append(el('span', { class: 'wordmark' }, 'LANCEFALL ', el('small', {}, '· AUDIO CONSOLE')));
@@ -273,9 +274,15 @@ function buildTransport(): void {
   t.append(seg);
   const clock = el('div', { class: 'clock' });
   t.append(clock);
-  const chip = el('button', { class: 'chip aurora' }, 'AURORA');
-  chip.addEventListener('click', () => { state.track = state.track === 'aurora' ? 'surge' : 'aurora'; audio.setSoundtrack(state.track); updateTransport(); });
-  t.append(chip);
+  // TRACK selector — an obvious color-coded segmented toggle (not a status chip)
+  t.append(el('span', { class: 'lbl', style: 'margin-left:4px' }, 'TRACK'));
+  const trackSeg = el('div', { class: 'seg track' });
+  const tA = el('button', { class: 'taurora' }, 'AURORA'), tS = el('button', { class: 'tsurge' }, 'SURGE');
+  setTrack = (which: 'aurora' | 'surge'): void => { state.track = which; audio.setSoundtrack(which); updateTransport(); };
+  tA.addEventListener('click', () => setTrack('aurora'));
+  tS.addEventListener('click', () => setTrack('surge'));
+  trackSeg.append(tA, tS);
+  t.append(trackSeg);
   const loopBtn = el('button', { class: 'ticon' }, 'LOOP ●');
   loopBtn.addEventListener('click', () => { state.loop = !state.loop; loopBtn.textContent = state.loop ? 'LOOP ●' : 'LOOP ○'; });
   const aBtn = el('button', { class: 'ticon' }, '→A'); const bBtn = el('button', { class: 'ticon' }, '→B');
@@ -302,7 +309,8 @@ function buildTransport(): void {
     seg.classList.toggle('render', !live);
     play.textContent = stage.isPlaying() ? '■' : '▶';
     play.style.color = live ? 'var(--cyan)' : 'var(--amber)';
-    chip.className = 'chip ' + state.track; chip.textContent = state.track.toUpperCase();
+    tA.classList.toggle('on', state.track === 'aurora');
+    tS.classList.toggle('on', state.track === 'surge');
     const bar = stage.curBar(), s = sectionAt(bar);
     const beat = live ? transportAt(audio.musicTime || 0).beatInBar : 0;
     const pips = Array.from({ length: 4 }, (_, i) => `<span class="pip${i === beat && stage.isPlaying() ? ' on' : ''}"></span>`).join('');
@@ -583,7 +591,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === ' ') { e.preventDefault(); stage.isPlaying() ? stage.stop() : stage.play(); }
   else if (e.key === 'Escape') stage.panic();
   else if (e.key === 'm' || e.key === 'M') (document.querySelector('.markerform .sweep') as HTMLButtonElement)?.click();
-  else if (e.key === 't' || e.key === 'T') (document.querySelector('.chip') as HTMLButtonElement)?.click();
+  else if (e.key === 't' || e.key === 'T') setTrack(state.track === 'aurora' ? 'surge' : 'aurora');
 });
 
 // ── boot ────────────────────────────────────────────────────────────────────────
