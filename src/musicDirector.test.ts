@@ -40,8 +40,8 @@ describe('music director — vertical decision for a loop source', () => {
   });
 
   it('carries the selected source bpm/key', () => {
-    expect(decideMusic(arena(), 0).bpm).toBe(112); // AURORA
+    expect(decideMusic(arena(), 0).bpm).toBe(114); // AURORA (Calm System, 114 BPM)
     expect(decideMusic(arena(), 0).key).toBe('A minor');
-    expect(decideMusic(warden(0, 1), 0).bpm).toBe(100); // WARDEN gear-change
+    expect(decideMusic(warden(0, 1), 0).bpm).toBe(110); // WARDEN gear-change (Cyberpunk Renaissance)
   });
 });

@@ -1,5 +1,23 @@
 {
   "version": 1,
-  "note": "Provenance ledger for every shipped flagship audio asset. The build-time validator (tools/audio/validate-flagship.mjs) rejects a release if any committed asset under public/audio/flagship/ lacks an entry here with an ALLOWED license (CC0 / CC-BY / pixabay / royalty-free). CC-BY entries MUST carry an `attribution` line that also appears on the in-game credits screen. Filled during Task 3 (asset acquisition).",
-  "entries": []
+  "note": "Provenance ledger for every shipped flagship audio asset. The build-time validator (tools/audio/validate-flagship.mjs) rejects a release if any committed asset under public/audio/flagship/ lacks an entry here with an ALLOWED license (CC0 / CC-BY / pixabay / royalty-free). CC-BY entries carry an `attribution` line that also appears in docs/audio/CREDITS.md and (before shipping) the in-game credits screen.",
+  "entries": [
+    { "asset": "music/aurora_verse/main",  "source": "free-stock-music.com", "url": "https://www.free-stock-music.com/schematist-calm-system.html", "license": "CC-BY", "author": "Schematist", "attribution": "\"Calm System\" by Schematist (free-stock-music.com), licensed under CC BY 3.0" },
+    { "asset": "music/aurora_build/main",  "source": "free-stock-music.com", "url": "https://www.free-stock-music.com/schematist-calm-system.html", "license": "CC-BY", "author": "Schematist", "attribution": "\"Calm System\" by Schematist (free-stock-music.com), licensed under CC BY 3.0" },
+    { "asset": "music/aurora_chorus/main", "source": "free-stock-music.com", "url": "https://www.free-stock-music.com/schematist-calm-system.html", "license": "CC-BY", "author": "Schematist", "attribution": "\"Calm System\" by Schematist (free-stock-music.com), licensed under CC BY 3.0" },
+    { "asset": "music/aurora_drop/main",   "source": "free-stock-music.com", "url": "https://www.free-stock-music.com/schematist-calm-system.html", "license": "CC-BY", "author": "Schematist", "attribution": "\"Calm System\" by Schematist (free-stock-music.com), licensed under CC BY 3.0" },
+    { "asset": "music/warden_spiral/main", "source": "free-stock-music.com", "url": "https://www.free-stock-music.com/punch-deck-cyberpunk-renaissance.html", "license": "CC-BY", "author": "Punch Deck", "attribution": "\"Cyberpunk Renaissance\" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0" },
+    { "asset": "music/warden_fan/main",    "source": "free-stock-music.com", "url": "https://www.free-stock-music.com/punch-deck-cyberpunk-renaissance.html", "license": "CC-BY", "author": "Punch Deck", "attribution": "\"Cyberpunk Renaissance\" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0" },
+    { "asset": "music/warden_enraged/main","source": "free-stock-music.com", "url": "https://www.free-stock-music.com/punch-deck-cyberpunk-renaissance.html", "license": "CC-BY", "author": "Punch Deck", "attribution": "\"Cyberpunk Renaissance\" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0" },
+
+    { "asset": "sfx/dash_fire",      "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/perfect_dash",   "source": "Kenney Interface Sounds", "url": "https://kenney.nl/assets/interface-sounds", "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/lance_hit",      "source": "Kenney Impact Sounds",    "url": "https://kenney.nl/assets/impact-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/overdrive",      "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/last_breath",    "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/warden_arrival", "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/warden_phase",   "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/warden_fan",     "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" },
+    { "asset": "sfx/warden_defeat",  "source": "Kenney Sci-Fi Sounds",    "url": "https://kenney.nl/assets/sci-fi-sounds",    "license": "CC0", "author": "Kenney (kenney.nl)" }
+  ]
 }

@@ -62,12 +62,17 @@ export interface AudioManifest {
 
 const codec = (base: string): CodecAssetSet => ({ opus: `${base}.ogg`, mp3: `${base}.mp3` });
 
-// Flagship music: AURORA arena + WARDEN boss. All ship as `loop` sources (Deep Dive C). bpm/key
-// are placeholders until Task-3 curation; `provenance.json` is the build-time source of truth.
-const loopSource = (id: string, suite: MusicSuite, role: string, bpm: number, key: string): MusicSourceManifest => ({
-  id, suite, role, bpm, key, layering: 'loop',
+// Flagship music: AURORA arena + WARDEN boss. All ship as 8-bar `loop` sources (Deep Dive C),
+// loop-prepped by tools/audio/conform-flagship.mjs. `provenance.json` is the build-time source of
+// truth; the CC-BY credit lines below mirror it (and the in-game credits screen).
+const AURORA_CREDIT = '"Calm System" by Schematist (free-stock-music.com), licensed under CC BY 3.0';
+const WARDEN_CREDIT = '"Cyberpunk Renaissance" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0';
+const loopSource = (
+  id: string, suite: MusicSuite, role: string, bpm: number, key: string, attribution: string,
+): MusicSourceManifest => ({
+  id, suite, role, bpm, key, layering: 'loop', bars: 8,
   tracks: { main: codec(`/audio/flagship/music/${id}/main`) },
-  conformed: false, license: 'CC0', integratedLufs: -20, truePeakDbtp: -1,
+  conformed: true, license: 'CC-BY', attribution, integratedLufs: -20, truePeakDbtp: -1,
 });
 
 const variants = (id: string, n: number): CodecAssetSet[] =>
@@ -76,15 +81,15 @@ const variants = (id: string, n: number): CodecAssetSet[] =>
 export const FLAGSHIP_AUDIO_MANIFEST: AudioManifest = {
   version: 1,
   music: [
-    // AURORA — one song, four loop regions; share BPM + key (Deep Dive C).
-    loopSource('aurora_verse', 'aurora', 'verse', 112, 'A minor'),
-    loopSource('aurora_build', 'aurora', 'build', 112, 'A minor'),
-    loopSource('aurora_chorus', 'aurora', 'chorus', 112, 'A minor'),
-    loopSource('aurora_drop', 'aurora', 'drop', 112, 'A minor'),
-    // WARDEN — its own family; a deliberate boss gear-change, BPM kept in the ~100–128 band.
-    loopSource('warden_spiral', 'warden', 'spiral', 100, 'A minor'),
-    loopSource('warden_fan', 'warden', 'fan', 100, 'A minor'),
-    loopSource('warden_enraged', 'warden', 'enraged', 100, 'A minor'),
+    // AURORA — four loop regions of ONE song (Calm System, 114 BPM); share BPM + key (Deep Dive C).
+    loopSource('aurora_verse', 'aurora', 'verse', 114, 'A minor', AURORA_CREDIT),
+    loopSource('aurora_build', 'aurora', 'build', 114, 'A minor', AURORA_CREDIT),
+    loopSource('aurora_chorus', 'aurora', 'chorus', 114, 'A minor', AURORA_CREDIT),
+    loopSource('aurora_drop', 'aurora', 'drop', 114, 'A minor', AURORA_CREDIT),
+    // WARDEN — three regions of one boss song (Cyberpunk Renaissance, 110 BPM); a deliberate gear-change.
+    loopSource('warden_spiral', 'warden', 'spiral', 110, 'A minor', WARDEN_CREDIT),
+    loopSource('warden_fan', 'warden', 'fan', 110, 'A minor', WARDEN_CREDIT),
+    loopSource('warden_enraged', 'warden', 'enraged', 110, 'A minor', WARDEN_CREDIT),
   ],
   sfx: [
     { id: 'dash_fire', gain: 0.55, priority: 2, maxVoices: 3, variants: variants('dash_fire', 3) },
