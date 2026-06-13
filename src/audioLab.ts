@@ -274,6 +274,15 @@ async function renderClip(opts: RenderOpts): Promise<AudioBuffer> {
 (window as unknown as { __renderAnalyze: (o: RenderOpts) => Promise<ReturnType<typeof analyzeBuffer>> }).__renderAnalyze =
   async (o: RenderOpts) => analyzeBuffer(await renderClip(o));
 
+// exposed for delivering a clip to the owner — render → WAV → base64 string
+(window as unknown as { __renderWav: (o: RenderOpts) => Promise<string> }).__renderWav = async (o: RenderOpts) => {
+  const blob = audioBufferToWav(await renderClip(o));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+};
+
 {
   const p = panel('Render / verify (offline bounce → WAV)');
   const out = document.createElement('p');

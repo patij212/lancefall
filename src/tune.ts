@@ -397,8 +397,13 @@ export const COHERENCE_AUDIO = {
   leadGain: 0.13, // lead bus gain at full bloom
   leadGlide: 0.45,
   leadDetune: 12, // cents — twin-saw detune that fattens the neon lead
-  leadFilterBase: 900, // Hz — lead lowpass base
-  leadFilterBloom: 2600, // Hz added to the lead lowpass at coherence 1 (opens as you climb)
+  leadFilterBase: 1100, // Hz — lead lowpass base
+  leadFilterBloom: 4200, // Hz added to the lead lowpass at coherence 1 (opens BRIGHT as you climb)
+  airShelfDb: 6, // max +dB high-shelf @ airShelfHz on the music bus, scaled by coherence (spectral lift)
+  airShelfHz: 7500,
+  airGlide: 0.5,
+  sparkleOnset: 0.62, // coherence above which the high SPARKLE layer (hook top +2 oct) rings
+  sparkleGain: 0.05,
 } as const;
 
 // MACRO_FORM — anti-fatigue song structure. A short 2-bar surface hook, but a long
@@ -421,7 +426,15 @@ export const AUDIO_MASTER = {
   compAttack: 0.006, // s — let transients (kick/thunk click) through, then clamp
   compRelease: 0.18, // s — musical release that breathes with the beat
   makeup: 1.18, // post-compressor makeup gain (recovers the level the comp pulled down)
-  limiterK: 1.7, // tanh drive for the brickwall safety clip (lower = cleaner, less crunch)
+  limiterK: 1.4, // tanh drive for the brickwall safety clip (eased 1.7→1.4 = cleaner, more air)
+} as const;
+
+// AUDIO_DELAY — tempo-synced ping-pong delay on the lead. The #1 "sounds produced vs
+// sounds like a sine demo" lever for synthwave/darksynth; it was entirely absent.
+export const AUDIO_DELAY = {
+  beatMul: 0.75, // delay time = beat * 0.75 = a dotted-8th (the classic synthwave echo)
+  feedback: 0.34, // ping-pong feedback (echoes trail + cross the stereo field)
+  wet: 0.26, // lead delay-send level
 } as const;
 
 // AUDIO_MIX — coordinated music "mix states". Instead of a binary 15% duck, each

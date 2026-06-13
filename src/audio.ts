@@ -4,7 +4,7 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
-import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP, AUDIO_MIX } from './tune';
+import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP, AUDIO_MIX, AUDIO_DELAY } from './tune';
 import { mulberry32 } from './rng';
 import { positionFromStep, formAt } from './musicTransport';
 import { PENTA, themeFreq, sectionLift, chordAt, chordVoicing, brightnessTier, chordRootMul } from './musicScore';
@@ -37,6 +37,8 @@ export class AudioEngine {
   private musicVol = 0.6;
   private mixMul = 1; // current AUDIO_MIX music multiplier (replaces the old binary duck)
   private musicMasterFilter!: BiquadFilterNode; // lowpass on the whole music bus → mix-state muffling
+  private airShelf!: BiquadFilterNode; // high-shelf on the music bus, lifted by coherence (spectral brightness)
+  private leadDelaySend!: GainNode; // tap from leadBus → tempo-synced ping-pong delay
 
   // throttle to survive massacres without clipping / main-thread stalls
   private thunkCount = 0;
@@ -214,9 +216,17 @@ export class AudioEngine {
     this.musicMasterFilter.frequency.value = AUDIO_MIX.combat.cutoff;
     this.musicMasterFilter.connect(this.master);
 
+    // high-shelf "air" on the music bus — lifted by coherence so the SPECTRUM physically
+    // brightens as you flow (not just louder). 0 dB at low coherence (dark by design).
+    this.airShelf = ctx.createBiquadFilter();
+    this.airShelf.type = 'highshelf';
+    this.airShelf.frequency.value = COHERENCE_AUDIO.airShelfHz;
+    this.airShelf.gain.value = 0;
+    this.airShelf.connect(this.musicMasterFilter);
+
     this.musicBus = ctx.createGain();
     this.musicBus.gain.value = this.musicVol;
-    this.musicBus.connect(this.musicMasterFilter);
+    this.musicBus.connect(this.airShelf);
 
     // music sub-bus tree — each stem family gets its own fader under musicBus
     this.drumsBus = ctx.createGain();
@@ -251,6 +261,38 @@ export class AudioEngine {
     this.harmonyBus.connect(this.musicReverbSend);
     this.leadBus.connect(this.musicReverbSend);
     this.sfxBus.connect(this.sfxReverbSend);
+
+    // ── TEMPO-SYNCED PING-PONG DELAY on the lead (the genre's signature "produced"
+    // lever; was absent). Dotted-8th echoes cross the stereo field with feedback. ──
+    const AD = AUDIO_DELAY;
+    const dt = (60 / this.bpm) * AD.beatMul;
+    const dL = ctx.createDelay(1);
+    const dR = ctx.createDelay(1);
+    dL.delayTime.value = dt;
+    dR.delayTime.value = dt;
+    const fbA = ctx.createGain(); // dL → dR
+    const fbB = ctx.createGain(); // dR → dL (the ping-pong loop)
+    fbA.gain.value = AD.feedback;
+    fbB.gain.value = AD.feedback;
+    const panL = ctx.createStereoPanner();
+    const panR = ctx.createStereoPanner();
+    panL.pan.value = -0.85;
+    panR.pan.value = 0.85;
+    const delayWet = ctx.createGain();
+    delayWet.gain.value = AD.wet;
+    this.leadDelaySend = ctx.createGain();
+    this.leadDelaySend.gain.value = 1;
+    this.leadDelaySend.connect(dL);
+    dL.connect(fbA);
+    fbA.connect(dR);
+    dR.connect(fbB);
+    fbB.connect(dL);
+    dL.connect(panL);
+    dR.connect(panR);
+    panL.connect(delayWet);
+    panR.connect(delayWet);
+    delayWet.connect(this.master);
+    this.leadBus.connect(this.leadDelaySend); // arp + riff + hook all echo
 
     // cached white-noise buffer (cosmetic Math.random — never world.rng)
     const len = Math.floor(ctx.sampleRate * 1.0);
@@ -321,6 +363,7 @@ export class AudioEngine {
     spread?: number; // 0..1 stereo spread of the unison voices (per-voice panning)
     cutoff?: number;
     cutoffEnd?: number;
+    filterEnvPeak?: number; // attack-shaped filter: cutoff → this (over attack) → cutoffEnd (motion within the note)
     q?: number;
     attack: number;
     hold?: number;
@@ -352,7 +395,13 @@ export class AudioEngine {
       filt = ctx.createBiquadFilter();
       filt.type = 'lowpass';
       filt.frequency.setValueAtTime(o.cutoff, t);
-      if (o.cutoffEnd != null) filt.frequency.exponentialRampToValueAtTime(Math.max(40, o.cutoffEnd), end);
+      if (o.filterEnvPeak != null) {
+        // attack-shaped: snap open to the peak, then settle — gives the note a "finger"
+        filt.frequency.linearRampToValueAtTime(o.filterEnvPeak, t + Math.max(0.005, o.attack));
+        filt.frequency.exponentialRampToValueAtTime(Math.max(40, o.cutoffEnd ?? o.cutoff), end);
+      } else if (o.cutoffEnd != null) {
+        filt.frequency.exponentialRampToValueAtTime(Math.max(40, o.cutoffEnd), end);
+      }
       if (o.q != null) filt.Q.value = o.q;
       filt.connect(g);
     }
@@ -1025,6 +1074,9 @@ export class AudioEngine {
       this.hookGain.gain.setTargetAtTime(Math.max(0.0001, leadLvl * CA.leadGain), t, CA.leadGlide);
       this.hookFilter.frequency.setTargetAtTime(CA.leadFilterBase + k * CA.leadFilterBloom, t, CA.filterGlide);
     }
+    // (e) AIR — lift the music high-shelf with coherence so the spectrum physically
+    //     brightens as you flow (the measurable fix for the "dark/bleak" spectrum).
+    if (this.airShelf) this.airShelf.gain.setTargetAtTime(k * CA.airShelfDb, t, CA.airGlide);
     this.coherenceVal = k; // the scheduler gates whether to spawn hook voices at all
   }
 
@@ -1230,14 +1282,19 @@ export class AudioEngine {
     if (!this.hookFilter) return;
     const jitter = Math.pow(2, this.humCents(4) / 1200);
     const tr = this.track;
-    // main SUPERSAW lead — N detuned voices spread wide (the "huge lead" lever)
+    // main SUPERSAW lead — N detuned voices spread wide (the "huge lead" lever), with a
+    // per-note filter envelope (snaps open then settles) so each note has a living "finger"
     this.voice({
       type: tr.leadWave,
       freq: freq * jitter,
       detune: COHERENCE_AUDIO.leadDetune,
       unison: tr.unison,
       spread: tr.spread,
-      attack: 0.01,
+      cutoff: 1400,
+      filterEnvPeak: 6800,
+      cutoffEnd: 2600,
+      q: 1.1,
+      attack: 0.012,
       hold: Math.max(0, dur * 0.45),
       decay: Math.max(0.1, dur * 0.55),
       peak: 0.42 * vel,
@@ -1260,6 +1317,21 @@ export class AudioEngine {
       bus: this.hookFilter,
       at: t,
     });
+    // SPARKLE — a high shimmer 2 octaves up, only at high coherence (a flow reward +
+    // the spectral lift that brightens the "dark" mix). Routed dry to leadBus (delayed/echoed).
+    if (this.coherenceVal > COHERENCE_AUDIO.sparkleOnset) {
+      this.voice({
+        type: 'triangle',
+        freq: freq * 4 * jitter,
+        attack: 0.008,
+        hold: Math.max(0, dur * 0.3),
+        decay: Math.max(0.08, dur * 0.5),
+        peak: COHERENCE_AUDIO.sparkleGain * vel,
+        pan: (this.hum() * 2 - 1) * 0.5,
+        bus: this.leadBus,
+        at: t,
+      });
+    }
   }
 
   /** One boss-MOTIF note — routes straight to leadBus (NOT the coherence-gated hook
@@ -1380,11 +1452,13 @@ export class AudioEngine {
         detune: 8,
         unison: 3,
         spread: 0.4,
-        cutoff: 1500,
+        cutoff: 600,
+        filterEnvPeak: 2600, // soft filter swell each bar — the pad breathes in
+        cutoffEnd: 1300,
         q: 0.5,
-        attack: 0.09,
-        hold: Math.max(0, dur * 0.55),
-        decay: Math.max(0.2, dur * 0.45),
+        attack: 0.12,
+        hold: Math.max(0, dur * 0.5),
+        decay: Math.max(0.2, dur * 0.5),
         peak: per,
         bus: this.harmonyBus,
         at: t,
@@ -1475,6 +1549,27 @@ export class AudioEngine {
 
   private kick(t: number, gain: number): void {
     const ctx = this.ctx!;
+    // CLICK transient — a snappy high-passed noise tick gives the kick a "beater" attack
+    // (2-part kick: click + body) so it cuts through instead of being a soft thud.
+    const click = this.noiseSource();
+    const chp = ctx.createBiquadFilter();
+    chp.type = 'highpass';
+    chp.frequency.value = 1800;
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(gain * 0.5, t);
+    cg.gain.exponentialRampToValueAtTime(0.0004, t + 0.018);
+    cg.gain.linearRampToValueAtTime(0, t + 0.025);
+    click.connect(chp);
+    chp.connect(cg);
+    cg.connect(this.drumsBus);
+    click.start(t);
+    click.stop(t + 0.03);
+    click.onended = () => {
+      click.disconnect();
+      chp.disconnect();
+      cg.disconnect();
+    };
+    // BODY — pitched sine drop
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(150, t);
@@ -1526,6 +1621,29 @@ export class AudioEngine {
       shaper?.disconnect();
       lp.disconnect();
       g.disconnect();
+    };
+    // SUB — a clean sine one octave below (LP@120) for low-end weight. A track with no
+    // floor below ~600Hz reads as small/cold; this gives it warm body.
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.value = freq / 2;
+    const slp = ctx.createBiquadFilter();
+    slp.type = 'lowpass';
+    slp.frequency.value = 120;
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0.0001, t);
+    sg.gain.exponentialRampToValueAtTime(gain * 0.9, t + 0.02);
+    sg.gain.exponentialRampToValueAtTime(0.0008, t + 0.24);
+    sg.gain.linearRampToValueAtTime(0, t + 0.255);
+    sub.connect(slp);
+    slp.connect(sg);
+    sg.connect(this.bassBus);
+    sub.start(t);
+    sub.stop(t + 0.26);
+    sub.onended = () => {
+      sub.disconnect();
+      slp.disconnect();
+      sg.disconnect();
     };
   }
 
