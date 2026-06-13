@@ -179,6 +179,18 @@ export class Director {
     const I = intensity(this.t) * this.cfg.intensityMul;
     this.wave = Math.floor(this.t / 30) + 1;
 
+    // While a boss is alive, hold the next-boss (and next-event) deadlines a
+    // breather ahead of "now". Both ride absolute timers gated by !bossAlive, so
+    // a fight that outlasts bossInterval would otherwise let the deadline elapse
+    // mid-fight and fire the instant the boss dies (same sim step it dies in) —
+    // skipping the inter-boss wave sequence. Sliding only ever DELAYS, never
+    // advances, and draws no rng (Daily stream stays deterministic).
+    if (bossAlive) {
+      const floor = this.t + TUNE.director.bossBreather;
+      if (this.nextBossAt < floor) this.nextBossAt = floor;
+      if (this.nextEventAt < floor) this.nextEventAt = floor;
+    }
+
     if (this.t >= this.nextBossAt && !bossAlive) {
       d.boss = true;
       this.bossCount++;

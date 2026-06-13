@@ -107,6 +107,7 @@ export const TUNE = {
     maxConcurrentEnd: 26,
     maxConcurrentCap: 40,
     bossInterval: 45, // seconds between mini-boss crescendos
+    bossBreather: 7, // min seconds of normal waves owed AFTER a boss dies before the next boss/event — a fight that outlasts bossInterval must never spawn the next boss the instant this one falls
     spawnTelegraph: 0.4, // seconds an incoming-arrow shows before a spawn
     enemySpeedRamp: 0.3, // effective = base*(0.85 + 0.30*clamp(I,0,1))... handled in code
     bulletSpeedRamp: 0.3,

@@ -14,6 +14,7 @@ import {
   Director,
 } from './waves';
 import { createRng } from './rng';
+import { modeById } from './modes';
 import { TUNE, ELITE } from './tune';
 
 describe('elites', () => {
@@ -145,5 +146,71 @@ describe('Director', () => {
     const rng = createRng(3);
     const dec = d.update(5, 0, true, rng);
     expect(dec.spawn.length).toBe(0);
+  });
+});
+
+// Regression: in the time-driven modes (endless/daily/nightmare) the next boss
+// rides an absolute deadline (nextBossAt) gated by !bossAlive. If a fight outlasts
+// bossInterval the deadline elapses MID-FIGHT, so the next boss used to spawn the
+// instant the current one died — skipping the inter-boss wave breather. Guard it.
+describe('endless boss breather (no instant boss-after-boss)', () => {
+  const DT = 1 / 60;
+
+  function freshEndless(): Director {
+    const d = new Director();
+    d.configure(modeById('endless')); // bossInterval = 45, time-driven
+    return d;
+  }
+
+  function advanceToFirstBoss(d: Director, rng: ReturnType<typeof createRng>): void {
+    for (let i = 0; i < 10000; i++) {
+      if (d.update(DT, 0, false, rng).boss) return;
+    }
+    throw new Error('first boss never spawned');
+  }
+
+  it('does not spawn the next boss the instant a long fight ends; waves resume first', () => {
+    const d = freshEndless();
+    const rng = createRng(42);
+    advanceToFirstBoss(d, rng);
+
+    // a LONG boss fight — 60s alive, well past the 45s interval (no boss may spawn)
+    for (let i = 0; i < Math.round(60 / DT); i++) {
+      expect(d.update(DT, 0, true, rng).boss).toBe(false);
+    }
+
+    // the boss dies: the very next step must NOT respawn a boss (the bug)
+    expect(d.update(DT, 0, false, rng).boss).toBe(false);
+    const tDeath = d.t;
+
+    // over the owed breather, normal waves resume and the boss stays away until
+    // at least bossBreather seconds after death, then returns.
+    let sawNormalSpawn = false;
+    let gap = -1;
+    for (let i = 0; i < Math.round((TUNE.director.bossBreather + 15) / DT); i++) {
+      const dec = d.update(DT, 0, false, rng);
+      if (dec.spawn.length > 0) sawNormalSpawn = true;
+      if (dec.boss) { gap = d.t - tDeath; break; }
+    }
+    expect(sawNormalSpawn).toBe(true); // the wave sequence resumed between bosses
+    expect(gap).toBeGreaterThanOrEqual(TUNE.director.bossBreather - 2 * DT);
+  });
+
+  it('leaves the normal cadence untouched when a boss is killed quickly', () => {
+    const d = freshEndless();
+    const rng = createRng(7);
+    advanceToFirstBoss(d, rng);
+
+    // quick 3s kill — the original ~45s spawn-to-spawn schedule should still hold
+    for (let i = 0; i < Math.round(3 / DT); i++) d.update(DT, 0, true, rng);
+    const tDeath = d.t;
+
+    let gap = -1;
+    for (let i = 0; i < Math.round(80 / DT); i++) {
+      if (d.update(DT, 0, false, rng).boss) { gap = d.t - tDeath; break; }
+    }
+    // death was ~48s, next boss on the original ~90s schedule ⇒ a ~42s gap,
+    // far larger than the breather ⇒ proves short fights aren't over-delayed.
+    expect(gap).toBeGreaterThan(TUNE.director.bossBreather + 5);
   });
 });
