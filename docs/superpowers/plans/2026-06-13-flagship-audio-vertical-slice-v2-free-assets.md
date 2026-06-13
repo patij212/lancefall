@@ -76,7 +76,7 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 - `src/audioProvenance.ts` (+ `.test.ts`) — license policy: allow CC0/CC-BY/Pixabay/royalty-free; reject NC/SA/GPL/AI/unlicensed; CC-BY ⇒ attribution required.
 - `src/audioAssetManager.ts` (+ `.test.ts`) — codec probe, fetch/decode, dedup, memory accounting, status.
 - `src/musicDirector.ts` (+ `.test.ts`) — pure source selection + authored-layer gains + **procedural-intensity gain** + intended `{bpm,key}`.
-- `src/tempoConductor.ts` (+ `.test.ts`) — pure: maps deterministic music-state → scheduled bar-aligned BPM changes for the BeatClock + transport.
+- ~~`src/tempoConductor.ts`~~ — **dropped (Deep Dive A):** no deterministic tempo module is needed; the active source's `bpm`/`musicTime` live on the director/`HybridMusic`.
 - `src/layerPlayer.ts` (+ `.test.ts`) — aligned N-track playback (N=1/2/3/6) + equal-power crossfades.
 - `src/sampleSfx.ts` (+ `.test.ts`) — priority/voice-limited sampled SFX, injected RNG.
 - `src/hybridMusic.ts` (+ `.test.ts`) — orchestration facade; routes vertical layering to authored stems where present, procedural where not.
@@ -223,30 +223,33 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 - [ ] **Implement** `decideMusic(state, absoluteBar) → { sourceId, layerGains, proceduralGain, bpm, key }`.
   Rule: `proceduralGain = layering==='loop' ? f(intensity,coherence) : reduced`; authored `layerGains`
   cover whatever keys the source has; `bpm`/`key` come from the selected source.
-- [ ] **Conductor failing tests (determinism-critical):** `scheduledTempoAt(musicState)` is a **pure
-  function of music-state only**; given two identical music-state sequences with *different* simulated
-  asset-load timings, the emitted BPM schedule is byte-identical; tempo changes are quantised to bar
-  boundaries; with no authored source, BPM falls back to `MUSIC_BPM`.
-- [ ] **Implement** `tempoConductor`: tracks the intended source's BPM, emits `{bpm, atMusicTime}`
-  only at bar downbeats, ignores whether the asset is decoded.
+- [ ] **Active-clock accessor (NOT a deterministic scheduler — see Deep Dive A):** the decision
+  already carries the selected source's `bpm`/`key`. Expose a pure `activeBpm(decision)` and let
+  HybridMusic surface the active source's bar-aligned **`activeMusicTime`**. No separate determinism
+  module is needed — the beat/Coherence layer is cosmetic and structurally off the seeded sim, so a
+  `tempoConductor.ts` is dropped. (This corrects v1's framing.)
 - [ ] Green; commit: `feat(lancefall): music director (dual-routing) + tempo conductor`.
 
 ---
 
-### Task 6: Adaptive Beat Grid (the gameplay-touching change — careful)
+### Task 6: Adaptive Beat Grid — `BeatClock.retempo()` (small; see Deep Dive A)
+
+> Determinism is **not** a concern here: the beat → grade → Coherence chain is already a cosmetic
+> `frame()`-layer sink that never touches the seeded sim (proven in Deep Dive A). We reuse the
+> existing epoch/reconcile machinery instead of inventing new tempo scheduling.
 
 **Files:** modify `src/beat.ts` (+ extend `beat.test.ts`).
 
 - [ ] **Failing tests:**
-  - `BeatClock.retempo(newBpm, atMusicTime)` re-grids on a bar boundary and the **post-change beat
-    phase is continuous** (no jump within the bar) and matches a fresh `makeGrid(newBpm)` clock.
-  - **Determinism:** feeding the same `(release time, music-state)` sequence twice — once with tempo
-    changes "applied late" simulating asset lag, once "on time" — yields **identical `gradeRelease`
-    outcomes**, because grading reads the conductor's intended grid, not playback.
-  - The existing fixed-112 path is unchanged when `retempo` is never called (regression guard).
-- [ ] **Implement** `retempo` on `BeatClock` (swap the grid at the scheduled bar boundary, preserve
-  musical phase). Do **not** alter `gradeRelease`'s math — it already reads the active grid.
-- [ ] Green; commit: `feat(lancefall): adaptive (per-track) beat grid`.
+  - `retempo(bpm)` swaps the grid to `makeGrid(bpm)` and sets `synced = false` (re-epoch).
+  - After `retempo`, the **first** `reconcile(audioMusicTime, dt)` re-seeds `t = audioMusicTime`
+    exactly (existing unsynced-seed branch), locking the clock to the new source's transport.
+  - While `synced === false`, `gradeRelease(beatError(), synced)` returns `'off'` — no false reward
+    across a tempo seam (already true; assert as a regression guard).
+  - The fixed-112 path is byte-identical when `retempo` is never called.
+- [ ] **Implement** (≈3 lines): `retempo(bpm: number) { this.grid = makeGrid(bpm); this.synced = false; }`.
+  Do **not** alter `gradeRelease` or `reconcile`.
+- [ ] Green; commit: `feat(lancefall): adaptive (per-track) beat grid via retempo`.
 
 ---
 
@@ -310,6 +313,12 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
   `setBossState(kind,phase,subPhase,hpFrac)`. Layer `playSfx(...)` at the head of the five SFX methods
   (synth still runs after). Track last boss kind; emit `warden_defeat` in `bossStinger()` only after a
   Warden shutdown; clear it in `death()`.
+- [ ] **Expose the active clock (Deep Dive A):** `get activeBpm()` and `get musicTime()` must reflect
+  the ACTIVE source — the LayerPlayer's bar-aligned transport + the source BPM while authored is live,
+  the procedural transport @112 otherwise. While authored is live the **procedural reactive scheduler
+  must derive its 16th/bar timing from this same clock** (not its own 112) so LANCE-THEME fragments
+  stay in time with the bed. Test: while an authored source plays, the procedural scheduler's bar
+  phase equals the active source's bar phase. *(This is the deepest coupling in the slice.)*
 - [ ] `npm test && npm run build` green; commit: `feat(lancefall): integrate hybrid audio engine`.
 
 ---
@@ -319,12 +328,20 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 **Files:** modify `src/game.ts`.
 
 - [ ] **GitNexus impact** on `Game.frame`. LOW expected. **Do not touch `bossDeath()`.**
-- [ ] After the existing intensity block in `frame()`: send read-only Warden state to audio, and
-  apply the conductor's scheduled tempo to `this.beat` via `retempo(bpm, atMusicTime)` **only on bar
-  boundaries**. This path reads world/music state only — no sim mutation, no RNG, no fixed-step entry.
-- [ ] **Determinism tests:** `npm test -- src/rng.test.ts src/beat.test.ts src/bossThemes.test.ts`
-  plus a new test that a fixed Daily seed produces an identical dash-grade sequence with audio
-  "loaded" vs "never loaded". `npm test && npm run build` green.
+- [ ] After the existing intensity block in `frame()`, send read-only Warden state to audio and
+  **lock the cosmetic beat clock to the active source** (Deep Dive A) — one comparison per frame:
+  ```ts
+  if (this.audio.activeBpm !== this.beat.grid.bpm) this.beat.retempo(this.audio.activeBpm);
+  // existing, unchanged: this.beat.advance(realDt);
+  //                      if (this.audio.musicRunning) this.beat.reconcile(this.audio.musicTime, realDt);
+  ```
+  Source switches already land on bar downbeats (HybridMusic), so the re-seed is bar-aligned. Reads
+  world/music state only — no sim mutation, no RNG, no fixed-step entry.
+- [ ] **Determinism guard (the correct one):** the *seeded sim* must be untouched —
+  `npm test -- src/rng.test.ts src/spawnReset.test.ts src/beat.test.ts` stays green and a fixed Daily
+  seed is byte-identical regardless of audio (the beat/grade/Coherence layer is cosmetic, so its
+  non-determinism never reaches `step()`/`world`). Do **not** assert dash-*grades* are reproducible —
+  they ride the real audio clock by design and never affect score/sim. `npm test && npm run build` green.
 - [ ] Commit: `feat(lancefall): adaptive tempo + Warden audio state from game loop`.
 
 ---
@@ -359,6 +376,64 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
   first audio < 150 ms after gesture; Warden switch within one bar; decoded ≤ 64 MB desktop / 40 MB
   mobile; ~ -20 LUFS-I ±2 / ≤ -1 dBTP; death-during-Warden ⇒ no false defeat cue; **Daily deterministic**.
 - [ ] Commit: `docs(lancefall): record flagship audio quality gate`.
+
+---
+
+## Deep Dive A — The Shared Clock: why adaptive tempo is determinism-safe, and what actually needs care
+
+*This supersedes the "deterministic tempo conductor" framing in v1's Tasks 5–6. It comes from reading
+`beat.ts`, `coherence.ts`, and `game.ts:frame()` rather than assuming.*
+
+### Finding: the beat → grade → Coherence path is a cosmetic frame-layer sink
+- `BeatClock` is advanced on **`realDt`** and **reconciled toward the real audio clock**
+  (`ctx.currentTime`, surfaced as `audio.musicTime`). It is therefore *already non-deterministic at
+  runtime today*, even at fixed 112 BPM.
+- The dash-on-beat grade's **only** effect is `coherenceBeatKick()` (+ a cosmetic Perfect snare).
+  `coherence.ts` is "THE SOUL DIAL… a single eased 0..1 scalar render + audio read… NEVER touches any
+  seeded rng stream… updated in `frame()` on realDt (never on `world`, never inside `step()`),
+  structurally incapable of perturbing a Daily/seeded run."
+- In `game.ts`, the entire chain — `beat.advance/reconcile` → `gradeRelease` → `coherenceBeatKick` →
+  `renderer.setCoherence` / `audio.setCoherence` — lives in `frame()`. It **reads** world state and
+  **writes only** to the renderer + audio. It never enters `step()`, never mutates `world`, never
+  draws seeded RNG. Score is computed in the sim (`combat.ts`); Coherence never feeds it.
+
+**Therefore:** Daily determinism is guaranteed by **structural separation** (cosmetic frame layer ⟂
+seeded sim), *not* by the beat clock being deterministic. Changing the grid's BPM only changes a
+cosmetic period. **Adaptive per-track tempo introduces zero new determinism risk**, and
+score/leaderboards are unaffected. v1's `tempoConductor` + "identical-grade" test guarded a non-problem
+and is dropped. The correct, sufficient guard is the **existing** `rng`/`spawnReset`/Daily suites
+passing unchanged, plus a one-line review that the new audio path is `frame()`-only.
+
+### What actually needs care: lock the cosmetic clock to the *active source*
+Three things must move together or the *felt* beat (visual ring + dash-grade + what the player hears)
+desyncs from authored music at a non-112 BPM:
+
+1. **`audio.musicTime` and `audio.activeBpm` follow the active source.** Authored live ⇒ the
+   `LayerPlayer`'s bar-aligned transport position + the source's BPM; procedural fallback ⇒ the
+   procedural transport @112.
+2. **`game.ts` retempos on change** (one comparison per frame): if `audio.activeBpm` differs from the
+   clock's grid BPM, call `beat.retempo(bpm)` (swap grid + `synced=false`); the next `reconcile`
+   re-seeds `t` to the new source's `musicTime` via the *existing* unsynced-seed branch. Because
+   `HybridMusic` switches sources only on **bar downbeats**, the re-seed lands bar-aligned: the beat
+   ring stays smooth and the single unsynced frame yields `grade='off'` (correctly no reward across
+   the seam — a cosmetic miss, invisible).
+3. **The procedural reactive layer schedules on the *active* grid.** The LANCE-THEME hook is a 2-bar
+   phrase scheduled from the procedural 112 transport. Layered over an authored bed at another BPM, its
+   16th/bar scheduling must derive from the **active source's** clock — "one clock; drama events
+   quantize to its bars." This is the deepest coupling and the main integration risk (assigned to
+   Task 10 with a bar-phase-equality test).
+
+### Net effect on the plan
+- **Task 5** loses the determinism module → a pure `activeBpm(decision)` + `HybridMusic.activeMusicTime`.
+- **Task 6** is a ≈3-line `BeatClock.retempo()` reusing the epoch/reconcile machinery.
+- **Tasks 10–11** carry the real work: make `audio.musicTime`/`activeBpm` reflect the active source,
+  retempo the clock from it, and schedule procedural punctuation on that same grid — guarded by the
+  existing Daily-determinism suite (unchanged) + the bar-phase-equality test.
+
+This is *less* code than v1 proposed and removes the riskiest invented machinery, because the codebase
+already does the hard part (cosmetic ⟂ sim separation) for us. **Open risk that remains:** time-stretch
+quality on free tracks and the procedural-over-authored scheduling coupling — those, not determinism,
+are where the listening gate must focus.
 
 ---
 
