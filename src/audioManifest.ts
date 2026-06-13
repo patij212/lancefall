@@ -108,6 +108,14 @@ export function sourceById(id: string): MusicSourceManifest | null {
   return FLAGSHIP_AUDIO_MANIFEST.music.find((s) => s.id === id) ?? null;
 }
 
+/** Player-facing audio credits: the UNIQUE CC-BY music attribution lines (required by the licence)
+ *  + the CC0 SFX credit. Drives the in-game CREDITS screen — the legal attribution surface. */
+export function audioCredits(): { music: string[]; sfx: string[] } {
+  const music = [...new Set(FLAGSHIP_AUDIO_MANIFEST.music.map((s) => s.attribution).filter((a): a is string => !!a))];
+  const sfx = ['Combat & boss SFX — Kenney (kenney.nl), Impact / Interface / Sci-Fi packs, licensed CC0'];
+  return { music, sfx };
+}
+
 /** Structural + licence validation. Empty ⇒ the manifest is well-formed. (The build-time
  *  validator additionally checks real files + the provenance.json ledger.) */
 export function validateAudioManifest(m: AudioManifest): string[] {

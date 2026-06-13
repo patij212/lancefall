@@ -21,6 +21,16 @@ describe('music director — horizontal source selection', () => {
     expect(sourceFor(warden(0, 0.3), 0)).toBe('warden_enraged');
     expect(sourceFor(warden(1, 0.34), 0)).toBe('warden_enraged'); // enrage overrides phase
   });
+
+  it('routes a NON-warden boss to the WARDEN tension suite, never an arena chorus', () => {
+    const boss = (kind: string, hpFrac: number): MusicDirectorState => ({
+      intensity: 1, coherence: 1, boss: { kind, phase: 0, subPhase: 0, hpFrac },
+    });
+    // bar 16/52 would be aurora_chorus/aurora_drop in the arena — a happy bed under a boss. Not anymore.
+    expect(sourceFor(boss('sovereign', 0.8), 16)).toBe('warden_spiral');
+    expect(sourceFor(boss('hollow', 0.8), 52)).toBe('warden_spiral');
+    expect(sourceFor(boss('mirrorblade', 0.2), 16)).toBe('warden_enraged'); // low HP → enraged
+  });
 });
 
 describe('music director — vertical decision for a loop source', () => {

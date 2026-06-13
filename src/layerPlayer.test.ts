@@ -6,6 +6,7 @@ import {
   nextBarTime,
   LayerPlayer,
 } from './layerPlayer';
+import { positionFromStep } from './musicTransport';
 import type { MusicSourceManifest } from './audioManifest';
 
 describe('layer player — pure scheduling math', () => {
@@ -28,6 +29,20 @@ describe('layer player — pure scheduling math', () => {
     expect(nextBarTime(10, 0, bs)).toBe(10); // on a downbeat
     expect(nextBarTime(10, 2 * bs, bs)).toBe(10); // exact multiple of a bar
     expect(nextBarTime(10, bs * 0.25, bs)).toBeCloseTo(10 + bs * 0.75, 6);
+  });
+
+  // The mandated bar-phase-equality guard (Deep Dive B test (a)): HybridMusic switches an authored
+  // source ONLY when step % 16 === 0, and the loop starts at sourceOffsetSeconds(bar). This proves
+  // both transports are on a bar downbeat at the switch — so no musicStep re-anchor is needed (and
+  // recomputing it would corrupt the procedural arrangement, which is keyed off the absolute step).
+  it('a downbeat source switch keeps procedural and authored bar-phase equal', () => {
+    const bpm = 114, bars = 8;
+    for (const bar of [0, 1, 7, 8, 13, 64]) {
+      const step = bar * 16; // the only steps where a switch is allowed
+      expect(positionFromStep(step).sixteenthInBar).toBe(0); // procedural transport on a downbeat
+      const offsetBars = sourceOffsetSeconds(bar, bpm, 4, bars) / barSeconds(bpm, 4);
+      expect(offsetBars % 1).toBeCloseTo(0, 9); // authored loop offset is a whole number of bars
+    }
   });
 });
 

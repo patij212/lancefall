@@ -21,6 +21,7 @@ import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById } from './modes';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
+import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
@@ -114,6 +115,7 @@ export class UI {
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
+  private creditsPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
@@ -188,6 +190,7 @@ export class UI {
     this.buildUpgrades();
     this.buildHowTo();
     this.buildCodex();
+    this.buildCredits();
     this.buildHeat();
     this.buildArchetype();
     this.buildLeaderboard();
@@ -196,7 +199,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -283,6 +286,8 @@ export class UI {
     how.addEventListener('click', () => this.showHowTo());
     const codexBtn = el('button', { class: 'btn btn-ghost' }, '📖 CODEX');
     codexBtn.addEventListener('click', () => this.showCodex());
+    const creditsBtn = el('button', { class: 'btn btn-ghost' }, '♪ CREDITS');
+    creditsBtn.addEventListener('click', () => this.showCredits());
     const heatBtn = el('button', { class: 'btn btn-ghost' }, '🔥 HEAT');
     heatBtn.addEventListener('click', () => this.openHeat());
     const archBtn = el('button', { class: 'btn btn-ghost' }, '◈ BUILD');
@@ -293,7 +298,7 @@ export class UI {
     duelBtn.addEventListener('click', () => this.openDuel());
     this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
     this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, settingsBtn, how, codexBtn);
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, settingsBtn, how, codexBtn, creditsBtn);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -628,6 +633,30 @@ export class UI {
     close.addEventListener('click', () => this.howtoPanel.classList.add('hidden'));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  /** CREDITS — the player-facing audio attribution surface (CC BY 3.0 requires visible credit). */
+  private buildCredits(): void {
+    const c = audioCredits();
+    const h = el('h2', {}, '♪ AUDIO CREDITS');
+    const body = el('div', { class: 'howto-body' });
+    body.append(
+      el('div', { class: 'howto-rule' }, el('b', {}, 'MUSIC'), el('span', {}, 'free-licensed, used under Creative Commons')),
+    );
+    for (const line of c.music) body.append(el('div', { class: 'credit-line' }, line));
+    body.append(el('div', { class: 'howto-rule' }, el('b', {}, 'SOUND'), el('span', {}, '')));
+    for (const line of c.sfx) body.append(el('div', { class: 'credit-line' }, line));
+    body.append(
+      el('div', { class: 'credit-foot' }, 'The recurring LANCE THEME melody + the procedural reactive layer are original to LANCEFALL.'),
+    );
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.creditsPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    this.creditsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private showCredits(): void {
+    this.creditsPanel.classList.remove('hidden');
   }
 
   private buildDuel(): void {

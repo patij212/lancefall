@@ -32,9 +32,12 @@ const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 /** Horizontal resequencing: which source plays. Boss overrides the arena song-spine. */
 export function sourceFor(state: MusicDirectorState, absoluteBar: number): string {
-  if (state.boss?.kind === 'warden') {
+  if (state.boss) {
+    // WARDEN is the only authored boss suite. WARDEN gets its full phase progression; every OTHER
+    // boss borrows the tension suite (enraged ≤34% HP, else spiral) so a happy arena chorus/drop
+    // never plays under a boss fight (the procedural per-boss motif still layers on top).
     if (state.boss.hpFrac <= 0.34) return 'warden_enraged';
-    return state.boss.phase === 1 ? 'warden_fan' : 'warden_spiral';
+    return state.boss.kind === 'warden' && state.boss.phase === 1 ? 'warden_fan' : 'warden_spiral';
   }
   const section = sectionAt(absoluteBar).section;
   if (section === 'prechorus' || section === 'bridge') return 'aurora_build';

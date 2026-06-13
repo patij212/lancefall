@@ -628,6 +628,8 @@ body {
   text-align: right;
 }
 .howto-rule span { color: var(--text-muted); }
+.credit-line { font-size: 13px; color: var(--text); line-height: 1.5; margin: 2px 0 2px 12px; }
+.credit-foot { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 14px; font-style: italic; }
 .howto-evos {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

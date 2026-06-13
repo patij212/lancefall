@@ -36,6 +36,12 @@ function hasFilter(name) {
   return r.status === 0 && new RegExp(`\\b${name}\\b`).test(r.stdout);
 }
 
+/** Master duration in seconds (0 if unreadable). */
+function probeDuration(input) {
+  const r = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', input], { encoding: 'utf8' });
+  return r.status === 0 ? Number(r.stdout.trim()) || 0 : 0;
+}
+
 /** The overlap-add seam-bake filtergraph for one source (see Deep Dive C). */
 function loopFilter(startSec, loopSec, xfSec, lufs, tp, stretchTempo) {
   const end = startSec + loopSec;
@@ -65,6 +71,13 @@ function conformMusic(src, stretchFilter) {
   const startSec = src.loopStartBar * barSeconds(src.bpm);
   const loopSec = loopSeconds(src.bpm, bars);
   const xfSec = Math.max(0.005, (src.crossfadeMs ?? 40) / 1000);
+
+  // the overlap-add seam reads X seconds PAST the loop end; if the region runs to the master's tail
+  // the crossfade silently truncates into a clicky/gapped seam. Fail loudly instead.
+  const dur = probeDuration(input);
+  if (dur && startSec + loopSec + xfSec > dur + 1e-3) {
+    die(`${src.id}: loop region + crossfade (${(startSec + loopSec + xfSec).toFixed(2)}s) exceeds master length ${dur.toFixed(2)}s — lower loopEndBar`);
+  }
 
   let stretchTempo = '';
   if (src.stretchTo && src.stretchTo !== src.bpm) {
