@@ -130,7 +130,7 @@ export class Director {
   t = 0;
   cfg: RunConfig = MODES[0];
   private spawnTimer = 0;
-  private nextBossAt: number = TUNE.director.bossInterval;
+  private bossTimer: number = TUNE.director.bossInterval; // counts DOWN, but only during non-boss play
   private nextPerkAt: number = TUNE.director.perkFirst;
   private nextEventAt: number = TUNE.director.eventFirst;
   bossCount = 0;
@@ -156,7 +156,7 @@ export class Director {
     this.spawnTimer = 0;
     this.bossCount = 0;
     this.wave = 1;
-    this.nextBossAt = this.cfg.bossInterval;
+    this.bossTimer = this.cfg.bossInterval;
     this.nextPerkAt = TUNE.director.perkFirst;
     this.nextEventAt = TUNE.director.eventFirst;
     this.waveIndex = 0;
@@ -179,28 +179,30 @@ export class Director {
     const I = intensity(this.t) * this.cfg.intensityMul;
     this.wave = Math.floor(this.t / 30) + 1;
 
-    // While a boss is alive, hold the next-boss (and next-event) deadlines a
-    // breather ahead of "now". Both ride absolute timers gated by !bossAlive, so
-    // a fight that outlasts bossInterval would otherwise let the deadline elapse
-    // mid-fight and fire the instant the boss dies (same sim step it dies in) —
-    // skipping the inter-boss wave sequence. Sliding only ever DELAYS, never
-    // advances, and draws no rng (Daily stream stays deterministic).
-    if (bossAlive) {
-      const floor = this.t + TUNE.director.bossBreather;
-      if (this.nextBossAt < floor) this.nextBossAt = floor;
-      if (this.nextEventAt < floor) this.nextEventAt = floor;
-    }
-
-    if (this.t >= this.nextBossAt && !bossAlive) {
-      d.boss = true;
-      this.bossCount++;
-      this.nextBossAt = this.t + this.cfg.bossInterval;
+    // The inter-boss "wave" is a fixed budget of NON-BOSS play: bossTimer only
+    // ticks while no boss is alive, so a long fight never shortens (or pads) the
+    // next wave — every wave runs its full length regardless of how the fight
+    // went. Each consecutive wave is waveExtend seconds longer than the last,
+    // capped at waveLenMax so a marathon run keeps a steady boss drumbeat. Pure
+    // dt countdown — no rng, so the Daily stream stays deterministic.
+    if (!bossAlive) {
+      this.bossTimer -= dt;
+      if (this.bossTimer <= 0) {
+        d.boss = true;
+        this.bossCount++;
+        const len = this.cfg.bossInterval + this.bossCount * TUNE.director.waveExtend;
+        this.bossTimer = Math.min(len, TUNE.director.waveLenMax);
+      }
     }
     if (this.cfg.perks && this.t >= this.nextPerkAt) {
       d.perk = true;
       this.nextPerkAt += TUNE.director.perkInterval;
     }
-    // mid-run event — never collides with a boss or perk this tick
+    // mid-run event (wall-clock cadence). Keep it off the very frame a boss dies
+    // (so it can't pop the instant the boss falls) and off any boss/perk tick.
+    if (bossAlive && this.nextEventAt < this.t + TUNE.director.bossBreather) {
+      this.nextEventAt = this.t + TUNE.director.bossBreather;
+    }
     if (this.t >= this.nextEventAt && !bossAlive && !d.boss && !d.perk) {
       d.event = rollEventId(rng);
       this.nextEventAt = this.t + TUNE.director.eventInterval;

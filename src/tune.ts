@@ -106,8 +106,10 @@ export const TUNE = {
     maxConcurrentStart: 4,
     maxConcurrentEnd: 26,
     maxConcurrentCap: 40,
-    bossInterval: 45, // seconds between mini-boss crescendos
-    bossBreather: 7, // min seconds of normal waves owed AFTER a boss dies before the next boss/event — a fight that outlasts bossInterval must never spawn the next boss the instant this one falls
+    bossInterval: 45, // length of WAVE 1 — the non-boss play before the first boss (time-driven modes)
+    waveExtend: 15, // each consecutive inter-boss wave is this many seconds longer than the last…
+    waveLenMax: 120, // …capped here, so a marathon run keeps a steady boss drumbeat instead of 4-minute waves
+    bossBreather: 7, // keep a mid-run EVENT off the very frame a boss dies (its timer is wall-clock)
     spawnTelegraph: 0.4, // seconds an incoming-arrow shows before a spawn
     enemySpeedRamp: 0.3, // effective = base*(0.85 + 0.30*clamp(I,0,1))... handled in code
     bulletSpeedRamp: 0.3,

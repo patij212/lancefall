@@ -149,68 +149,62 @@ describe('Director', () => {
   });
 });
 
-// Regression: in the time-driven modes (endless/daily/nightmare) the next boss
-// rides an absolute deadline (nextBossAt) gated by !bossAlive. If a fight outlasts
-// bossInterval the deadline elapses MID-FIGHT, so the next boss used to spawn the
-// instant the current one died — skipping the inter-boss wave breather. Guard it.
-describe('endless boss breather (no instant boss-after-boss)', () => {
+// The inter-boss "wave" in the time-driven modes (endless/daily/nightmare) is a
+// fixed budget of NON-BOSS play: the boss timer only ticks while no boss is alive,
+// so the wave runs the same length no matter how long the boss fight lasted (this
+// is also what makes an instant boss-after-boss impossible). Each consecutive wave
+// is waveExtend seconds longer than the last, capped at waveLenMax.
+describe('endless wave pacing', () => {
   const DT = 1 / 60;
 
-  function freshEndless(): Director {
+  // Mirrors the game loop: drive the director with bossAlive=false until it asks
+  // for a boss, then bossAlive=true for `fightLen` seconds (the fight), then false
+  // again (the boss died). Returns the non-boss seconds elapsed before each boss.
+  function waveDurations(seed: number, fightLen: number, count: number): number[] {
     const d = new Director();
-    d.configure(modeById('endless')); // bossInterval = 45, time-driven
-    return d;
+    d.configure(modeById('endless'));
+    const rng = createRng(seed);
+    const out: number[] = [];
+    let bossAlive = false;
+    let wave = 0;
+    let fight = 0;
+    let guard = 0;
+    while (out.length < count && guard++ < 2_000_000) {
+      const dec = d.update(DT, 0, bossAlive, rng);
+      if (!bossAlive) {
+        wave += DT;
+        if (dec.boss) { out.push(wave); wave = 0; bossAlive = true; fight = 0; }
+      } else {
+        fight += DT;
+        if (fight >= fightLen) bossAlive = false; // the boss dies
+      }
+    }
+    return out;
   }
 
-  function advanceToFirstBoss(d: Director, rng: ReturnType<typeof createRng>): void {
-    for (let i = 0; i < 10000; i++) {
-      if (d.update(DT, 0, false, rng).boss) return;
-    }
-    throw new Error('first boss never spawned');
-  }
-
-  it('does not spawn the next boss the instant a long fight ends; waves resume first', () => {
-    const d = freshEndless();
-    const rng = createRng(42);
-    advanceToFirstBoss(d, rng);
-
-    // a LONG boss fight — 60s alive, well past the 45s interval (no boss may spawn)
-    for (let i = 0; i < Math.round(60 / DT); i++) {
-      expect(d.update(DT, 0, true, rng).boss).toBe(false);
-    }
-
-    // the boss dies: the very next step must NOT respawn a boss (the bug)
-    expect(d.update(DT, 0, false, rng).boss).toBe(false);
-    const tDeath = d.t;
-
-    // over the owed breather, normal waves resume and the boss stays away until
-    // at least bossBreather seconds after death, then returns.
-    let sawNormalSpawn = false;
-    let gap = -1;
-    for (let i = 0; i < Math.round((TUNE.director.bossBreather + 15) / DT); i++) {
-      const dec = d.update(DT, 0, false, rng);
-      if (dec.spawn.length > 0) sawNormalSpawn = true;
-      if (dec.boss) { gap = d.t - tDeath; break; }
-    }
-    expect(sawNormalSpawn).toBe(true); // the wave sequence resumed between bosses
-    expect(gap).toBeGreaterThanOrEqual(TUNE.director.bossBreather - 2 * DT);
+  it('runs a wave the same length no matter how long the boss fight lasted', () => {
+    const quick = waveDurations(42, 2, 4); // 2s boss fights
+    const slow = waveDurations(42, 120, 4); // 2-minute boss fights
+    // identical wave budgets — the fight never eats into (or pads) the next wave
+    for (let i = 0; i < 4; i++) expect(quick[i]).toBeCloseTo(slow[i], 5);
   });
 
-  it('leaves the normal cadence untouched when a boss is killed quickly', () => {
-    const d = freshEndless();
-    const rng = createRng(7);
-    advanceToFirstBoss(d, rng);
+  it('never spawns the next boss on the frame the previous one dies', () => {
+    // after a boss dies a fresh (long) wave begins, so there is always a real
+    // stretch of play before the next boss — never an instant back-to-back.
+    const w = waveDurations(99, 150, 2);
+    expect(w[1]).toBeGreaterThan(10);
+  });
 
-    // quick 3s kill — the original ~45s spawn-to-spawn schedule should still hold
-    for (let i = 0; i < Math.round(3 / DT); i++) d.update(DT, 0, true, rng);
-    const tDeath = d.t;
-
-    let gap = -1;
-    for (let i = 0; i < Math.round(80 / DT); i++) {
-      if (d.update(DT, 0, false, rng).boss) { gap = d.t - tDeath; break; }
-    }
-    // death was ~48s, next boss on the original ~90s schedule ⇒ a ~42s gap,
-    // far larger than the breather ⇒ proves short fights aren't over-delayed.
-    expect(gap).toBeGreaterThan(TUNE.director.bossBreather + 5);
+  it('grows each consecutive wave by waveExtend, capped at waveLenMax', () => {
+    const w = waveDurations(7, 1, 7);
+    const base = modeById('endless').bossInterval;
+    const ext = TUNE.director.waveExtend;
+    const cap = TUNE.director.waveLenMax;
+    const expected = (n: number) => Math.min(base + n * ext, cap);
+    for (let n = 0; n < 7; n++) expect(w[n]).toBeCloseTo(expected(n), 1);
+    // and it actually reaches the cap and holds there (no runaway 4-min waves)
+    expect(w[6]).toBeCloseTo(cap, 1);
+    expect(w[6] - w[5]).toBeLessThanOrEqual(ext + 1e-6);
   });
 });
