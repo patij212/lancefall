@@ -393,6 +393,32 @@ export const COHERENCE_AUDIO = {
   choirGlide: 0.6,
 } as const;
 
+// AUDIO_MASTER — the production bus chain that makes the synth sound "produced"
+// instead of "browser oscillators": a glue compressor → makeup → tanh brickwall
+// soft-clip → destination. All purely cosmetic (no sim/rng impact).
+export const AUDIO_MASTER = {
+  compThreshold: -18, // dB — where the glue compressor starts pulling peaks together
+  compKnee: 24, // dB — soft knee for transparent glue
+  compRatio: 3, // gentle bus ratio
+  compAttack: 0.006, // s — let transients (kick/thunk click) through, then clamp
+  compRelease: 0.18, // s — musical release that breathes with the beat
+  makeup: 1.18, // post-compressor makeup gain (recovers the level the comp pulled down)
+  limiterK: 1.7, // tanh drive for the brickwall safety clip (lower = cleaner, less crunch)
+} as const;
+
+// AUDIO_REVERB — a synthesized convolution reverb (impulse rendered ONCE via an
+// OfflineAudioContext at boot → offline-first, no asset download). Gives the music
+// real space (today it's bone dry) and a lusher SFX tail than the old feedback delay.
+export const AUDIO_REVERB = {
+  seconds: 2.4, // IR length — a medium hall/plate
+  decay: 3.2, // exp-decay exponent of the noise tail (higher = tighter)
+  predelayMs: 18, // pre-delay before the tail (depth without smearing the transient)
+  toneHz: 3200, // lowpass on the IR so the tail is dark/lush, never fizzy
+  musicSend: 0.16, // music reverb-send level (harmony/lead are the wettest)
+  sfxSend: 0.12, // sfx reverb-send level (kept low so impacts stay punchy)
+  wet: 0.9, // convolver wet trim into the master
+} as const;
+
 // BEAT — dash-release grading (reward-only). Windows in seconds @ the music BPM.
 export const BEAT = {
   perfectWindow: 0.045, // ±45ms (after grace) → Perfect

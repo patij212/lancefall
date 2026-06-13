@@ -4,7 +4,7 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
-import { COHERENCE_AUDIO, MUSIC_BPM } from './tune';
+import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB } from './tune';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -12,6 +12,17 @@ export class AudioEngine {
   private sfxBus!: GainNode;
   private musicBus!: GainNode;
   private noise!: AudioBuffer;
+
+  // music sub-bus tree (under musicBus) — lets the director fade stems per
+  // section and lets the kick sidechain-pump the bass/harmony (synthwave glue).
+  private drumsBus!: GainNode;
+  private bassBus!: GainNode;
+  private harmonyBus!: GainNode; // drone + choir + boss tension chord
+  private leadBus!: GainNode; // arp + THE LANCE THEME hook
+  private bossBus!: GainNode;
+  // production sends
+  private musicReverbSend!: GainNode;
+  private sfxReverbSend!: GainNode;
 
   private masterVol = 0.8;
   private sfxVol = 0.9;
@@ -78,17 +89,33 @@ export class AudioEngine {
     if (!Ctor) return;
     const ctx = new Ctor();
     this.ctx = ctx;
+    const AM = AUDIO_MASTER;
+    const AR = AUDIO_REVERB;
 
+    // ── MASTER SUM → PRODUCTION CHAIN → DESTINATION ──
+    // master is the single sum point (sfx + music + reverb wet); from there a glue
+    // compressor pulls peaks together, makeup recovers level, then a tanh soft-clip
+    // is the brickwall safety so massacres never clip harshly.
     this.master = ctx.createGain();
     this.master.gain.value = this.masterVol;
 
-    // soft-clip limiter on the bus so massive chains don't clip harshly
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = AM.compThreshold;
+    comp.knee.value = AM.compKnee;
+    comp.ratio.value = AM.compRatio;
+    comp.attack.value = AM.compAttack;
+    comp.release.value = AM.compRelease;
+    const makeup = ctx.createGain();
+    makeup.gain.value = AM.makeup;
     const limiter = ctx.createWaveShaper();
-    limiter.curve = softClip(2.2);
-    limiter.oversample = '2x';
-    this.master.connect(limiter);
+    limiter.curve = softClip(AM.limiterK);
+    limiter.oversample = '4x';
+    this.master.connect(comp);
+    comp.connect(makeup);
+    makeup.connect(limiter);
     limiter.connect(ctx.destination);
 
+    // sfx + music sum buses
     this.sfxBus = ctx.createGain();
     this.sfxBus.gain.value = this.sfxVol;
     this.sfxBus.connect(this.master);
@@ -97,28 +124,67 @@ export class AudioEngine {
     this.musicBus.gain.value = this.musicVol;
     this.musicBus.connect(this.master);
 
-    // feedback-delay "reverb" send tapped from the sfx bus
-    const delay = ctx.createDelay(1.0);
-    delay.delayTime.value = 0.16;
-    const fb = ctx.createGain();
-    fb.gain.value = 0.34;
+    // music sub-bus tree — each stem family gets its own fader under musicBus
+    this.drumsBus = ctx.createGain();
+    this.bassBus = ctx.createGain();
+    this.harmonyBus = ctx.createGain();
+    this.leadBus = ctx.createGain();
+    this.bossBus = ctx.createGain();
+    for (const b of [this.drumsBus, this.bassBus, this.harmonyBus, this.leadBus, this.bossBus]) b.connect(this.musicBus);
+
+    // ── CONVOLUTION REVERB (offline-first synth IR, built once) ──
+    // Real space for the music (it was bone dry) + a lusher SFX tail. Tail is
+    // lowpassed so it stays dark/lush, never fizzy. Wet returns to the master sum
+    // so it shares the glue compressor.
+    const conv = ctx.createConvolver();
+    conv.buffer = this.makeReverbIR(ctx);
+    const revTone = ctx.createBiquadFilter();
+    revTone.type = 'lowpass';
+    revTone.frequency.value = AR.toneHz;
     const wet = ctx.createGain();
-    wet.gain.value = 0.9;
-    const send = ctx.createGain();
-    send.gain.value = 0.18;
-    this.sfxBus.connect(send);
-    send.connect(delay);
-    delay.connect(fb);
-    fb.connect(delay);
-    delay.connect(wet);
+    wet.gain.value = AR.wet;
+    conv.connect(revTone);
+    revTone.connect(wet);
     wet.connect(this.master);
 
-    // cached white-noise buffer
+    this.musicReverbSend = ctx.createGain();
+    this.musicReverbSend.gain.value = AR.musicSend;
+    this.musicReverbSend.connect(conv);
+    this.sfxReverbSend = ctx.createGain();
+    this.sfxReverbSend.gain.value = AR.sfxSend;
+    this.sfxReverbSend.connect(conv);
+    // wettest stems: harmony (pad/choir) + lead; sfx gets a touch. Drums + bass dry.
+    this.harmonyBus.connect(this.musicReverbSend);
+    this.leadBus.connect(this.musicReverbSend);
+    this.sfxBus.connect(this.sfxReverbSend);
+
+    // cached white-noise buffer (cosmetic Math.random — never world.rng)
     const len = Math.floor(ctx.sampleRate * 1.0);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = buf;
+  }
+
+  /** Build a stereo convolution-reverb impulse: pre-delay of silence, then an
+   *  exp-decaying noise tail with slight L/R decorrelation for width. Generated
+   *  once at init from Math.random (cosmetic — never the seeded world.rng), so it's
+   *  offline-first (no asset download) yet gives the mix genuine spatial depth. */
+  private makeReverbIR(ctx: AudioContext): AudioBuffer {
+    const AR = AUDIO_REVERB;
+    const rate = ctx.sampleRate;
+    const len = Math.max(1, Math.floor(rate * AR.seconds));
+    const pre = Math.floor((rate * AR.predelayMs) / 1000);
+    const buf = ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buf.getChannelData(ch);
+      const tail = Math.max(1, len - pre);
+      for (let i = pre; i < len; i++) {
+        const t = (i - pre) / tail;
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, AR.decay);
+      }
+    }
+    return buf;
   }
 
   setVolumes(master: number, sfx: number, music: number): void {
@@ -660,7 +726,7 @@ export class AudioEngine {
     filter.type = 'lowpass';
     filter.frequency.value = 700;
     filter.Q.value = 1;
-    filter.connect(this.musicBus);
+    filter.connect(this.harmonyBus);
     this.droneFilter = filter;
 
     // root + fifth + octave, detuned for movement
@@ -846,7 +912,7 @@ export class AudioEngine {
     g.gain.setValueAtTime(gain, t);
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.16);
     osc.connect(g);
-    g.connect(this.musicBus);
+    g.connect(this.drumsBus);
     osc.start(t);
     osc.stop(t + 0.18);
     osc.onended = () => {
@@ -869,7 +935,7 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.22);
     osc.connect(lp);
     lp.connect(g);
-    g.connect(this.musicBus);
+    g.connect(this.bassBus);
     osc.start(t);
     osc.stop(t + 0.24);
     osc.onended = () => {
@@ -889,7 +955,7 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
     osc.connect(g);
-    g.connect(this.musicBus);
+    g.connect(this.leadBus);
     osc.start(t);
     osc.stop(t + dur + 0.02);
     osc.onended = () => {
