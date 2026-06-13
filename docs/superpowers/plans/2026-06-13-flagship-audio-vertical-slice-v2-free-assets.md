@@ -218,11 +218,13 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 
 - [ ] **Director failing tests:** arena sections map to the right AURORA source via `sectionAt`;
   Warden phase 0/1 → `warden_spiral`/`warden_fan`; ≤ 34% HP → `warden_enraged`; for a `loop` source
-  the **procedural-intensity gain** rises with `intensity` while authored `main` stays at 1; for a
-  hypothetical `stems` source the per-stem gains follow intensity/COHERENCE (forward-compat).
-- [ ] **Implement** `decideMusic(state, absoluteBar) → { sourceId, layerGains, proceduralGain, bpm, key }`.
-  Rule: `proceduralGain = layering==='loop' ? f(intensity,coherence) : reduced`; authored `layerGains`
-  cover whatever keys the source has; `bpm`/`key` come from the selected source.
+  `loopCutoff` rises with intensity/COHERENCE (mix-modulation) while authored `main` stays at gain 1;
+  for `layers`/`stems` the per-layer gains follow intensity/COHERENCE; `reactiveGain` (procedural
+  punctuation level) is independent and modest.
+- [ ] **Implement** `decideMusic(state, absoluteBar) → { sourceId, layerGains, loopCutoff, reactiveGain, bpm, key }`
+  (see Deep Dive B). `reactiveGain` scales the procedural *reactive* punctuation (hook/shimmer) — NOT a
+  procedural bed; `loopCutoff` mix-modulates a `loop` source's single file for vertical intensity;
+  `layers`/`stems` use `layerGains`; `bpm`/`key` come from the selected source.
 - [ ] **Active-clock accessor (NOT a deterministic scheduler — see Deep Dive A):** the decision
   already carries the selected source's `bpm`/`key`. Expose a pure `activeBpm(decision)` and let
   HybridMusic surface the active source's bar-aligned **`activeMusicTime`**. No separate determinism
@@ -286,16 +288,21 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 
 **Files:** `src/hybridMusic.ts` (+ test).
 
-- [ ] **Failing tests (fakes for asset/layer/sfx/conductor):** procedural gain stays 1 while loading/
-  failed; an authored source starts only on a bar downbeat and only when **all its tracks** exist;
-  procedural music gain fades toward 0 **only for `stems` sources**, and is **driven by `proceduralGain`
-  (not zeroed) for `loop`/`layers` sources**; arena follows the song spine; Warden state selects the
-  right source; `setBossState` emits arrival/phase/fan samples only at state edges; `stop()` restores
-  procedural gain and resets tempo to `MUSIC_BPM`.
-- [ ] **Implement** `HybridMusic` (constructs AssetManager/LayerPlayer/SampleSfx/Director/Conductor
-  unless injected; local `mulberry32`). On each bar downbeat: `decideMusic` → maybe switch source →
-  push `proceduralGain` to `proceduralMusicBus` → push `{bpm,atBar}` to the conductor/BeatClock. Keep
-  the current source when the next one's tracks are missing.
+> **Follow Deep Dive B** — it corrects the model: procedural is reactive-only over authored (bed
+> suppressed via `layerOn`), vertical intensity comes from `loopCutoff` (loop) or `layerGains`
+> (layers/stems), and the active clock re-anchors on a bar-downbeat switch. No `tempoConductor`.
+
+- [ ] **Failing tests (fakes for asset/layer/sfx):** procedural plays normally while loading/failed;
+  an authored source starts **only on a bar downbeat** and only when **all its tracks** exist; when
+  authored is active the procedural **bed** is suppressed (`layerOn` bed → false) while the reactive
+  **hook** persists; a `loop` source's `loopCutoff` tracks intensity; the **active clock re-anchors**
+  on switch (bar-phase equality, Deep Dive B); arena follows the song spine; Warden state selects the
+  right source; `setBossState` emits arrival/phase/fan only at state edges; `stop()` restores the
+  procedural bed + `activeClock = {musicEpoch, 112}`.
+- [ ] **Implement** `HybridMusic` (constructs AssetManager/LayerPlayer/SampleSfx/Director unless
+  injected; local `mulberry32`). On each bar downbeat: `decideMusic` → maybe switch source (re-anchor
+  the active clock + procedural pump) → set `authoredActive`, `layerGains`, `loopCutoff`, `reactiveGain`
+  → retempo the BeatClock from `activeBpm`. Keep the current source when the next one's tracks are missing.
 - [ ] Green; commit: `feat(lancefall): orchestrate hybrid flagship audio`.
 
 ---
@@ -434,6 +441,70 @@ This is *less* code than v1 proposed and removes the riskiest invented machinery
 already does the hard part (cosmetic ⟂ sim separation) for us. **Open risk that remains:** time-stretch
 quality on free tracks and the procedural-over-authored scheduling coupling — those, not determinism,
 are where the listening gate must focus.
+
+---
+
+## Deep Dive B — The Hybrid Clock & Procedural-Reactive Coupling (the real integration)
+
+*Grounded in `audio.ts`: the 25 ms `scheduleMusic` lookahead pump, `playStep`, the `layerOn(...)` bed
+gate, the coherence-gated LANCE-THEME `hookGain`, and `musicTime = ctx.currentTime − musicEpoch`.*
+
+### The existing procedural clock
+One clock today: `{musicEpoch, bpm = 112}`. Every 25 ms, `scheduleMusic` schedules `playStep(musicStep,
+nextNoteT)` while `nextNoteT < now + 0.1`, advancing `nextNoteT += 60/112/4` and `musicStep++`. `playStep`
+derives `positionFromStep(musicStep)` → bar/16th and `sectionAt(bar)` → the song-spine arrangement, then
+gates each **bed** layer through `layerOn('kick'|'bass'|'pad'|'riff'|'arp')`. THE LANCE THEME `hook` is a
+**separate, coherence-gated** voice ("silent until a clean run earns it, then blooms in"). `musicTime`
+exposes `now − musicEpoch`; the cosmetic BeatClock reconciles to it.
+
+### Three clocks → ONE active clock (owned by HybridMusic)
+Authored music adds a 2nd clock (the LayerPlayer's looping buffers at `sourceStartTime`, `source.bpm`);
+the cosmetic BeatClock is a 3rd. They must agree on bar/beat at the active BPM or the felt beat desyncs.
+**HybridMusic owns one `activeClock = {epoch, bpm}`:** procedural fallback ⇒ `{musicEpoch, 112}`;
+authored live ⇒ `{sourceStartTime, source.bpm}`. `audio.musicTime = now − activeClock.epoch`,
+`audio.activeBpm = activeClock.bpm`. The BeatClock (Tasks 6/11) and the procedural scheduler **both**
+derive from it — one source of truth.
+
+### Source switch = re-anchor (only on a bar downbeat)
+On a switch to an authored source starting at `T`:
+1. LayerPlayer starts the loop **bar-aligned** (`sourceStartTime` ⇒ step 0 is a downbeat).
+2. `activeClock = {sourceStartTime, source.bpm}`.
+3. **Re-anchor the procedural pump** so its bars line up with the bed: `sixteenth = 60/source.bpm/4`,
+   `musicStep = round((nextNoteT − sourceStartTime)/sixteenth)`. `scheduleMusic` then keeps spacing
+   correctly at the new tempo.
+4. BeatClock `retempo(activeBpm)` → next `reconcile` re-seeds to the authored `musicTime`.
+Reverse on authored→procedural fallback.
+
+### Correction: procedural is REACTIVE-only over authored — not a second bed
+v2 said "procedural supplies the vertical layering." That's wrong for a full-mix **`loop`** (it already
+contains drums/bass/harmony/lead — procedural drums would clutter/clash). Corrected model, reusing the
+existing `layerOn` gate:
+- When `authoredActive`, `layerOn('kick'|'bass'|'pad'|'riff'|'arp')` ⇒ **false** (suppress the procedural
+  bed). Keep ONLY the **reactive** layer: the coherence-gated LANCE-THEME `hook` (our motif persists over
+  a free bed), the dash-grade snare, and COHERENCE shimmer. This is the spec's "procedural becomes a
+  reactive instrument."
+- **Vertical intensity then comes from the authored side, not procedural drums:**
+  - `loop` ⇒ **mix-modulate the single loop** — route the LayerPlayer master through a lowpass whose
+    cutoff + gain open with intensity/COHERENCE (poor-man's vertical layering on one stereo file).
+  - `layers`/`stems` ⇒ real authored sub-mix/stem fades.
+- So the director emits `{ sourceId, layerGains, loopCutoff, reactiveGain, bpm, key }`: **`reactiveGain`
+  replaces v2's `proceduralGain`** (it scales reactive punctuation, not a bed), and `loopCutoff` drives
+  the `loop` mix-modulation.
+
+### Code touchpoints (refines Tasks 5, 9, 10)
+- `audio.ts`: add `activeClock {epoch,bpm}` (+ `authoredActive`, a `loopFilter` biquad on the LayerPlayer
+  master); `musicTime`/`activeBpm` read it; `scheduleMusic` uses `60/activeBpm/4`; `layerOn` suppresses
+  bed layers when `authoredActive`; HybridMusic re-anchors on switch and sets `loopFilter` from `loopCutoff`.
+- `musicDirector` (Task 5): emit `loopCutoff` + `reactiveGain`.
+- Tests: (a) **bar-phase equality** — after re-anchor, `positionFromStep(musicStep).sixteenthInBar`
+  equals the authored source's 16th index at `nextNoteT` (pure); (b) `layerOn` false for bed / true for
+  hook when `authoredActive`; (c) `activeClock`/`musicTime`/`activeBpm` reflect the active source.
+
+### Why this is safe
+All of it lives in `audio.ts` + `frame()` — the cosmetic/audio layer. Per Deep Dive A it never enters
+`step()`/`world`/seeded RNG, so it can't perturb Daily. The only risk is *musical coherence* (does the
+reactive motif land in time; does the loop mix-modulation read as intensity), which the listening gate
+(Task 3 Step 4 / Task 13) exists to catch.
 
 ---
 
