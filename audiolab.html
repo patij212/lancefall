@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LANCEFALL · AUDIO LAB</title>
+    <style>
+      :root {
+        --bg: #07080f;
+        --panel: #11131f;
+        --ink: #e7e9f3;
+        --dim: #8a8fb0;
+        --neon: #5beaff;
+        --neon2: #c084fc;
+        --line: #232742;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 600px at 50% -10%, #16213f 0%, var(--bg) 70%);
+        color: var(--ink);
+        font: 14px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        padding: 24px;
+      }
+      h1 { font-size: 18px; letter-spacing: 0.18em; margin: 0 0 4px; color: var(--neon); }
+      .sub { color: var(--dim); margin: 0 0 18px; font-size: 12px; }
+      .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+      .panel h2 { font-size: 11px; letter-spacing: 0.16em; color: var(--neon2); margin: 0 0 12px; text-transform: uppercase; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+      button {
+        background: #1a1e30; color: var(--ink); border: 1px solid var(--line);
+        border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; transition: 0.12s;
+      }
+      button:hover { border-color: var(--neon); color: var(--neon); transform: translateY(-1px); }
+      button.primary { background: var(--neon); color: #04121a; border-color: var(--neon); font-weight: 700; }
+      button.warn { border-color: #f87171; }
+      label { display: block; color: var(--dim); font-size: 11px; margin: 10px 0 2px; letter-spacing: 0.06em; }
+      .val { color: var(--neon); }
+      input[type="range"] { width: 100%; accent-color: var(--neon); }
+      select { background: #1a1e30; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; }
+      .hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
+      .pill { display: inline-block; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; }
+      #gate {
+        position: fixed; inset: 0; background: rgba(5, 6, 14, 0.94); display: grid; place-items: center; z-index: 9;
+      }
+      #gate button { font-size: 16px; padding: 16px 28px; }
+    </style>
+  </head>
+  <body>
+    <h1>LANCEFALL · AUDIO LAB</h1>
+    <p class="sub">Dev-only sound bench — audition every SFX, drive the soundtrack by COHERENCE / heat / combo tier, swap boss themes, and A/B the mix states. Not shipped in the prod build.</p>
+    <div id="app"></div>
+    <div id="gate"><button class="primary" id="start">▶ CLICK TO START AUDIO</button></div>
+    <script type="module" src="/src/audioLab.ts"></script>
+  </body>
+</html>
