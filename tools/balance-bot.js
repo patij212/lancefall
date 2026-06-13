@@ -162,12 +162,15 @@
         const bl = Math.sqrt(vv) || 1; let nx = -b.vy / bl, ny = b.vx / bl;
         if ((p.x - cx) * nx + (p.y - cy) * ny < 0) { nx = -nx; ny = -ny; }
         const sev = (1 - Math.min(1, ts / 0.7)) * (1 - Math.min(1, minD / (hitR + 18)));
-        mvx += nx * sev * 1.8; mvy += ny * sev * 1.8;
+        mvx += nx * sev * 2.1; mvy += ny * sev * 2.1; // lean on movement first — it's free; dashes cost stamina
         if (minD < hitR + 8 && ts < 0.26) hard = true;
         if (minD < hitR + 12 && ts < 0.4) threatN++; // count converging shots → a wall you can't drift out of
       }
     }
-    if (threatN >= 3) hard = true; // multiple shots closing → dash THROUGH on i-frames
+    // Stamina is the boss-fight bottleneck: dash-spamming patterns strands you. A
+    // DENSE wall (a full ring) you must dash through; MODERATE pressure you drift
+    // out of for free — only burn a dash on it when there's stamina to spare.
+    if (threatN >= 5 || (threatN >= 3 && p.stamina >= DASH_COST * 2)) hard = true;
 
     // ── enemies: body avoidance, crowd pressure, nearest target, boss ──
     const E = w.enemies.items; let nE = null, nED = 1e9, boss = null, bossDist = 1e9, crowd = 0, cgx = 0, cgy = 0, coresLeft = 0;
@@ -242,8 +245,13 @@
       if (!tgt) { const G = w.gems.items; for (let i = 0; i < G.length; i++) { const g = G[i]; if (!g.active) continue; const d = Math.hypot(g.x - p.x, g.y - p.y); if (d < td) { td = d; tgt = g; } } }
       if (tgt) { mvx += (tgt.x - p.x) / Math.max(1, td) * 0.6; mvy += (tgt.y - p.y) / Math.max(1, td) * 0.6; }
     }
-    // engage: hold a medium range — close enough to joust, not hugging the fire
-    if (boss && bossDist > 280 && !hard) { mvx += (boss.x - p.x) / bossDist * 0.5; mvy += (boss.y - p.y) / bossDist * 0.5; }
+    // stamina-aware boss spacing: with charges to spare, close in to joust range;
+    // when low, KITE OUT to where the boss's radial patterns are sparse (a full ring
+    // is a thin arc out there → movement alone dodges it) and let stamina regen.
+    if (boss && !hard) {
+      if (p.stamina < DASH_COST && bossDist < 380) { mvx -= (boss.x - p.x) / bossDist * 1.0; mvy -= (boss.y - p.y) / bossDist * 1.0; } // out of dashes → kite to sparse range & regen
+      else if (p.stamina >= DASH_COST * 2 && bossDist > 270) { mvx += (boss.x - p.x) / bossDist * 0.55; mvy += (boss.y - p.y) / bossDist * 0.55; } // charges to spare → close to joust range
+    }
     let ml = Math.hypot(mvx, mvy); if (ml > 1) { mvx /= ml; mvy /= ml; }
     s.moveX = mvx; s.moveY = mvy;
 
