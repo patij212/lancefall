@@ -84,6 +84,9 @@ app.appendChild(cols);
 // ── SOUNDTRACK ────────────────────────────────────────────────────────────
 {
   const p = panel('Soundtrack');
+  const pick = row(p);
+  btn(pick, 'AURORA (dreamy)', () => audio.setSoundtrack('aurora'), 'primary');
+  btn(pick, 'SURGE (aggressive)', () => audio.setSoundtrack('surge'));
   const r = row(p);
   btn(r, '▶ Start music', () => audio.startDrone(), 'primary');
   btn(r, '■ Stop', () => audio.stopDrone(), 'warn');

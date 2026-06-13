@@ -237,6 +237,7 @@ export class Game {
     this.settings = s;
     saveSettings(s);
     this.audio.setVolumes(s.master, s.sfx, s.music);
+    this.audio.setSoundtrack(s.soundtrack);
     this.shake.intensity = s.shake * (s.reduceFlashing ? 0.4 : 1);
     this.input.rumbleEnabled = s.rumble;
     this.baseDensity = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);

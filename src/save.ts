@@ -4,6 +4,7 @@
 
 import { dateString } from './rng';
 import { SAVE_VERSION, migrateSave } from './migrate';
+import type { SoundtrackId } from './soundtracks';
 
 const SAVE_KEY = 'lancefall.save';
 const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
@@ -85,6 +86,7 @@ export interface Settings {
   clarity: boolean; // high-contrast Clarity mode — tames the coherence visuals for readability
   rhythmAssist: boolean; // opt-in: the contracting beat-ring that teaches dash-on-the-beat
   dashStyle: 'lance' | 'slingshot'; // dash style — Lance (default) or the Slingshot Tether
+  soundtrack: SoundtrackId; // selectable soundtrack: AURORA (dreamy) or SURGE (aggressive)
   hudScale: number; // 0.8..1.4
   chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
   rumble: boolean; // gamepad rumble on/off
@@ -150,6 +152,7 @@ export function defaultSettings(): Settings {
     clarity: false,
     rhythmAssist: false,
     dashStyle: 'lance',
+    soundtrack: 'aurora',
     hudScale: 1,
     chromAberration: 1,
     rumble: true,

@@ -7,7 +7,8 @@ import type { EnemyKind } from './types';
 import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP, AUDIO_MIX } from './tune';
 import { mulberry32 } from './rng';
 import { positionFromStep, formAt } from './musicTransport';
-import { PENTA, themeNotesAt, themeFreq, bassChordMul, sectionLift } from './musicScore';
+import { PENTA, themeFreq, bassChordMul, sectionLift } from './musicScore';
+import { getTrack, notesAt, type TrackProfile, type SoundtrackId } from './soundtracks';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -75,6 +76,10 @@ export class AudioEngine {
   private bossArpMul = 1; // per-boss arp pitch shift (set from the active boss theme)
   private readonly bpm = MUSIC_BPM;
   private musicEpoch = 0; // ctx time of the music's first scheduled note (beat-clock epoch)
+
+  // the selectable soundtrack profile (Settings) — drives groove/density/timbre/theme.
+  // Set before ctx exists (just stores data); the scheduler reads it live.
+  private track: TrackProfile = getTrack('aurora');
 
   // ── COHERENCE one-bus (audio half) — Coherence solely owns the drone bloom +
   //    filter now; setIntensity keeps only its arp-density (musicHeat) role. ──
@@ -266,6 +271,7 @@ export class AudioEngine {
     decay: number;
     peak: number;
     pan?: number;
+    drive?: number; // >1 inserts a tanh waveshaper post-osc for grit/distortion (aggressive timbres)
     bus?: AudioNode; // GainNode by default; a filter when a stem pre-filters (e.g. the lead hook)
     at?: number;
   }): void {
@@ -306,6 +312,16 @@ export class AudioEngine {
       g.connect(o.bus ?? this.sfxBus);
     }
 
+    // optional tanh waveshaper for grit/distortion (aggressive timbres), post-osc
+    let shaper: WaveShaperNode | null = null;
+    if (o.drive && o.drive > 1) {
+      shaper = ctx.createWaveShaper();
+      shaper.curve = softClip(o.drive);
+      shaper.oversample = '2x';
+      shaper.connect(inNode);
+    }
+    const oscTarget: AudioNode = shaper ?? inNode;
+
     const oscs: OscillatorNode[] = [];
     const dets = o.detune ? [o.detune, -o.detune] : [0];
     for (const det of dets) {
@@ -314,13 +330,14 @@ export class AudioEngine {
       osc.frequency.setValueAtTime(o.freq, t);
       if (o.freqEnd != null) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.freqEnd), t + (o.glide ?? dur));
       osc.detune.value = det;
-      osc.connect(inNode);
+      osc.connect(oscTarget);
       osc.start(t);
       osc.stop(end + 0.02);
       oscs.push(osc);
     }
     oscs[oscs.length - 1].onended = () => {
       for (const osc of oscs) osc.disconnect();
+      shaper?.disconnect();
       filt?.disconnect();
       g.disconnect();
       pan?.disconnect();
@@ -890,6 +907,15 @@ export class AudioEngine {
     this.musicHeat = n;
   }
 
+  /** Select the active soundtrack (Settings). Safe to call before the context
+   *  exists — it just swaps the profile the scheduler reads each step. */
+  setSoundtrack(id: SoundtrackId): void {
+    this.track = getTrack(id);
+  }
+  get soundtrackId(): SoundtrackId {
+    return this.track.id;
+  }
+
   /** THE ONE BUS (audio half) — Coherence 0..1 + combo tier together bloom the
    *  lone drone into a 4-voice chord, open the filter, transpose the root, and
    *  crossfade a choir pad in past the onset. Cosmetic: never touches world.rng. */
@@ -1028,31 +1054,41 @@ export class AudioEngine {
 
   private static ARP = [5, 7, 9, 7, 6, 9, 7, 5]; // indices into PENTA, per offbeat 8th
 
-  /** Synthesize one 16th-note step. `step` is the ABSOLUTE step index; the transport
-   *  derives bar/beat/section and the score says what plays. Vertical layers:
-   *  L1 KICK+BASS (always) · L2 ARP (heat) · L3 THE LANCE THEME hook (coherence) ·
-   *  L5 PERC/BREAK (high heat). The pad pumps under the kick (sidechain). */
+  /** Synthesize one 16th-note step, driven by the active TRACK PROFILE. The transport
+   *  derives bar/beat/section; the profile says what plays. Vertical layers:
+   *  L1 KICK+BASS (always) · L1.5 RIFF (always-on ostinato — keeps a zero-combo
+   *  stretch grooving) · L2 ARP (heat) · L3 lead HOOK / boss MOTIF (coherence) ·
+   *  L5 PERC/BREAK (heat). The pad pumps under the kick (sidechain). */
   private playStep(step: number, t: number): void {
     const heat = this.musicHeat;
     const pos = positionFromStep(step);
     const sixteenth = 60 / this.bpm / 4;
+    const tr = this.track;
+    const lift = sectionLift(formAt(pos.bar).section); // anti-fatigue: A' octave-up, B fifth-up
 
-    // L1 KICK — four-on-the-floor drive; each kick fires the pad sidechain pump.
-    if (pos.sixteenthInBeat === 0) {
+    // L1 KICK — drives the groove + fires the pad sidechain pump.
+    if (tr.kickSteps.includes(pos.sixteenthInBar)) {
       this.kick(t, 0.16 * this.humGain(0.06));
       this.pump(t);
     }
 
-    // L1 BASS — MOVING through the Am-F-C-G progression (bass-only chord motion, so
-    // the pentatonic top floats safely over it). Beats 1 & 3, plus offbeat push when hot.
+    // L1 BASS — MOVING through the Am-F-C-G progression (bass-only chord motion so the
+    // pentatonic top floats safely over it). Base pattern + a hot-push when heat>0.6.
     const chord = bassChordMul(pos.bar);
-    if (pos.sixteenthInBar === 0 || pos.sixteenthInBar === 8) this.bassNote(t, 110 * this.rootMul * chord, 0.18);
-    if (heat > 0.6 && (pos.sixteenthInBar === 6 || pos.sixteenthInBar === 14))
-      this.bassNote(t, 110 * this.rootMul * chord, 0.1);
+    const bassF = 110 * this.rootMul * chord;
+    if (tr.bassSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain);
+    else if (heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain * 0.6);
 
-    // L2 ARP — offbeat 8ths, density rising with heat (the mid-energy texture; per-boss
-    // colour when a boss is alive). Pentatonic at the key root (no chord offset → safe).
-    const onArp = heat > 0.25 && pos.sixteenthInBar % 2 === 1 && (heat > 0.6 || pos.sixteenthInBar % 4 === 1);
+    // L1.5 RIFF — the always-on ostinato (NOT coherence-gated): this is what keeps
+    // the track great with zero combo. Lifts with the macro-form section like the hook.
+    if (tr.riff.length) {
+      for (const n of notesAt(tr.riff, pos.sixteenthInBar))
+        this.riffNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, tr.riffGain * n.vel);
+    }
+
+    // L2 ARP — offbeat 8ths, density rising with heat (per-boss colour while a boss is
+    // alive). Pentatonic at the key root (no chord offset → safe).
+    const onArp = heat > tr.arpHeat && pos.sixteenthInBar % 2 === 1 && (heat > 0.6 || pos.sixteenthInBar % 4 === 1);
     if (onArp) {
       const idx = Math.floor(step / 2) % AudioEngine.ARP.length;
       const base = PENTA[AudioEngine.ARP[idx] % PENTA.length];
@@ -1060,33 +1096,29 @@ export class AudioEngine {
       this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
     }
 
-    // L3 LEAD — horizontal re-sequencing: during a boss fight the boss's own MOTIF
-    // owns the lead (one note per 8th-note over the bar); otherwise THE LANCE THEME
-    // hook plays, but only once a clean run earns it (gated on cached coherence; the
-    // hookGain crossfade does the smooth fade-in). Per-section lift on the arena hook:
-    // A plain · A' octave-up · B fifth-up (the FALL fragment).
+    // L3 LEAD — during a boss fight the boss's own MOTIF owns the lead (horizontal
+    // re-sequencing); otherwise the track's HOOK plays, gated by coherence so it's the
+    // reward of a clean run (hookGain's crossfade does the smooth fade-in).
     if (this.bossArp && this.bossMotif) {
       if (pos.sixteenthInBar % 2 === 0) {
         const idx = this.bossMotif[pos.sixteenthInBar / 2] ?? -1;
         if (idx >= 0) this.bossMotifNote(t, PENTA[idx] * this.bossMotifOct * this.rootMul, sixteenth * 1.7, this.bossMotifGain);
       }
     } else if (this.coherenceVal > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
-      const lift = sectionLift(formAt(pos.bar).section);
-      for (const n of themeNotesAt(pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, n.vel);
+      for (const n of notesAt(tr.theme, pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, n.vel);
     }
 
-    // L5 PERC/BREAK — hats on the "&" + a backbeat ghost-snare at high heat (the
-    // synthwave-DnB hybrid lift on a hot run).
-    if (heat > AUDIO_PUMP.percHeat && pos.sixteenthInBeat === 2) this.hat(t, 0.05 * this.humGain());
-    if (heat > AUDIO_PUMP.snareHeat && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) this.ghostSnare(t);
+    // L5 PERC/BREAK — hats on the "&" + a backbeat ghost-snare (thresholds per track).
+    if (heat > tr.hatHeat && pos.sixteenthInBeat === 2) this.hat(t, 0.05 * this.humGain());
+    if (heat > tr.snareHeat && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) this.ghostSnare(t);
   }
 
   /** Sidechain "pump": duck the sustained pad on each kick, then ease back — the
-   *  genre-defining synthwave breath. A cheap scheduled gain dip on harmonyBus. */
+   *  genre-defining synthwave breath. Depth is per-track (SURGE pumps harder). */
   private pump(t: number): void {
     const g = this.harmonyBus.gain;
     g.cancelScheduledValues(t);
-    g.setValueAtTime(AUDIO_PUMP.depth, t);
+    g.setValueAtTime(this.track.pumpDepth, t);
     g.setTargetAtTime(1, t, AUDIO_PUMP.release);
   }
 
@@ -1096,13 +1128,14 @@ export class AudioEngine {
     if (!this.hookFilter) return;
     const jitter = Math.pow(2, this.humCents(4) / 1200);
     this.voice({
-      type: 'sawtooth',
+      type: this.track.leadWave,
       freq: freq * jitter,
       detune: COHERENCE_AUDIO.leadDetune,
       attack: 0.01,
       hold: Math.max(0, dur * 0.45),
       decay: Math.max(0.1, dur * 0.55),
       peak: 0.6 * vel,
+      drive: this.track.leadDrive,
       bus: this.hookFilter,
       at: t,
     });
@@ -1198,23 +1231,36 @@ export class AudioEngine {
 
   private bassNote(t: number, freq: number, gain: number): void {
     const ctx = this.ctx!;
+    const tr = this.track;
     const osc = ctx.createOscillator();
-    osc.type = 'sawtooth';
+    osc.type = tr.bassWave;
     osc.frequency.value = freq;
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 600;
+    lp.frequency.value = tr.bassCutoff;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.22);
-    osc.connect(lp);
+    g.gain.linearRampToValueAtTime(0, t + 0.235); // de-click
+    // optional grit for aggressive tracks (SURGE) — tanh waveshaper post-osc
+    let shaper: WaveShaperNode | null = null;
+    if (tr.bassDrive > 1) {
+      shaper = ctx.createWaveShaper();
+      shaper.curve = softClip(tr.bassDrive);
+      shaper.oversample = '2x';
+      osc.connect(shaper);
+      shaper.connect(lp);
+    } else {
+      osc.connect(lp);
+    }
     lp.connect(g);
     g.connect(this.bassBus);
     osc.start(t);
     osc.stop(t + 0.24);
     osc.onended = () => {
       osc.disconnect();
+      shaper?.disconnect();
       lp.disconnect();
       g.disconnect();
     };
@@ -1223,12 +1269,13 @@ export class AudioEngine {
   private pluck(t: number, freq: number, dur: number, gain: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
-    osc.type = 'triangle';
+    osc.type = this.track.arpWave;
     osc.frequency.value = freq;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0006, t + dur);
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.015); // de-click
     osc.connect(g);
     g.connect(this.leadBus);
     osc.start(t);
@@ -1237,6 +1284,26 @@ export class AudioEngine {
       osc.disconnect();
       g.disconnect();
     };
+  }
+
+  /** One always-on RIFF note → leadBus (ungated by coherence). The baseline groove
+   *  that keeps a track great out of combo; aggressive tracks add grit via drive. */
+  private riffNote(t: number, freq: number, dur: number, gain: number): void {
+    this.voice({
+      type: this.track.riffWave,
+      freq,
+      detune: 7,
+      cutoff: 2600,
+      cutoffEnd: 1500,
+      q: 0.7,
+      attack: 0.008,
+      hold: Math.max(0, dur * 0.3),
+      decay: Math.max(0.06, dur * 0.7),
+      peak: gain,
+      drive: this.track.riffDrive,
+      bus: this.leadBus,
+      at: t,
+    });
   }
 
   /** Layer in a per-boss tension chord while a boss is alive (and remove it).

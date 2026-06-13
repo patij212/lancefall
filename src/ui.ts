@@ -12,6 +12,7 @@ import { HEAT_LEVELS } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchLeaderboard } from './api';
 import { comboColor } from './render';
+import { TRACKS, type SoundtrackId } from './soundtracks';
 import { SHIPS } from './ships';
 import { THEMES } from './themes';
 import { TRAILS } from './trails';
@@ -494,6 +495,24 @@ export class UI {
       densityWrap.append(b);
     }
     body.append(densityWrap);
+
+    // soundtrack picker — AURORA (dreamy) vs SURGE (aggressive)
+    const trackWrap = el('div', { class: 'setting' }, el('span', {}, 'Soundtrack'));
+    for (const id of ['aurora', 'surge'] as SoundtrackId[]) {
+      const prof = TRACKS[id];
+      const b = el(
+        'button',
+        { class: 'btn btn-ghost btn-sm' + (s.soundtrack === id ? ' active' : ''), title: prof.blurb },
+        prof.name,
+      );
+      b.addEventListener('click', () => {
+        this.patch({ soundtrack: id });
+        trackWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+      });
+      trackWrap.append(b);
+    }
+    body.append(trackWrap);
 
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeSettings());
