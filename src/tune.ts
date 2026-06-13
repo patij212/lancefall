@@ -391,6 +391,24 @@ export const COHERENCE_AUDIO = {
   choirOnset: 0.6, // coherence below which the choir is silent
   choirGain: 0.1, // total choir bus gain at full bloom (under the limiter)
   choirGlide: 0.6,
+  // ── THE LANCE THEME lead (the earworm) — gated by coherence so the hook is the
+  //    REWARD of a clean run; transposes with rootMul so the melody IS the scoreboard.
+  leadOnset: 0.34, // coherence below which the lead hook is silent
+  leadGain: 0.13, // lead bus gain at full bloom
+  leadGlide: 0.45,
+  leadDetune: 12, // cents — twin-saw detune that fattens the neon lead
+  leadFilterBase: 900, // Hz — lead lowpass base
+  leadFilterBloom: 2600, // Hz added to the lead lowpass at coherence 1 (opens as you climb)
+} as const;
+
+// MACRO_FORM — anti-fatigue song structure. A short 2-bar surface hook, but a long
+// effective horizon: A (plain) → A' (octave-up / ornamented) → B (the FALL fragment,
+// fifth-up) → A. ~28-bar / ~60s rotation so nothing exact-repeats for ~2 min.
+export const MACRO_FORM = {
+  aBars: 8,
+  aPrimeBars: 8,
+  bBars: 4,
+  // the sequence is [A, A', B, A]; total = aBars + aPrimeBars + bBars + aBars
 } as const;
 
 // AUDIO_MASTER — the production bus chain that makes the synth sound "produced"
