@@ -11,7 +11,10 @@ import { PENTA, themeFreq, bassChordMul, sectionLift } from './musicScore';
 import { getTrack, notesAt, type TrackProfile, type SoundtrackId } from './soundtracks';
 
 export class AudioEngine {
-  private ctx: AudioContext | null = null;
+  // BaseAudioContext so the same graph + scheduler can run on a live AudioContext OR
+  // an OfflineAudioContext (the render/verify harness). AudioContext-only members
+  // (suspend/resume) are cast at their few call-sites.
+  private ctx: BaseAudioContext | null = null;
   private master!: GainNode;
   private sfxBus!: GainNode;
   private musicBus!: GainNode;
@@ -111,10 +114,51 @@ export class AudioEngine {
     return this.ctx?.currentTime ?? 0;
   }
 
+  /** DEV/VERIFY harness — render the music OFFLINE to an AudioBuffer at fixed
+   *  (coherence, tier, heat, track, boss). For ear-tests (bounce to WAV) + objective
+   *  analysis (peak/RMS/brightness) + a determinism null-test. Call on a THROWAWAY
+   *  `new AudioEngine()` — it sets up its own offline context; never touches the live
+   *  audio or world.rng. The scheduler is driven manually (no setInterval offline). */
+  async renderOffline(opts: {
+    seconds: number;
+    coherence?: number;
+    tier?: number;
+    heat?: number;
+    track?: SoundtrackId;
+    boss?: EnemyKind;
+    sampleRate?: number;
+  }): Promise<AudioBuffer> {
+    const sr = opts.sampleRate ?? 44100;
+    const seconds = Math.max(1, opts.seconds);
+    const OCtor =
+      window.OfflineAudioContext ??
+      (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+    if (!OCtor) throw new Error('OfflineAudioContext unavailable');
+    const octx = new OCtor(2, Math.ceil(sr * seconds), sr);
+    this.ctx = octx;
+    this.buildGraph(octx);
+    this.setSoundtrack(opts.track ?? 'aurora');
+    this.setVolumes(0.85, 0.9, 0.72);
+    this.buildDroneNodes();
+    if (opts.boss) this.bossMusic(true, opts.boss);
+    const coh = opts.coherence ?? 0.5;
+    const tier = opts.tier ?? 0;
+    this.setIntensity(opts.heat ?? 0.5);
+    const sixteenth = 60 / this.bpm / 4;
+    const steps = Math.ceil(seconds / sixteenth);
+    this.musicStep = 0;
+    this.musicEpoch = 0;
+    for (let step = 0; step < steps; step++) {
+      if (step % 16 === 0) this.setCoherence(coh, tier); // per-bar (bar-quantized brightness lives here)
+      this.playStep(step, step * sixteenth + 0.001);
+    }
+    return await octx.startRendering();
+  }
+
   /** Create/resume the context. MUST be called from a user gesture. */
   ensure(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      if (this.ctx.state === 'suspended') void (this.ctx as AudioContext).resume();
       return;
     }
     const Ctor =
@@ -122,6 +166,13 @@ export class AudioEngine {
     if (!Ctor) return;
     const ctx = new Ctor();
     this.ctx = ctx;
+    this.buildGraph(ctx);
+  }
+
+  /** Build the full bus graph on a context — a live AudioContext, or an
+   *  OfflineAudioContext for the render/verify harness. Master chain, sfx/music
+   *  buses, sub-bus tree, reverb, noise buffer. */
+  private buildGraph(ctx: BaseAudioContext): void {
     const AM = AUDIO_MASTER;
     const AR = AUDIO_REVERB;
 
@@ -210,7 +261,7 @@ export class AudioEngine {
    *  exp-decaying noise tail with slight L/R decorrelation for width. Generated
    *  once at init from Math.random (cosmetic — never the seeded world.rng), so it's
    *  offline-first (no asset download) yet gives the mix genuine spatial depth. */
-  private makeReverbIR(ctx: AudioContext): AudioBuffer {
+  private makeReverbIR(ctx: BaseAudioContext): AudioBuffer {
     const AR = AUDIO_REVERB;
     const rate = ctx.sampleRate;
     const len = Math.max(1, Math.floor(rate * AR.seconds));
@@ -239,10 +290,10 @@ export class AudioEngine {
   }
 
   suspend(): void {
-    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+    if (this.ctx && this.ctx.state === 'running') void (this.ctx as AudioContext).suspend();
   }
   resume(): void {
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx && this.ctx.state === 'suspended') void (this.ctx as AudioContext).resume();
   }
 
   // ── one-shot helpers ──────────────────────────────────────────────────
@@ -877,6 +928,14 @@ export class AudioEngine {
   // ── adaptive drone ────────────────────────────────────────────────────
 
   startDrone(): void {
+    if (!this.ctx || this.droneOn) return;
+    this.buildDroneNodes();
+    this.startMusic();
+  }
+
+  /** Build the sustained drone + hook chain nodes (no scheduler). Shared by the live
+   *  startDrone and the offline render harness (which schedules the music manually). */
+  private buildDroneNodes(): void {
     const ctx = this.ctx;
     if (!ctx || this.droneOn) return;
     this.droneOn = true;
@@ -915,7 +974,6 @@ export class AudioEngine {
       osc.start(t);
       return { osc, gain: g };
     });
-    this.startMusic();
   }
 
   /** Heat 0..1+: drives ONLY the arp density now. Coherence (setCoherence) is the

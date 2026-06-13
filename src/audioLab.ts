@@ -222,3 +222,81 @@ app.appendChild(cols);
   });
   cols.appendChild(p);
 }
+
+// ── RENDER / VERIFY (offline bounce → WAV + objective analysis) ──────────────
+// Bounces the music offline at fixed state so it can be ear-tested (download WAV)
+// AND measured (peak / RMS / a zero-crossing-rate brightness proxy). Used by the
+// owner to listen and by automated checks to verify "high coherence is brighter".
+function audioBufferToWav(buf: AudioBuffer): Blob {
+  const numCh = buf.numberOfChannels, sr = buf.sampleRate, len = buf.length;
+  const blockAlign = numCh * 2, dataLen = len * blockAlign;
+  const ab = new ArrayBuffer(44 + dataLen);
+  const dv = new DataView(ab);
+  const ws = (off: number, s: string) => { for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); dv.setUint32(4, 36 + dataLen, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, numCh, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * blockAlign, true); dv.setUint16(32, blockAlign, true);
+  dv.setUint16(34, 16, true); ws(36, 'data'); dv.setUint32(40, dataLen, true);
+  const chans: Float32Array[] = [];
+  for (let c = 0; c < numCh; c++) chans.push(buf.getChannelData(c));
+  let off = 44;
+  for (let i = 0; i < len; i++) for (let c = 0; c < numCh; c++) {
+    const s = Math.max(-1, Math.min(1, chans[c][i]));
+    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    off += 2;
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+function analyzeBuffer(buf: AudioBuffer): { peak: number; rms: number; dbPeak: number; dbRms: number; zcr: number } {
+  const ch = buf.getChannelData(0);
+  let peak = 0, sumsq = 0, zc = 0, prev = 0;
+  for (let i = 0; i < ch.length; i++) {
+    const x = ch[i], a = x < 0 ? -x : x;
+    if (a > peak) peak = a;
+    sumsq += x * x;
+    if ((x >= 0) !== (prev >= 0)) zc++;
+    prev = x;
+  }
+  const rms = Math.sqrt(sumsq / ch.length);
+  const db = (v: number) => +(20 * Math.log10(v || 1e-9)).toFixed(1);
+  return { peak: +peak.toFixed(4), rms: +rms.toFixed(4), dbPeak: db(peak), dbRms: db(rms), zcr: +(zc / ch.length).toFixed(5) };
+}
+
+interface RenderOpts { seconds: number; coherence?: number; tier?: number; heat?: number; track?: 'aurora' | 'surge'; boss?: string }
+
+async function renderClip(opts: RenderOpts): Promise<AudioBuffer> {
+  // throwaway engine — its own offline context; never disturbs the live audio
+  return new AudioEngine().renderOffline(opts as Parameters<AudioEngine['renderOffline']>[0]);
+}
+
+// exposed for automated (Playwright) verification — returns analysis numbers
+(window as unknown as { __renderAnalyze: (o: RenderOpts) => Promise<ReturnType<typeof analyzeBuffer>> }).__renderAnalyze =
+  async (o: RenderOpts) => analyzeBuffer(await renderClip(o));
+
+{
+  const p = panel('Render / verify (offline bounce → WAV)');
+  const out = document.createElement('p');
+  out.className = 'hint';
+  out.textContent = 'Render a clip at fixed COHERENCE/heat and download the WAV to listen. Brightness ≈ zcr (rises with coherence).';
+  const dl = (buf: AudioBuffer, name: string) => {
+    const url = URL.createObjectURL(audioBufferToWav(buf));
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
+  const mk = (label: string, o: RenderOpts) =>
+    btn(row(p), label, async () => {
+      out.textContent = `rendering ${label}…`;
+      const buf = await renderClip(o);
+      const a = analyzeBuffer(buf);
+      out.textContent = `${label} → peak ${a.dbPeak}dB · rms ${a.dbRms}dB · brightness(zcr) ${a.zcr}`;
+      dl(buf, `lancefall-${label.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.wav`);
+    });
+  mk('AURORA low-coh 16s', { seconds: 16, track: 'aurora', coherence: 0.12, heat: 0.25 });
+  mk('AURORA high-coh 16s', { seconds: 16, track: 'aurora', coherence: 0.92, heat: 0.8, tier: 3 });
+  mk('SURGE low-coh 16s', { seconds: 16, track: 'surge', coherence: 0.12, heat: 0.3 });
+  mk('SURGE high-coh 16s', { seconds: 16, track: 'surge', coherence: 0.92, heat: 0.85, tier: 4 });
+  p.appendChild(out);
+  cols.appendChild(p);
+}
