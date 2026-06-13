@@ -59,6 +59,13 @@ export class BeatClock {
     if (Math.abs(drift) > BEAT.reseedSnapTolerance) this.t = audioMusicTime;
     else this.t += drift * Math.min(1, BEAT.reseedEase * dt);
   }
+  /** Adaptive per-track tempo: swap the grid to a new BPM and re-epoch so the next
+   *  reconcile re-seeds `t` to the new source's transport (the existing unsynced-seed
+   *  branch). Cosmetic only — never affects the seeded sim (Daily-safe by construction). */
+  retempo(bpm: number): void {
+    this.grid = makeGrid(bpm, this.grid.beatsPerBar);
+    this.synced = false;
+  }
   beatPhase(): number {
     return phase01(this.t, this.grid.beatDur);
   }

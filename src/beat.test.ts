@@ -110,3 +110,43 @@ describe('beat — pure rhythm clock + grading', () => {
     }
   });
 });
+
+// Adaptive per-track tempo (Deep Dive A): when the active authored source's BPM changes,
+// the cosmetic clock re-grids and re-epochs, reusing the existing reconcile/seed machinery.
+// (Cosmetic only — never affects the seeded sim, so no Daily-determinism concern.)
+describe('BeatClock.retempo', () => {
+  it('swaps the grid to the new bpm and re-epochs (synced → false)', () => {
+    const c = new BeatClock(makeGrid(112));
+    c.reconcile(3, 0.016); // seed the epoch → synced
+    expect(c.synced).toBe(true);
+    c.retempo(90);
+    expect(c.grid.bpm).toBe(90);
+    expect(c.grid.beatDur).toBeCloseTo(60 / 90, 9);
+    expect(c.synced).toBe(false);
+  });
+
+  it('the first reconcile after retempo re-seeds t exactly to the new source time', () => {
+    const c = new BeatClock(makeGrid(112));
+    c.reconcile(3, 0.016);
+    c.retempo(128);
+    c.reconcile(10.5, 0.016); // the new source's transport position
+    expect(c.t).toBe(10.5);
+    expect(c.synced).toBe(true);
+  });
+
+  it('grades OFF while unsynced after a retempo (no false reward across a tempo seam)', () => {
+    const c = new BeatClock(makeGrid(112));
+    c.reconcile(0, 0.016);
+    c.retempo(100);
+    expect(c.synced).toBe(false);
+    expect(gradeRelease(c.beatError(), c.synced)).toBe('off');
+  });
+
+  it('leaves the fixed-tempo path identical when retempo is never called', () => {
+    const a = new BeatClock(makeGrid(112));
+    const b = new BeatClock(makeGrid(112));
+    for (const dt of [0.016, 0.02, 0.015]) { a.advance(dt); b.advance(dt); }
+    expect(a.t).toBe(b.t);
+    expect(a.grid.bpm).toBe(112);
+  });
+});
