@@ -4,7 +4,7 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
-import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP } from './tune';
+import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP, AUDIO_MIX } from './tune';
 import { mulberry32 } from './rng';
 import { positionFromStep, formAt } from './musicTransport';
 import { PENTA, themeNotesAt, themeFreq, bassChordMul, sectionLift } from './musicScore';
@@ -30,7 +30,8 @@ export class AudioEngine {
   private masterVol = 0.8;
   private sfxVol = 0.9;
   private musicVol = 0.6;
-  private ducked = false;
+  private mixMul = 1; // current AUDIO_MIX music multiplier (replaces the old binary duck)
+  private musicMasterFilter!: BiquadFilterNode; // lowpass on the whole music bus → mix-state muffling
 
   // throttle to survive massacres without clipping / main-thread stalls
   private thunkCount = 0;
@@ -60,6 +61,10 @@ export class AudioEngine {
   private droneOn = false;
   // boss tension layer — a per-boss chord of drone voices (see bossThemes.ts)
   private bossVoices: { osc: OscillatorNode; gain: GainNode }[] = [];
+  // the active boss's LEAD MOTIF (replaces the LANCE THEME hook during the fight)
+  private bossMotif: number[] | null = null;
+  private bossMotifGain = 0.09;
+  private bossMotifOct = 1;
 
   // procedural music (beat-driven, A-minor pentatonic — can't sound "wrong")
   private musicTimer = 0;
@@ -143,9 +148,16 @@ export class AudioEngine {
     this.sfxBus.gain.value = this.sfxVol;
     this.sfxBus.connect(this.master);
 
+    // music master lowpass → lets a mix-state DUCK also MUFFLE (distant), not just
+    // turn down. Transparent at 20kHz during play; closes for menu/overdrive/death.
+    this.musicMasterFilter = ctx.createBiquadFilter();
+    this.musicMasterFilter.type = 'lowpass';
+    this.musicMasterFilter.frequency.value = AUDIO_MIX.combat.cutoff;
+    this.musicMasterFilter.connect(this.master);
+
     this.musicBus = ctx.createGain();
     this.musicBus.gain.value = this.musicVol;
-    this.musicBus.connect(this.master);
+    this.musicBus.connect(this.musicMasterFilter);
 
     // music sub-bus tree — each stem family gets its own fader under musicBus
     this.drumsBus = ctx.createGain();
@@ -218,7 +230,7 @@ export class AudioEngine {
     const t = this.ctx.currentTime;
     this.master.gain.setTargetAtTime(master, t, 0.02);
     this.sfxBus.gain.setTargetAtTime(sfx, t, 0.02);
-    this.musicBus.gain.setTargetAtTime(music * (this.ducked ? 0.15 : 1), t, 0.02);
+    this.musicBus.gain.setTargetAtTime(music * this.mixMul, t, 0.02);
   }
 
   suspend(): void {
@@ -1048,10 +1060,17 @@ export class AudioEngine {
       this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
     }
 
-    // L3 THE LANCE THEME hook — only spawned once a clean run earns it (gate on the
-    // cached coherence; hookGain's crossfade does the smooth fade-in). Per-section
-    // lift: A plain · A' octave-up · B fifth-up (the FALL fragment).
-    if (this.coherenceVal > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
+    // L3 LEAD — horizontal re-sequencing: during a boss fight the boss's own MOTIF
+    // owns the lead (one note per 8th-note over the bar); otherwise THE LANCE THEME
+    // hook plays, but only once a clean run earns it (gated on cached coherence; the
+    // hookGain crossfade does the smooth fade-in). Per-section lift on the arena hook:
+    // A plain · A' octave-up · B fifth-up (the FALL fragment).
+    if (this.bossArp && this.bossMotif) {
+      if (pos.sixteenthInBar % 2 === 0) {
+        const idx = this.bossMotif[pos.sixteenthInBar / 2] ?? -1;
+        if (idx >= 0) this.bossMotifNote(t, PENTA[idx] * this.bossMotifOct * this.rootMul, sixteenth * 1.7, this.bossMotifGain);
+      }
+    } else if (this.coherenceVal > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
       const lift = sectionLift(formAt(pos.bar).section);
       for (const n of themeNotesAt(pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, n.vel);
     }
@@ -1085,6 +1104,26 @@ export class AudioEngine {
       decay: Math.max(0.1, dur * 0.55),
       peak: 0.6 * vel,
       bus: this.hookFilter,
+      at: t,
+    });
+  }
+
+  /** One boss-MOTIF note — routes straight to leadBus (NOT the coherence-gated hook
+   *  path) so the boss's musical identity is audible throughout its fight regardless
+   *  of combo. Its own filter sweep gives it a voice distinct from the arena hook. */
+  private bossMotifNote(t: number, freq: number, dur: number, gain: number): void {
+    this.voice({
+      type: 'sawtooth',
+      freq,
+      detune: 8,
+      cutoff: 2400,
+      cutoffEnd: 1300,
+      q: 0.9,
+      attack: 0.012,
+      hold: Math.max(0, dur * 0.4),
+      decay: Math.max(0.08, dur * 0.6),
+      peak: gain,
+      bus: this.leadBus,
       at: t,
     });
   }
@@ -1206,11 +1245,15 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     this.bossArp = on; // the arp recolours during a boss fight
+    if (!on) this.bossMotif = null; // the LANCE THEME hook returns when the boss falls
     const t = ctx.currentTime;
     if (on) {
       if (this.bossVoices.length || !this.droneFilter) return;
       const theme = bossTheme(kind ?? 'warden');
       this.bossArpMul = theme.arpMul;
+      this.bossMotif = theme.motif; // its lead motif replaces the arena hook
+      this.bossMotifGain = theme.motifGain;
+      this.bossMotifOct = theme.motifOct;
       const per = Math.min(0.06, 0.12 / theme.drone.length); // share headroom across voices
       for (const semi of theme.drone) {
         const osc = ctx.createOscillator();
@@ -1306,11 +1349,38 @@ export class AudioEngine {
     this.droneOn = false;
   }
 
-  duckMusic(on: boolean): void {
-    this.ducked = on;
+  /** Coordinated music mix snapshot — sets the music level AND a master lowpass so a
+   *  duck also MUFFLES (distant) instead of merely turning down. The single owner of
+   *  the music-master mix; setVolumes composes the live slider onto mixMul. */
+  setMixState(state: keyof typeof AUDIO_MIX): void {
+    const m = AUDIO_MIX[state];
+    if (state === 'overdrive') {
+      // MOMENTARY swell: duck hard under the nova, then bloom back to combat — the
+      // resting mix stays combat (no restore-hook needed). Pairs with the coherence
+      // flood so the LANCE THEME slams back in as the music recovers.
+      this.mixMul = 1;
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const g = this.musicBus.gain;
+      const f = this.musicMasterFilter.frequency;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(this.musicVol * m.musicMul, t);
+      g.setTargetAtTime(this.musicVol, t + 0.2, 0.3);
+      f.cancelScheduledValues(t);
+      f.setValueAtTime(m.cutoff, t);
+      f.setTargetAtTime(AUDIO_MIX.combat.cutoff, t + 0.2, 0.3);
+      return;
+    }
+    this.mixMul = m.musicMul;
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.musicBus.gain.setTargetAtTime(on ? this.musicVol * 0.15 : this.musicVol, t, 0.08);
+    this.musicBus.gain.setTargetAtTime(this.musicVol * m.musicMul, t, m.glide);
+    this.musicMasterFilter.frequency.setTargetAtTime(m.cutoff, t, m.glide);
+  }
+
+  /** Back-compat: the old binary duck now maps to the menu/combat mix states. */
+  duckMusic(on: boolean): void {
+    this.setMixState(on ? 'menu' : 'combat');
   }
 }
 

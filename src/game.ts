@@ -503,6 +503,7 @@ export class Game {
     this.renderer.flash('#ffffff', 0.7);
     this.renderer.startOverdriveNova('#5beaff');
     this.audio.overdriveBurst();
+    this.audio.setMixState('overdrive'); // momentary duck under the nova, then bloom back
     this.cam.zoom = Math.max(this.cam.zoom, 1.18);
     this.input.rumble(0.8, 1, 280);
     this.ui.announce('REMEMBER EVERYTHING', '#ffffff');
@@ -1593,7 +1594,7 @@ export class Game {
     this.audio.bossMusic(false);
     this.audio.death();
     this.renderer.flash('#ef4444', 0.5);
-    this.audio.duckMusic(true);
+    this.audio.setMixState('death'); // the light dims — music goes muffled + distant
     this.shake.add(TUNE.juice.traumaDeath);
     this.scheduler.requestHitstop(TUNE.juice.hitstopDeath);
     this.scheduler.requestSlowmo(0.25);

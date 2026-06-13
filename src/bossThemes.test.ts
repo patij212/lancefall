@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bossTheme, BOSS_THEMES } from './bossThemes';
+import { PENTA } from './musicScore';
 import type { EnemyKind } from './types';
 
 const BOSS_KINDS: EnemyKind[] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
@@ -46,5 +47,30 @@ describe('bossThemes', () => {
     for (const key of Object.keys(BOSS_THEMES)) {
       expect(BOSS_KINDS).toContain(key as EnemyKind);
     }
+  });
+
+  it('every boss has a well-formed 8-step lead motif', () => {
+    for (const k of BOSS_KINDS) {
+      const t = bossTheme(k);
+      expect(t.motif).toHaveLength(8);
+      for (const idx of t.motif) {
+        // -1 = rest, otherwise a valid PENTA index
+        expect(idx === -1 || (idx >= 0 && idx < PENTA.length)).toBe(true);
+      }
+      expect(t.motif.some((i) => i >= 0)).toBe(true); // not all rests
+      expect(t.motifGain).toBeGreaterThan(0);
+      expect([1, 2]).toContain(t.motifOct);
+    }
+  });
+
+  it('motif contours are distinct across bosses (you hear who you fight)', () => {
+    const sigs = BOSS_KINDS.map((k) => bossTheme(k).motif.join(','));
+    expect(new Set(sigs).size).toBe(BOSS_KINDS.length);
+  });
+
+  it('the fallback theme also carries a valid motif', () => {
+    const fb = bossTheme('darter');
+    expect(fb.motif).toHaveLength(8);
+    expect(fb.motif.some((i) => i >= 0)).toBe(true);
   });
 });

@@ -424,6 +424,16 @@ export const AUDIO_MASTER = {
   limiterK: 1.7, // tanh drive for the brickwall safety clip (lower = cleaner, less crunch)
 } as const;
 
+// AUDIO_MIX — coordinated music "mix states". Instead of a binary 15% duck, each
+// state sets a music level + a master music lowpass so a duck also MUFFLES (distant)
+// rather than just turning down — the pro touch on menus/overdrive/death.
+export const AUDIO_MIX = {
+  combat: { musicMul: 1.0, cutoff: 20000, glide: 0.14 }, // full, open — normal play
+  menu: { musicMul: 0.34, cutoff: 1500, glide: 0.1 }, // draft/menu: quieter + muffled, still vibing
+  overdrive: { musicMul: 0.18, cutoff: 900, glide: 0.05 }, // duck hard so the nova owns the moment
+  death: { musicMul: 0.12, cutoff: 600, glide: 0.25 }, // the light dims — muffled + distant
+} as const;
+
 // AUDIO_PUMP — the synthwave sidechain "pump": the four-on-the-floor kick ducks the
 // sustained pad (harmonyBus) and recovers, so the whole track breathes with the beat.
 // Implemented as scheduled gain dips keyed off the kick (no extra compressor node).
