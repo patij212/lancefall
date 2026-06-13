@@ -433,8 +433,8 @@ export const AUDIO_MASTER = {
 // sounds like a sine demo" lever for synthwave/darksynth; it was entirely absent.
 export const AUDIO_DELAY = {
   beatMul: 0.75, // delay time = beat * 0.75 = a dotted-8th (the classic synthwave echo)
-  feedback: 0.34, // ping-pong feedback (echoes trail + cross the stereo field)
-  wet: 0.26, // lead delay-send level
+  feedback: 0.26, // ping-pong feedback (kept modest so echoes don't pile into clutter)
+  wet: 0.2, // hook delay-send level (only the HOOK echoes now, not the busy arp/riff)
 } as const;
 
 // AUDIO_MIX — coordinated music "mix states". Instead of a binary 15% duck, each

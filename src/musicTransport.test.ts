@@ -99,3 +99,34 @@ describe('musicTransport — macro-form A → A′ → B → A', () => {
     expect(f.section).toBe('A');
   });
 });
+
+import { sectionAt, SONG_TOTAL_BARS } from './musicTransport';
+
+describe('musicTransport — song spine (sectionAt)', () => {
+  it('advances through a real arrangement regardless of play', () => {
+    expect(sectionAt(0).section).toBe('verse');
+    expect(sectionAt(8).section).toBe('prechorus');
+    expect(sectionAt(16).section).toBe('chorus');
+    expect(sectionAt(24).section).toBe('verse'); // verse 2
+    expect(sectionAt(48).section).toBe('bridge');
+    expect(sectionAt(52).section).toBe('drop');
+  });
+
+  it('reports section length, position, and the upcoming section (for builds)', () => {
+    const s = sectionAt(15); // last bar of the first prechorus (8..15)
+    expect(s.section).toBe('prechorus');
+    expect(s.barInSection).toBe(7);
+    expect(s.sectionBars).toBe(8);
+    expect(s.next).toBe('chorus'); // → a build fires here
+  });
+
+  it('totals 56 bars and loops cleanly', () => {
+    expect(SONG_TOTAL_BARS).toBe(56);
+    expect(sectionAt(56).section).toBe('verse');
+    expect(sectionAt(56 + 48).section).toBe('bridge');
+  });
+
+  it('handles negative bars', () => {
+    expect(sectionAt(-1).section).toBe('drop'); // last section of the loop
+  });
+});

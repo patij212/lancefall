@@ -6,8 +6,8 @@ import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
 import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP, AUDIO_MIX, AUDIO_DELAY } from './tune';
 import { mulberry32 } from './rng';
-import { positionFromStep, formAt } from './musicTransport';
-import { PENTA, themeFreq, sectionLift, chordAt, chordVoicing, brightnessTier, chordRootMul } from './musicScore';
+import { positionFromStep, sectionAt } from './musicTransport';
+import { PENTA, themeFreq, chordAt, chordVoicing, brightnessTier, chordRootMul, PROGRESSIONS } from './musicScore';
 import type { Chord } from './musicScore';
 import { getTrack, notesAt, type TrackProfile, type SoundtrackId } from './soundtracks';
 
@@ -132,6 +132,9 @@ export class AudioEngine {
     track?: SoundtrackId;
     boss?: EnemyKind;
     sampleRate?: number;
+    coherenceTo?: number; // if set, coherence ramps coherence→coherenceTo across the render
+    heatTo?: number;
+    tierTo?: number;
   }): Promise<AudioBuffer> {
     const sr = opts.sampleRate ?? 44100;
     const seconds = Math.max(1, opts.seconds);
@@ -146,15 +149,18 @@ export class AudioEngine {
     this.setVolumes(0.85, 0.9, 0.72);
     this.buildDroneNodes();
     if (opts.boss) this.bossMusic(true, opts.boss);
-    const coh = opts.coherence ?? 0.5;
-    const tier = opts.tier ?? 0;
-    this.setIntensity(opts.heat ?? 0.5);
+    const coh0 = opts.coherence ?? 0.5;
+    const heat0 = opts.heat ?? 0.5;
+    const tier0 = opts.tier ?? 0;
     const sixteenth = 60 / this.bpm / 4;
     const steps = Math.ceil(seconds / sixteenth);
+    const lerp = (a: number, b: number | undefined, u: number) => (b == null ? a : a + (b - a) * u);
     this.musicStep = 0;
     this.musicEpoch = 0;
     for (let step = 0; step < steps; step++) {
-      if (step % 16 === 0) this.setCoherence(coh, tier); // per-bar (bar-quantized brightness lives here)
+      const u = steps > 1 ? step / (steps - 1) : 0; // 0..1 progress (for optional ramps)
+      this.setIntensity(lerp(heat0, opts.heatTo, u));
+      if (step % 16 === 0) this.setCoherence(lerp(coh0, opts.coherenceTo, u), Math.round(lerp(tier0, opts.tierTo, u)));
       this.playStep(step, step * sixteenth + 0.001);
     }
     return await octx.startRendering();
@@ -292,7 +298,9 @@ export class AudioEngine {
     panL.connect(delayWet);
     panR.connect(delayWet);
     delayWet.connect(this.master);
-    this.leadBus.connect(this.leadDelaySend); // arp + riff + hook all echo
+    // NOTE: only the HOOK feeds the delay (wired in buildDroneNodes via hookGain) — echoing
+    // the whole leadBus (arp + riff too) was a big source of clutter. The melody echoes; the
+    // texture doesn't.
 
     // cached white-noise buffer (cosmetic Math.random — never world.rng)
     const len = Math.floor(ctx.sampleRate * 1.0);
@@ -1009,6 +1017,7 @@ export class AudioEngine {
     hookGain.gain.value = 0.0001;
     hookFilter.connect(hookGain);
     hookGain.connect(this.leadBus);
+    hookGain.connect(this.leadDelaySend); // ONLY the hook echoes (the melody, not the texture)
     this.hookFilter = hookFilter;
     this.hookGain = hookGain;
 
@@ -1192,53 +1201,64 @@ export class AudioEngine {
    *  L5 PERC/BREAK (heat). The pad pumps under the kick (sidechain). */
   private playStep(step: number, t: number): void {
     const heat = this.musicHeat;
+    const coh = this.coherenceVal;
     const pos = positionFromStep(step);
     const sixteenth = 60 / this.bpm / 4;
     const tr = this.track;
-    const lift = sectionLift(formAt(pos.bar).section); // anti-fatigue: A' octave-up, B fifth-up
 
-    // L1 KICK — drives the groove + fires the pad sidechain pump.
-    if (tr.kickSteps.includes(pos.sixteenthInBar)) {
+    // ── ARRANGEMENT: the SONG SPINE decides which layers are ALLOWED this section;
+    //    coherence/heat then modulate intensity ON TOP. Layers ENTER + EXIT (sparse verse
+    //    → building pre-chorus → full chorus → contrast bridge → drop) instead of all
+    //    stacking at once — this is the "breathe, don't pile up / not busy" fix. ──
+    const sec = sectionAt(pos.bar);
+    const S = sec.section;
+    const inBridge = S === 'bridge';
+    const inChorus = S === 'chorus' || S === 'drop';
+    const building = S === 'prechorus';
+
+    // progression follows the section (bridge = contrast/half-cadence, chorus = brighter);
+    // the leading-tone cadence lands ONLY on the chorus's last bar (earned + scarce).
+    const prog = inBridge ? PROGRESSIONS.bridge : inChorus ? tr.chorusProg : tr.verseProg;
+    const earned = inChorus && sec.barInSection >= sec.sectionBars - 1;
+    const chord = chordAt(prog, sec.barInSection, earned);
+    const bassF = 110 * this.rootMul * chordRootMul(chord);
+
+    // L1 KICK — the entrainment anchor; the bridge runs half-time for contrast.
+    const kickOn = inBridge ? pos.sixteenthInBar === 0 || pos.sixteenthInBar === 8 : tr.kickSteps.includes(pos.sixteenthInBar);
+    if (kickOn) {
       this.kick(t, 0.16 * this.humGain(0.06));
       this.pump(t);
     }
 
-    // L1 BASS + HARMONY — the diatonic chord layer. The cadence (dominant w/ the G#
-    // leading tone) is substituted on the loop's last bar only when EARNED (scarce, so
-    // the V→i reward never becomes wallpaper). The pentatonic top floats over it.
-    const earned = this.coherenceVal >= 0.6 && Math.floor(pos.bar / 4) % 2 === 1;
-    const chord = chordAt(tr.verseProg, pos.bar, earned);
-    const bassF = 110 * this.rootMul * chordRootMul(chord);
+    // L1 BASS — always; the offbeat hot-push only in busy (non-bridge) sections.
     if (tr.bassSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain);
-    else if (heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain * 0.6);
+    else if (!inBridge && heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar))
+      this.bassNote(t, bassF, tr.bassGain * 0.6);
 
-    // L1.6 MOVING CHORD PAD — the REAL chord (triad/7th/9th from the chord table),
-    // voiced + register-capped to the pad band, brightness-morphed by coherence
-    // (bare triad → maj7/9 → Picardy). Once per bar; always-on so it enriches the
-    // out-of-combo baseline too. THIS is where the thirds + cadence live.
+    // L1.6 MOVING CHORD PAD — the REAL chord (triad → maj7/9 → Picardy by coherence),
+    // register-capped to the pad slot. The harmonic backbone; once per bar, always present.
     if (pos.sixteenthInBar === 0) this.padChord(t, 16 * sixteenth, chord);
 
-    // ── TENSION & RELEASE — a build into the macro-form B section ("the drop"):
-    // a riser + a rising drum fill in the bar before B, then an IMPACT on the B
-    // downbeat. All derived from the deterministic music clock (never world.rng).
-    const sec = formAt(pos.bar).section;
-    const intoB = formAt(pos.bar + 1).section === 'B' && sec !== 'B';
+    // ── BUILD → DROP (one clock, quantized to bars): a riser + accelerating fill in the
+    //    last bar before a chorus, an IMPACT on the chorus/drop downbeat. ──
+    const intoChorus = sec.next === 'chorus' && sec.barInSection === sec.sectionBars - 1;
     if (pos.sixteenthInBar === 0) {
-      if (sec === 'B' && formAt(pos.bar - 1).section !== 'B') this.impactAt(t); // the drop
-      if (intoB) this.riserAt(t, 16 * sixteenth); // build through this bar into B
+      if (inChorus && sec.barInSection === 0) this.impactAt(t); // the drop into the payoff
+      if (intoChorus) this.riserAt(t, 16 * sixteenth);
     }
-    if (intoB && pos.sixteenthInBar >= 12) this.fillHit(t, pos.sixteenthInBar - 12); // last-beat fill
+    if (intoChorus && pos.sixteenthInBar >= 12) this.fillHit(t, pos.sixteenthInBar - 12);
 
-    // L1.5 RIFF — the always-on ostinato (NOT coherence-gated): this is what keeps
-    // the track great with zero combo. Lifts with the macro-form section like the hook.
-    if (tr.riff.length) {
+    // L1.5 RIFF — the always-on baseline groove (verse/pre), but it STEPS BACK in the
+    //    chorus (where the hook sings) and DROPS in the bridge, so it never piles on the lead.
+    if (tr.riff.length && !inBridge && !inChorus) {
       for (const n of notesAt(tr.riff, pos.sixteenthInBar))
-        this.riffNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, tr.riffGain * n.vel);
+        this.riffNote(t, themeFreq(n, this.rootMul), n.dur * sixteenth, tr.riffGain * n.vel);
     }
 
-    // L2 ARP — offbeat 8ths, density rising with heat (per-boss colour while a boss is
-    // alive). Pentatonic at the key root (no chord offset → safe).
-    const onArp = heat > tr.arpHeat && pos.sixteenthInBar % 2 === 1 && (heat > 0.6 || pos.sixteenthInBar % 4 === 1);
+    // L2 ARP — only in the pre-chorus + chorus (build + payoff), heat-gated. The VERSE
+    //    stays sparse (no arp) and the bridge drops it — the core de-clutter.
+    const onArp =
+      (building || inChorus) && heat > tr.arpHeat && pos.sixteenthInBar % 2 === 1 && (heat > 0.6 || pos.sixteenthInBar % 4 === 1);
     if (onArp) {
       const idx = Math.floor(step / 2) % AudioEngine.ARP.length;
       const base = PENTA[AudioEngine.ARP[idx] % PENTA.length];
@@ -1246,24 +1266,25 @@ export class AudioEngine {
       this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
     }
 
-    // L3 LEAD — during a boss fight the boss's own MOTIF owns the lead (horizontal
-    // re-sequencing); otherwise the track's HOOK plays, gated by coherence so it's the
-    // reward of a clean run (hookGain's crossfade does the smooth fade-in).
+    // L3 LEAD — boss MOTIF during a fight (any section); otherwise the HOOK, which now
+    //    plays ONLY in the chorus (it IS the chorus) and is still gated by coherence on
+    //    top (low flow = quiet/absent). The bridge drops the lead entirely (contrast).
     if (this.bossArp && this.bossMotif) {
       if (pos.sixteenthInBar % 2 === 0) {
         const idx = this.bossMotif[pos.sixteenthInBar / 2] ?? -1;
         if (idx >= 0) this.bossMotifNote(t, PENTA[idx] * this.bossMotifOct * this.rootMul, sixteenth * 1.7, this.bossMotifGain);
       }
-    } else if (this.coherenceVal > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
-      for (const n of notesAt(tr.theme, pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, n.vel);
+    } else if (inChorus && coh > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
+      for (const n of notesAt(tr.theme, pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul), n.dur * sixteenth, n.vel);
     }
 
-    // L5 PERC/BREAK — hats on the "&" + a backbeat ghost-snare, and a layered CLAP
-    // on the backbeat once hot enough (bigger commercial drums). Thresholds per track.
-    if (heat > tr.hatHeat && pos.sixteenthInBeat === 2) this.hat(t, 0.05 * this.humGain());
-    if (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12) {
-      if (heat > tr.snareHeat) this.ghostSnare(t);
-      if (heat > tr.clapHeat) this.clap(t);
+    // L5 PERC — hats build in the pre-chorus, full in the chorus; ghost snare from the
+    //    pre-chorus up; the CLAP only thickens the chorus backbeat. The bridge stays sparse.
+    if (!inBridge && (building || inChorus) && heat > tr.hatHeat * (building ? 1 : 0.7) && pos.sixteenthInBeat === 2)
+      this.hat(t, 0.05 * this.humGain());
+    if (!inBridge && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) {
+      if ((building || inChorus) && heat > tr.snareHeat) this.ghostSnare(t);
+      if (inChorus && heat > tr.clapHeat) this.clap(t);
     }
   }
 
@@ -1471,8 +1492,8 @@ export class AudioEngine {
   private impactAt(t: number): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    // sub boom
-    this.voice({ type: 'sine', freq: 120, freqEnd: 40, glide: 0.5, attack: 0.004, decay: 0.55, peak: 0.5, bus: this.sfxBus, at: t });
+    // sub boom (kept clear of 0dBFS — it lands over a full chorus mix)
+    this.voice({ type: 'sine', freq: 120, freqEnd: 40, glide: 0.5, attack: 0.004, decay: 0.55, peak: 0.38, bus: this.sfxBus, at: t });
     // bright crash — highpassed noise, sent wet (reverb) + dry
     const n = this.noiseSource();
     const hp = ctx.createBiquadFilter();
@@ -1481,7 +1502,7 @@ export class AudioEngine {
     hp.frequency.exponentialRampToValueAtTime(6500, t + 0.06);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.28, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.2, t + 0.005);
     g.gain.exponentialRampToValueAtTime(0.0006, t + 0.5);
     g.gain.linearRampToValueAtTime(0, t + 0.52);
     n.connect(hp);

@@ -70,3 +70,54 @@ export function formAt(bar: number): FormInfo {
   // unreachable (cycleBar < FORM_TOTAL_BARS), but keep the function total
   return { section: 'A', barInSection: 0, cycleBar };
 }
+
+// ── SONG SPINE (real arrangement) ────────────────────────────────────────────
+// A deterministic, time-based section sequence that ADVANCES REGARDLESS OF PLAY (the
+// critic's must-fix: a gameplay-gated form can't guarantee a song progresses for a
+// mid-skill player). Each section dictates which LAYERS play — so the track BREATHES
+// (sparse verse → building pre-chorus → full chorus → contrast bridge → drop) instead
+// of stacking every layer at once (the "too busy" fix). Coherence/heat then modulate
+// intensity ON TOP of this spine. One clock; drama events quantize to its bars.
+
+export type Section = 'verse' | 'prechorus' | 'chorus' | 'bridge' | 'drop';
+
+const SONG: { section: Section; bars: number }[] = [
+  { section: 'verse', bars: 8 },
+  { section: 'prechorus', bars: 8 },
+  { section: 'chorus', bars: 8 },
+  { section: 'verse', bars: 8 }, // verse 2
+  { section: 'prechorus', bars: 8 },
+  { section: 'chorus', bars: 8 },
+  { section: 'bridge', bars: 4 }, // the build (lead drops, half-cadence)
+  { section: 'drop', bars: 4 }, // the release
+];
+
+export const SONG_TOTAL_BARS = SONG.reduce((n, s) => n + s.bars, 0); // 56 bars ≈ 2:00 @112
+
+export interface SectionInfo {
+  section: Section;
+  barInSection: number; // 0-based bar within the current section
+  sectionBars: number; // length of the current section
+  next: Section; // the upcoming section (for builds/anticipation)
+  cycleBar: number; // 0..SONG_TOTAL_BARS-1
+}
+
+/** The song-spine section for an absolute bar (loops forever). */
+export function sectionAt(bar: number): SectionInfo {
+  const cycleBar = ((Math.floor(bar) % SONG_TOTAL_BARS) + SONG_TOTAL_BARS) % SONG_TOTAL_BARS;
+  let acc = 0;
+  for (let i = 0; i < SONG.length; i++) {
+    const seg = SONG[i];
+    if (cycleBar < acc + seg.bars) {
+      return {
+        section: seg.section,
+        barInSection: cycleBar - acc,
+        sectionBars: seg.bars,
+        next: SONG[(i + 1) % SONG.length].section,
+        cycleBar,
+      };
+    }
+    acc += seg.bars;
+  }
+  return { section: 'verse', barInSection: 0, sectionBars: SONG[0].bars, next: SONG[1].section, cycleBar };
+}
