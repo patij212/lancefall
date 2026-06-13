@@ -250,10 +250,10 @@ export class AudioEngine {
 
   // ── ProceduralHost — HybridMusic drives these to suppress/restore the procedural bed, set the
   //    reactive level + loop lowpass, and re-anchor the active clock (all cosmetic/audio-layer). ──
-  private setAuthoredActive(active: boolean): void {
+  private setAuthoredActive(active: boolean, at?: number): void {
     this.authoredActive = active;
     if (!this.ctx) return;
-    const t = this.ctx.currentTime;
+    const t = at ?? this.ctx.currentTime;
     // the reactive layer rides at reactiveGain while authored is live, and returns to unity when
     // procedural resumes. leadBus = hook/boss-motif/sparkle; harmonyBus = the sustained COHERENCE
     // drone + choir pad (NOT layer-gated, so it must be ducked here or it muds the full-mix bed —
@@ -263,16 +263,16 @@ export class AudioEngine {
     this.harmonyBus.gain.setTargetAtTime(lvl, t, 0.12);
     if (!active && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(18000, t, 0.1);
   }
-  private setReactiveGain(g: number): void {
+  private setReactiveGain(g: number, at?: number): void {
     this.reactiveGainVal = g;
     if (this.ctx && this.authoredActive) {
-      const t = this.ctx.currentTime;
+      const t = at ?? this.ctx.currentTime;
       this.leadBus.gain.setTargetAtTime(g, t, 0.1);
       this.harmonyBus.gain.setTargetAtTime(g, t, 0.12);
     }
   }
-  private setLoopCutoff(hz: number): void {
-    if (this.ctx && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.12);
+  private setLoopCutoff(hz: number, at?: number): void {
+    if (this.ctx && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(hz, at ?? this.ctx.currentTime, 0.12);
   }
   private reanchorClock(bpm: number, at: number): void {
     this.activeBpmVal = bpm;

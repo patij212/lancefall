@@ -35,9 +35,9 @@ export interface HybridSampleSfx {
 /** The audio-engine side HybridMusic drives: suppress/restore the procedural bed, set the
  *  reactive punctuation level + the loop's lowpass, and re-anchor the scheduler to a new clock. */
 export interface ProceduralHost {
-  setAuthoredActive(active: boolean): void;
-  setReactiveGain(gain: number): void;
-  setLoopCutoff(hz: number): void;
+  setAuthoredActive(active: boolean, at?: number): void;
+  setReactiveGain(gain: number, at?: number): void;
+  setLoopCutoff(hz: number, at?: number): void;
   reanchor(bpm: number, at: number): void;
 }
 
@@ -97,7 +97,7 @@ export class HybridMusic {
         this.currentSourceId = decision.sourceId;
         this.authoredActive = true;
         this.bpm = decision.bpm;
-        this.deps.host.setAuthoredActive(true);
+        this.deps.host.setAuthoredActive(true, at);
         this.deps.host.reanchor(decision.bpm, at);
       }
       // else: keep the current scene; procedural fills any gap (never a broken run)
@@ -106,8 +106,9 @@ export class HybridMusic {
     }
 
     if (this.authoredActive) {
-      this.deps.host.setLoopCutoff(decision.loopCutoff);
-      this.deps.host.setReactiveGain(decision.reactiveGain);
+      // co-schedule the duck/cutoff/reactive ramps with the bed's bar onset `at`, not wall-clock now
+      this.deps.host.setLoopCutoff(decision.loopCutoff, at);
+      this.deps.host.setReactiveGain(decision.reactiveGain, at);
     }
   }
 

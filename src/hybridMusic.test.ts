@@ -36,7 +36,7 @@ describe('HybridMusic — bar-gated source selection', () => {
     const h = new HybridMusic(deps);
     h.tick(DOWNBEAT, 0);
     expect(layerPlayer.play.mock.calls[0][0].id).toBe('aurora_verse'); // bar 0 = verse
-    expect(host.setAuthoredActive).toHaveBeenLastCalledWith(true);
+    expect(host.setAuthoredActive).toHaveBeenLastCalledWith(true, 0); // co-scheduled at the bar time
     expect(host.reanchor).toHaveBeenLastCalledWith(114, 0); // AURORA bpm (Calm System)
     expect(h.activeBpm).toBe(114);
   });
