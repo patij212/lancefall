@@ -17,6 +17,8 @@ jobs:
         # npm install (not ci): the lockfile's platform-specific optional deps (@emnapi/* etc.)
         # resolve differently across OSes, and `npm ci`'s strict in-sync check is brittle for that.
       - run: npm install --no-audit --no-fund
+      - name: Install ffmpeg (the audio gate probes the committed assets via ffprobe)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Unit tests + typecheck (vitest runs through tsc-checked sources)
         run: npm test
       - name: Production build
