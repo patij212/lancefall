@@ -94,4 +94,34 @@ export class LayerPlayer {
     this.current = { id: source.id, master, tracks };
     return true;
   }
+
+  /** Smoothly ramp the present tracks of the active scene toward `gains` (for `layers`/`stems`
+   *  vertical fades; `loop` rides at 1). Keys with no live track are ignored. No-op if idle. */
+  setGains(gains: Partial<Record<MusicTrackKey, number>>, at?: number): void {
+    if (!this.current) return;
+    const t = at ?? this.ctx.currentTime;
+    for (const [k, v] of Object.entries(gains) as [MusicTrackKey, number][]) {
+      const tr = this.current.tracks.get(k);
+      if (tr) tr.gain.gain.setTargetAtTime(v, t, 0.08);
+    }
+  }
+
+  /** Fade the active scene out and stop its sources; clears `activeScene`. No-op if idle. */
+  stop(at?: number): void {
+    const scene = this.current;
+    if (!scene) return;
+    this.current = null;
+    const t = at ?? this.ctx.currentTime;
+    scene.master.gain.cancelScheduledValues(t);
+    scene.master.gain.setValueAtTime(1, t);
+    scene.master.gain.linearRampToValueAtTime(0, t + CROSSFADE_S);
+    const stopAt = t + CROSSFADE_S + 0.05;
+    for (const { src } of scene.tracks.values()) {
+      try {
+        src.stop(stopAt);
+      } catch {
+        /* already stopped */
+      }
+    }
+  }
 }

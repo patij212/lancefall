@@ -25,7 +25,9 @@ export class AudioAssetManager {
   constructor(
     ctx: BaseAudioContext,
     private readonly manifest: AudioManifest,
-    private readonly fetcher: typeof fetch = fetch,
+    // wrap (not bare `fetch`): calling `this.fetcher(url)` on a bare reference loses fetch's
+    // window binding → "Illegal invocation" in browsers. The arrow keeps it a free call.
+    private readonly fetcher: typeof fetch = (input, init) => fetch(input, init),
     codec?: RuntimeCodec,
     private readonly decoder: (data: ArrayBuffer) => Promise<AudioBuffer> = (data) => ctx.decodeAudioData(data),
   ) {

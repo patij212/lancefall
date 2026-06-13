@@ -33,7 +33,7 @@ describe('layer player — pure scheduling math', () => {
 
 // minimal fake ctx (connect returns its destination, like a real AudioNode)
 function makeCtx() {
-  const sink = () => ({ connect: (d: unknown) => d, disconnect() {}, gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} } });
+  const sink = () => ({ connect: (d: unknown) => d, disconnect() {}, gain: { value: 0, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} } });
   return {
     currentTime: 0,
     createGain: sink,
@@ -62,5 +62,37 @@ describe('LayerPlayer — all-tracks-present gate', () => {
     const p = new LayerPlayer(ctx, ctx.destination, () => buf());
     expect(p.play(loopSource('aurora_verse'), 0, 0, { main: 1 })).toBe(true);
     expect(p.activeScene).toBe('aurora_verse');
+  });
+});
+
+describe('LayerPlayer — setGains / stop', () => {
+  it('setGains is a safe no-op when nothing is playing', () => {
+    const ctx = makeCtx();
+    const p = new LayerPlayer(ctx, ctx.destination, () => buf());
+    expect(() => p.setGains({ main: 0.5 })).not.toThrow();
+    expect(p.activeScene).toBeNull();
+  });
+
+  it('setGains keeps the active scene (ramps present tracks, ignores absent keys)', () => {
+    const ctx = makeCtx();
+    const p = new LayerPlayer(ctx, ctx.destination, () => buf());
+    p.play(loopSource('aurora_verse'), 0, 0, { main: 1 });
+    expect(() => p.setGains({ main: 0.4, lead: 0.9 })).not.toThrow();
+    expect(p.activeScene).toBe('aurora_verse');
+  });
+
+  it('stop clears the active scene', () => {
+    const ctx = makeCtx();
+    const p = new LayerPlayer(ctx, ctx.destination, () => buf());
+    p.play(loopSource('aurora_verse'), 0, 0, { main: 1 });
+    expect(p.activeScene).toBe('aurora_verse');
+    p.stop();
+    expect(p.activeScene).toBeNull();
+  });
+
+  it('stop is a safe no-op when nothing is playing', () => {
+    const ctx = makeCtx();
+    const p = new LayerPlayer(ctx, ctx.destination, () => buf());
+    expect(() => p.stop()).not.toThrow();
   });
 });

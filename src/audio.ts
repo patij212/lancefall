@@ -10,6 +10,11 @@ import { positionFromStep, sectionAt } from './musicTransport';
 import { PENTA, themeFreq, chordAt, chordVoicing, brightnessTier, chordRootMul, PROGRESSIONS } from './musicScore';
 import type { Chord } from './musicScore';
 import { getTrack, notesAt, type TrackProfile, type SoundtrackId } from './soundtracks';
+import { FLAGSHIP_AUDIO_MANIFEST } from './audioManifest';
+import { AudioAssetManager } from './audioAssetManager';
+import { LayerPlayer } from './layerPlayer';
+import { SampleSfxDirector } from './sampleSfx';
+import { HybridMusic, type ProceduralHost } from './hybridMusic';
 
 export class AudioEngine {
   // BaseAudioContext so the same graph + scheduler can run on a live AudioContext OR
@@ -102,14 +107,38 @@ export class AudioEngine {
   private hookFilter: BiquadFilterNode | null = null;
   private coherenceVal = 0; // last coherence pushed (the scheduler gates the hook on it)
 
+  // ── HYBRID flagship audio (Deep Dive B): authored beds + sampled SFX over the procedural
+  //    engine. All fallback-gated on `authoredActive` — with no/loading assets the procedural
+  //    path is byte-identical, and the offline render harness keeps `hybrid` null. ──
+  private hybrid: HybridMusic | null = null;
+  private sampleSfx: SampleSfxDirector | null = null;
+  private loopFilter: BiquadFilterNode | null = null; // lowpass on the authored loop → vertical intensity
+  private authoredActive = false; // an authored bed is live → suppress the procedural bed
+  private activeBpmVal = MUSIC_BPM; // the ACTIVE source bpm (procedural fallback = MUSIC_BPM)
+  private activeEpoch = 0; // ctx-time the active authored loop started (bar-aligned downbeat)
+  private reactiveGainVal = 0.35; // procedural reactive (hook/motif/shimmer) level over the bed
+  private lastBossKind: EnemyKind | null = null; // remembered for the warden_defeat cue
+  private sfxRng = mulberry32(0x9e3779b9); // dedicated cosmetic rng for sampled-SFX variant choice
+  // layers the authored bed already supplies — suppressed while an authored source plays; the
+  // reactive identity (drone/choir/hook/boss motif/delay) persists as "the procedural instrument".
+  private static BED_LAYERS = new Set(['kick', 'bass', 'pad', 'riff', 'arp', 'perc']);
+
   get ready(): boolean {
     return this.ctx !== null;
   }
 
-  /** Seconds since the music's first scheduled note — the pure beat clock syncs
-   *  to this (0 when music isn't running). */
+  /** Seconds on the ACTIVE clock — the authored loop's bar-aligned transport while an authored
+   *  source plays (so the felt beat follows the bed at its BPM, Deep Dive A/B), else the procedural
+   *  transport. The pure beat clock syncs to this (0 when music isn't running). */
   get musicTime(): number {
-    return this.ctx && this.musicTimer ? this.ctx.currentTime - this.musicEpoch : 0;
+    if (!this.ctx) return 0;
+    if (this.authoredActive) return this.ctx.currentTime - this.activeEpoch;
+    return this.musicTimer ? this.ctx.currentTime - this.musicEpoch : 0;
+  }
+  /** The active source's BPM (authored bed while live, else the procedural MUSIC_BPM). The game
+   *  loop retempos the cosmetic beat grid to this so the dash-on-beat grid follows the bed. */
+  get activeBpm(): number {
+    return this.authoredActive ? this.activeBpmVal : this.bpm;
   }
   get musicRunning(): boolean {
     return this.musicTimer !== 0;
@@ -196,6 +225,54 @@ export class AudioEngine {
     const ctx = new Ctor();
     this.ctx = ctx;
     this.buildGraph(ctx);
+    this.initHybrid(ctx); // live-only (never in the offline render harness) → kicks asset preload
+  }
+
+  /** Construct the hybrid flagship layer on a LIVE context and start decoding assets. Kept out
+   *  of buildGraph so the offline render harness never fetches/decodes or activates authored music. */
+  private initHybrid(ctx: BaseAudioContext): void {
+    if (this.hybrid || !this.loopFilter) return;
+    const assets = new AudioAssetManager(ctx, FLAGSHIP_AUDIO_MANIFEST);
+    const layerPlayer = new LayerPlayer(ctx, this.loopFilter, (id, key) => assets.getTrack(id, key));
+    this.sampleSfx = new SampleSfxDirector(ctx, this.sfxBus, FLAGSHIP_AUDIO_MANIFEST.sfx, (id) => assets.getSfx(id), this.sfxRng);
+    const host: ProceduralHost = {
+      setAuthoredActive: (a) => this.setAuthoredActive(a),
+      setReactiveGain: (g) => this.setReactiveGain(g),
+      setLoopCutoff: (hz) => this.setLoopCutoff(hz),
+      reanchor: (bpm, at) => this.reanchorClock(bpm, at),
+    };
+    this.hybrid = new HybridMusic({ assets, layerPlayer, sampleSfx: this.sampleSfx, host });
+    void assets.preloadCore(); // never throws; a failed asset just keeps the procedural fallback
+  }
+
+  // ── ProceduralHost — HybridMusic drives these to suppress/restore the procedural bed, set the
+  //    reactive level + loop lowpass, and re-anchor the active clock (all cosmetic/audio-layer). ──
+  private setAuthoredActive(active: boolean): void {
+    this.authoredActive = active;
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    // the reactive layer (leadBus: hook/boss-motif/sparkle; the bed layers are skipped per-note by
+    // layerOn) rides at reactiveGain while authored is live, and returns to unity when procedural resumes.
+    this.leadBus.gain.setTargetAtTime(active ? this.reactiveGainVal : 1, t, 0.1);
+    if (!active && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(18000, t, 0.1);
+  }
+  private setReactiveGain(g: number): void {
+    this.reactiveGainVal = g;
+    if (this.ctx && this.authoredActive) this.leadBus.gain.setTargetAtTime(g, this.ctx.currentTime, 0.1);
+  }
+  private setLoopCutoff(hz: number): void {
+    if (this.ctx && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.12);
+  }
+  private reanchorClock(bpm: number, at: number): void {
+    this.activeBpmVal = bpm;
+    this.activeEpoch = at || (this.ctx?.currentTime ?? 0);
+  }
+
+  /** Read-only boss state from the game loop → drives authored boss-source selection + edge SFX
+   *  (warden arrival/phase/fan). Remembers the kind for the warden_defeat cue in bossStinger(). */
+  setBossState(kind: EnemyKind | null, phase = 0, subPhase = 0, hpFrac = 1): void {
+    if (kind) this.lastBossKind = kind;
+    this.hybrid?.setBossState(kind, phase, subPhase, hpFrac);
   }
 
   /** Build the full bus graph on a context — a live AudioContext, or an
@@ -259,6 +336,14 @@ export class AudioEngine {
     this.leadBus = ctx.createGain();
     this.bossBus = ctx.createGain();
     for (const b of [this.drumsBus, this.bassBus, this.harmonyBus, this.leadBus, this.bossBus]) b.connect(this.musicBus);
+
+    // AUTHORED loop bus: the HybridMusic LayerPlayer feeds this lowpass (loop mix-modulation —
+    // its cutoff opens with intensity/COHERENCE, the poor-man's vertical layering on one stereo
+    // file) → musicBus, so it shares the coherence air-shelf, mix duck, and master glue.
+    this.loopFilter = ctx.createBiquadFilter();
+    this.loopFilter.type = 'lowpass';
+    this.loopFilter.frequency.value = 18000;
+    this.loopFilter.connect(this.musicBus);
 
     // ── CONVOLUTION REVERB (offline-first synth IR, built once) ──
     // Real space for the music (it was bone dry) + a lusher SFX tail. Tail is
@@ -496,6 +581,7 @@ export class AudioEngine {
   overdriveBurst(): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    this.sampleSfx?.play('overdrive');
     const t = ctx.currentTime;
     // (a) deep sub sweep 90 → 32 Hz
     const sub = ctx.createOscillator();
@@ -552,6 +638,7 @@ export class AudioEngine {
   lastBreath(): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    this.sampleSfx?.play('last_breath');
     const t = ctx.currentTime;
     // (a) deep heartbeat — a low sine that drops and lingers
     const sub = ctx.createOscillator();
@@ -688,6 +775,7 @@ export class AudioEngine {
     this.thunkCount++;
 
     const p = Math.max(-1, Math.min(1, pan));
+    this.sampleSfx?.play('lance_hit', { pan: p });
     const semis = Math.min(combo, 14);
     const jitter = Math.pow(2, this.humCents() / 1200); // cents → ratio
     const base = 90 * Math.pow(2, semis / 12) * jitter;
@@ -741,10 +829,11 @@ export class AudioEngine {
     };
   }
 
-  /** Dash whoosh — filtered noise sweep. */
+  /** Dash whoosh — filtered noise sweep (+ optional sampled layer). */
   whoosh(): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    this.sampleSfx?.play('dash_fire');
     const t = ctx.currentTime;
     const src = this.noiseSource();
     const bp = ctx.createBiquadFilter();
@@ -928,6 +1017,7 @@ export class AudioEngine {
   death(): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    this.lastBossKind = null; // clear any pending warden_defeat (the run ended, not a boss kill)
     const t = ctx.currentTime;
     // a detuned cluster collapsing in pitch + tone — "the light dims". Each voice is
     // itself a warm detuned-twin saw, and the cluster is spread across the stereo field.
@@ -1076,8 +1166,9 @@ export class AudioEngine {
   static readonly LAYER_NAMES = ['kick', 'perc', 'bass', 'pad', 'drone', 'choir', 'arp', 'riff', 'hook', 'delay', 'boss'] as const;
   private mutedLayers = new Set<string>();
   private soloedLayer: string | null = null;
-  /** Whether a named layer should currently sound (respects solo, then mute). */
+  /** Whether a named layer should currently sound (authored-bed suppression, then solo, then mute). */
   private layerOn(name: string): boolean {
+    if (this.authoredActive && AudioEngine.BED_LAYERS.has(name)) return false; // the authored bed has it
     return this.soloedLayer ? this.soloedLayer === name : !this.mutedLayers.has(name);
   }
   get layerNames(): readonly string[] {
@@ -1174,6 +1265,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = Math.max(at, ctx.currentTime);
+    this.sampleSfx?.play('perfect_dash', { at: t });
     const n = this.noiseSource();
     const bp = ctx.createBiquadFilter();
     bp.type = 'bandpass';
@@ -1232,7 +1324,10 @@ export class AudioEngine {
   private scheduleMusic(): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    const sixteenth = 60 / this.bpm / 4;
+    // space notes at the ACTIVE bpm so the procedural reactive layer (hook fragments, snare) stays
+    // in time with an authored bed at another tempo. Source switches land on bar downbeats, so the
+    // spacing changes cleanly at a bar boundary (Deep Dive B). Procedural fallback = MUSIC_BPM.
+    const sixteenth = 60 / this.activeBpm / 4;
     while (this.nextNoteT < ctx.currentTime + 0.1) {
       this.playStep(this.musicStep, this.nextNoteT); // ABSOLUTE step → transport derives bar/beat/section
       this.nextNoteT += sixteenth;
@@ -1248,6 +1343,10 @@ export class AudioEngine {
    *  stretch grooving) · L2 ARP (heat) · L3 lead HOOK / boss MOTIF (coherence) ·
    *  L5 PERC/BREAK (heat). The pad pumps under the kick (sidechain). */
   private playStep(step: number, t: number): void {
+    // HYBRID: on a bar downbeat, maybe switch to / vertically mix an authored bed (no-op until
+    // assets decode; always null in the offline harness). Runs BEFORE the procedural layers so
+    // `authoredActive` (hence layerOn bed-suppression) is current for this step.
+    this.hybrid?.tick(step, t);
     const heat = this.musicHeat;
     const coh = this.coherenceVal;
     const pos = positionFromStep(step);
@@ -1769,6 +1868,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     this.bossArp = on; // the arp recolours during a boss fight
+    if (on && kind) this.lastBossKind = kind; // remembered for the warden_defeat cue
     if (!on) this.bossMotif = null; // the LANCE THEME hook returns when the boss falls
     const t = ctx.currentTime;
     if (on) {
@@ -1809,10 +1909,13 @@ export class AudioEngine {
     }
   }
 
-  /** Triumphant rising chord when a boss is felled — staggered, spread L→R. */
+  /** Triumphant rising chord when a boss is felled — staggered, spread L→R. A WARDEN shutdown
+   *  also fires the sampled warden_defeat cue (once; the kind is then consumed). */
   bossStinger(): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    if (this.lastBossKind === 'warden') this.sampleSfx?.play('warden_defeat');
+    this.lastBossKind = null;
     const t = ctx.currentTime;
     const freqs = [440, 554, 659, 880];
     freqs.forEach((f, i) => {
@@ -1832,6 +1935,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx || !this.droneOn) return;
     this.stopMusic();
+    this.hybrid?.stop(); // stop authored beds + voices, restore the procedural clock @ MUSIC_BPM
     this.bossArp = false;
     this.bossMusic(false);
     const t = ctx.currentTime;

@@ -725,10 +725,22 @@ export class Game {
         this.audio.setIntensity(intensity(this.world.time));
       }
 
+      // lock the cosmetic beat grid to the ACTIVE source's tempo (authored bed or procedural).
+      // Source switches land on bar downbeats, so the re-seed is bar-aligned (Deep Dive A) — the
+      // next reconcile re-seeds t to the new source's musicTime. Read-only: no sim, no rng.
+      if (this.audio.activeBpm !== this.beat.grid.bpm) this.beat.retempo(this.audio.activeBpm);
       // advance the pure beat clock every frame, reconciled toward the audio truth
       // (only while music is actually running — never seed the epoch to a sentinel 0)
       this.beat.advance(realDt);
       if (this.audio.musicRunning) this.beat.reconcile(this.audio.musicTime, realDt);
+
+      // read-only boss state → authored boss-source selection + edge SFX (warden arrival/phase/fan).
+      // Reads world/music state only; never mutates the sim or draws rng.
+      const wb = this.world.boss;
+      this.audio.setBossState(
+        wb && this.world.bossAlive ? wb.kind : null,
+        wb?.phase ?? 0, wb?.subPhase ?? 0, wb ? wb.hp / Math.max(1, wb.maxHp) : 1,
+      );
 
       // biome cycling
       if (!this.dying && !this.winning) {

@@ -53,6 +53,27 @@ describe('AudioAssetManager loading', () => {
     expect(m.status().failed).toContain('/s/1.ogg');
   });
 
+  it('the default fetcher stays bound to the global fetch (no "Illegal invocation")', async () => {
+    // native fetch throws "Illegal invocation" if called with the wrong `this`; the default
+    // fetcher must preserve that binding (regression for the live in-browser preload failure).
+    const realFetch = (globalThis as { fetch?: typeof fetch }).fetch;
+    const seen: string[] = [];
+    (globalThis as { fetch: unknown }).fetch = function (this: unknown, url: unknown) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+      seen.push(String(url));
+      return okFetch(String(url));
+    };
+    try {
+      // NO fetcher arg → the constructor's default global `fetch` is exercised
+      const m = new AudioAssetManager(ctx, MANIFEST, undefined, 'opus', async () => fakeBuffer());
+      await m.preloadCore();
+      expect(m.status().failed).toEqual([]); // the binding bug fails every asset
+      expect(seen).toContain('/m/main.ogg');
+    } finally {
+      (globalThis as { fetch?: typeof fetch }).fetch = realFetch;
+    }
+  });
+
   it('deduplicates in-flight work: a URL decodes once across repeated preloads', async () => {
     const decoder = vi.fn(async () => fakeBuffer());
     const m = new AudioAssetManager(ctx, MANIFEST, okFetch as typeof fetch, 'opus', decoder);
