@@ -38,7 +38,7 @@ You don't shoot. You **dash**.
 - 🏅 **Optional online leaderboards** — per-mode global boards + a shared daily, served by a tiny deploy-ready Cloudflare Worker (`worker/`). Offline-first: the game is identical without it; set `VITE_LEADERBOARD_URL` to light up the RANKS screen.
 - 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
 - 🌀 **The juice stack** — parallax starfield + nebula, trauma shake, hitstop, slow-mo, bloom, chromatic aberration, dash-trail ribbons, `+score` popups, combo-tier callouts (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, screen flashes.
-- 🔊 **Fully-synthesized audio** (Web Audio, no assets) — combo-pitched *thunks*, a beat-driven adaptive **soundtrack** (kick/bass/pentatonic arp that builds with intensity), a tense boss layer + victory stinger.
+- 🔊 **Hybrid audio** (Web Audio) — free-licensed **authored beds** (an AURORA arena suite + a WARDEN boss gear-change) play under a **procedural reactive layer** that carries the recurring LANCE THEME motif, the dash-on-beat snare, and the COHERENCE shimmer; vertical intensity opens the bed's filter with flow. Sampled combat SFX layer over the synth transients. Every shipped asset is CC0/CC-BY/Pixabay with a machine-checked provenance ledger; the procedural engine is also the resilient fallback when assets are missing (a run is never broken). Combo-pitched *thunks*, per-boss music themes, victory stinger.
 - 🎮 **Keyboard + mouse, gamepad, and touch** (twin virtual sticks on phones).
 - ♿ **Accessibility** — reduce-flashing, reduce-motion, colorblind shapes, screen-shake slider, HUD scale, full volume controls.
 
@@ -75,6 +75,25 @@ enemies  boss  tune
 
 The `sim` layer is DOM-free and unit-tested; `tune.ts` holds **every** gameplay constant in one place for tuning.
 
+### Flagship audio (hybrid)
+
+Authored beds + sampled SFX play over the procedural engine. The whole authored pipeline is pure,
+unit-tested, and fronted by a build-time gate:
+
+```bash
+npm run audio:conform    # trim each master to a bar-aligned loop + equal-power seam + loudnorm → 48 kHz WAV
+npm run audio:encode     # WAV → Opus(.ogg) + MP3, mirrored under public/audio/flagship/
+npm run audio:validate   # 48 kHz, integer-bar loops, ≤ 8 MB, + the provenance/license gate (fails the build otherwise)
+```
+
+- **Sourcing & licensing.** Every shipped asset is recorded in `public/audio/flagship/provenance.json`
+  with an **allowed** license (CC0 / CC-BY / Pixabay / royalty-free); the validator hard-rejects
+  NC / SA / GPL / AI / unlicensed material. CC-BY credits live in `docs/audio/CREDITS.md` (and belong
+  on the in-game credits screen before shipping). The shortlist + how to swap a track:
+  `docs/audio/flagship-sourcing-brief.md`. Masters are gitignored; only the encoded runtime ships.
+- **Determinism.** The beat → grade → COHERENCE chain is a cosmetic `frame()`-layer sink that never
+  touches `step()` / `world` / seeded RNG, so adaptive per-track tempo can't perturb a Daily run.
+
 ## Run it
 
 ```bash
@@ -87,7 +106,7 @@ npm run preview
 ## Test
 
 ```bash
-npm test         # 101 unit tests on the pure simulation
+npm test         # 450+ unit tests — the pure simulation + the authored-audio engine/pipeline
 ```
 
 Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 11-perk draft (stacking + max-stack exclusion), the 7 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 5 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
