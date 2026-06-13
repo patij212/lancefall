@@ -31,3 +31,7 @@ Reusable click-free `env()` (true-0 start, short linear release before `stop()`)
 **F — Audio lab dev page.** `audiolab.html` + `src/audioLab.ts`: buttons for every SFX, transport play/stop, layer toggles, coherence/heat/tier/boss sliders — so the owner can HEAR it. Dev-only (not in the prod `vite build` input).
 
 **G — Verify.** `npm test` + `npm run build` green; `detect_changes`; commit per phase; update memory + DEVLOG.
+
+---
+## STATUS: SHIPPED (2026-06-13)
+All 6 phases (A–F) built, tested, committed on branch `lastlance` (commits `0d4696b`..`1a5c618`). 358 tests green (+28), clean prod build with the lab excluded, engine Playwright-smoke-tested error-free. Determinism held by construction (no sim/rng files touched). Not yet deployed — run `npm run deploy` (or `npm run build && wrangler pages deploy`) to push live. Audition locally via `npm run dev` → `/audiolab.html`.
