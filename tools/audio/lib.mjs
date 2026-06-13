@@ -149,6 +149,26 @@ export function validateManifestAssets(records, opts = {}) {
   return errors;
 }
 
+/** The SFX half of the build gate: per-variant sample-rate + license + provenance (SFX are one-shots,
+ *  so NO loop/bar check). Each record: { id, sampleRate, license, hasProvenance, bytes }. */
+export function validateSfxAssets(records, opts = {}) {
+  const errors = [];
+  for (const r of records) {
+    if (r.sampleRate !== 48000) errors.push(`sfx ${r.id}: sample rate ${r.sampleRate} ≠ 48000 Hz`);
+    if (!isAudioLicenseAllowed(r.license)) {
+      errors.push(`sfx ${r.id}: rejected license "${r.license}" (allowed: ${[...ALLOWED_AUDIO_LICENSES].join('/')})`);
+    }
+    if (!r.hasProvenance) errors.push(`sfx ${r.id}: missing provenance entry`);
+  }
+  return errors;
+}
+
+/** Exact-path provenance lookup (NOT substring — `warden_fan` exists as both a music source and an
+ *  SFX id, so a substring match is order-dependent). Returns the entry or null. */
+export function provenanceForAsset(entries, asset) {
+  return entries.find((e) => e.asset === asset) ?? null;
+}
+
 /** A printable per-source duration / BPM / license table + byte total. */
 export function durationTable(records) {
   const head = ['source', 'suite', 'bpm', 'loopSec', 'license', 'KB'];

@@ -14,6 +14,8 @@ import {
   expectedSfxPaths,
   findMissing,
   validateManifestAssets,
+  validateSfxAssets,
+  provenanceForAsset,
   durationTable,
 } from './lib.mjs';
 
@@ -202,6 +204,36 @@ describe('validateManifestAssets — the build gate', () => {
     const b = ok();
     b.id = 'aurora_chorus';
     expect(validateManifestAssets([a, b])).toEqual([]);
+  });
+});
+
+describe('provenanceForAsset — exact match, not substring', () => {
+  const entries = [
+    { asset: 'music/warden_fan/main', license: 'CC-BY' },
+    { asset: 'sfx/warden_fan', license: 'CC0' },
+  ];
+  it('resolves the right entry when a music id and an SFX id collide (warden_fan)', () => {
+    expect(provenanceForAsset(entries, 'music/warden_fan/main').license).toBe('CC-BY');
+    expect(provenanceForAsset(entries, 'sfx/warden_fan').license).toBe('CC0');
+  });
+  it('returns null for an unknown asset', () => {
+    expect(provenanceForAsset(entries, 'sfx/missing')).toBeNull();
+  });
+});
+
+describe('validateSfxAssets — the SFX half of the gate', () => {
+  const ok = () => ({ id: 'dash_fire', sampleRate: 48000, license: 'CC0', hasProvenance: true, bytes: 2000 });
+  it('passes a clean CC0 48 kHz SFX', () => {
+    expect(validateSfxAssets([ok()])).toEqual([]);
+  });
+  it('flags a non-48 kHz SFX', () => {
+    expect(validateSfxAssets([{ ...ok(), sampleRate: 44100 }]).some((e) => /44100/.test(e))).toBe(true);
+  });
+  it('rejects a non-allowed SFX license', () => {
+    expect(validateSfxAssets([{ ...ok(), license: 'CC-BY-NC' }]).some((e) => /license/i.test(e))).toBe(true);
+  });
+  it('flags an SFX with no provenance entry', () => {
+    expect(validateSfxAssets([{ ...ok(), hasProvenance: false }]).some((e) => /provenance/i.test(e))).toBe(true);
   });
 });
 

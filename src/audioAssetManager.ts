@@ -54,6 +54,7 @@ export class AudioAssetManager {
       })
       .catch(() => {
         this.failed.push(url);
+        this.inflight.delete(url); // evict the failure so a later preloadCore() can re-attempt (transient blips)
         return null;
       });
     this.inflight.set(url, p);

@@ -15,8 +15,12 @@ import {
   expectedSfxPaths,
   findMissing,
   validateManifestAssets,
+  validateSfxAssets,
+  provenanceForAsset,
   durationTable,
 } from './lib.mjs';
+
+const MAX_RUNTIME_BYTES = 8 * 1024 * 1024;
 
 const ROOT = resolve(process.cwd());
 const LOOPS = resolve(ROOT, 'audio-src/flagship/loops.json');
@@ -39,10 +43,6 @@ function probe(absPath) {
   if (r.status !== 0) return null;
   const j = JSON.parse(r.stdout);
   return { sampleRate: Number(j.streams?.[0]?.sample_rate), duration: Number(j.format?.duration) };
-}
-
-function provenanceFor(entries, id) {
-  return entries.find((e) => `${e.asset ?? ''}${e.url ?? ''}`.includes(id)) ?? null;
 }
 
 function main() {
@@ -68,7 +68,7 @@ function main() {
       missing.push(`${MUSIC_DIR}/${s.id}/main.ogg (unreadable)`);
       continue;
     }
-    const prov = provenanceFor(provenance, s.id);
+    const prov = provenanceForAsset(provenance, `music/${s.id}/main`);
     const bytes = statSync(ogg).size + (existsSync(mp3) ? statSync(mp3).size : 0);
     records.push({
       id: s.id,
@@ -85,17 +85,46 @@ function main() {
     });
   }
 
-  const gateErrors = validateManifestAssets(records);
+  // Build an SFX record per id (probe variant 1's .ogg for sample-rate, sum all variant bytes) and
+  // gate license/sample-rate/provenance — previously SFX were existence-checked only.
+  const sfxRecords = [];
+  for (const s of sfx) {
+    let bytes = 0;
+    let sampleRate = 0;
+    for (let n = 1; n <= s.variants; n++) {
+      const ogg = resolve(ROOT, `${SFX_DIR}/${s.id}_${n}.ogg`);
+      const mp3 = resolve(ROOT, `${SFX_DIR}/${s.id}_${n}.mp3`);
+      if (existsSync(ogg)) {
+        bytes += statSync(ogg).size;
+        if (!sampleRate) sampleRate = probe(ogg)?.sampleRate ?? 0;
+      }
+      if (existsSync(mp3)) bytes += statSync(mp3).size;
+    }
+    if (!sampleRate) continue; // nothing on disk yet → covered by the missing-path check
+    const prov = provenanceForAsset(provenance, `sfx/${s.id}`);
+    sfxRecords.push({ id: s.id, sampleRate, license: prov?.license ?? 'unknown', hasProvenance: Boolean(prov), bytes });
+  }
+
+  // Budget covers music + SFX combined (validateManifestAssets' own budget is disabled here).
+  const totalBytes = [...records, ...sfxRecords].reduce((sum, r) => sum + (r.bytes ?? 0), 0);
+  const budgetErr = totalBytes > MAX_RUNTIME_BYTES ? [`runtime budget exceeded: ${(totalBytes / 1024 / 1024).toFixed(2)} MB > 8 MB (music + SFX)`] : [];
+
+  const gateErrors = [
+    ...validateManifestAssets(records, { maxBytes: Infinity }),
+    ...validateSfxAssets(sfxRecords),
+    ...budgetErr,
+  ];
 
   if (records.length) {
     console.log(durationTable(records));
+    console.log(`SFX: ${sfxRecords.length} ids OK · total runtime ${(totalBytes / 1024 / 1024).toFixed(2)} MB / 8 MB`);
     console.log('');
   }
 
   const problems = [...missing.map((p) => `missing runtime asset: ${p}`), ...gateErrors];
   if (problems.length) fail(problems);
 
-  console.log(`PASS — ${records.length} music source(s), provenance + budget OK.`);
+  console.log(`PASS — ${records.length} music + ${sfxRecords.length} SFX, provenance + sample-rate + budget OK.`);
 }
 
 main();

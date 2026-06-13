@@ -74,6 +74,19 @@ describe('AudioAssetManager loading', () => {
     }
   });
 
+  it('re-attempts a FAILED url on the next preload (a transient blip is not pinned for the session)', async () => {
+    let attempts = 0;
+    const fetcher = async (url: string) => {
+      if (url === '/m/main.ogg') { attempts++; if (attempts === 1) throw new Error('transient 503'); }
+      return okFetch(url);
+    };
+    const m = new AudioAssetManager(ctx, MANIFEST, fetcher as typeof fetch, 'opus', async () => fakeBuffer());
+    await m.preloadCore();
+    expect(m.getTrack('m', 'main')).toBeNull(); // first attempt failed
+    await m.preloadCore(); // retry — must not be short-circuited by a cached failure
+    expect(m.getTrack('m', 'main')).not.toBeNull(); // recovered
+  });
+
   it('deduplicates in-flight work: a URL decodes once across repeated preloads', async () => {
     const decoder = vi.fn(async () => fakeBuffer());
     const m = new AudioAssetManager(ctx, MANIFEST, okFetch as typeof fetch, 'opus', decoder);

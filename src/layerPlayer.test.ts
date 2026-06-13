@@ -31,14 +31,28 @@ describe('layer player — pure scheduling math', () => {
   });
 });
 
-// minimal fake ctx (connect returns its destination, like a real AudioNode)
-function makeCtx() {
-  const sink = () => ({ connect: (d: unknown) => d, disconnect() {}, gain: { value: 0, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} } });
-  return {
+// minimal fake ctx (connect returns its destination, like a real AudioNode) — tracks disconnects
+// + exposes the created buffer sources so the teardown/leak tests can fire onended.
+interface FakeCtx extends BaseAudioContext {
+  disconnects(): number;
+  sources(): { onended: (() => void) | null }[];
+}
+function makeCtx(): FakeCtx {
+  let disc = 0;
+  const srcs: { onended: (() => void) | null }[] = [];
+  const sink = () => ({ connect: (d: unknown) => d, disconnect() { disc++; }, gain: { value: 0, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} } });
+  const ctx = {
     currentTime: 0,
     createGain: sink,
-    createBufferSource: () => ({ buffer: null, loop: false, loopStart: 0, loopEnd: 0, connect: (d: unknown) => d, start() {}, stop() {}, disconnect() {}, onended: null }),
-  } as unknown as BaseAudioContext;
+    createBufferSource: () => {
+      const s = { buffer: null, loop: false, loopStart: 0, loopEnd: 0, connect: (d: unknown) => d, start() {}, stop() {}, disconnect() { disc++; }, onended: null as (() => void) | null };
+      srcs.push(s);
+      return s;
+    },
+    disconnects: () => disc,
+    sources: () => srcs,
+  };
+  return ctx as unknown as FakeCtx;
 }
 
 const loopSource = (id: string): MusicSourceManifest => ({
@@ -94,5 +108,54 @@ describe('LayerPlayer — setGains / stop', () => {
     const ctx = makeCtx();
     const p = new LayerPlayer(ctx, ctx.destination, () => buf());
     expect(() => p.stop()).not.toThrow();
+  });
+});
+
+describe('LayerPlayer — loopEnd tracks the decoded buffer (codec padding)', () => {
+  const lastLoopEnd = (ctx: FakeCtx) => (ctx.sources().at(-1) as unknown as { loopEnd: number }).loopEnd;
+
+  it('caps loopEnd at a SHORTER decoded duration so the loop never wraps into silence', () => {
+    const ctx = makeCtx();
+    const short = () => ({ length: 1, numberOfChannels: 2, duration: 1.0 } as AudioBuffer); // < ideal 8.57s
+    const p = new LayerPlayer(ctx, ctx.destination, () => short());
+    p.play(loopSource('a'), 0, 0, { main: 1 });
+    expect(lastLoopEnd(ctx)).toBeLessThanOrEqual(1.0);
+  });
+
+  it('keeps loopEnd at the ideal bar length when the buffer is longer (trailing encoder padding)', () => {
+    const ctx = makeCtx();
+    const long = () => ({ length: 1, numberOfChannels: 2, duration: 999 } as AudioBuffer);
+    const p = new LayerPlayer(ctx, ctx.destination, () => long());
+    p.play(loopSource('a'), 0, 0, { main: 1 }); // 4 bars @112 ≈ 8.5714 s
+    expect(lastLoopEnd(ctx)).toBeCloseTo(8.5714, 3);
+  });
+});
+
+describe('LayerPlayer — node teardown (no leak)', () => {
+  it('disconnects the crossfaded-out scene once its sources end', () => {
+    const ctx = makeCtx();
+    const p = new LayerPlayer(ctx, ctx.destination, () => buf());
+    p.play(loopSource('a'), 0, 0, { main: 1 });
+    const oldSources = [...ctx.sources()]; // scene A's source(s)
+    const before = ctx.disconnects();
+    p.play(loopSource('b'), 0, 1, { main: 1 }); // crossfade A → B
+    // A's sources must carry an onended that tears the old graph down
+    expect(oldSources.every((s) => typeof s.onended === 'function')).toBe(true);
+    oldSources.forEach((s) => s.onended!());
+    // src + per-track gain + scene master all disconnected (≥ 3 for a 1-track scene)
+    expect(ctx.disconnects() - before).toBeGreaterThanOrEqual(3);
+    expect(p.activeScene).toBe('b');
+  });
+
+  it('stop disconnects the active scene once its sources end', () => {
+    const ctx = makeCtx();
+    const p = new LayerPlayer(ctx, ctx.destination, () => buf());
+    p.play(loopSource('a'), 0, 0, { main: 1 });
+    const sources = [...ctx.sources()];
+    const before = ctx.disconnects();
+    p.stop();
+    sources.forEach((s) => s.onended!());
+    expect(ctx.disconnects() - before).toBeGreaterThanOrEqual(3);
+    expect(p.activeScene).toBeNull();
   });
 });

@@ -33,6 +33,8 @@ export function chooseVoiceToCull(active: readonly ActiveSampleVoice[], incoming
 
 interface LiveVoice extends ActiveSampleVoice {
   node: AudioBufferSourceNode;
+  gain: GainNode;
+  pan?: StereoPannerNode;
 }
 
 export class SampleSfxDirector {
@@ -74,8 +76,9 @@ export class SampleSfxDirector {
     src.buffer = buffers[Math.floor(this.random() * buffers.length)];
     const gain = this.ctx.createGain();
     gain.gain.value = def.gain * (options.gainMul ?? 1);
+    let pan: StereoPannerNode | undefined;
     if (options.pan !== undefined) {
-      const pan = this.ctx.createStereoPanner();
+      pan = this.ctx.createStereoPanner();
       pan.pan.value = options.pan;
       src.connect(gain).connect(pan).connect(this.destination);
     } else {
@@ -86,6 +89,8 @@ export class SampleSfxDirector {
       id,
       priority: def.priority,
       node: src,
+      gain,
+      pan,
       stop: () => {
         try {
           src.stop();
@@ -110,15 +115,23 @@ export class SampleSfxDirector {
     if (!v) return;
     v.stop();
     this.active.splice(index, 1);
+    this.disconnectVoice(v); // synchronous teardown — don't wait on onended for a culled voice
   }
 
   private remove(voice: LiveVoice): void {
     const i = this.active.indexOf(voice);
     if (i >= 0) this.active.splice(i, 1);
-    try {
-      voice.node.disconnect();
-    } catch {
-      /* node already gone */
+    this.disconnectVoice(voice);
+  }
+
+  /** Tear down the whole src→gain→[pan] chain (the gain/pan were leaking — only src was freed). */
+  private disconnectVoice(voice: LiveVoice): void {
+    for (const node of [voice.node, voice.gain, voice.pan]) {
+      try {
+        node?.disconnect();
+      } catch {
+        /* node already gone */
+      }
     }
   }
 }

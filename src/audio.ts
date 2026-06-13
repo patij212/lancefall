@@ -132,7 +132,10 @@ export class AudioEngine {
    *  transport. The pure beat clock syncs to this (0 when music isn't running). */
   get musicTime(): number {
     if (!this.ctx) return 0;
-    if (this.authoredActive) return this.ctx.currentTime - this.activeEpoch;
+    // clamp ≥ 0: a source switch sets activeEpoch to a FUTURE scheduled bar time (~0.1s lookahead),
+    // so the raw delta is briefly negative — an unclamped negative would mis-seed the beat reconcile
+    // and mis-grade dash-on-beat exactly at bar transitions (matches the transportAt/lab <=0 guards).
+    if (this.authoredActive) return Math.max(0, this.ctx.currentTime - this.activeEpoch);
     return this.musicTimer ? this.ctx.currentTime - this.musicEpoch : 0;
   }
   /** The active source's BPM (authored bed while live, else the procedural MUSIC_BPM). The game
@@ -251,14 +254,22 @@ export class AudioEngine {
     this.authoredActive = active;
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    // the reactive layer (leadBus: hook/boss-motif/sparkle; the bed layers are skipped per-note by
-    // layerOn) rides at reactiveGain while authored is live, and returns to unity when procedural resumes.
-    this.leadBus.gain.setTargetAtTime(active ? this.reactiveGainVal : 1, t, 0.1);
+    // the reactive layer rides at reactiveGain while authored is live, and returns to unity when
+    // procedural resumes. leadBus = hook/boss-motif/sparkle; harmonyBus = the sustained COHERENCE
+    // drone + choir pad (NOT layer-gated, so it must be ducked here or it muds the full-mix bed —
+    // safe: pump()'s sidechain is suppressed while authored since its 'kick' gate is a BED_LAYER).
+    const lvl = active ? this.reactiveGainVal : 1;
+    this.leadBus.gain.setTargetAtTime(lvl, t, 0.1);
+    this.harmonyBus.gain.setTargetAtTime(lvl, t, 0.12);
     if (!active && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(18000, t, 0.1);
   }
   private setReactiveGain(g: number): void {
     this.reactiveGainVal = g;
-    if (this.ctx && this.authoredActive) this.leadBus.gain.setTargetAtTime(g, this.ctx.currentTime, 0.1);
+    if (this.ctx && this.authoredActive) {
+      const t = this.ctx.currentTime;
+      this.leadBus.gain.setTargetAtTime(g, t, 0.1);
+      this.harmonyBus.gain.setTargetAtTime(g, t, 0.12);
+    }
   }
   private setLoopCutoff(hz: number): void {
     if (this.ctx && this.loopFilter) this.loopFilter.frequency.setTargetAtTime(hz, this.ctx.currentTime, 0.12);
@@ -1150,6 +1161,7 @@ export class AudioEngine {
    *  the two never fight over the same setTargetAtTime params. */
   setIntensity(n: number): void {
     this.musicHeat = n;
+    this.hybrid?.setIntensity(n); // feed the authored vertical mix (loopCutoff opens with intensity)
   }
 
   /** Select the active soundtrack (Settings). Safe to call before the context
@@ -1195,6 +1207,7 @@ export class AudioEngine {
    *  lone drone into a 4-voice chord, open the filter, transpose the root, and
    *  crossfade a choir pad in past the onset. Cosmetic: never touches world.rng. */
   setCoherence(c: number, tier: number): void {
+    this.hybrid?.setCoherence(c); // feed the authored vertical mix (loop cutoff + reactive level)
     const ctx = this.ctx;
     if (!ctx || !this.droneOn || !this.droneFilter) return; // no resurrection after teardown
     const t = ctx.currentTime;
@@ -1350,7 +1363,9 @@ export class AudioEngine {
     const heat = this.musicHeat;
     const coh = this.coherenceVal;
     const pos = positionFromStep(step);
-    const sixteenth = 60 / this.bpm / 4;
+    // note DURATIONS track the same clock as note SPACING (scheduleMusic uses activeBpm); otherwise
+    // surviving reactive voices (boss motif / chorus hook) get mis-scaled legato over a non-112 bed.
+    const sixteenth = 60 / this.activeBpm / 4;
     const tr = this.track;
 
     // ── ARRANGEMENT: the SONG SPINE decides which layers are ALLOWED this section;

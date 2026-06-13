@@ -16,19 +16,20 @@ describe('chooseVoiceToCull', () => {
 // connect() returns its destination, matching the real AudioNode chaining contract.
 function makeCtx() {
   const sources: { buffer: AudioBuffer | null; onended: null | (() => void) }[] = [];
-  const sink = () => ({ connect: (d: unknown) => d, disconnect() {}, gain: { value: 0, setValueAtTime() {} }, pan: { value: 0, setValueAtTime() {} } });
+  let disc = 0;
+  const sink = () => ({ connect: (d: unknown) => d, disconnect() { disc++; }, gain: { value: 0, setValueAtTime() {} }, pan: { value: 0, setValueAtTime() {} } });
   const ctx = {
     currentTime: 0,
     destination: sink(),
     createBufferSource() {
-      const s = { buffer: null as AudioBuffer | null, connect: (d: unknown) => d, start() {}, stop() {}, disconnect() {}, onended: null as null | (() => void) };
+      const s = { buffer: null as AudioBuffer | null, connect: (d: unknown) => d, start() {}, stop() {}, disconnect() { disc++; }, onended: null as null | (() => void) };
       sources.push(s);
       return s;
     },
     createGain: sink,
     createStereoPanner: sink,
   } as unknown as BaseAudioContext;
-  return { ctx, sources };
+  return { ctx, sources, disconnects: () => disc };
 }
 
 const buf = (tag: string) => ({ tag } as unknown as AudioBuffer);
@@ -72,5 +73,24 @@ describe('SampleSfxDirector', () => {
     expect(d.play('low')).toBe(false);
     expect(d.activeVoices).toBe(0);
     expect(sources.length).toBe(0);
+  });
+
+  it('disconnects the whole src→gain→pan chain on cull (no orphaned gain/pan nodes)', () => {
+    const { ctx, disconnects } = makeCtx();
+    const d = new SampleSfxDirector(ctx, ctx.destination, MANIFESTS, () => [buf('a')], () => 0, 24);
+    d.play('cap2', { pan: 0.5 });
+    d.play('cap2', { pan: -0.5 });
+    const before = disconnects();
+    d.play('cap2', { pan: 0 }); // 3rd over maxVoices 2 → culls the oldest synchronously
+    expect(disconnects() - before).toBeGreaterThanOrEqual(2); // culled src + gain (+ pan)
+  });
+
+  it('disconnects gain/pan when a voice ends naturally (onended)', () => {
+    const { ctx, sources, disconnects } = makeCtx();
+    const d = new SampleSfxDirector(ctx, ctx.destination, MANIFESTS, () => [buf('a')], () => 0, 24);
+    d.play('low', { pan: 0.4 });
+    const before = disconnects();
+    sources.at(-1)!.onended!(); // the source ends
+    expect(disconnects() - before).toBeGreaterThanOrEqual(2); // gain + pan torn down, not just src
   });
 });

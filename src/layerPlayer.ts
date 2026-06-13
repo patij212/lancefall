@@ -56,7 +56,11 @@ export class LayerPlayer {
 
     const bars = source.bars ?? 4;
     const offset = sourceOffsetSeconds(absoluteBar, source.bpm, BEATS_PER_BAR, bars);
-    const loopEnd = sourceDurationSeconds(source.bpm, BEATS_PER_BAR, bars);
+    // loop at the ideal bar length, but never PAST the decoded buffer: lossy codecs (Opus pre-skip /
+    // MP3 padding) make the real buffer a few ms off ideal, and looping beyond it wraps into silence.
+    const idealLoopEnd = sourceDurationSeconds(source.bpm, BEATS_PER_BAR, bars);
+    const durs = buffers.map(([, b]) => b!.duration).filter((d): d is number => typeof d === 'number' && d > 0);
+    const loopEnd = durs.length ? Math.min(idealLoopEnd, ...durs) : idealLoopEnd;
 
     const master = this.ctx.createGain();
     master.gain.setValueAtTime(0, at);
@@ -82,17 +86,33 @@ export class LayerPlayer {
       old.master.gain.cancelScheduledValues(at);
       old.master.gain.setValueAtTime(1, at);
       old.master.gain.linearRampToValueAtTime(0, at + CROSSFADE_S);
-      const stopAt = at + CROSSFADE_S + 0.05;
-      for (const { src } of old.tracks.values()) {
-        try {
-          src.stop(stopAt);
-        } catch {
-          /* already stopped */
-        }
-      }
+      this.teardown(old, at + CROSSFADE_S + 0.05);
     }
     this.current = { id: source.id, master, tracks };
     return true;
+  }
+
+  /** Stop a scene's sources at `stopAt` and disconnect its whole node graph once they end —
+   *  otherwise every source switch orphans master+gains+sources (GC-reachable via `destination`). */
+  private teardown(scene: ActiveScene, stopAt: number): void {
+    const nodes = [...scene.tracks.values()];
+    if (!nodes.length) {
+      scene.master.disconnect();
+      return;
+    }
+    let pending = nodes.length;
+    for (const { src, gain } of nodes) {
+      src.onended = () => {
+        src.disconnect();
+        gain.disconnect();
+        if (--pending === 0) scene.master.disconnect();
+      };
+      try {
+        src.stop(stopAt);
+      } catch {
+        /* already stopped */
+      }
+    }
   }
 
   /** Smoothly ramp the present tracks of the active scene toward `gains` (for `layers`/`stems`
@@ -106,7 +126,8 @@ export class LayerPlayer {
     }
   }
 
-  /** Fade the active scene out and stop its sources; clears `activeScene`. No-op if idle. */
+  /** Fade the active scene out, stop its sources, and disconnect its graph; clears `activeScene`.
+   *  No-op if idle. */
   stop(at?: number): void {
     const scene = this.current;
     if (!scene) return;
@@ -115,13 +136,6 @@ export class LayerPlayer {
     scene.master.gain.cancelScheduledValues(t);
     scene.master.gain.setValueAtTime(1, t);
     scene.master.gain.linearRampToValueAtTime(0, t + CROSSFADE_S);
-    const stopAt = t + CROSSFADE_S + 0.05;
-    for (const { src } of scene.tracks.values()) {
-      try {
-        src.stop(stopAt);
-      } catch {
-        /* already stopped */
-      }
-    }
+    this.teardown(scene, t + CROSSFADE_S + 0.05);
   }
 }
