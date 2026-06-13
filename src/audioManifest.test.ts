@@ -72,9 +72,10 @@ describe('flagship audio manifest', () => {
 describe('audioCredits — the player-facing CC-BY attribution (license compliance)', () => {
   it('returns the unique CC-BY music attributions + the Kenney CC0 SFX credit', () => {
     const c = audioCredits();
-    expect(c.music.length).toBe(2); // deduped from the 7 sources (Calm System + Cyberpunk Renaissance)
-    expect(c.music.some((l) => /Calm System/.test(l) && /Schematist/.test(l) && /CC BY/.test(l))).toBe(true);
-    expect(c.music.some((l) => /Cyberpunk Renaissance/.test(l) && /Punch Deck/.test(l) && /CC BY/.test(l))).toBe(true);
+    expect(c.music.length).toBe(5); // 4 distinct arena tracks + the Cyber Thriller boss track
+    expect(c.music.some((l) => /Magenta Metropolis/.test(l) && /CC BY/.test(l))).toBe(true);
+    expect(c.music.some((l) => /Cyberpunk Renaissance/.test(l) && /Punch Deck/.test(l))).toBe(true);
+    expect(c.music.some((l) => /Cyber Thriller/.test(l))).toBe(true);
     expect(c.sfx.some((l) => /Kenney/i.test(l) && /CC0/.test(l))).toBe(true);
   });
 });

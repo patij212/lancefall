@@ -3,8 +3,12 @@
 // mix-modulation cutoff, the procedural REACTIVE punctuation level, and the source bpm/key.
 // Reactive ≠ a procedural bed (Deep Dive B): authored carries the bed, procedural punctuates.
 
-import { sectionAt } from './musicTransport';
 import { sourceById, type MusicLayering, type MusicTrackKey } from './audioManifest';
+
+// The arena rotates through these 4 distinct energetic tracks, one per ROTATE_BARS-bar phase —
+// variety across a run, coherence within a phase, and the switch lands on a bar downbeat.
+const ARENA_POOL = ['aurora_verse', 'aurora_build', 'aurora_chorus', 'aurora_drop'] as const;
+const ARENA_ROTATE_BARS = 32;
 
 export interface BossMusicState {
   kind: string;
@@ -39,11 +43,9 @@ export function sourceFor(state: MusicDirectorState, absoluteBar: number): strin
     if (state.boss.hpFrac <= 0.34) return 'warden_enraged';
     return state.boss.kind === 'warden' && state.boss.phase === 1 ? 'warden_fan' : 'warden_spiral';
   }
-  const section = sectionAt(absoluteBar).section;
-  if (section === 'prechorus' || section === 'bridge') return 'aurora_build';
-  if (section === 'chorus') return 'aurora_chorus';
-  if (section === 'drop') return 'aurora_drop';
-  return 'aurora_verse';
+  // arena: rotate the distinct-track pool by run-progress; the loop cutoff (decideMusic) gives the
+  // intensity curve within each track, so variety comes from the pool, energy from the reactive open.
+  return ARENA_POOL[Math.floor(Math.max(0, absoluteBar) / ARENA_ROTATE_BARS) % ARENA_POOL.length];
 }
 
 /** Authored vertical layering per source shape. `loop` rides at full gain (its intensity comes

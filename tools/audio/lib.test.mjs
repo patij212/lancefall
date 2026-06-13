@@ -190,19 +190,13 @@ describe('validateManifestAssets — the build gate', () => {
     expect(errs.some((e) => /8 MB|budget/i.test(e))).toBe(true);
   });
 
-  it('flags a suite whose sources disagree on BPM or key (Deep Dive C)', () => {
-    const a = ok();
+  it('accepts an arena pool of DISTINCT-bpm sources (no shared-suite rule — the grid adapts)', () => {
+    const a = ok(); // 112 bpm
     const b = ok();
     b.id = 'aurora_chorus';
-    b.bpm = 100; // different tempo within the same suite
-    const errs = validateManifestAssets([a, b]);
-    expect(errs.some((e) => /aurora/.test(e) && /bpm/i.test(e))).toBe(true);
-  });
-
-  it('accepts a suite whose sources share BPM and key', () => {
-    const a = ok();
-    const b = ok();
-    b.id = 'aurora_chorus';
+    b.bpm = 120;
+    b.loopSeconds = 8.0; // 4 bars @ 120
+    b.trackDurations = { main: 8.0 };
     expect(validateManifestAssets([a, b])).toEqual([]);
   });
 });

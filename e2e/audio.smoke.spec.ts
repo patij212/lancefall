@@ -50,10 +50,10 @@ test('flagship audio: assets preload + the authored AURORA bed actually plays, n
     )
     .toBe(true);
 
-  // the started loop is an AURORA bed (~16.84s = 8 bars @ 114 BPM) — proves the whole chain:
-  // fetch → decode → director → LayerPlayer → looping playback.
+  // the started loop is an authored arena bed (8 bars @ 96–120 BPM ⇒ 16–20s) — proves the whole
+  // chain: fetch → decode → director → LayerPlayer → looping playback.
   const loopDurations = await page.evaluate(() => [...new Set((window as unknown as { __loopStarts: number[] }).__loopStarts)]);
-  expect(loopDurations.some((d) => Math.abs(d - 16.84) < 0.05)).toBe(true);
+  expect(loopDurations.some((d) => d >= 15 && d <= 21)).toBe(true);
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
@@ -65,9 +65,10 @@ test('audio credits screen lists the CC-BY attributions (license compliance surf
 
   const panel = page.locator('.screen-settings:not(.hidden)', { hasText: 'AUDIO CREDITS' });
   await expect(panel).toBeVisible();
-  await expect(panel).toContainText('Calm System');
+  await expect(panel).toContainText('Magenta Metropolis');
   await expect(panel).toContainText('Cyberpunk Renaissance');
-  await expect(panel).toContainText('CC BY 3.0');
+  await expect(panel).toContainText('Cyber Thriller');
+  await expect(panel).toContainText(/CC BY/);
   await expect(panel).toContainText(/Kenney/i);
   expect(errors, errors.join('\n')).toEqual([]);
 });

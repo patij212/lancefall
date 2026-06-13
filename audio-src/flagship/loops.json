@@ -1,13 +1,13 @@
 {
-  "//": "Curator record for the flagship audio loop-prep (Deep Dive C). AURORA = 4 loop regions of ONE song (Calm System, 114 BPM, CC-BY); WARDEN = 3 regions of ONE song (Cyberpunk Renaissance, 110 BPM, CC-BY) — a deliberate boss gear-change, both in the 100-128 band. Windows are auto-picked mid-track (avoid intro/outro); audition + adjust loopStartBar/loopEndBar to taste. Masters are gitignored; provenance.json + CREDITS.md carry the CC-BY attribution.",
+  "//": "Curator record (Deep Dive C). v2: a VARIED, HIGH-ENERGY pool — the arena rotates through 4 distinct energetic tracks (the director rotates by run-progress, not section, so no per-section tempo whiplash; the loop cutoff supplies the intensity curve within each). The boss is the dark/driving Cyber Thriller. Each track keeps its own BPM (adaptive beat grid); the old shared-BPM-per-suite rule no longer applies. Windows auto-picked mid-track; masters gitignored; provenance.json + CREDITS carry the CC-BY attribution per track.",
   "sources": [
-    { "id": "aurora_verse",  "suite": "aurora", "role": "verse",   "bpm": 114, "key": "A minor", "sourceWav": "audio-src/flagship/masters/calm-system.mp3",            "loopStartBar": 16, "loopEndBar": 24, "crossfadeMs": 40 },
-    { "id": "aurora_build",  "suite": "aurora", "role": "build",   "bpm": 114, "key": "A minor", "sourceWav": "audio-src/flagship/masters/calm-system.mp3",            "loopStartBar": 32, "loopEndBar": 40, "crossfadeMs": 40 },
-    { "id": "aurora_chorus", "suite": "aurora", "role": "chorus",  "bpm": 114, "key": "A minor", "sourceWav": "audio-src/flagship/masters/calm-system.mp3",            "loopStartBar": 48, "loopEndBar": 56, "crossfadeMs": 40 },
-    { "id": "aurora_drop",   "suite": "aurora", "role": "drop",    "bpm": 114, "key": "A minor", "sourceWav": "audio-src/flagship/masters/calm-system.mp3",            "loopStartBar": 64, "loopEndBar": 72, "crossfadeMs": 40 },
-    { "id": "warden_spiral", "suite": "warden", "role": "spiral",  "bpm": 110, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyberpunk-renaissance.mp3", "loopStartBar": 16, "loopEndBar": 24, "crossfadeMs": 40 },
-    { "id": "warden_fan",    "suite": "warden", "role": "fan",     "bpm": 110, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyberpunk-renaissance.mp3", "loopStartBar": 40, "loopEndBar": 48, "crossfadeMs": 40 },
-    { "id": "warden_enraged","suite": "warden", "role": "enraged", "bpm": 110, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyberpunk-renaissance.mp3", "loopStartBar": 64, "loopEndBar": 72, "crossfadeMs": 40 }
+    { "id": "aurora_verse",  "suite": "aurora", "role": "verse",   "bpm": 107, "key": "A minor", "sourceWav": "audio-src/flagship/masters/magenta-metropolis.mp3",    "loopStartBar": 24, "loopEndBar": 32, "crossfadeMs": 40 },
+    { "id": "aurora_build",  "suite": "aurora", "role": "build",   "bpm": 110, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyberpunk-renaissance.mp3", "loopStartBar": 24, "loopEndBar": 32, "crossfadeMs": 40 },
+    { "id": "aurora_chorus", "suite": "aurora", "role": "chorus",  "bpm": 120, "key": "A minor", "sourceWav": "audio-src/flagship/masters/afterglow-love.mp3",       "loopStartBar": 24, "loopEndBar": 32, "crossfadeMs": 40 },
+    { "id": "aurora_drop",   "suite": "aurora", "role": "drop",    "bpm": 96,  "key": "A minor", "sourceWav": "audio-src/flagship/masters/neon-drive.mp3",           "loopStartBar": 24, "loopEndBar": 32, "crossfadeMs": 40 },
+    { "id": "warden_spiral", "suite": "warden", "role": "spiral",  "bpm": 112, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyber-thriller.mp3",       "loopStartBar": 16, "loopEndBar": 24, "crossfadeMs": 40 },
+    { "id": "warden_fan",    "suite": "warden", "role": "fan",     "bpm": 112, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyber-thriller.mp3",       "loopStartBar": 40, "loopEndBar": 48, "crossfadeMs": 40 },
+    { "id": "warden_enraged","suite": "warden", "role": "enraged", "bpm": 112, "key": "A minor", "sourceWav": "audio-src/flagship/masters/cyber-thriller.mp3",       "loopStartBar": 64, "loopEndBar": 72, "crossfadeMs": 40 }
   ],
   "sfx": [
     { "id": "dash_fire", "variants": 3 },

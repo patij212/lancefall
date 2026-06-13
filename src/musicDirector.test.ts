@@ -7,12 +7,13 @@ const warden = (phase: number, hpFrac: number): MusicDirectorState => ({
 });
 
 describe('music director — horizontal source selection', () => {
-  it('maps the arena song-spine sections to AURORA sources', () => {
-    expect(sourceFor(arena(), 0)).toBe('aurora_verse'); // verse
-    expect(sourceFor(arena(), 8)).toBe('aurora_build'); // prechorus
-    expect(sourceFor(arena(), 16)).toBe('aurora_chorus'); // chorus
-    expect(sourceFor(arena(), 48)).toBe('aurora_build'); // bridge → the build
-    expect(sourceFor(arena(), 52)).toBe('aurora_drop'); // drop
+  it('rotates the arena through the distinct-track pool by run-progress (32-bar phases)', () => {
+    expect(sourceFor(arena(), 0)).toBe('aurora_verse'); // phase 0
+    expect(sourceFor(arena(), 31)).toBe('aurora_verse'); // still phase 0
+    expect(sourceFor(arena(), 32)).toBe('aurora_build'); // phase 1
+    expect(sourceFor(arena(), 64)).toBe('aurora_chorus'); // phase 2
+    expect(sourceFor(arena(), 96)).toBe('aurora_drop'); // phase 3
+    expect(sourceFor(arena(), 128)).toBe('aurora_verse'); // wraps
   });
 
   it('selects the WARDEN source from phase, then enrage at ≤34% HP', () => {
@@ -50,8 +51,8 @@ describe('music director — vertical decision for a loop source', () => {
   });
 
   it('carries the selected source bpm/key', () => {
-    expect(decideMusic(arena(), 0).bpm).toBe(114); // AURORA (Calm System, 114 BPM)
+    expect(decideMusic(arena(), 0).bpm).toBe(107); // arena phase 0 = Magenta Metropolis (107 BPM)
     expect(decideMusic(arena(), 0).key).toBe('A minor');
-    expect(decideMusic(warden(0, 1), 0).bpm).toBe(110); // WARDEN gear-change (Cyberpunk Renaissance)
+    expect(decideMusic(warden(0, 1), 0).bpm).toBe(112); // WARDEN = Cyber Thriller (112 BPM)
   });
 });

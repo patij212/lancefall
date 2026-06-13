@@ -128,18 +128,8 @@ export function validateManifestAssets(records, opts = {}) {
     }
   }
 
-  // Deep Dive C: every source within a suite must share BPM and key.
-  const bySuite = new Map();
-  for (const r of records) {
-    if (!bySuite.has(r.suite)) bySuite.set(r.suite, []);
-    bySuite.get(r.suite).push(r);
-  }
-  for (const [suite, group] of bySuite) {
-    const bpms = new Set(group.map((r) => r.bpm));
-    const keys = new Set(group.map((r) => r.key));
-    if (bpms.size > 1) errors.push(`suite "${suite}": sources disagree on BPM (${[...bpms].join(', ')})`);
-    if (keys.size > 1) errors.push(`suite "${suite}": sources disagree on key (${[...keys].join(', ')})`);
-  }
+  // (No shared-BPM-per-suite check: the arena is now a VARIED pool of distinct-tempo tracks by
+  //  design — the adaptive beat grid handles per-track BPM and switches land on bar downbeats.)
 
   const totalBytes = records.reduce((sum, r) => sum + (r.bytes ?? 0), 0);
   if (totalBytes > maxBytes) {

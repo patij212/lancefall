@@ -4,21 +4,24 @@ Every shipped asset under `public/audio/flagship/` is free-licensed and recorded
 `public/audio/flagship/provenance.json`. The **CC-BY** music below **requires attribution** — these
 lines must appear on the in-game credits screen before the flagship audio ships (Task 12/13).
 
-## Music — CC BY 3.0 (attribution required)
+## Music — CC BY (attribution required)
 
-- **AURORA arena** (`aurora_verse` / `aurora_build` / `aurora_chorus` / `aurora_drop`) — four loop
-  regions of **"Calm System" by Schematist**, 114 BPM.
-  Source: <https://www.free-stock-music.com/schematist-calm-system.html> — licensed under
-  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+The **AURORA arena** rotates through four distinct energetic tracks; the **WARDEN boss** is one dark
+track. Each was trimmed to a bar-aligned loop + loudness-normalised by `tools/audio/conform-flagship.mjs`
+(CC BY permits derivatives).
 
-- **WARDEN boss** (`warden_spiral` / `warden_fan` / `warden_enraged`) — three loop regions of
-  **"Cyberpunk Renaissance" by Punch Deck**, 110 BPM.
-  Source: <https://www.free-stock-music.com/punch-deck-cyberpunk-renaissance.html> — licensed under
-  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **"Magenta Metropolis"** by **FSM Team & \<e s c p\>** (107 BPM) — arena.
+  <https://www.free-stock-music.com/fsm-team-escp-magenta-metropolis.html> · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **"Cyberpunk Renaissance"** by **Punch Deck** (110 BPM) — arena.
+  <https://www.free-stock-music.com/punch-deck-cyberpunk-renaissance.html> · [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)
+- **"Afterglow Love"** by **FSM Team & \<e s c p\>** (120 BPM) — arena.
+  <https://www.free-stock-music.com/fsm-team-escp-afterglow-love.html> · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **"Neon Drive"** by **Punch Deck** (96 BPM) — arena.
+  <https://www.free-stock-music.com/punch-deck-neon-drive.html> · [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)
+- **"Cyber Thriller"** by **FSM Team & \<e s c p\>** (112 BPM) — WARDEN boss.
+  <https://www.free-stock-music.com/fsm-team-escp-cyber-thriller.html> · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
-Both tracks were trimmed to bar-aligned loop regions and loudness-normalised by
-`tools/audio/conform-flagship.mjs` (CC BY permits derivatives). The procedural **LANCE THEME** motif
-and beat layer remain original to LANCEFALL.
+The procedural **LANCE THEME** motif and beat layer remain original to LANCEFALL.
 
 ## SFX — CC0 (no attribution required)
 

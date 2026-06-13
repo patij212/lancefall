@@ -62,11 +62,17 @@ export interface AudioManifest {
 
 const codec = (base: string): CodecAssetSet => ({ opus: `${base}.ogg`, mp3: `${base}.mp3` });
 
-// Flagship music: AURORA arena + WARDEN boss. All ship as 8-bar `loop` sources (Deep Dive C),
-// loop-prepped by tools/audio/conform-flagship.mjs. `provenance.json` is the build-time source of
-// truth; the CC-BY credit lines below mirror it (and the in-game credits screen).
-const AURORA_CREDIT = '"Calm System" by Schematist (free-stock-music.com), licensed under CC BY 3.0';
-const WARDEN_CREDIT = '"Cyberpunk Renaissance" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0';
+// Flagship music: a VARIED, high-energy pool. The arena rotates through 4 DISTINCT energetic tracks
+// (musicDirector rotates by run-progress); the boss is the dark/driving Cyber Thriller. Each is its
+// own 8-bar CC-BY `loop` source with its OWN bpm (the beat grid adapts). `provenance.json` is the
+// build-time source of truth; the per-track credit lines below mirror it + the in-game credits screen.
+const CREDIT = {
+  magenta: '"Magenta Metropolis" by FSM Team & <e s c p> (free-stock-music.com), licensed under CC BY 4.0',
+  cyberpunk: '"Cyberpunk Renaissance" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0',
+  afterglow: '"Afterglow Love" by FSM Team & <e s c p> (free-stock-music.com), licensed under CC BY 4.0',
+  neon: '"Neon Drive" by Punch Deck (free-stock-music.com), licensed under CC BY 3.0',
+  cyberThriller: '"Cyber Thriller" by FSM Team & <e s c p> (free-stock-music.com), licensed under CC BY 4.0',
+};
 const loopSource = (
   id: string, suite: MusicSuite, role: string, bpm: number, key: string, attribution: string,
 ): MusicSourceManifest => ({
@@ -81,15 +87,15 @@ const variants = (id: string, n: number): CodecAssetSet[] =>
 export const FLAGSHIP_AUDIO_MANIFEST: AudioManifest = {
   version: 1,
   music: [
-    // AURORA — four loop regions of ONE song (Calm System, 114 BPM); share BPM + key (Deep Dive C).
-    loopSource('aurora_verse', 'aurora', 'verse', 114, 'A minor', AURORA_CREDIT),
-    loopSource('aurora_build', 'aurora', 'build', 114, 'A minor', AURORA_CREDIT),
-    loopSource('aurora_chorus', 'aurora', 'chorus', 114, 'A minor', AURORA_CREDIT),
-    loopSource('aurora_drop', 'aurora', 'drop', 114, 'A minor', AURORA_CREDIT),
-    // WARDEN — three regions of one boss song (Cyberpunk Renaissance, 110 BPM); a deliberate gear-change.
-    loopSource('warden_spiral', 'warden', 'spiral', 110, 'A minor', WARDEN_CREDIT),
-    loopSource('warden_fan', 'warden', 'fan', 110, 'A minor', WARDEN_CREDIT),
-    loopSource('warden_enraged', 'warden', 'enraged', 110, 'A minor', WARDEN_CREDIT),
+    // AURORA arena — 4 DISTINCT energetic tracks, rotated by run-progress (musicDirector.sourceFor).
+    loopSource('aurora_verse', 'aurora', 'verse', 107, 'A minor', CREDIT.magenta),     // Magenta Metropolis
+    loopSource('aurora_build', 'aurora', 'build', 110, 'A minor', CREDIT.cyberpunk),    // Cyberpunk Renaissance
+    loopSource('aurora_chorus', 'aurora', 'chorus', 120, 'A minor', CREDIT.afterglow),  // Afterglow Love
+    loopSource('aurora_drop', 'aurora', 'drop', 96, 'A minor', CREDIT.neon),            // Neon Drive
+    // WARDEN boss — the dark/driving Cyber Thriller (3 escalating loop regions).
+    loopSource('warden_spiral', 'warden', 'spiral', 112, 'A minor', CREDIT.cyberThriller),
+    loopSource('warden_fan', 'warden', 'fan', 112, 'A minor', CREDIT.cyberThriller),
+    loopSource('warden_enraged', 'warden', 'enraged', 112, 'A minor', CREDIT.cyberThriller),
   ],
   sfx: [
     { id: 'dash_fire', gain: 0.55, priority: 2, maxVoices: 3, variants: variants('dash_fire', 3) },
