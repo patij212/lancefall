@@ -80,7 +80,8 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 - `src/layerPlayer.ts` (+ `.test.ts`) — aligned N-track playback (N=1/2/3/6) + equal-power crossfades.
 - `src/sampleSfx.ts` (+ `.test.ts`) — priority/voice-limited sampled SFX, injected RNG.
 - `src/hybridMusic.ts` (+ `.test.ts`) — orchestration facade; routes vertical layering to authored stems where present, procedural where not.
-- `tools/audio/conform-flagship.mjs` — time-stretch each music master to its target grid, bar-trim to a clean loop, loudness-normalize.
+- `tools/audio/conform-flagship.mjs` — **loop-prep** (Deep Dive C): bar-trim each master to an integer-bar loop at its own bpm, bake a crossfade seam, loudness-normalize (stretch only on demand).
+- `audio-src/flagship/loops.json` — per-source curator record (bpm, key, loop bars, crossfade) the conform step reads.
 - `tools/audio/encode-flagship.mjs` — WAV → Opus(.ogg) + MP3.
 - `tools/audio/validate-flagship.mjs` — names, alignment, codecs, **license/provenance gate**, budget.
 - `docs/audio/flagship-sourcing-brief.md` — curation brief + the exact source shortlist.
@@ -163,10 +164,11 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 
 **Files:** Create the three `tools/audio/*.mjs`; modify `package.json`.
 
-- [ ] `conform-flagship.mjs` — for each music master: detect/accept its source BPM, **time-stretch
-  to the manifest's target BPM** (`rubberband -t <ratio>`; fallback `ffmpeg atempo`), trim to an
-  integer-bar loop, and loudness-normalize (`ffmpeg loudnorm` toward the manifest LUFS). Writes
-  conformed WAVs and sets `conformed: true`. SFX are normalized but not stretched.
+- [ ] `conform-flagship.mjs` — **loop-prep, not tempo-lock** (Deep Dive C): per the curator's
+  `loops.json`, trim each master to an **integer-bar loop at its OWN bpm** (zero-crossing snapped),
+  bake an equal-power **crossfade seam** (`crossfadeMs`), loudness-normalise (`ffmpeg loudnorm`), set
+  `conformed: true`, and **only** `rubberband`-stretch when `stretchTo` is set (rare outlier). SFX
+  normalised, not stretched.
 - [ ] `encode-flagship.mjs` — `libopus -b:a 112k` (.ogg) and `libmp3lame -b:a 160k` (.mp3), 48 kHz,
   mirrored under `public/audio/flagship`; exit non-zero on first failure.
 - [ ] `validate-flagship.mjs` — must FAIL on: missing master/runtime asset; non-48 kHz; per-source
@@ -183,9 +185,10 @@ BPM) is a pure function of music-state; audio playback may lag behind while asse
 
 **Files:** `audio-src/flagship/**` (gitignored masters), `public/audio/flagship/**` (committed runtime), `public/audio/flagship/provenance.json`, `docs/audio/CREDITS.md`.
 
-- [ ] **Curate** from the Task 0 shortlist: one cohesive AURORA bed family (verse/build/chorus/drop
-  can be sections of one track or 2–4 related tracks) and one WARDEN bed family (spiral/fan/enraged).
-  Prefer Pixabay/CC0 to minimise attribution; record **every** pick in `provenance.json`.
+- [ ] **Curate** from the Task 0 shortlist, **sharing BPM + key within a suite** (Deep Dive C): AURORA's
+  verse/build/chorus/drop as loop regions of ONE song (or a same-BPM/key family); WARDEN as its own family
+  (a deliberate boss gear-change, BPM kept in the ~100–128 band). Prefer Pixabay/CC0 to minimise
+  attribution; fill `loops.json` (bpm/key/loop bars/crossfade) and record **every** pick in `provenance.json`.
 - [ ] **Conform + encode + validate** (`npm run audio:conform && audio:encode && audio:validate`).
   Expect: all sources tempo-locked to their manifest BPM, integer-bar loops, provenance complete,
   ≤ 8 MB total.
@@ -505,6 +508,52 @@ All of it lives in `audio.ts` + `frame()` — the cosmetic/audio layer. Per Deep
 `step()`/`world`/seeded RNG, so it can't perturb Daily. The only risk is *musical coherence* (does the
 reactive motif land in time; does the loop mix-modulation read as intensity), which the listening gate
 (Task 3 Step 4 / Task 13) exists to catch.
+
+---
+
+## Deep Dive C — Free-Track Loopability & the Conform Pipeline (it's loop-prep, not tempo-locking)
+
+*Corrects v2's conform step, which over-emphasised "time-stretch every track to 112."*
+
+### Two realities v2 glossed over
+1. **Free full-tracks are songs, not loops.** A Pixabay/CC-BY synthwave track has an intro, builds, and
+   an ending — naively looping it clicks at the seam and replays the intro. We must **extract a
+   bar-aligned, sustained loop region** (usually the main groove/chorus, ~8–16 bars) and make its seam
+   seamless.
+2. **Adaptive per-track tempo (Decision 2) removes the need to stretch to 112.** Each source keeps its
+   own BPM and the beat grid adapts (Deep Dive A). So **conform = loop-preparation, not tempo-locking.**
+   Time-stretch becomes an *optional curation tool* (only to pull a rare outlier into a comfortable band),
+   not a mandatory step that would smear every track's transients.
+
+### Conform = loop-prep (corrected pipeline)
+Per source, the curator supplies a small `audio-src/flagship/loops.json` record:
+`{ id, sourceWav, bpm, key, loopStartBar, loopEndBar, crossfadeMs, gainDb?, stretchTo? }`.
+`conform-flagship.mjs` then deterministically:
+1. Trims `[loopStartBar, loopEndBar)` to an **integer number of bars at `bpm`** (`loopSeconds =
+   bars·(60/bpm)·4`), snapping cut points to the nearest **zero-crossing** to avoid clicks.
+2. **Bakes an equal-power crossfade** of `crossfadeMs` (~20–60 ms) by overlapping the tail into the head,
+   so the seam has matched energy (LayerPlayer then loops it cleanly, `loopStart=0`, `loopEnd=loopSeconds`).
+3. Loudness-normalises toward the manifest LUFS.
+4. **Only if `stretchTo` is set**, `rubberband`-stretches (transient-preserving) — the rare outlier, never
+   the default.
+
+### Curation constraints (so adaptive tempo reads as intensity, not whiplash)
+- **Within a suite, share BPM + key.** AURORA's `verse/build/chorus/drop` should be loop regions of **one
+  song** (or a same-BPM/key family); otherwise switching sections mid-arena shifts tempo/key audibly. The
+  WARDEN suite may sit at a different BPM (a deliberate boss gear-change), but keep all arena↔boss BPMs in
+  a curated band (~100–128).
+- Prefer tracks with an obvious sustained groove section (most synthwave has one).
+
+### Validator additions (`validate-flagship.mjs`)
+- `loopSeconds` is an integer-bar length at the source `bpm` (±10 ms).
+- **Seam energy:** start/end-sample RMS difference under threshold and both near a zero-crossing.
+- 48 kHz; budget ≤ 8 MB; provenance present + allowed license; **shared `bpm`/`key` across a suite's sources.**
+
+### Net effect on the plan
+- **Task 2** conform = loop-prep (trim-to-bar + crossfade seam + normalise); stretch optional.
+- **Task 3** acquire = curate per the same-BPM/key-within-a-suite rule, fill `loops.json`; the listening
+  gate explicitly checks **seam seamlessness** and that section switches don't click.
+Less processing per asset (no forced stretch) and a more honest model of what free music actually is.
 
 ---
 
