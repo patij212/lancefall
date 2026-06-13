@@ -191,12 +191,36 @@
     if (crowd >= 3) hard = true; // surrounded → punch out now
     if (crowd > 0) { mvx -= (cgx / crowd) * 0.004; mvy -= (cgy / crowd) * 0.004; } // steer off the crowd centroid
     if (boss && beamHits(boss, p.x, p.y, R)) hard = true;
-    // proactively slide OUT of the beacon's sweeping beam line (don't just react once caught)
+    // BEAMS — the #1 boss killer. They telegraph (subPhase 0) before going lethal
+    // (subPhase 1), and the line(s) ROTATE the whole time. So dodge the path DURING
+    // the telegraph: predict where each beam will be at fire-time (angle + spin·remaining)
+    // and slide perpendicular into a safe wedge before it's lethal.
     const tf0 = bot.threatFns;
-    if (boss && boss.kind === 'beacon' && tf0 && tf0.beaconBeamActive(boss)) {
+    if (boss && tf0 && boss.phase === 0 && (boss.subPhase === 0 || boss.subPhase === 1)) {
       const bdx = p.x - boss.x, bdy = p.y - boss.y;
-      const sign = (bdx * -Math.sin(boss.angle) + bdy * Math.cos(boss.angle)) >= 0 ? 1 : -1;
-      mvx += -Math.sin(boss.angle) * sign * 2.2; mvy += Math.cos(boss.angle) * sign * 2.2;
+      const lead = boss.subPhase === 0 ? boss.fireTimer : 0; // telegraph → look ahead to fire-time
+      if (boss.kind === 'beacon') {
+        const a = boss.angle + tf0.BEACON.sweepSpin * lead;
+        const perp = bdx * -Math.sin(a) + bdy * Math.cos(a);
+        if (Math.abs(perp) < tf0.BEACON.beamWidth / 2 + R + 65) {
+          const s = perp >= 0 ? 1 : -1;
+          mvx += -Math.sin(a) * s * 2.8; mvy += Math.cos(a) * s * 2.8;
+          if (boss.subPhase === 1) hard = true; // already live and we're in it → dash out NOW
+        }
+      } else if (boss.kind === 'sovereign') {
+        const arms = tf0.SOVEREIGN.beamArms, half = tf0.SOVEREIGN.beamWidth / 2 + R + 60;
+        for (let k = 0; k < arms; k++) {
+          const a = boss.angle + tf0.SOVEREIGN.beamSpin * lead + (k * Math.PI) / arms;
+          const perp = bdx * -Math.sin(a) + bdy * Math.cos(a);
+          if (Math.abs(perp) < half) {
+            const s = perp >= 0 ? 1 : -1;
+            mvx += -Math.sin(a) * s * 2.0; mvy += Math.cos(a) * s * 2.0;
+            if (boss.subPhase === 1) hard = true;
+          }
+        }
+        const bd = Math.hypot(bdx, bdy) || 1;
+        if (bd < 210) { mvx += (bdx / bd) * 1.4; mvy += (bdy / bd) * 1.4; } // leave the convergent centre where every arm is close
+      }
     }
 
     // ── dash decision (survive first: an escape dash also spears & thins the crowd) ──
