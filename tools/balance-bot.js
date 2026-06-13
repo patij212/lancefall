@@ -39,6 +39,7 @@
         beaconBeamActive: b.beaconBeamActive,
         sovereignBeamActive: sv.sovereignBeamActive,
         beamHitsPoint: sv.beamHitsPoint,
+        sovereignBodyArmored: sv.sovereignBodyArmored,
         BEACON: t.BEACON, SOVEREIGN: t.SOVEREIGN,
       };
     })
@@ -58,6 +59,21 @@
     const y = Math.max(0, Math.min(1, (len - 180) / 380));
     return Math.max(0, Math.min(1, 1 - Math.sqrt(1 - y)));
   };
+  // Draft smart, not card #0. For a winnable boss gauntlet the build is half the
+  // fight: more dash DAMAGE (kill bosses faster) + more STAMINA (dodge + joust more).
+  const PERK_PRIORITY = ['secondwind', 'pierce', 'longreach', 'siphon', 'grazeburn', 'timethief', 'nova', 'chain', 'slipstream', 'afterimage', 'reflect', 'shardcache'];
+  const pickPerk = () => {
+    const cards = lf.draftCards || [];
+    if (!cards.length) return 0;
+    let bestIdx = 0, bestRank = 1e9;
+    for (let i = 0; i < cards.length; i++) {
+      const r = PERK_PRIORITY.indexOf(cards[i].id);
+      const rank = r < 0 ? 999 : r;
+      if (rank < bestRank) { bestRank = rank; bestIdx = i; }
+    }
+    return bestIdx;
+  };
+
   const beamHits = (b, x, y, R) => {
     const tf = bot.threatFns; if (!tf || !b) return false;
     if (b.kind === 'beacon' && tf.beaconBeamActive(b)) {
@@ -71,10 +87,12 @@
   };
 
   // Score sampled dash landing spots; return {aimX, aimY, charge} for the best.
-  // A good landing is OPEN (far from enemies — escapes the swarm), clear of where
-  // bullets will be after the i-frames lapse, off the walls, and ideally spears a
-  // few enemies on the way through.
-  function bestDash(p, w, bullets, enemies, boss, R, lens) {
+  // Two modes:
+  //  • escape (default): land OPEN — far from EVERY threat incl. the boss — clear of
+  //    where bullets will be after the i-frames lapse, off the walls. Pure survival.
+  //  • joust: a long dash that spears THROUGH the boss and lands in open space
+  //    BEYOND it. Only used in safe windows; this is how bosses actually die.
+  function bestDash(p, w, bullets, enemies, boss, R, lens, joust, bossHittable) {
     const DIRS = 20;
     let best = { aimX: p.x + 100, aimY: p.y, charge: 0 }, bestS = -1e18;
     for (let li = 0; li < lens.length; li++) {
@@ -97,18 +115,21 @@
         for (let ei = 0; ei < enemies.length; ei++) {
           const e = enemies[ei]; if (!e.active) continue;
           const dl = Math.hypot(lx - e.x, ly - e.y);
-          if (dl < nearestE) nearestE = dl;
-          if (dl < e.radius + R + 16) sc -= 60; // do NOT land on a body
-          if (!e.isBoss && segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) kills++;
+          if (!e.isBoss) {
+            if (e.kind !== 'sovereign_core' && dl < nearestE) nearestE = dl;
+            if (segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) kills++; // spear chaff / cores
+          } else if (dl < e.radius + R + 16) {
+            sc -= 60; // never LAND on the boss body
+          }
         }
-        sc += Math.min(nearestE, 200) * 0.45; // OPENNESS — the big one: land away from the swarm
-        sc += kills * 14;
-        if (boss) {
-          // dashing THROUGH the boss spears it (i-frames make it safe) — grind it
-          // down while we dodge, so the fight actually ends instead of going forever
-          if (segDist(boss.x, boss.y, p.x, p.y, lx, ly) < boss.radius + 24) sc += 12;
-          if (beamHits(boss, lx, ly, R)) sc -= 1000;
-        }
+        if (!joust && boss) { const bd = Math.hypot(lx - boss.x, ly - boss.y); if (bd < nearestE) nearestE = bd; } // escape flees the boss too
+        sc += Math.min(nearestE, 220) * 0.45; // OPENNESS
+        sc += kills * 15;
+        // SPEAR through the boss body — but ONLY when it can take damage (the
+        // Sovereign's body is armored until its cores are shattered + it's cracked
+        // open; while armored we let the core kill-bonus pull dashes onto the cores).
+        if (joust && boss && bossHittable && segDist(boss.x, boss.y, p.x, p.y, lx, ly) < boss.radius + 26) sc += 55;
+        if (boss && beamHits(boss, lx, ly, R)) sc -= 1000;
         if (sc > bestS) { bestS = sc; best = { aimX: p.x + ux * 1000, aimY: p.y + uy * 1000, charge: chargeForLen(len) }; }
       }
     }
@@ -119,7 +140,8 @@
     const s = lf.input.state;
     s.pausePressed = false; s.overdrivePressed = false; s.anyPressed = false; s.selectIndex = -1;
     const st = lf.state;
-    if (st === 'draft' || st === 'event') { s.selectIndex = 0; s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
+    if (st === 'draft') { s.selectIndex = pickPerk(); s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
+    if (st === 'event') { s.selectIndex = 0; s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
     if (st !== 'playing') { s.moveX = s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
 
     const w = lf.world, p = w.player, R = p.radius;
@@ -148,11 +170,12 @@
     if (threatN >= 3) hard = true; // multiple shots closing → dash THROUGH on i-frames
 
     // ── enemies: body avoidance, crowd pressure, nearest target, boss ──
-    const E = w.enemies.items; let nE = null, nED = 1e9, boss = null, crowd = 0, cgx = 0, cgy = 0;
+    const E = w.enemies.items; let nE = null, nED = 1e9, boss = null, bossDist = 1e9, crowd = 0, cgx = 0, cgy = 0, coresLeft = 0;
     for (let i = 0; i < E.length; i++) {
       const e = E[i]; if (!e.active) continue;
       const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
-      if (e.isBoss) boss = e;
+      if (e.isBoss) { boss = e; bossDist = d; }
+      if (e.kind === 'sovereign_core') coresLeft++;
       if (d < 130) { crowd++; cgx += dx; cgy += dy; }
       const al = d || 1;
       if (d < e.radius + R + 26) {
@@ -165,23 +188,42 @@
     if (crowd >= 3) hard = true; // surrounded → punch out now
     if (crowd > 0) { mvx -= (cgx / crowd) * 0.004; mvy -= (cgy / crowd) * 0.004; } // steer off the crowd centroid
     if (boss && beamHits(boss, p.x, p.y, R)) hard = true;
+    // proactively slide OUT of the beacon's sweeping beam line (don't just react once caught)
+    const tf0 = bot.threatFns;
+    if (boss && boss.kind === 'beacon' && tf0 && tf0.beaconBeamActive(boss)) {
+      const bdx = p.x - boss.x, bdy = p.y - boss.y;
+      const sign = (bdx * -Math.sin(boss.angle) + bdy * Math.cos(boss.angle)) >= 0 ? 1 : -1;
+      mvx += -Math.sin(boss.angle) * sign * 2.2; mvy += Math.cos(boss.angle) * sign * 2.2;
+    }
 
     // ── dash decision (survive first: an escape dash also spears & thins the crowd) ──
     const canDash = p.stamina >= DASH_COST - 1;
     let wantDash = false, aimX = 0, aimY = 0, charge = 0;
-    // All dashes fire near-instantly (charge≈0). The charge window is unguarded —
-    // no i-frames, 55% move speed — so a slow charge is exactly where the bot dies.
-    // A min-length dash still grants the FULL i-frame window; direction matters, not
-    // length. Offence only fires at near-full stamina in total calm, so escapes
-    // (which also spear the crowd / chip the boss) always have a reserve.
+    // The Sovereign's body only takes damage when EXPOSED, or — to crack it open —
+    // once every orbiting core is shattered. Every other boss is always hittable.
+    const bossHittable = !boss ? false
+      : boss.kind !== 'sovereign' ? true
+      : ((tf0 && !tf0.sovereignBodyArmored(boss)) || coresLeft === 0);
+    // Escape/min dashes fire instantly (no i-frames while charging); only the JOUST
+    // takes a real charge, and only in a clear window where that's safe.
     if (canDash && hard) {
-      const bd = bestDash(p, w, near, E, boss, R, [190]); // openest safe hop, fired NOW
+      const bd = bestDash(p, w, near, E, boss, R, [190], false, bossHittable); // escape NOW — flee to the openest spot
       aimX = bd.aimX; aimY = bd.aimY; charge = 0; wantDash = true;
       bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = 0;
-    } else if (bot.committed && p.phase === 'charging') {
+    } else if (bot.committed && p.phase === 'charging' && threatN < 2) {
+      // keep charging the joust — but if a wall starts to form, drop out (this frame
+      // releases the dash early: a shorter spear now beats eating shots while slow)
       aimX = bot.aimX; aimY = bot.aimY; charge = bot.charge; wantDash = true;
-    } else if (canDash && p.stamina >= DASH_COST * 2.9 && crowd === 0 && threatN === 0 && ((nE && nED < 420) || (boss && !nE))) {
-      const bd = bestDash(p, w, near, E, boss, R, [190]); // calm only: thin the field / chip the boss
+    } else if (canDash && boss && p.stamina >= DASH_COST * 2.9 && threatN === 0 && !hard && bossDist < 360) {
+      // JOUST — only in a genuinely clear window (no shots closing, ≥1 charge held
+      // back): a LONG dash that spears through the boss and lands in open space
+      // beyond it. A real charge, but a hard threat appearing mid-charge aborts to
+      // an escape (the hard branch above overrides the commit).
+      const bd = bestDash(p, w, near, E, boss, R, [300, 400], true, bossHittable);
+      aimX = bd.aimX; aimY = bd.aimY; charge = bd.charge; wantDash = true;
+      bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = bd.charge;
+    } else if (canDash && p.stamina >= DASH_COST * 2.9 && crowd === 0 && threatN === 0 && nE && nED < 420) {
+      const bd = bestDash(p, w, near, E, boss, R, [190], false, bossHittable); // calm only: thin the field
       aimX = bd.aimX; aimY = bd.aimY; charge = 0; wantDash = true;
       bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = 0;
     } else {
@@ -200,6 +242,8 @@
       if (!tgt) { const G = w.gems.items; for (let i = 0; i < G.length; i++) { const g = G[i]; if (!g.active) continue; const d = Math.hypot(g.x - p.x, g.y - p.y); if (d < td) { td = d; tgt = g; } } }
       if (tgt) { mvx += (tgt.x - p.x) / Math.max(1, td) * 0.6; mvy += (tgt.y - p.y) / Math.max(1, td) * 0.6; }
     }
+    // engage: hold a medium range — close enough to joust, not hugging the fire
+    if (boss && bossDist > 280 && !hard) { mvx += (boss.x - p.x) / bossDist * 0.5; mvy += (boss.y - p.y) / bossDist * 0.5; }
     let ml = Math.hypot(mvx, mvy); if (ml > 1) { mvx /= ml; mvy /= ml; }
     s.moveX = mvx; s.moveY = mvy;
 
