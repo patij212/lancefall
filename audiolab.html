@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
     <title>LANCEFALL · AUDIO LAB</title>
     <style>
       :root {
@@ -40,6 +41,16 @@
       input[type="range"] { width: 100%; accent-color: var(--neon); }
       select { background: #1a1e30; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; }
       .hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
+      .wave { width: 100%; height: 90px; border: 1px solid var(--line); border-radius: 8px; display: block; cursor: pointer; margin-bottom: 8px; background: #1b2236; }
+      .nowlabel { color: var(--neon); font-size: 12px; }
+      .setting-toggle { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+      .layergrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px; }
+      .layerrow { display: flex; align-items: center; gap: 6px; background: #1a1e30; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+      .layername { flex: 1; color: var(--ink); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+      button.ms { padding: 3px 9px; min-width: 30px; font-weight: 700; }
+      button.ms.on { background: #f87171; color: #1a0606; border-color: #f87171; }
+      button.ms.solo.on { background: #fde047; color: #1a1606; border-color: #fde047; }
+      select { background: #1a1e30; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; margin-bottom: 8px; }
       .pill { display: inline-block; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; }
       #gate {
         position: fixed; inset: 0; background: rgba(5, 6, 14, 0.94); display: grid; place-items: center; z-index: 9;

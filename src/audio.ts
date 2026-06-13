@@ -135,6 +135,7 @@ export class AudioEngine {
     coherenceTo?: number; // if set, coherence ramps coherence→coherenceTo across the render
     heatTo?: number;
     tierTo?: number;
+    startBar?: number; // render starting at this absolute bar (preview a specific section)
   }): Promise<AudioBuffer> {
     const sr = opts.sampleRate ?? 44100;
     const seconds = Math.max(1, opts.seconds);
@@ -154,14 +155,16 @@ export class AudioEngine {
     const tier0 = opts.tier ?? 0;
     const sixteenth = 60 / this.bpm / 4;
     const steps = Math.ceil(seconds / sixteenth);
+    const startStep = (opts.startBar ?? 0) * 16; // preview a specific section
     const lerp = (a: number, b: number | undefined, u: number) => (b == null ? a : a + (b - a) * u);
-    this.musicStep = 0;
+    this.musicStep = startStep;
     this.musicEpoch = 0;
-    for (let step = 0; step < steps; step++) {
-      const u = steps > 1 ? step / (steps - 1) : 0; // 0..1 progress (for optional ramps)
+    for (let i = 0; i < steps; i++) {
+      const step = startStep + i; // ABSOLUTE step → sectionAt() reads the right section
+      const u = steps > 1 ? i / (steps - 1) : 0; // 0..1 progress (for optional ramps)
       this.setIntensity(lerp(heat0, opts.heatTo, u));
       if (step % 16 === 0) this.setCoherence(lerp(coh0, opts.coherenceTo, u), Math.round(lerp(tier0, opts.tierTo, u)));
-      this.playStep(step, step * sixteenth + 0.001);
+      this.playStep(step, i * sixteenth + 0.001); // clip starts at t=0
     }
     return await octx.startRendering();
   }
@@ -1053,6 +1056,35 @@ export class AudioEngine {
     return this.track.id;
   }
 
+  // ── DEV: per-layer solo / mute (the audio lab). Scheduler-level flags — muting a
+  //    layer just skips scheduling it (takes effect within a beat); no bus re-routing. ──
+  static readonly LAYER_NAMES = ['kick', 'perc', 'bass', 'pad', 'drone', 'choir', 'arp', 'riff', 'hook', 'delay', 'boss'] as const;
+  private mutedLayers = new Set<string>();
+  private soloedLayer: string | null = null;
+  /** Whether a named layer should currently sound (respects solo, then mute). */
+  private layerOn(name: string): boolean {
+    return this.soloedLayer ? this.soloedLayer === name : !this.mutedLayers.has(name);
+  }
+  get layerNames(): readonly string[] {
+    return AudioEngine.LAYER_NAMES;
+  }
+  layerState(name: string): { muted: boolean; soloed: boolean } {
+    return { muted: this.mutedLayers.has(name), soloed: this.soloedLayer === name };
+  }
+  setLayerMute(name: string, muted: boolean): void {
+    if (muted) this.mutedLayers.add(name);
+    else this.mutedLayers.delete(name);
+    this.refreshLayerSends();
+  }
+  setLayerSolo(name: string | null): void {
+    this.soloedLayer = name;
+    this.refreshLayerSends();
+  }
+  /** Send/sustained layers can't be gated per-note, so set their gain on toggle. */
+  private refreshLayerSends(): void {
+    if (this.leadDelaySend) this.leadDelaySend.gain.value = this.layerOn('delay') ? 1 : 0;
+  }
+
   /** THE ONE BUS (audio half) — Coherence 0..1 + combo tier together bloom the
    *  lone drone into a 4-voice chord, open the filter, transpose the root, and
    *  crossfade a choir pad in past the onset. Cosmetic: never touches world.rng. */
@@ -1070,12 +1102,13 @@ export class AudioEngine {
       const base = [55, 82.5, 110, 165];
       this.drone.forEach((v, i) => v.osc.frequency.setTargetAtTime(base[i] * mul, t, CA.transposeGlide));
     }
-    // (b) LONE-DRONE → 4-VOICE bloom (sole owner of these gains now)
+    // (b) LONE-DRONE → 4-VOICE bloom (sole owner of these gains now). 'drone' layer muteable.
+    const dOn = this.layerOn('drone');
     const g = [0.16, k > 0.3 ? 0.1 * k : 0.0001, k > 0.5 ? 0.09 * k : 0.0001, k > 0.72 ? 0.07 * k : 0.0001];
-    this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(g[i], t, CA.droneGlide));
+    this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(dOn ? g[i] : 0.0001, t, CA.droneGlide));
     this.droneFilter.frequency.setTargetAtTime(700 + k * CA.filterBloom, t, CA.filterGlide);
-    // (c) CHOIR pad blooms past the onset
-    this.setChoir(Math.max(0, (k - CA.choirOnset) / (1 - CA.choirOnset)));
+    // (c) CHOIR pad blooms past the onset ('choir' layer muteable)
+    this.setChoir(this.layerOn('choir') ? Math.max(0, (k - CA.choirOnset) / (1 - CA.choirOnset)) : 0);
     // (d) THE LANCE THEME lead — gate its gain + open its filter past leadOnset, so
     //     the earworm hook is the audible REWARD of a clean (high-coherence) run.
     if (this.hookGain && this.hookFilter) {
@@ -1225,19 +1258,21 @@ export class AudioEngine {
 
     // L1 KICK — the entrainment anchor; the bridge runs half-time for contrast.
     const kickOn = inBridge ? pos.sixteenthInBar === 0 || pos.sixteenthInBar === 8 : tr.kickSteps.includes(pos.sixteenthInBar);
-    if (kickOn) {
+    if (kickOn && this.layerOn('kick')) {
       this.kick(t, 0.16 * this.humGain(0.06));
       this.pump(t);
     }
 
     // L1 BASS — always; the offbeat hot-push only in busy (non-bridge) sections.
-    if (tr.bassSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain);
-    else if (!inBridge && heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar))
-      this.bassNote(t, bassF, tr.bassGain * 0.6);
+    if (this.layerOn('bass')) {
+      if (tr.bassSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain);
+      else if (!inBridge && heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar))
+        this.bassNote(t, bassF, tr.bassGain * 0.6);
+    }
 
     // L1.6 MOVING CHORD PAD — the REAL chord (triad → maj7/9 → Picardy by coherence),
     // register-capped to the pad slot. The harmonic backbone; once per bar, always present.
-    if (pos.sixteenthInBar === 0) this.padChord(t, 16 * sixteenth, chord);
+    if (pos.sixteenthInBar === 0 && this.layerOn('pad')) this.padChord(t, 16 * sixteenth, chord);
 
     // ── BUILD → DROP (one clock, quantized to bars): a riser + accelerating fill in the
     //    last bar before a chorus, an IMPACT on the chorus/drop downbeat. ──
@@ -1250,7 +1285,7 @@ export class AudioEngine {
 
     // L1.5 RIFF — the always-on baseline groove (verse/pre), but it STEPS BACK in the
     //    chorus (where the hook sings) and DROPS in the bridge, so it never piles on the lead.
-    if (tr.riff.length && !inBridge && !inChorus) {
+    if (tr.riff.length && !inBridge && !inChorus && this.layerOn('riff')) {
       for (const n of notesAt(tr.riff, pos.sixteenthInBar))
         this.riffNote(t, themeFreq(n, this.rootMul), n.dur * sixteenth, tr.riffGain * n.vel);
     }
@@ -1259,7 +1294,7 @@ export class AudioEngine {
     //    stays sparse (no arp) and the bridge drops it — the core de-clutter.
     const onArp =
       (building || inChorus) && heat > tr.arpHeat && pos.sixteenthInBar % 2 === 1 && (heat > 0.6 || pos.sixteenthInBar % 4 === 1);
-    if (onArp) {
+    if (onArp && this.layerOn('arp')) {
       const idx = Math.floor(step / 2) % AudioEngine.ARP.length;
       const base = PENTA[AudioEngine.ARP[idx] % PENTA.length];
       const freq = (this.bossArp ? base * this.bossArpMul : base) * this.rootMul;
@@ -1269,22 +1304,24 @@ export class AudioEngine {
     // L3 LEAD — boss MOTIF during a fight (any section); otherwise the HOOK, which now
     //    plays ONLY in the chorus (it IS the chorus) and is still gated by coherence on
     //    top (low flow = quiet/absent). The bridge drops the lead entirely (contrast).
-    if (this.bossArp && this.bossMotif) {
+    if (this.bossArp && this.bossMotif && this.layerOn('boss')) {
       if (pos.sixteenthInBar % 2 === 0) {
         const idx = this.bossMotif[pos.sixteenthInBar / 2] ?? -1;
         if (idx >= 0) this.bossMotifNote(t, PENTA[idx] * this.bossMotifOct * this.rootMul, sixteenth * 1.7, this.bossMotifGain);
       }
-    } else if (inChorus && coh > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
+    } else if (inChorus && coh > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter && this.layerOn('hook')) {
       for (const n of notesAt(tr.theme, pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul), n.dur * sixteenth, n.vel);
     }
 
     // L5 PERC — hats build in the pre-chorus, full in the chorus; ghost snare from the
     //    pre-chorus up; the CLAP only thickens the chorus backbeat. The bridge stays sparse.
-    if (!inBridge && (building || inChorus) && heat > tr.hatHeat * (building ? 1 : 0.7) && pos.sixteenthInBeat === 2)
-      this.hat(t, 0.05 * this.humGain());
-    if (!inBridge && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) {
-      if ((building || inChorus) && heat > tr.snareHeat) this.ghostSnare(t);
-      if (inChorus && heat > tr.clapHeat) this.clap(t);
+    if (this.layerOn('perc')) {
+      if (!inBridge && (building || inChorus) && heat > tr.hatHeat * (building ? 1 : 0.7) && pos.sixteenthInBeat === 2)
+        this.hat(t, 0.05 * this.humGain());
+      if (!inBridge && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) {
+        if ((building || inChorus) && heat > tr.snareHeat) this.ghostSnare(t);
+        if (inChorus && heat > tr.clapHeat) this.clap(t);
+      }
     }
   }
 
