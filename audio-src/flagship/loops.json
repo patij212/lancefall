@@ -1,0 +1,23 @@
+{
+  "//": "Curator record for the flagship audio loop-prep (Deep Dive C). Task 3 fills sourceWav + real loop bars / crossfade per curated track. bpm/key mirror src/audioManifest.ts and must stay shared within a suite. Conform reads this; validate derives expected runtime paths from it.",
+  "sources": [
+    { "id": "aurora_verse",  "suite": "aurora", "role": "verse",   "bpm": 112, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 },
+    { "id": "aurora_build",  "suite": "aurora", "role": "build",   "bpm": 112, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 },
+    { "id": "aurora_chorus", "suite": "aurora", "role": "chorus",  "bpm": 112, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 },
+    { "id": "aurora_drop",   "suite": "aurora", "role": "drop",    "bpm": 112, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 },
+    { "id": "warden_spiral", "suite": "warden", "role": "spiral",  "bpm": 100, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 },
+    { "id": "warden_fan",    "suite": "warden", "role": "fan",     "bpm": 100, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 },
+    { "id": "warden_enraged","suite": "warden", "role": "enraged", "bpm": 100, "key": "A minor", "sourceWav": "", "loopStartBar": 0, "loopEndBar": 8, "crossfadeMs": 40 }
+  ],
+  "sfx": [
+    { "id": "dash_fire", "variants": 3 },
+    { "id": "perfect_dash", "variants": 3 },
+    { "id": "lance_hit", "variants": 4 },
+    { "id": "overdrive", "variants": 1 },
+    { "id": "last_breath", "variants": 1 },
+    { "id": "warden_arrival", "variants": 1 },
+    { "id": "warden_phase", "variants": 2 },
+    { "id": "warden_fan", "variants": 2 },
+    { "id": "warden_defeat", "variants": 1 }
+  ]
+}

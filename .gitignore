@@ -10,3 +10,12 @@ worker/node_modules
 .playwright-mcp/
 audiolab-preview.png
 *.wav
+
+# Flagship audio masters + build intermediates are local-only; the curator record and the
+# encoded runtime assets (public/audio/flagship/**) are committed.
+audio-src/flagship/conformed/
+audio-src/flagship/**/*.flac
+audio-src/flagship/**/*.mp3
+audio-src/flagship/**/*.ogg
+audio-src/flagship/**/*.aiff
+audio-src/flagship/**/*.aif

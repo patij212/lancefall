@@ -11,6 +11,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "audio:conform": "node tools/audio/conform-flagship.mjs",
+    "audio:encode": "node tools/audio/encode-flagship.mjs",
+    "audio:validate": "node tools/audio/validate-flagship.mjs",
     "deploy": "vite build && npx wrangler pages deploy dist --project-name lancefall --branch main --commit-dirty=true"
   },
   "devDependencies": {
