@@ -39,9 +39,14 @@ export interface TrackProfile {
   theme: ThemeNote[];
   leadWave: OscillatorType;
   leadDrive: number;
+  // ── "bigger/fuller" production: supersaw unison on the lead + riff, moving pad ──
+  unison: number; // # of detuned voices on the lead/riff (supersaw stack)
+  spread: number; // 0..1 stereo spread of the unison voices
+  padGain: number; // gain of the always-on MOVING chord pad (0 = off) — harmonic motion
   // ── perc/break thresholds + sidechain depth ──
   hatHeat: number;
   snareHeat: number;
+  clapHeat: number; // heat above which a layered backbeat clap joins the snare (bigger drums)
   pumpDepth: number; // pad ducked to this on each kick (lower = harder pump)
 }
 
@@ -104,8 +109,12 @@ export const TRACKS: Record<SoundtrackId, TrackProfile> = {
     theme: LANCE_THEME,
     leadWave: 'sawtooth',
     leadDrive: 1,
+    unison: 5, // a lush 5-voice supersaw lead
+    spread: 0.5,
+    padGain: 0.045, // a gentle moving chord pad under the dream
     hatHeat: 0.65,
     snareHeat: 0.5,
+    clapHeat: 0.7,
     pumpDepth: 0.5,
   },
   // SURGE — aggressive darksynth: a relentless always-on riff + a gritty driving
@@ -129,10 +138,14 @@ export const TRACKS: Record<SoundtrackId, TrackProfile> = {
     riffDrive: 1.5,
     riffGain: 0.07,
     theme: SURGE_THEME,
-    leadWave: 'square',
+    leadWave: 'sawtooth', // saw takes unison/detune better than square for a huge supersaw
     leadDrive: 1.9, // distorted, biting lead
+    unison: 7, // a massive 7-voice supersaw — wall-of-sound aggression
+    spread: 0.75,
+    padGain: 0.06, // a fuller moving chord pad driving the harmony
     hatHeat: 0.4, // hats come in early
     snareHeat: 0.3, // backbeat snare comes in early
+    clapHeat: 0.45, // a layered clap thickens the backbeat
     pumpDepth: 0.4, // deeper, harder sidechain pump
   },
 };

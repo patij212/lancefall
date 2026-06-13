@@ -262,7 +262,9 @@ export class AudioEngine {
     freq: number;
     freqEnd?: number;
     glide?: number; // seconds for the pitch sweep (default: full duration)
-    detune?: number; // cents of the twin oscillators (0/undefined ⇒ single osc)
+    detune?: number; // max detune (cents); the unison voices spread across ±detune
+    unison?: number; // # of detuned voices (supersaw) — 1/undefined ⇒ single (or twin if detune set)
+    spread?: number; // 0..1 stereo spread of the unison voices (per-voice panning)
     cutoff?: number;
     cutoffEnd?: number;
     q?: number;
@@ -322,21 +324,37 @@ export class AudioEngine {
     }
     const oscTarget: AudioNode = shaper ?? inNode;
 
+    // UNISON / SUPERSAW — N detuned voices spread across ±detune cents, optionally
+    // panned across the stereo field (per-voice). The single biggest "bigger/fuller"
+    // lever (the supersaw): a lush, wide stack. detune-only (no unison) = the 2-osc
+    // twin used by the SFX; no detune = a single osc. Backward compatible.
+    const n = o.unison && o.unison > 1 ? o.unison : o.detune ? 2 : 1;
+    const detAmt = o.detune ?? 0;
     const oscs: OscillatorNode[] = [];
-    const dets = o.detune ? [o.detune, -o.detune] : [0];
-    for (const det of dets) {
+    const voicePans: StereoPannerNode[] = [];
+    for (let i = 0; i < n; i++) {
+      const frac = n === 1 ? 0 : (i / (n - 1)) * 2 - 1; // -1..1 across the voices
       const osc = ctx.createOscillator();
       osc.type = o.type;
       osc.frequency.setValueAtTime(o.freq, t);
       if (o.freqEnd != null) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.freqEnd), t + (o.glide ?? dur));
-      osc.detune.value = det;
-      osc.connect(oscTarget);
+      osc.detune.value = frac * detAmt;
+      if (o.spread && n > 1) {
+        const vp = ctx.createStereoPanner();
+        vp.pan.value = Math.max(-1, Math.min(1, frac * o.spread));
+        osc.connect(vp);
+        vp.connect(oscTarget);
+        voicePans.push(vp);
+      } else {
+        osc.connect(oscTarget);
+      }
       osc.start(t);
       osc.stop(end + 0.02);
       oscs.push(osc);
     }
     oscs[oscs.length - 1].onended = () => {
       for (const osc of oscs) osc.disconnect();
+      for (const vp of voicePans) vp.disconnect();
       shaper?.disconnect();
       filt?.disconnect();
       g.disconnect();
@@ -1079,6 +1097,22 @@ export class AudioEngine {
     if (tr.bassSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain);
     else if (heat > 0.6 && tr.bassHotSteps.includes(pos.sixteenthInBar)) this.bassNote(t, bassF, tr.bassGain * 0.6);
 
+    // L1.6 MOVING CHORD PAD — a sustained power chord of the current progression
+    // chord, once per bar. Makes the harmony audibly move (complexity), and it's
+    // always-on so it enriches the out-of-combo baseline too.
+    if (pos.sixteenthInBar === 0) this.padChord(t, 16 * sixteenth, chord);
+
+    // ── TENSION & RELEASE — a build into the macro-form B section ("the drop"):
+    // a riser + a rising drum fill in the bar before B, then an IMPACT on the B
+    // downbeat. All derived from the deterministic music clock (never world.rng).
+    const sec = formAt(pos.bar).section;
+    const intoB = formAt(pos.bar + 1).section === 'B' && sec !== 'B';
+    if (pos.sixteenthInBar === 0) {
+      if (sec === 'B' && formAt(pos.bar - 1).section !== 'B') this.impactAt(t); // the drop
+      if (intoB) this.riserAt(t, 16 * sixteenth); // build through this bar into B
+    }
+    if (intoB && pos.sixteenthInBar >= 12) this.fillHit(t, pos.sixteenthInBar - 12); // last-beat fill
+
     // L1.5 RIFF — the always-on ostinato (NOT coherence-gated): this is what keeps
     // the track great with zero combo. Lifts with the macro-form section like the hook.
     if (tr.riff.length) {
@@ -1108,9 +1142,13 @@ export class AudioEngine {
       for (const n of notesAt(tr.theme, pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, n.vel);
     }
 
-    // L5 PERC/BREAK — hats on the "&" + a backbeat ghost-snare (thresholds per track).
+    // L5 PERC/BREAK — hats on the "&" + a backbeat ghost-snare, and a layered CLAP
+    // on the backbeat once hot enough (bigger commercial drums). Thresholds per track.
     if (heat > tr.hatHeat && pos.sixteenthInBeat === 2) this.hat(t, 0.05 * this.humGain());
-    if (heat > tr.snareHeat && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) this.ghostSnare(t);
+    if (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12) {
+      if (heat > tr.snareHeat) this.ghostSnare(t);
+      if (heat > tr.clapHeat) this.clap(t);
+    }
   }
 
   /** Sidechain "pump": duck the sustained pad on each kick, then ease back — the
@@ -1127,15 +1165,34 @@ export class AudioEngine {
   private leadNote(t: number, freq: number, dur: number, vel: number): void {
     if (!this.hookFilter) return;
     const jitter = Math.pow(2, this.humCents(4) / 1200);
+    const tr = this.track;
+    // main SUPERSAW lead — N detuned voices spread wide (the "huge lead" lever)
     this.voice({
-      type: this.track.leadWave,
+      type: tr.leadWave,
       freq: freq * jitter,
       detune: COHERENCE_AUDIO.leadDetune,
+      unison: tr.unison,
+      spread: tr.spread,
       attack: 0.01,
       hold: Math.max(0, dur * 0.45),
       decay: Math.max(0.1, dur * 0.55),
-      peak: 0.6 * vel,
-      drive: this.track.leadDrive,
+      peak: 0.42 * vel,
+      drive: tr.leadDrive,
+      bus: this.hookFilter,
+      at: t,
+    });
+    // OCTAVE-DOWN doubling layer — adds body/power so the hook reads as massive
+    this.voice({
+      type: tr.leadWave,
+      freq: freq * 0.5 * jitter,
+      detune: COHERENCE_AUDIO.leadDetune * 0.7,
+      unison: Math.min(3, tr.unison),
+      spread: tr.spread * 0.6,
+      attack: 0.012,
+      hold: Math.max(0, dur * 0.4),
+      decay: Math.max(0.1, dur * 0.6),
+      peak: 0.24 * vel,
+      drive: tr.leadDrive,
       bus: this.hookFilter,
       at: t,
     });
@@ -1208,6 +1265,143 @@ export class AudioEngine {
       bp.disconnect();
       g.disconnect();
     };
+  }
+
+  /** Layered hand-CLAP — three quick band-passed noise transients (the classic clap
+   *  stack) → drumsBus. Thickens the backbeat for bigger, more commercial drums. */
+  private clap(t: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    for (const off of [0, 0.009, 0.018]) {
+      const st = t + off;
+      const n = this.noiseSource();
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1500;
+      bp.Q.value = 1.2;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.085 * this.humGain(), st);
+      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.05);
+      g.gain.linearRampToValueAtTime(0, st + 0.06);
+      n.connect(bp);
+      bp.connect(g);
+      g.connect(this.drumsBus);
+      n.start(st);
+      n.stop(st + 0.07);
+      n.onended = () => {
+        n.disconnect();
+        bp.disconnect();
+        g.disconnect();
+      };
+    }
+  }
+
+  /** MOVING CHORD PAD — a sustained power chord (root+5th+octave, NO 3rd → modally
+   *  safe under the pentatonic top) of the CURRENT progression chord, transposed by
+   *  the combo tier. Played each bar on harmonyBus (so it pumps), it makes the harmony
+   *  audibly MOVE A→F→C→G instead of sitting on one drone — the complexity lever. */
+  private padChord(t: number, dur: number, chordMul: number): void {
+    const tr = this.track;
+    if (tr.padGain <= 0 || !this.droneOn) return;
+    const root = 220 * this.rootMul * chordMul; // chord root, mid register (A3 for chord A)
+    for (const semi of [0, 7, 12]) {
+      this.voice({
+        type: 'sawtooth',
+        freq: root * Math.pow(2, semi / 12),
+        detune: 8,
+        unison: 3,
+        spread: 0.4,
+        cutoff: 1500,
+        q: 0.5,
+        attack: 0.09,
+        hold: Math.max(0, dur * 0.55),
+        decay: Math.max(0.2, dur * 0.45),
+        peak: tr.padGain,
+        bus: this.harmonyBus,
+        at: t,
+      });
+    }
+  }
+
+  /** IMPACT — a big transient (sub boom + bright reverbed crash) marking a transition:
+   *  the "drop" into a macro-form section, or a boss spawn. The release of built tension. */
+  private impactAt(t: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    // sub boom
+    this.voice({ type: 'sine', freq: 120, freqEnd: 40, glide: 0.5, attack: 0.004, decay: 0.55, peak: 0.5, bus: this.sfxBus, at: t });
+    // bright crash — highpassed noise, sent wet (reverb) + dry
+    const n = this.noiseSource();
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.setValueAtTime(1400, t);
+    hp.frequency.exponentialRampToValueAtTime(6500, t + 0.06);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.28, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.5);
+    g.gain.linearRampToValueAtTime(0, t + 0.52);
+    n.connect(hp);
+    hp.connect(g);
+    g.connect(this.sfxBus);
+    g.connect(this.sfxReverbSend);
+    n.start(t);
+    n.stop(t + 0.53);
+    n.onended = () => {
+      n.disconnect();
+      hp.disconnect();
+      g.disconnect();
+    };
+  }
+
+  /** Public IMPACT for game events (boss spawn). */
+  impact(): void {
+    if (this.ctx) this.impactAt(this.ctx.currentTime);
+  }
+
+  /** RISER — a rising band-passed-noise sweep + pitch climb over `dur` (a build-up):
+   *  scheduled in the bar before a section drop to telegraph + mask the transition. */
+  private riserAt(t: number, dur: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const end = t + dur;
+    const n = this.noiseSource();
+    n.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(400, t);
+    bp.frequency.exponentialRampToValueAtTime(5000, end); // sweep up = rising energy
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, end - 0.02); // swell in
+    g.gain.linearRampToValueAtTime(0, end); // cut at the drop
+    n.connect(bp);
+    bp.connect(g);
+    g.connect(this.sfxBus);
+    n.start(t);
+    n.stop(end + 0.02);
+    n.onended = () => {
+      n.disconnect();
+      bp.disconnect();
+      g.disconnect();
+    };
+  }
+
+  /** One drum-FILL hit — a pitched tom that rises across the fill (the last beat
+   *  before a drop), building anticipation. */
+  private fillHit(t: number, rise: number): void {
+    this.voice({
+      type: 'triangle',
+      freq: 150 * Math.pow(2, rise / 12), // climbs as the fill progresses
+      freqEnd: 90 * Math.pow(2, rise / 12),
+      glide: 0.1,
+      attack: 0.003,
+      decay: 0.11,
+      peak: 0.26,
+      bus: this.drumsBus,
+      at: t,
+    });
   }
 
   private kick(t: number, gain: number): void {
@@ -1289,10 +1483,13 @@ export class AudioEngine {
   /** One always-on RIFF note → leadBus (ungated by coherence). The baseline groove
    *  that keeps a track great out of combo; aggressive tracks add grit via drive. */
   private riffNote(t: number, freq: number, dur: number, gain: number): void {
+    const tr = this.track;
     this.voice({
-      type: this.track.riffWave,
+      type: tr.riffWave,
       freq,
-      detune: 7,
+      detune: 10,
+      unison: Math.max(2, tr.unison - 2), // a fatter ostinato, a touch less wide than the lead
+      spread: tr.spread * 0.7,
       cutoff: 2600,
       cutoffEnd: 1500,
       q: 0.7,
@@ -1300,7 +1497,7 @@ export class AudioEngine {
       hold: Math.max(0, dur * 0.3),
       decay: Math.max(0.06, dur * 0.7),
       peak: gain,
-      drive: this.track.riffDrive,
+      drive: tr.riffDrive,
       bus: this.leadBus,
       at: t,
     });
@@ -1321,6 +1518,7 @@ export class AudioEngine {
       this.bossMotif = theme.motif; // its lead motif replaces the arena hook
       this.bossMotifGain = theme.motifGain;
       this.bossMotifOct = theme.motifOct;
+      this.impactAt(t); // a big hit marks the boss arrival (tension → release)
       const per = Math.min(0.06, 0.12 / theme.drone.length); // share headroom across voices
       for (const semi of theme.drone) {
         const osc = ctx.createOscillator();

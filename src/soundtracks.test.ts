@@ -75,6 +75,16 @@ describe('soundtracks — SURGE is aggressive AND great out of combo', () => {
     expect(s.arpHeat).toBeLessThan(TRACKS.aurora.arpHeat); // arp/perc engage sooner
     expect(s.hatHeat).toBeLessThan(TRACKS.aurora.hatHeat);
     expect(s.pumpDepth).toBeLessThan(TRACKS.aurora.pumpDepth); // deeper pump
+    expect(s.unison).toBeGreaterThan(TRACKS.aurora.unison); // a bigger supersaw stack
+  });
+
+  it('both tracks carry a supersaw stack + a moving chord pad (bigger/fuller)', () => {
+    for (const t of [TRACKS.aurora, TRACKS.surge]) {
+      expect(t.unison).toBeGreaterThanOrEqual(2); // ≥2 voices = a real stack
+      expect(t.spread).toBeGreaterThan(0);
+      expect(t.spread).toBeLessThanOrEqual(1);
+      expect(t.padGain).toBeGreaterThan(0); // the moving chord pad is on for both
+    }
   });
 
   it('hook is a well-formed 2-bar phrase that transposes safely with the combo tier', () => {
