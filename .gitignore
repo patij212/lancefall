@@ -1,7 +1,9 @@
 node_modules
 dist
 *.local
+*.log
 .DS_Store
 .env
+.claude/
 worker/.wrangler
 worker/node_modules
