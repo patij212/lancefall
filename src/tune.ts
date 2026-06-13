@@ -406,6 +406,18 @@ export const AUDIO_MASTER = {
   limiterK: 1.7, // tanh drive for the brickwall safety clip (lower = cleaner, less crunch)
 } as const;
 
+// AUDIO_SFX — sound-design polish: stereo placement, de-click, and per-shot
+// humanization so repeated kills don't sound like a machine gun of identical clicks.
+export const AUDIO_SFX = {
+  panMax: 0.72, // max positional pan for on-field events (x → L/R)
+  humCents: 7, // ± pitch jitter (cents) on repeated/combo sounds
+  humGain: 0.1, // ± relative gain jitter on repeated sounds
+  chordSpread: 0.55, // stereo spread applied across the notes of a chord/stab
+  declick: 0.004, // s — linear ramp to TRUE zero before stop() (kills the cutoff click)
+  leadDetune: 11, // cents — detune of the twin oscillators that fatten/warm a lead voice
+  leadCutoff: 2600, // Hz — lowpass that tames the raw-sawtooth buzz on lead/stab voices
+} as const;
+
 // AUDIO_REVERB — a synthesized convolution reverb (impulse rendered ONCE via an
 // OfflineAudioContext at boot → offline-first, no asset download). Gives the music
 // real space (today it's bone dry) and a lusher SFX tail than the old feedback delay.

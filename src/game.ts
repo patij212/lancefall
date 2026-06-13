@@ -31,7 +31,7 @@ import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE, SEEKER_TUNE } from './tune';
+import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX } from './tune';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -1113,7 +1113,7 @@ export class Game {
     w.particles.burst(x, y, TUNE.particles.deathBurstMin + w.player.killsThisDash * 3, color);
     w.particles.floatText(x, y - 16, `+${gained}`, comboColor(w.combo), 0.55 + Math.min(w.player.killsThisDash, 8) * 0.06);
     this.checkComboTier();
-    this.audio.thunk(w.combo);
+    this.audio.thunk(w.combo, this.panFor(x));
     this.shake.add(TUNE.juice.traumaKill);
     this.scheduler.requestHitstop(hitstopFor(w.player.killsThisDash));
     this.input.rumble(0.0, 0.35, 50);
@@ -1132,7 +1132,7 @@ export class Game {
       w.particles.ring(x, y, e.radius + 50, ELITE.aura, 0.45);
       this.renderer.flash(ELITE.aura, 0.18);
       this.shake.add(0.4);
-      this.audio.explosion(1.0);
+      this.audio.explosion(1.0, this.panFor(x));
       const n = ELITE.detonateCount;
       const sp = ELITE.detonateSpeed * e.bulletMul;
       const off = w.dropRng.range(0, Math.PI * 2); // death-timed: keep off the seeded director stream
@@ -1153,7 +1153,7 @@ export class Game {
         const a = off + (i / n) * Math.PI * 2;
         w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#fb7185', false);
       }
-      this.audio.explosion(0.8);
+      this.audio.explosion(0.8, this.panFor(x));
       w.particles.ring(x, y, 90, '#fb7185', 0.35);
       this.shake.add(0.16);
     }
@@ -1165,6 +1165,14 @@ export class Game {
     if (w.stats.chainRadius > 0) {
       this.chainExplode(x, y, w.stats.chainRadius, w.stats.chainDmg, fromDash);
     }
+  }
+
+  /** Map a world x-coordinate to a stereo pan (-1..1) — positional audio so a kill
+   *  on the right side of the field is heard on the right. Cosmetic; reads world
+   *  geometry only (never rng). */
+  private panFor(x: number): number {
+    const half = this.world.width / 2;
+    return Math.max(-1, Math.min(1, (x - half) / half)) * AUDIO_SFX.panMax;
   }
 
   /** Shatter a Sovereign Core: combo + score reward, a weak-point chunk to the
@@ -1188,7 +1196,7 @@ export class Game {
     w.particles.burst(x, y, 26, SOVEREIGN.coreColor);
     w.particles.ring(x, y, 70, '#ffffff', 0.4);
     w.particles.floatText(x, y - 16, `CORE +${gained}`, '#fde047', 0.95);
-    this.audio.thunk(w.combo);
+    this.audio.thunk(w.combo, this.panFor(x));
     this.shake.add(0.3);
     this.scheduler.requestHitstop(0.07);
     this.input.rumble(0.1, 0.3, 50);
@@ -1325,7 +1333,7 @@ export class Game {
   private chainExplode(x: number, y: number, radius: number, dmg: number, fromDash: boolean): void {
     const w = this.world;
     w.particles.ring(x, y, radius, '#ec4899', 0.35);
-    this.audio.explosion(0.7);
+    this.audio.explosion(0.7, this.panFor(x));
     w.hash.queryAABB(x - radius, y - radius, x + radius, y + radius, this.chainBuf);
     // snapshot to avoid mutating while iterating (the dash-hit loop owns `candidates`)
     const hits = this.chainBuf.filter((e) => e.active && !e.isBoss && circleHit(x, y, radius, e.x, e.y, e.radius));
@@ -1345,7 +1353,7 @@ export class Game {
     this.renderer.flash('#ffffff', 0.45);
     this.audio.bossMusic(false);
     this.audio.bossStinger();
-    this.audio.explosion(1.4);
+    this.audio.explosion(1.4, this.panFor(e.x));
     this.shake.add(0.9);
     this.scheduler.requestHitstop(0.18);
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);

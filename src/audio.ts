@@ -4,7 +4,8 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
-import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB } from './tune';
+import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX } from './tune';
+import { mulberry32 } from './rng';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -32,6 +33,19 @@ export class AudioEngine {
   // throttle to survive massacres without clipping / main-thread stalls
   private thunkCount = 0;
   private lastThunkT = 0;
+
+  // cosmetic humanization RNG — fixed-seed mulberry32, NEVER world.rng (audio must
+  // not perturb a seeded run; the Daily stays bit-identical). Drives per-shot pitch/
+  // gain jitter so repeated kills don't sound like an identical machine-gun click.
+  private hum = mulberry32(0x1a2b3c4d);
+  /** ± `cents` of detune, in cents. */
+  private humCents(cents = AUDIO_SFX.humCents): number {
+    return (this.hum() * 2 - 1) * cents;
+  }
+  /** A gain multiplier in [1-amt, 1+amt]. */
+  private humGain(amt = AUDIO_SFX.humGain): number {
+    return 1 + (this.hum() * 2 - 1) * amt;
+  }
 
   // charge voice
   private chargeOsc: OscillatorNode | null = null;
@@ -213,6 +227,85 @@ export class AudioEngine {
     return src;
   }
 
+  /** Click-free, optionally-fat, optionally-panned tonal one-shot — the workhorse
+   *  behind most SFX now. Signal: detuned osc pair (warmth) → optional lowpass with
+   *  sweep (tames raw-saw buzz) → click-free gain (linear up, exp body, LINEAR ramp
+   *  to TRUE zero before stop → no cutoff click) → optional StereoPanner → bus. */
+  private voice(o: {
+    type: OscillatorType;
+    freq: number;
+    freqEnd?: number;
+    glide?: number; // seconds for the pitch sweep (default: full duration)
+    detune?: number; // cents of the twin oscillators (0/undefined ⇒ single osc)
+    cutoff?: number;
+    cutoffEnd?: number;
+    q?: number;
+    attack: number;
+    hold?: number;
+    decay: number;
+    peak: number;
+    pan?: number;
+    bus?: GainNode;
+    at?: number;
+  }): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = o.at ?? ctx.currentTime;
+    const dur = Math.max(0.02, o.attack + (o.hold ?? 0) + o.decay);
+    const end = t + dur;
+
+    // click-free amplitude envelope (true-zero endpoints)
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(o.peak, t + Math.max(0.001, o.attack));
+    const decayStart = t + o.attack + (o.hold ?? 0);
+    if (decayStart > t + o.attack) g.gain.setValueAtTime(o.peak, decayStart);
+    const dc = Math.min(AUDIO_SFX.declick, dur * 0.25);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, o.peak * 0.02), Math.max(decayStart + 0.001, end - dc));
+    g.gain.linearRampToValueAtTime(0, end);
+
+    let filt: BiquadFilterNode | null = null;
+    if (o.cutoff != null) {
+      filt = ctx.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(o.cutoff, t);
+      if (o.cutoffEnd != null) filt.frequency.exponentialRampToValueAtTime(Math.max(40, o.cutoffEnd), end);
+      if (o.q != null) filt.Q.value = o.q;
+      filt.connect(g);
+    }
+    const inNode: AudioNode = filt ?? g;
+
+    let pan: StereoPannerNode | null = null;
+    if (o.pan != null) {
+      pan = ctx.createStereoPanner();
+      pan.pan.value = Math.max(-1, Math.min(1, o.pan));
+      g.connect(pan);
+      pan.connect(o.bus ?? this.sfxBus);
+    } else {
+      g.connect(o.bus ?? this.sfxBus);
+    }
+
+    const oscs: OscillatorNode[] = [];
+    const dets = o.detune ? [o.detune, -o.detune] : [0];
+    for (const det of dets) {
+      const osc = ctx.createOscillator();
+      osc.type = o.type;
+      osc.frequency.setValueAtTime(o.freq, t);
+      if (o.freqEnd != null) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.freqEnd), t + (o.glide ?? dur));
+      osc.detune.value = det;
+      osc.connect(inNode);
+      osc.start(t);
+      osc.stop(end + 0.02);
+      oscs.push(osc);
+    }
+    oscs[oscs.length - 1].onended = () => {
+      for (const osc of oscs) osc.disconnect();
+      filt?.disconnect();
+      g.disconnect();
+      pan?.disconnect();
+    };
+  }
+
   /** OVERDRIVE activation — a 3-layer hero stinger: sub sweep (weight) + rising
    *  noise shred (bullets dissolving) + a bright staggered F-A-C chord (triumph). */
   overdriveBurst(): void {
@@ -249,21 +342,23 @@ export class AudioEngine {
     n.start(t);
     n.stop(t + 0.5);
     n.onended = () => { n.disconnect(); f.disconnect(); ng.disconnect(); };
-    // (c) bright sawtooth chord F-A-C, staggered attack
+    // (c) bright, WARM chord F-A-C (detuned twin saws through a lowpass so it's
+    //     triumphant, not buzzy), staggered attack, spread across the stereo field.
+    const SP = AUDIO_SFX.chordSpread;
     [349.23, 440, 523.25].forEach((freq, i) => {
-      const o = ctx.createOscillator();
-      o.type = 'sawtooth';
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      const st = t + i * 0.04;
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(0.17, st + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.6);
-      o.connect(g);
-      g.connect(this.sfxBus);
-      o.start(st);
-      o.stop(st + 0.62);
-      o.onended = () => { o.disconnect(); g.disconnect(); };
+      this.voice({
+        type: 'sawtooth',
+        freq,
+        detune: AUDIO_SFX.leadDetune,
+        cutoff: 3600,
+        cutoffEnd: 1600,
+        q: 0.6,
+        attack: 0.03,
+        decay: 0.57,
+        peak: 0.16,
+        pan: (i - 1) * SP,
+        at: t + i * 0.04,
+      });
     });
   }
 
@@ -342,20 +437,21 @@ export class AudioEngine {
     n.start(t);
     n.stop(t + 0.3);
     n.onended = () => { n.disconnect(); f.disconnect(); ng.disconnect(); };
-    // (c) bright C-E stab
-    [523.25, 659.25].forEach((freq) => {
-      const o = ctx.createOscillator();
-      o.type = 'sawtooth';
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0006, t + 0.35);
-      o.connect(g);
-      g.connect(this.sfxBus);
-      o.start(t);
-      o.stop(t + 0.37);
-      o.onended = () => { o.disconnect(); g.disconnect(); };
+    // (c) bright C-E stab — warm detuned saws, lowpassed, spread L/R
+    [523.25, 659.25].forEach((freq, i) => {
+      this.voice({
+        type: 'sawtooth',
+        freq,
+        detune: AUDIO_SFX.leadDetune,
+        cutoff: 3800,
+        cutoffEnd: 1800,
+        q: 0.7,
+        attack: 0.02,
+        decay: 0.33,
+        peak: 0.16,
+        pan: (i === 0 ? -1 : 1) * AUDIO_SFX.chordSpread * 0.8,
+        at: t,
+      });
     });
   }
 
@@ -364,21 +460,18 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
-    // C-E-G-C arpeggio, quick staggered triangle blips
-    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-      const o = ctx.createOscillator();
-      o.type = 'triangle';
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      const st = t + i * 0.05;
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(0.2, st + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.22);
-      o.connect(g);
-      g.connect(this.sfxBus);
-      o.start(st);
-      o.stop(st + 0.24);
-      o.onended = () => { o.disconnect(); g.disconnect(); };
+    // C-E-G-C arpeggio, quick staggered blips that sweep across the stereo field
+    const arp = [523.25, 659.25, 783.99, 1046.5];
+    arp.forEach((freq, i) => {
+      this.voice({
+        type: 'triangle',
+        freq,
+        attack: 0.012,
+        decay: 0.2,
+        peak: 0.2,
+        pan: (i / (arp.length - 1)) * 1.4 - 0.7, // -0.7 → +0.7
+        at: t + i * 0.05,
+      });
     });
     // a soft shimmer tail
     const n = this.noiseSource();
@@ -398,8 +491,10 @@ export class AudioEngine {
   }
 
   /** Bass "thunk" on a kill — pitched UP with the combo so a clean run plays an
-   *  ascending scale. */
-  thunk(combo: number): void {
+   *  ascending scale. `pan` (-1..1) places it where the kill happened on screen;
+   *  per-shot pitch/gain humanization keeps a long combo from machine-gunning the
+   *  exact same click. */
+  thunk(combo: number, pan = 0): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
@@ -407,43 +502,57 @@ export class AudioEngine {
     this.lastThunkT = t;
     this.thunkCount++;
 
+    const p = Math.max(-1, Math.min(1, pan));
     const semis = Math.min(combo, 14);
-    const base = 90 * Math.pow(2, semis / 12);
+    const jitter = Math.pow(2, this.humCents() / 1200); // cents → ratio
+    const base = 90 * Math.pow(2, semis / 12) * jitter;
+    const peak = 0.5 * this.humGain();
+
+    // punchy pitched body (sine → no buzz), panned to the kill, click-free tail
     const osc = ctx.createOscillator();
     osc.type = 'sine';
     const g = ctx.createGain();
+    const span = ctx.createStereoPanner();
+    span.pan.value = p;
     osc.frequency.setValueAtTime(base * 1.6, t);
     osc.frequency.exponentialRampToValueAtTime(base * 0.55, t + 0.09);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.5, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.16);
+    g.gain.linearRampToValueAtTime(0, t + 0.175);
     osc.connect(g);
-    g.connect(this.sfxBus);
+    g.connect(span);
+    span.connect(this.sfxBus);
     osc.start(t);
     osc.stop(t + 0.18);
     osc.onended = () => {
       osc.disconnect();
       g.disconnect();
+      span.disconnect();
       this.thunkCount = Math.max(0, this.thunkCount - 1);
     };
 
-    // transient click
+    // transient click — same pan
     const click = this.noiseSource();
     const cg = ctx.createGain();
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = 2600;
-    cg.gain.setValueAtTime(0.25, t);
+    const cpan = ctx.createStereoPanner();
+    cpan.pan.value = p;
+    cg.gain.setValueAtTime(0.25 * this.humGain(), t);
     cg.gain.exponentialRampToValueAtTime(0.0008, t + 0.05);
     click.connect(lp);
     lp.connect(cg);
-    cg.connect(this.sfxBus);
+    cg.connect(cpan);
+    cpan.connect(this.sfxBus);
     click.start(t);
     click.stop(t + 0.06);
     click.onended = () => {
       click.disconnect();
       lp.disconnect();
       cg.disconnect();
+      cpan.disconnect();
     };
   }
 
@@ -542,36 +651,32 @@ export class AudioEngine {
   }
 
   comboBreak(): void {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(520, t);
-    osc.frequency.exponentialRampToValueAtTime(120, t + 0.3);
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 1400;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.32);
-    osc.connect(lp);
-    lp.connect(g);
-    g.connect(this.sfxBus);
-    osc.start(t);
-    osc.stop(t + 0.34);
-    osc.onended = () => {
-      osc.disconnect();
-      lp.disconnect();
-      g.disconnect();
-    };
+    // a deflating downward sweep — warm detuned saw through a closing lowpass
+    this.voice({
+      type: 'sawtooth',
+      freq: 520,
+      freqEnd: 120,
+      glide: 0.3,
+      detune: 9,
+      cutoff: 1400,
+      cutoffEnd: 480,
+      q: 1,
+      attack: 0.02,
+      decay: 0.32,
+      peak: 0.22,
+    });
   }
 
-  explosion(size = 1): void {
+  explosion(size = 1, pan = 0): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
+    const p = Math.max(-1, Math.min(1, pan));
+    // shared panner for the whole blast (noise body + low thud stay together in space)
+    const span = ctx.createStereoPanner();
+    span.pan.value = p;
+    span.connect(this.sfxBus);
+
     const src = this.noiseSource();
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
@@ -581,9 +686,10 @@ export class AudioEngine {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.3 * size, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0006, t + 0.25);
+    g.gain.linearRampToValueAtTime(0, t + 0.27);
     src.connect(lp);
     lp.connect(g);
-    g.connect(this.sfxBus);
+    g.connect(span);
     src.start(t);
     src.stop(t + 0.28);
     src.onended = () => {
@@ -600,13 +706,15 @@ export class AudioEngine {
     og.gain.setValueAtTime(0.0001, t);
     og.gain.exponentialRampToValueAtTime(0.35 * size, t + 0.01);
     og.gain.exponentialRampToValueAtTime(0.0006, t + 0.2);
+    og.gain.linearRampToValueAtTime(0, t + 0.21);
     osc.connect(og);
-    og.connect(this.sfxBus);
+    og.connect(span);
     osc.start(t);
     osc.stop(t + 0.22);
     osc.onended = () => {
       osc.disconnect();
       og.disconnect();
+      span.disconnect();
     };
   }
 
@@ -636,30 +744,25 @@ export class AudioEngine {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
-    for (const det of [-7, 0, 7]) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(220 + det, t);
-      osc.frequency.exponentialRampToValueAtTime(55 + det, t + 0.7);
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(2600, t);
-      lp.frequency.exponentialRampToValueAtTime(180, t + 0.7);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.22, t + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0006, t + 0.8);
-      osc.connect(lp);
-      lp.connect(g);
-      g.connect(this.sfxBus);
-      osc.start(t);
-      osc.stop(t + 0.82);
-      osc.onended = () => {
-        osc.disconnect();
-        lp.disconnect();
-        g.disconnect();
-      };
-    }
+    // a detuned cluster collapsing in pitch + tone — "the light dims". Each voice is
+    // itself a warm detuned-twin saw, and the cluster is spread across the stereo field.
+    [-7, 0, 7].forEach((det, i) => {
+      this.voice({
+        type: 'sawtooth',
+        freq: 220 + det,
+        freqEnd: 55 + det,
+        glide: 0.7,
+        detune: AUDIO_SFX.leadDetune,
+        cutoff: 2600,
+        cutoffEnd: 180,
+        q: 0.7,
+        attack: 0.03,
+        decay: 0.77,
+        peak: 0.2,
+        pan: (i - 1) * 0.42,
+        at: t,
+      });
+    });
   }
 
   // ── charge voice (continuous) ─────────────────────────────────────────
@@ -1005,29 +1108,22 @@ export class AudioEngine {
     }
   }
 
-  /** Triumphant rising chord when a boss is felled. */
+  /** Triumphant rising chord when a boss is felled — staggered, spread L→R. */
   bossStinger(): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
     const freqs = [440, 554, 659, 880];
     freqs.forEach((f, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.value = f;
-      const g = ctx.createGain();
-      const st = t + i * 0.05;
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(0.16, st + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0006, st + 0.5);
-      osc.connect(g);
-      g.connect(this.sfxBus);
-      osc.start(st);
-      osc.stop(st + 0.55);
-      osc.onended = () => {
-        osc.disconnect();
-        g.disconnect();
-      };
+      this.voice({
+        type: 'triangle',
+        freq: f,
+        attack: 0.02,
+        decay: 0.5,
+        peak: 0.16,
+        pan: (i / (freqs.length - 1)) * 1.2 - 0.6,
+        at: t + i * 0.05,
+      });
     });
   }
 
