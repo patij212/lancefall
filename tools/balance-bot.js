@@ -87,12 +87,13 @@
   };
 
   // Score sampled dash landing spots; return {aimX, aimY, charge} for the best.
-  // Two modes:
-  //  • escape (default): land OPEN — far from EVERY threat incl. the boss — clear of
-  //    where bullets will be after the i-frames lapse, off the walls. Pure survival.
-  //  • joust: a long dash that spears THROUGH the boss and lands in open space
-  //    BEYOND it. Only used in safe windows; this is how bosses actually die.
-  function bestDash(p, w, bullets, enemies, boss, R, lens, joust, bossHittable) {
+  // mode 0 ESCAPE: land OPEN — far from EVERY threat incl. the boss — clear of where
+  //   bullets will be after the i-frames lapse, off the walls. Pure survival.
+  // mode 1 JOUST: a long dash that spears THROUGH the boss and lands in open space
+  //   BEYOND it. Only in safe windows; this is how bosses die.
+  // mode 2 HUNT: spear the nearest CHAFF (Arena waves only advance once cleared, and
+  //   escape-scoring flees enemies → a wave you can't drift-dodge forever stalls).
+  function bestDash(p, w, bullets, enemies, boss, R, lens, mode, bossHittable) {
     const DIRS = 20;
     let best = { aimX: p.x + 100, aimY: p.y, charge: 0 }, bestS = -1e18;
     for (let li = 0; li < lens.length; li++) {
@@ -116,19 +117,18 @@
           const e = enemies[ei]; if (!e.active) continue;
           const dl = Math.hypot(lx - e.x, ly - e.y);
           if (!e.isBoss) {
-            if (e.kind !== 'sovereign_core' && dl < nearestE) nearestE = dl;
+            if (mode === 0 && e.kind !== 'sovereign_core' && dl < nearestE) nearestE = dl; // only ESCAPE flees chaff
             if (segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) kills++; // spear chaff / cores
           } else if (dl < e.radius + R + 16) {
             sc -= 60; // never LAND on the boss body
           }
         }
-        if (!joust && boss) { const bd = Math.hypot(lx - boss.x, ly - boss.y); if (bd < nearestE) nearestE = bd; } // escape flees the boss too
-        sc += Math.min(nearestE, 220) * 0.45; // OPENNESS
-        sc += kills * 15;
+        if (mode === 0 && boss) { const bd = Math.hypot(lx - boss.x, ly - boss.y); if (bd < nearestE) nearestE = bd; } // escape flees the boss too
+        sc += Math.min(nearestE, 220) * 0.45; // OPENNESS (escape only; a flat constant otherwise)
+        sc += kills * (mode === 2 ? 42 : 15); // HUNT hard-prioritises spearing chaff to clear the wave
         // SPEAR through the boss body — but ONLY when it can take damage (the
-        // Sovereign's body is armored until its cores are shattered + it's cracked
-        // open; while armored we let the core kill-bonus pull dashes onto the cores).
-        if (joust && boss && bossHittable && segDist(boss.x, boss.y, p.x, p.y, lx, ly) < boss.radius + 26) sc += 55;
+        // Sovereign's body is armored until its cores are shattered + it's cracked open).
+        if (mode === 1 && boss && bossHittable && segDist(boss.x, boss.y, p.x, p.y, lx, ly) < boss.radius + 26) sc += 55;
         if (boss && beamHits(boss, lx, ly, R)) sc -= 1000;
         if (sc > bestS) { bestS = sc; best = { aimX: p.x + ux * 1000, aimY: p.y + uy * 1000, charge: chargeForLen(len) }; }
       }
@@ -210,7 +210,7 @@
     // Escape/min dashes fire instantly (no i-frames while charging); only the JOUST
     // takes a real charge, and only in a clear window where that's safe.
     if (canDash && hard) {
-      const bd = bestDash(p, w, near, E, boss, R, [190], false, bossHittable); // escape NOW — flee to the openest spot
+      const bd = bestDash(p, w, near, E, boss, R, [190], 0, bossHittable); // escape NOW — flee to the openest spot
       aimX = bd.aimX; aimY = bd.aimY; charge = 0; wantDash = true;
       bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = 0;
     } else if (bot.committed && p.phase === 'charging' && threatN < 2) {
@@ -222,13 +222,16 @@
       // back): a LONG dash that spears through the boss and lands in open space
       // beyond it. A real charge, but a hard threat appearing mid-charge aborts to
       // an escape (the hard branch above overrides the commit).
-      const bd = bestDash(p, w, near, E, boss, R, [300, 400], true, bossHittable);
+      const bd = bestDash(p, w, near, E, boss, R, [300, 400], 1, bossHittable);
       aimX = bd.aimX; aimY = bd.aimY; charge = bd.charge; wantDash = true;
       bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = bd.charge;
-    } else if (canDash && p.stamina >= DASH_COST * 2.9 && crowd === 0 && threatN === 0 && nE && nED < 420) {
-      const bd = bestDash(p, w, near, E, boss, R, [190], false, bossHittable); // calm only: thin the field
-      aimX = bd.aimX; aimY = bd.aimY; charge = 0; wantDash = true;
-      bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = 0;
+    } else if (canDash && !boss && p.stamina >= DASH_COST * 2 && threatN <= 1 && nE && nED < 470) {
+      // HUNT the last chaff — Arena waves only advance once cleared, so spear the
+      // nearest enemy (reach through it) instead of fleeing it forever.
+      const hl = Math.min(540, nED + 70);
+      const bd = bestDash(p, w, near, E, boss, R, [hl], 2, bossHittable);
+      aimX = bd.aimX; aimY = bd.aimY; charge = bd.charge; wantDash = true;
+      bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = bd.charge;
     } else {
       bot.committed = false;
     }
