@@ -424,6 +424,16 @@ export const AUDIO_MASTER = {
   limiterK: 1.7, // tanh drive for the brickwall safety clip (lower = cleaner, less crunch)
 } as const;
 
+// AUDIO_PUMP — the synthwave sidechain "pump": the four-on-the-floor kick ducks the
+// sustained pad (harmonyBus) and recovers, so the whole track breathes with the beat.
+// Implemented as scheduled gain dips keyed off the kick (no extra compressor node).
+export const AUDIO_PUMP = {
+  depth: 0.5, // pad gain ducked to this on each kick (1 = no duck)
+  release: 0.1, // s — ease back to full between kicks (the "pump" recovery)
+  percHeat: 0.65, // music heat above which the PERC/BREAK stem (hats/ghost-snare) kicks in
+  snareHeat: 0.5, // music heat above which the backbeat ghost-snare (beats 2 & 4) plays
+} as const;
+
 // AUDIO_SFX — sound-design polish: stereo placement, de-click, and per-shot
 // humanization so repeated kills don't sound like a machine gun of identical clicks.
 export const AUDIO_SFX = {

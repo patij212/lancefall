@@ -714,12 +714,13 @@ export class Game {
       }
       if (steps >= MAX_SUBSTEPS) this.accumulator = 0;
 
-      // throttled drone intensity + the audio half of the COHERENCE one-bus
+      // arp DENSITY (heat) stays on the cheap 0.4s throttle; the COHERENCE bloom
+      // (drone/lead/choir/filter) is pushed every frame below, next to the render
+      // half, so sight + sound lock to the SAME value at the SAME instant.
       this.intensityTimer -= realDt;
       if (this.intensityTimer <= 0) {
         this.intensityTimer = 0.4;
         this.audio.setIntensity(intensity(this.world.time));
-        this.audio.setCoherence(this.coherence.value, this.coherence.tier);
       }
 
       // advance the pure beat clock every frame, reconciled toward the audio truth
@@ -780,8 +781,11 @@ export class Game {
       this.coherence.target = coherenceTarget(cw.combo, cw.comboTimer, cw.player.killsThisDash, cw.clutch.lastBreathActive);
     }
     tickCoherence(this.coherence, realDt);
-    // THE ONE BUS (render half): push the eased Coherence value + focus-snap each frame
+    // THE ONE BUS — push the eased Coherence value to sight AND sound on the SAME
+    // frame with the SAME value (the audio glides smooth the per-frame writes; the
+    // call no-ops when music isn't running, so the title hub stays silent-safe).
     this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse);
+    this.audio.setCoherence(this.coherence.value, this.coherence.tier);
 
     // narrator (cosmetic; own rng; frame-context, never the seeded sim)
     if (this.state === 'playing') {

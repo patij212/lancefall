@@ -4,8 +4,10 @@
 
 import { bossTheme } from './bossThemes';
 import type { EnemyKind } from './types';
-import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX } from './tune';
+import { COHERENCE_AUDIO, MUSIC_BPM, AUDIO_MASTER, AUDIO_REVERB, AUDIO_SFX, AUDIO_PUMP } from './tune';
 import { mulberry32 } from './rng';
+import { positionFromStep, formAt } from './musicTransport';
+import { PENTA, themeNotesAt, themeFreq, bassChordMul, sectionLift } from './musicScore';
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -39,11 +41,11 @@ export class AudioEngine {
   // gain jitter so repeated kills don't sound like an identical machine-gun click.
   private hum = mulberry32(0x1a2b3c4d);
   /** ± `cents` of detune, in cents. */
-  private humCents(cents = AUDIO_SFX.humCents): number {
+  private humCents(cents: number = AUDIO_SFX.humCents): number {
     return (this.hum() * 2 - 1) * cents;
   }
   /** A gain multiplier in [1-amt, 1+amt]. */
-  private humGain(amt = AUDIO_SFX.humGain): number {
+  private humGain(amt: number = AUDIO_SFX.humGain): number {
     return 1 + (this.hum() * 2 - 1) * amt;
   }
 
@@ -74,6 +76,13 @@ export class AudioEngine {
   private rootMul = 1; // current root transpose multiplier (by combo tier)
   private choirVoices: { osc: OscillatorNode; gain: GainNode }[] = [];
   private static CHOIR_SEMIS = [0, 7, 12, 16, 19] as const; // add9 pad over the root
+
+  // THE LANCE THEME lead (the earworm) — its own coherence-gated gain + coherence-
+  // opened filter, both SOLELY owned by setCoherence (one controller per knob). The
+  // hook is therefore silent until a clean run earns it, then blooms in as the reward.
+  private hookGain: GainNode | null = null;
+  private hookFilter: BiquadFilterNode | null = null;
+  private coherenceVal = 0; // last coherence pushed (the scheduler gates the hook on it)
 
   get ready(): boolean {
     return this.ctx !== null;
@@ -245,7 +254,7 @@ export class AudioEngine {
     decay: number;
     peak: number;
     pan?: number;
-    bus?: GainNode;
+    bus?: AudioNode; // GainNode by default; a filter when a stem pre-filters (e.g. the lead hook)
     at?: number;
   }): void {
     const ctx = this.ctx;
@@ -832,6 +841,19 @@ export class AudioEngine {
     filter.connect(this.harmonyBus);
     this.droneFilter = filter;
 
+    // THE LANCE THEME lead chain: hook voices → hookFilter (opens with coherence) →
+    // hookGain (gated by coherence) → leadBus. Both controlled solely by setCoherence.
+    const hookFilter = ctx.createBiquadFilter();
+    hookFilter.type = 'lowpass';
+    hookFilter.frequency.value = COHERENCE_AUDIO.leadFilterBase;
+    hookFilter.Q.value = 0.8;
+    const hookGain = ctx.createGain();
+    hookGain.gain.value = 0.0001;
+    hookFilter.connect(hookGain);
+    hookGain.connect(this.leadBus);
+    this.hookFilter = hookFilter;
+    this.hookGain = hookGain;
+
     // root + fifth + octave, detuned for movement
     const freqs = [55, 55 * 1.5, 110, 110 * 1.5];
     this.drone = freqs.map((f, i) => {
@@ -879,6 +901,14 @@ export class AudioEngine {
     this.droneFilter.frequency.setTargetAtTime(700 + k * CA.filterBloom, t, CA.filterGlide);
     // (c) CHOIR pad blooms past the onset
     this.setChoir(Math.max(0, (k - CA.choirOnset) / (1 - CA.choirOnset)));
+    // (d) THE LANCE THEME lead — gate its gain + open its filter past leadOnset, so
+    //     the earworm hook is the audible REWARD of a clean (high-coherence) run.
+    if (this.hookGain && this.hookFilter) {
+      const leadLvl = k <= CA.leadOnset ? 0 : (k - CA.leadOnset) / (1 - CA.leadOnset);
+      this.hookGain.gain.setTargetAtTime(Math.max(0.0001, leadLvl * CA.leadGain), t, CA.leadGlide);
+      this.hookFilter.frequency.setTargetAtTime(CA.leadFilterBase + k * CA.leadFilterBloom, t, CA.filterGlide);
+    }
+    this.coherenceVal = k; // the scheduler gates whether to spawn hook voices at all
   }
 
   /** Lazily build + crossfade a 5-voice choir pad (add9 over the root), routed
@@ -978,31 +1008,134 @@ export class AudioEngine {
     if (!ctx) return;
     const sixteenth = 60 / this.bpm / 4;
     while (this.nextNoteT < ctx.currentTime + 0.1) {
-      this.playStep(this.musicStep % 16, this.nextNoteT);
+      this.playStep(this.musicStep, this.nextNoteT); // ABSOLUTE step → transport derives bar/beat/section
       this.nextNoteT += sixteenth;
       this.musicStep++;
     }
   }
 
-  // A-minor pentatonic across two octaves (consonant by construction)
-  private static PENTA = [110, 130.81, 146.83, 164.81, 196, 220, 261.63, 293.66, 329.63, 392];
-  private static ARP = [5, 7, 9, 7, 6, 9, 7, 5]; // indices into PENTA, per beat
+  private static ARP = [5, 7, 9, 7, 6, 9, 7, 5]; // indices into PENTA, per offbeat 8th
 
-  private playStep(s: number, t: number): void {
+  /** Synthesize one 16th-note step. `step` is the ABSOLUTE step index; the transport
+   *  derives bar/beat/section and the score says what plays. Vertical layers:
+   *  L1 KICK+BASS (always) · L2 ARP (heat) · L3 THE LANCE THEME hook (coherence) ·
+   *  L5 PERC/BREAK (high heat). The pad pumps under the kick (sidechain). */
+  private playStep(step: number, t: number): void {
     const heat = this.musicHeat;
-    // KICK on every beat — drive
-    if (s % 4 === 0) this.kick(t, 0.16);
-    // BASS pulse on beats 1 and 3
-    if (s === 0 || s === 8) this.bassNote(t, 110 * this.rootMul, 0.18);
-    if (s === 8 && heat > 0.5) this.bassNote(t, 146.83 * this.rootMul, 0.12); // a little movement when hot
-    // ARP on offbeat 8ths, density rising with heat
-    const onArp = heat > 0.25 && s % 2 === 1 && (heat > 0.6 || s % 4 === 1);
+    const pos = positionFromStep(step);
+    const sixteenth = 60 / this.bpm / 4;
+
+    // L1 KICK — four-on-the-floor drive; each kick fires the pad sidechain pump.
+    if (pos.sixteenthInBeat === 0) {
+      this.kick(t, 0.16 * this.humGain(0.06));
+      this.pump(t);
+    }
+
+    // L1 BASS — MOVING through the Am-F-C-G progression (bass-only chord motion, so
+    // the pentatonic top floats safely over it). Beats 1 & 3, plus offbeat push when hot.
+    const chord = bassChordMul(pos.bar);
+    if (pos.sixteenthInBar === 0 || pos.sixteenthInBar === 8) this.bassNote(t, 110 * this.rootMul * chord, 0.18);
+    if (heat > 0.6 && (pos.sixteenthInBar === 6 || pos.sixteenthInBar === 14))
+      this.bassNote(t, 110 * this.rootMul * chord, 0.1);
+
+    // L2 ARP — offbeat 8ths, density rising with heat (the mid-energy texture; per-boss
+    // colour when a boss is alive). Pentatonic at the key root (no chord offset → safe).
+    const onArp = heat > 0.25 && pos.sixteenthInBar % 2 === 1 && (heat > 0.6 || pos.sixteenthInBar % 4 === 1);
     if (onArp) {
-      const idx = Math.floor(this.musicStep / 2) % AudioEngine.ARP.length;
-      const base = AudioEngine.PENTA[AudioEngine.ARP[idx] % AudioEngine.PENTA.length];
-      const freq = (this.bossArp ? base * this.bossArpMul : base) * this.rootMul; // per-boss colour + coherence transpose
+      const idx = Math.floor(step / 2) % AudioEngine.ARP.length;
+      const base = PENTA[AudioEngine.ARP[idx] % PENTA.length];
+      const freq = (this.bossArp ? base * this.bossArpMul : base) * this.rootMul;
       this.pluck(t, freq, 0.22, Math.min(0.06, 0.03 + heat * 0.04));
     }
+
+    // L3 THE LANCE THEME hook — only spawned once a clean run earns it (gate on the
+    // cached coherence; hookGain's crossfade does the smooth fade-in). Per-section
+    // lift: A plain · A' octave-up · B fifth-up (the FALL fragment).
+    if (this.coherenceVal > COHERENCE_AUDIO.leadOnset * 0.8 && this.hookFilter) {
+      const lift = sectionLift(formAt(pos.bar).section);
+      for (const n of themeNotesAt(pos.phraseStep)) this.leadNote(t, themeFreq(n, this.rootMul * lift), n.dur * sixteenth, n.vel);
+    }
+
+    // L5 PERC/BREAK — hats on the "&" + a backbeat ghost-snare at high heat (the
+    // synthwave-DnB hybrid lift on a hot run).
+    if (heat > AUDIO_PUMP.percHeat && pos.sixteenthInBeat === 2) this.hat(t, 0.05 * this.humGain());
+    if (heat > AUDIO_PUMP.snareHeat && (pos.sixteenthInBar === 4 || pos.sixteenthInBar === 12)) this.ghostSnare(t);
+  }
+
+  /** Sidechain "pump": duck the sustained pad on each kick, then ease back — the
+   *  genre-defining synthwave breath. A cheap scheduled gain dip on harmonyBus. */
+  private pump(t: number): void {
+    const g = this.harmonyBus.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(AUDIO_PUMP.depth, t);
+    g.setTargetAtTime(1, t, AUDIO_PUMP.release);
+  }
+
+  /** One LANCE THEME note — a fat detuned twin-saw routed through the coherence-
+   *  controlled hook filter+gain, so the earworm is the audible reward of a clean run. */
+  private leadNote(t: number, freq: number, dur: number, vel: number): void {
+    if (!this.hookFilter) return;
+    const jitter = Math.pow(2, this.humCents(4) / 1200);
+    this.voice({
+      type: 'sawtooth',
+      freq: freq * jitter,
+      detune: COHERENCE_AUDIO.leadDetune,
+      attack: 0.01,
+      hold: Math.max(0, dur * 0.45),
+      decay: Math.max(0.1, dur * 0.55),
+      peak: 0.6 * vel,
+      bus: this.hookFilter,
+      at: t,
+    });
+  }
+
+  /** Closed hi-hat tick — short high-passed noise → drumsBus (PERC/BREAK stem). */
+  private hat(t: number, gain: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const n = this.noiseSource();
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 7000;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0004, t + 0.04);
+    g.gain.linearRampToValueAtTime(0, t + 0.05);
+    n.connect(hp);
+    hp.connect(g);
+    g.connect(this.drumsBus);
+    n.start(t);
+    n.stop(t + 0.06);
+    n.onended = () => {
+      n.disconnect();
+      hp.disconnect();
+      g.disconnect();
+    };
+  }
+
+  /** Backbeat ghost snare — band-passed noise burst → drumsBus. */
+  private ghostSnare(t: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const n = this.noiseSource();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 1800;
+    bp.Q.value = 0.7;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.09 * this.humGain(), t);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + 0.08);
+    g.gain.linearRampToValueAtTime(0, t + 0.09);
+    n.connect(bp);
+    bp.connect(g);
+    g.connect(this.drumsBus);
+    n.start(t);
+    n.stop(t + 0.1);
+    n.onended = () => {
+      n.disconnect();
+      bp.disconnect();
+      g.disconnect();
+    };
   }
 
   private kick(t: number, gain: number): void {
@@ -1153,9 +1286,23 @@ export class AudioEngine {
     }
     this.choirVoices = [];
     this.rootMul = 1;
+    this.coherenceVal = 0;
     this.droneFilter?.disconnect();
     this.drone = [];
     this.droneFilter = null;
+    // teardown the LANCE THEME lead chain
+    this.hookGain?.gain.setTargetAtTime(0.0001, t, 0.1);
+    const hg = this.hookGain;
+    const hf = this.hookFilter;
+    this.hookGain = null;
+    this.hookFilter = null;
+    window.setTimeout(() => {
+      hf?.disconnect();
+      hg?.disconnect();
+    }, 250);
+    // reset the sidechain-pumped pad gain so a fresh run doesn't start mid-duck
+    this.harmonyBus.gain.cancelScheduledValues(t);
+    this.harmonyBus.gain.setValueAtTime(1, t);
     this.droneOn = false;
   }
 
