@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "Provenance ledger for every shipped flagship audio asset. The build-time validator (tools/audio/validate-flagship.mjs) rejects a release if any committed asset under public/audio/flagship/ lacks an entry here with an ALLOWED license (CC0 / CC-BY / pixabay / royalty-free). CC-BY entries MUST carry an `attribution` line that also appears on the in-game credits screen. Filled during Task 3 (asset acquisition).",
+  "entries": []
+}
