@@ -807,7 +807,7 @@ export class Game {
     const cw = this.world;
     if (this.state === 'title') {
       // THE STILLPOINT hub — the title skyline reflects THE CHOICE made on the
-      // Sovereign kill: caught the star → the neon City; let it fall → dark ruin.
+      // Sovereign kill: held the light → the neon City; let it go → dark ruin.
       this.coherence.tier = 0;
       this.coherence.target =
         this.save.stillpointChoice === 'catch' ? 0.92 : this.save.stillpointChoice === 'fall' ? 0.12 : 0.42;

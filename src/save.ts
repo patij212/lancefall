@@ -62,7 +62,7 @@ export interface SaveData {
   stillpointLore: string[];
   /** unlocked betrayer dossier ids (== boss EnemyKind) */
   stillpointDossiers: string[];
-  /** THE CHOICE on a Sovereign kill: catch the star, let it fall, or not yet made */
+  /** THE CHOICE on a Sovereign kill: hold the light (catch), let it go (fall), or not yet made */
   stillpointChoice: 'catch' | 'fall' | 'none';
   /** highest NG+ loop reached */
   ngPlusLevel: number;

@@ -812,7 +812,8 @@ export class UI {
       rule('Power-ups', 'Bosses and Champions drop timed buffs — run over the glowing pickup to grab it (one active at a time)'),
       rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
-      rule('Bosses', 'Dash through the safe gaps. THE SOVEREIGN (the final boss) is ARMORED — dash through its orbiting CORES to crack it open, then punish the exposed crown'),
+      rule('Bosses', 'Dash through the safe gaps. THE SOVEREIGN is the master cipher — its CORES are a keypad; dash them in the order the CIPHER readout shows to crack it open, then punish the exposed crown'),
+      rule('Cipher', 'A cipher-locked boss is armored until you break its code: read the CIPHER readout and dash its glyph cores in that order. A wrong key re-locks it. (Every boss is a cipher in THE LONGEST DAY.)'),
       rule('Perks', 'Pick a perk every few waves. They STACK — that is the snowball'),
       rule('Unlocks', 'Spend shards on ships + palettes + dash trails; beat the Sovereign for the gold CROWN trail'),
     );
