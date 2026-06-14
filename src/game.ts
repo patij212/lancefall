@@ -193,6 +193,17 @@ export class Game {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    // Unlock audio on the FIRST user gesture (browsers suspend audio until then) and bring the menu
+    // to life — so the title isn't silent once the player has interacted. One-shot; removes itself.
+    const unlockAudio = () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      this.audio.ensure();
+      this.ui.hideSoundHint();
+      if (this.state === 'title') this.startMenuMusic();
+    };
+    window.addEventListener('pointerdown', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
     // auto-pause + suspend audio when the tab is hidden
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -423,7 +434,14 @@ export class Game {
     this.ui.refreshTitle(this.save);
     this.renderer.setBiomeTint(null); // restore the cosmetic theme nebula on menus
     this.audio.endCharge();
-    this.audio.stopDrone();
+    this.startMenuMusic(); // the menu vibes too — not silent (no-op until audio is unlocked by a gesture)
+  }
+
+  /** Calm, muffled menu music on the title (the menu mix: 34% vol + 1500 Hz lowpass). startDrone is a
+   *  no-op if the music is already running or the context isn't unlocked yet. */
+  private startMenuMusic(): void {
+    this.audio.startDrone();
+    this.audio.duckMusic(true);
   }
 
   private openDraft(): void {
