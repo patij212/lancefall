@@ -602,6 +602,13 @@ export const BEACON = {
   fanBulletSpeed: 215,
 } as const;
 
+// THE CIPHER-LOCK — the code-breaking layer (an ode to Turing). Cosmetic-feedback
+// constants only; the cipher itself is pure + deterministic (see cipher.ts).
+export const CIPHER = {
+  wrongShake: 0.18, // trauma on a wrong key (the cipher re-locks)
+  keyShake: 0.1, // trauma on a correct key
+} as const;
+
 // SIXTH & FINAL boss: THE SOVEREIGN — a crowned monarch that warps space. Its
 // body is ARMORED (dash deals nothing) while its three orbiting Cores live;
 // shatter all three to crack the crown EXPOSED for a punish window, after which

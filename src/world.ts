@@ -17,6 +17,7 @@ import type { RelicId } from './relics';
 import { createRng } from './rng';
 import type { Rng } from './rng';
 import type { Player, Enemy, Bullet, Gem, EnemyKind } from './types';
+import type { CipherState } from './cipher';
 
 function makeEnemy(): Enemy {
   return {
@@ -176,6 +177,16 @@ export class World {
    *  the Daily's wave composition identical for everyone. Re-seeded per run. */
   dropRng: Rng;
 
+  /** the run seed (the same value seeding world.rng). The cipher-lock derives its
+   *  per-(seed,boss) code from this, so a Daily seed yields the same cipher for
+   *  everyone — and it is read, never drawn, so world.rng stays bit-identical. */
+  seed = 0;
+  /** the active boss cipher-lock (the code-breaking layer), or null. Set when a
+   *  cipher-locked boss's cores spawn; cleared on its death. Never touches world.rng. */
+  cipher: CipherState | null = null;
+  /** the dashId that last registered a cipher key — enforces one key per dash. */
+  cipherKeyDashId = -1;
+
   constructor(rng: Rng) {
     this.rng = rng;
     this.dropRng = createRng(0xc0ffee);
@@ -201,6 +212,8 @@ export class World {
     this.shards = 0;
     this.grazeCount = 0;
     this.killCount = 0;
+    this.cipher = null;
+    this.cipherKeyDashId = -1;
     this.maxDashChain = 0;
     this.bossKills = 0;
     this.sovereignDown = false;

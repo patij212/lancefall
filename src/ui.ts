@@ -23,6 +23,7 @@ import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
+import { ciphertext } from './cipher';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
@@ -137,6 +138,7 @@ export class UI {
   private odWrap!: HTMLElement;
   private odFill!: HTMLElement;
   private odLabel!: HTMLElement;
+  private cipherEl!: HTMLElement;
   private puWrap!: HTMLElement;
   private puFill!: HTMLElement;
   private puLabel!: HTMLElement;
@@ -246,7 +248,10 @@ export class UI {
     this.puFill = el('div', { class: 'hud-pu-fill' });
     this.puWrap = el('div', { class: 'hud-powerup' }, this.puLabel, el('div', { class: 'hud-pu-track' }, this.puFill));
 
-    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap);
+    // CIPHER-LOCK readout — the code to break, in required dash order (boss fights)
+    this.cipherEl = el('div', { class: 'hud-cipher' });
+
+    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap, this.cipherEl);
     this.rebuildStamina(TUNE.stamina.segments);
   }
 
@@ -1225,6 +1230,25 @@ export class UI {
     this.odFill.style.transform = `scaleX(${Math.max(0, Math.min(1, od.meter))})`;
     this.odWrap.classList.toggle('od-ready', ready);
     this.odLabel.textContent = od.cooldown > 0 ? `FADING ${Math.ceil(od.cooldown)}s` : ready ? 'DAYBREAK READY [F]' : 'DAYBREAK';
+
+    // CIPHER-LOCK readout — the glyph sequence to dash, with progress
+    const cipher = world.cipher;
+    if (cipher && !cipher.solved) {
+      const ct = ciphertext(cipher);
+      this.cipherEl.replaceChildren(
+        el('span', { class: 'cipher-label' }, 'CIPHER'),
+        ...ct.map((g, i) =>
+          el(
+            'span',
+            { class: 'cipher-glyph' + (i < cipher.progress ? ' done' : i === cipher.progress ? ' next' : '') },
+            String(g + 1),
+          ),
+        ),
+      );
+      this.cipherEl.classList.add('on');
+    } else {
+      this.cipherEl.classList.remove('on');
+    }
 
     // active POWER-UP badge
     const pu = world.powerup;

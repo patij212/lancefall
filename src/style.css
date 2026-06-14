@@ -811,6 +811,48 @@ body {
 .event-risk-high { color: var(--pink); background: color-mix(in srgb, var(--pink) 16%, transparent); }
 
 /* ── OVERDRIVE HUD meter ── */
+.hud-cipher {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  display: none;
+  gap: 7px;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  pointer-events: none;
+}
+.hud-cipher.on { display: flex; }
+.cipher-label {
+  color: var(--amber, #fbbf24);
+  letter-spacing: 0.25em;
+  font-size: 11px;
+  opacity: 0.85;
+  margin-right: 2px;
+}
+.cipher-glyph {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(253, 224, 71, 0.5);
+  border-radius: 6px;
+  color: #fde047;
+  font-weight: 700;
+  font-size: 14px;
+  background: rgba(8, 11, 23, 0.55);
+}
+.cipher-glyph.done {
+  opacity: 0.4;
+  border-color: #34d399;
+  color: #34d399;
+}
+.cipher-glyph.next {
+  border-color: #fff;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
 .hud-overdrive {
   position: absolute;
   left: 50%;

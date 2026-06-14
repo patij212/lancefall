@@ -3,6 +3,7 @@
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
 import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD } from './tune';
+import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
 import type { World } from './world';
@@ -163,7 +164,11 @@ export class Renderer {
   }
 
   /** Full frame: world buffer → composite → vignette. */
+  /** the active boss cipher (for drawing core glyphs); refreshed each frame */
+  private cipher: CipherState | null = null;
+
   render(world: World, cam: Camera, opts: RenderOpts): void {
+    this.cipher = world.cipher;
     const { bctx, dpr } = this;
     this.reduceFlashingR = opts.reduceFlashing;
     this.reduceMotionR = opts.reduceMotion;
@@ -1205,6 +1210,29 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
     ctx.fill();
+    // CIPHER glyph — the symbol the player reads off the HUD and dashes in order
+    const cipher = this.cipher;
+    if (cipher && !cipher.solved) {
+      const slot = e.phase;
+      const glyph = cipher.glyphs[slot] ?? slot;
+      const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed in order
+      const isNext = cipher.order[cipher.progress] === slot; // the next correct key
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = isNext ? 0.55 + 0.45 * Math.sin(e.spawnTime * 8) : 0.8;
+      ctx.strokeStyle = keyed ? '#34d399' : isNext ? '#ffffff' : 'rgba(253,224,71,0.55)';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.fillStyle = keyed ? '#34d399' : '#0b0e17';
+      ctx.font = `bold ${Math.round(r * 0.85)}px 'Space Grotesk', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(glyph + 1), 0, 0);
+      ctx.restore();
+    }
   }
 
   private drawPlayer(world: World): void {

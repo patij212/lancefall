@@ -19,6 +19,7 @@ import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
 import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
+import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
@@ -31,7 +32,7 @@ import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX } from './tune';
+import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER } from './tune';
 import { RUN_EVENTS, rollEventChoices } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -290,6 +291,7 @@ export class Game {
     this.seed = challenge ? challenge.seed : cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.audio.setMusicVariant(this.seed); // one coherent arena track per run (reads the seed, no rng draw)
     this.world.rng = createRng(this.seed);
+    this.world.seed = this.seed; // read-only source for the cipher-lock (no rng draw)
     // power-up drops draw from a SEPARATE stream so death-timed draws never perturb
     // the seeded director/spawn stream (keeps the Daily's waves identical for all)
     this.world.dropRng = createRng((this.seed ^ 0x1f83d9ab) >>> 0);
@@ -1036,6 +1038,16 @@ export class Game {
       }
       if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, r)) {
         e.lastDashId = p.dashId;
+        // CIPHER-LOCK: while a boss cipher is unsolved, a dashed core is a KEY
+        // PRESS (read the code, dash in order) — not a kill. One key per dash so
+        // you can't sweep the ring; this forces deliberate per-core routing.
+        if (e.kind === 'sovereign_core' && w.cipher && !w.cipher.solved) {
+          if (w.cipherKeyDashId !== p.dashId) {
+            w.cipherKeyDashId = p.dashId;
+            this.keyCipherCore(e);
+          }
+          continue;
+        }
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
         const dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
         this.damageEnemy(e, dmg, true);
@@ -1078,6 +1090,7 @@ export class Game {
     for (const e of this.candidates) {
       if (!e.active || e.lastDashId === w.ghostDashId) continue;
       if (this.spearBlocked(e)) continue; // the ghost obeys the same armor/intangibility rules
+      if (e.kind === 'sovereign_core' && w.cipher && !w.cipher.solved) continue; // only a real dash keys the cipher
       if (segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, e.x, e.y, e.radius, r)) {
         e.lastDashId = w.ghostDashId;
         this.damageEnemy(e, w.stats.dashDamage, true);
@@ -1256,6 +1269,47 @@ export class Game {
       w.particles.ring(w.boss.x, w.boss.y, w.boss.radius + 30, '#fde047', 0.5);
       this.shake.add(0.5);
     }
+  }
+
+  /** A dash registered on a cipher core: read it as a key press in the decoded
+   *  order. A correct key advances (rising pitch); a wrong key re-locks the
+   *  cipher (the cipher reducer resets progress). Solving cracks the crown. */
+  private keyCipherCore(core: Enemy): void {
+    const w = this.world;
+    const c = w.cipher;
+    if (!c) return;
+    const res = dashCipherCore(c, core.phase);
+    if (res === 'wrong') {
+      w.particles.floatText(core.x, core.y - core.radius - 12, 'WRONG KEY', '#ff6b6b', 0.9);
+      w.particles.burst(core.x, core.y, 8, '#ff6b6b');
+      this.audio.thunk(0, this.panFor(core.x)); // a low, dull clang
+      this.shake.add(CIPHER.wrongShake);
+      this.input.rumble(0.2, 0.4, 70);
+      return;
+    }
+    // a correct key — pitch rises as the cipher resolves
+    w.particles.burst(core.x, core.y, 12, SOVEREIGN.coreColor);
+    this.audio.thunk(Math.min(40 + c.progress * 8, 90), this.panFor(core.x));
+    this.shake.add(CIPHER.keyShake);
+    this.input.rumble(0.1, 0.3, 40);
+    if (res === 'solved') {
+      this.solveCipher();
+    } else {
+      w.particles.floatText(core.x, core.y - core.radius - 12, `KEY ${c.progress}/${c.order.length}`, '#fde047', 0.8);
+    }
+  }
+
+  /** The cipher is broken: shatter every core (each its own reward) — the final
+   *  shatter trips the existing CROWN EXPOSED crack via countSovereignCores===0. */
+  private solveCipher(): void {
+    const w = this.world;
+    w.particles.floatText(w.boss?.x ?? w.width / 2, (w.boss?.y ?? w.height / 2) - 60, 'CIPHER BROKEN', '#fde047', 1.4);
+    this.renderer.flash('#fde047', 0.18);
+    const cores: Enemy[] = [];
+    w.enemies.forEachActive((e) => {
+      if (e.kind === 'sovereign_core') cores.push(e);
+    });
+    for (const core of cores) this.shatterCore(core, true);
   }
 
   /** Fire an arcade announcement when the combo crosses a new milestone tier. */

@@ -4,6 +4,7 @@
 // appearance. Takes 1 "dash-hit" per dash (one-hit-per-dashId enforced upstream).
 
 import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN } from './tune';
+import { cipherSeed, makeCipher } from './cipher';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -484,9 +485,13 @@ export function spawnSovereignCores(world: World, boss: Enemy): void {
     );
     if (c) {
       c.angle = a; // current orbit angle (advances each frame)
-      c.phase = i; // orbit index (render variety)
+      c.phase = i; // orbit index (render variety AND cipher slot)
     }
   }
+  // CIPHER-LOCK: the cores become a keypad. The decoded order comes from a stable
+  // hash of (seed, bossWave) via a LOCAL generator — shared on a Daily seed and
+  // NEVER drawing world.rng, so the scoring stream stays bit-identical.
+  world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave));
 }
 
 /** Release any Cores still alive when the Sovereign falls (so they don't linger). */
@@ -494,6 +499,7 @@ export function cleanupSovereignCores(world: World): void {
   world.enemies.forEachActive((e) => {
     if (e.kind === 'sovereign_core') world.enemies.release(e);
   });
+  world.cipher = null; // the master cipher falls with the crown
 }
 
 /** How many Cores are still orbiting (0 → crack the crown open). */
