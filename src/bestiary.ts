@@ -28,12 +28,12 @@ export const BESTIARY: CodexEntry[] = [
   // ── special ──
   { id: 'champion', name: 'Champion', cat: 'special', accent: '#fde047', blurb: 'A gold-aura elite: tanky, rains shards, but detonates a volatile ring on death.' },
   // ── bosses ──
-  { id: 'warden', name: 'THE WARDEN · Keeper of the Gates', cat: 'boss', accent: '#ff3b6b', blurb: 'Sworn to hold the gates, he barred them from the inside — duty curdled into contempt. "I only locked the doors you forgot to guard."' },
-  { id: 'weaver', name: 'THE WEAVER · Spinner of the Lie', cat: 'boss', accent: '#a855f7', blurb: 'Court chronicler who rewove the record until no one remembered the kingdom was worth saving. "I unspun every thread that held you."' },
-  { id: 'beacon', name: 'THE BEACON · The Light That Lied', cat: 'boss', accent: '#38bdf8', blurb: 'Signal-keeper who let the call for aid go dark, so no help ever came. "I shone for everyone but you."' },
-  { id: 'mirrorblade', name: 'THE MIRRORBLADE · Your Own Doubt', cat: 'boss', accent: '#ef4444', blurb: "Not a person — your doubt made flesh; it lunges as you do, in your own colour. \"You were always going to falter. I'm the proof.\"" },
-  { id: 'hollow', name: 'THE HOLLOW · What Grief Left', cat: 'boss', accent: '#6ee7b7', blurb: 'The last mourner, emptied out by grief — untouchable until it remembers it was real. "There was nothing left in me to hold."' },
-  { id: 'sovereign', name: 'THE SOVEREIGN · The Crown That Fell First', cat: 'boss', accent: '#fde047', blurb: 'The one who could have saved it and chose the crown instead; now warps gravity to stop you undoing it. "I was the kingdom. I chose to let it end."' },
+  { id: 'warden', name: 'THE WARDEN · Keeper of the First Gate', cat: 'boss', accent: '#ff3b6b', blurb: 'Sworn to hold the gates, he barred them from the inside — duty curdled into contempt. "I bolted the gate and the first wheel from the inside. I called it duty."' },
+  { id: 'weaver', name: 'THE WEAVER · Spinner of the Lie', cat: 'boss', accent: '#a855f7', blurb: 'Court cryptographer who enciphered the record until no one could read the kingdom was worth saving. "I enciphered every thread that held you. I thought scrambling the loss was mercy."' },
+  { id: 'beacon', name: 'THE BEACON · The Light That Lied', cat: 'boss', accent: '#38bdf8', blurb: 'Signal-keeper who let the call for aid go dark — the key it carried never sent. "I let the signal go dark. I still hear it asking."' },
+  { id: 'mirrorblade', name: 'THE MIRRORBLADE · Your Own Doubt', cat: 'boss', accent: '#ef4444', blurb: "Not a person — your doubt made flesh; it lunges as you do, in your own colour, because it learned you. \"I learned you move for move. Tell me which of us is real.\"" },
+  { id: 'hollow', name: 'THE HOLLOW · What Grief Left', cat: 'boss', accent: '#6ee7b7', blurb: 'The last mourner, emptied by grief — its key shows for only the instant it forgets itself. "There was nothing left in me to hold."' },
+  { id: 'sovereign', name: 'THE SOVEREIGN · The Crown That Fell First', cat: 'boss', accent: '#fde047', blurb: 'The one who could have unlocked it all and kept the crown instead; now warps gravity to stop you reading the last cipher. "I was the key to everything. I chose to lose it."' },
 ];
 
 export const CODEX_CATEGORIES: { cat: CodexEntry['cat']; label: string }[] = [

@@ -145,6 +145,17 @@ body {
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 4px 30px rgba(168, 85, 247, 0.45));
 }
+.title-sub {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  color: var(--amber, #fbbf24);
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  font-size: clamp(13px, 2.4vw, 20px);
+  margin: -2px 0 2px;
+  opacity: 0.92;
+}
 .title-tag {
   font-family: 'JetBrains Mono', monospace;
   color: var(--text-muted);

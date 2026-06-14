@@ -95,6 +95,6 @@ describe('narrator pool (data coverage)', () => {
   it('all six strata have a line; combo tiers map to known cut points', () => {
     expect(NARRATOR.strata.length).toBe(6);
     for (const s of NARRATOR.strata) expect(s.trim().length).toBeGreaterThan(0);
-    for (const at of [10, 20, 50, 100]) expect(NARRATOR.comboTier[at]).toBeTruthy();
+    for (const at of [10, 20, 35, 50, 75, 100]) expect(NARRATOR.comboTier[at]).toBeTruthy();
   });
 });

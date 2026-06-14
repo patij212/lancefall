@@ -213,7 +213,7 @@ export function buildShareString(
   daily: boolean,
   build = '',
 ): string {
-  const head = daily ? `THE LAST LANCE · Echo of the Fall ${dateString()}` : 'THE LAST LANCE';
+  const head = daily ? `THE LAST KEY · Echo of the Fall ${dateString()}` : 'THE LAST KEY';
   const buildPart = build ? ` · ${build}` : '';
   return `${head} — held the light for ${score.toLocaleString()} · x${combo} combo · descent ${wave}${buildPart}. How much can you hold? lancefall.pages.dev`;
 }

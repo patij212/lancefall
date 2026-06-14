@@ -13,9 +13,9 @@ export interface ChoiceEnding {
 }
 export function choiceEnding(choice: Choice): ChoiceEnding {
   if (choice === 'catch')
-    return { head: 'THE LIGHT HOLDS', line: 'You caught it. The light holds. The city remembers your name.' };
+    return { head: 'THE LIGHT HOLDS', line: 'You held it. The longest day stands, and the city wakes in full light.' };
   if (choice === 'fall')
-    return { head: 'THE LIGHT RELEASED', line: 'You let it go. The fall completes — and is finally, mercifully over.' };
+    return { head: 'THE LIGHT RELEASED', line: 'You let it go. The day completes, the dark comes gently, and it is finally, mercifully over.' };
   return { head: 'THE LIGHT HOLDS', line: 'Lancefall remembers itself.' };
 }
 

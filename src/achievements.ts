@@ -50,8 +50,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'crucible', name: 'The Crucible', desc: 'Reach wave 5+ at Heat 7 (maximum heat).', check: (c) => c.heat >= 7 && (c.won || c.wave >= 5) },
   { id: 'regicide', name: 'Regicide', desc: 'Bring down the Sovereign.', check: (c) => c.sovereignDown },
   { id: 'coronation', name: 'Long Live the Lance', desc: 'Defeat the Sovereign at Heat 3 or above.', check: (c) => c.sovereignDown && c.heat >= 3 },
-  { id: 'unleashed', name: 'Unleashed', desc: 'Fire REMEMBER EVERYTHING.', check: (c) => c.overdriveUses >= 1 },
-  { id: 'overcharged', name: 'Overcharged', desc: 'Fire REMEMBER EVERYTHING 4 times in a single run.', check: (c) => c.overdriveUses >= 4 },
+  { id: 'unleashed', name: 'Unleashed', desc: 'Fire DAYBREAK.', check: (c) => c.overdriveUses >= 1 },
+  { id: 'overcharged', name: 'Overcharged', desc: 'Fire DAYBREAK 4 times in a single run.', check: (c) => c.overdriveUses >= 4 },
   { id: 'lastbreath', name: 'Cheating Death', desc: 'Survive a Last Breath bullet-time save.', check: (c) => c.lastBreathUses >= 1 },
   { id: 'powerplayer', name: 'Power Player', desc: 'Collect 5 power-ups in one run.', check: (c) => c.powerupsCollected >= 5 },
 ];

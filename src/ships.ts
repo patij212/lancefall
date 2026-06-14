@@ -18,7 +18,7 @@ export const SHIPS: ShipDef[] = [
   {
     id: 'lance',
     name: 'THE LAST LANCE',
-    desc: 'The last spear left standing when Lancefall fell. Even in every way — 3 stamina, true handling.',
+    desc: "The last spear left standing when Lancefall fell — the city's last key. Even in every way: 3 stamina, true handling.",
     accent: '#22d3ee',
     unlockShards: 0,
     apply: () => {},

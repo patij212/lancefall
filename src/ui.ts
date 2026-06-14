@@ -57,7 +57,7 @@ export interface UICallbacks {
 
 export interface GameOverInfo {
   score: number;
-  /** first Sovereign kill → present THE CHOICE (catch the star / let it fall) */
+  /** first Sovereign kill → present THE CHOICE (hold the light / let it go) */
   choicePending?: boolean;
   /** a shareable replay clip exists → show the SAVE REPLAY button */
   canReplay?: boolean;
@@ -237,7 +237,7 @@ export class UI {
     const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.bestComboEl);
 
     // OVERDRIVE meter (below the stamina bar)
-    this.odLabel = el('div', { class: 'hud-od-label' }, 'REMEMBER');
+    this.odLabel = el('div', { class: 'hud-od-label' }, 'DAYBREAK');
     this.odFill = el('div', { class: 'hud-od-fill' });
     this.odWrap = el('div', { class: 'hud-overdrive' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
 
@@ -263,7 +263,8 @@ export class UI {
 
   private buildTitle(): void {
     const wordmark = el('h1', { class: 'title-word' }, 'LANCEFALL');
-    const tagline = el('p', { class: 'title-tag' }, 'remember the fall');
+    const subtitle = el('p', { class: 'title-sub' }, 'THE LAST KEY');
+    const tagline = el('p', { class: 'title-tag' }, 'break the code. bring back the day.');
     const play = el('button', { class: 'btn btn-primary btn-play' }, 'PLAY');
     play.title = 'Endless mode';
     play.addEventListener('click', () => this.cb.onStart(modeById('endless')));
@@ -317,7 +318,7 @@ export class UI {
       el('b', {}, 'WASD / arrows / stick'),
       el('span', {}, 'dash'),
       el('b', {}, 'hold + release  ·  mouse / Space / RT'),
-      el('span', {}, 'overdrive'),
+      el('span', {}, 'daybreak'),
       el('b', {}, 'F / LB'),
     );
 
@@ -325,6 +326,7 @@ export class UI {
       'div',
       { class: 'screen screen-title' },
       wordmark,
+      subtitle,
       tagline,
       play,
       modeRow,
@@ -399,15 +401,15 @@ export class UI {
     this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SAVE GIF ⬇') as HTMLButtonElement;
     this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
     const row = el('div', { class: 'go-row' }, again, copy, dna, duel, this.saveReplayBtn, menu);
-    // THE CHOICE — shown only on the first Sovereign kill (catch the star / let it fall)
-    const catchBtn = el('button', { class: 'btn btn-primary' }, 'CATCH THE STAR');
+    // THE CHOICE — shown only on the first Sovereign kill (hold the light / let it go)
+    const catchBtn = el('button', { class: 'btn btn-primary' }, 'HOLD THE LIGHT');
     catchBtn.addEventListener('click', () => this.cb.onChoice('catch'));
-    const fallBtn = el('button', { class: 'btn btn-ghost' }, 'LET IT FALL');
+    const fallBtn = el('button', { class: 'btn btn-ghost' }, 'LET IT GO');
     fallBtn.addEventListener('click', () => this.cb.onChoice('fall'));
     this.choiceRow = el(
       'div',
       { class: 'go-row go-choice hidden' },
-      el('div', { class: 'go-choice-prompt' }, 'The star is falling. Will you catch it?'),
+      el('div', { class: 'go-choice-prompt' }, 'The last cipher cannot be solved — only chosen. Hold the light at its height, or let the day turn?'),
       catchBtn,
       fallBtn,
     );
@@ -729,7 +731,7 @@ export class UI {
       el(
         'div',
         { class: 'codex-frag' },
-        `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'} — one is carried out of every descent. Spend them to remember.`,
+        `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'} — one is carried out of every descent. Spend them to decrypt what was lost.`,
       ),
     );
     const grid = el('div', { class: 'codex-grid' });
@@ -740,12 +742,12 @@ export class UI {
         card.append(el('div', { class: 'codex-name' }, e.title), el('div', { class: 'codex-blurb' }, e.text));
       } else {
         const affordable = bal >= e.cost;
-        const btn = el('button', { class: 'btn btn-sm' + (affordable ? ' btn-primary' : '') }, `REMEMBER ◆${e.cost}`);
+        const btn = el('button', { class: 'btn btn-sm' + (affordable ? ' btn-primary' : '') }, `DECRYPT ◆${e.cost}`);
         if (!affordable) btn.setAttribute('disabled', 'true');
         btn.addEventListener('click', () => this.cb.onUnlockLore(e.id));
         card.append(
-          el('div', { class: 'codex-name codex-locked' }, '— forgotten —'),
-          el('div', { class: 'codex-blurb codex-locked' }, `A memory of the fall, lost. ◆${e.cost} to remember it.`),
+          el('div', { class: 'codex-name codex-locked' }, '— enciphered —'),
+          el('div', { class: 'codex-blurb codex-locked' }, `A memory of the fall, enciphered. ◆${e.cost} to decrypt it.`),
           btn,
         );
       }
@@ -768,7 +770,7 @@ export class UI {
       rule('I-frames', 'You are invincible mid-dash — dash through bullets and bosses'),
       rule('Combo', 'Chain kills before the timer runs out to multiply score — hit ×50 and your combo ERUPTS into a bullet-clearing nova'),
       rule('Graze', 'Skim bullets without being hit to refill stamina'),
-      rule('REMEMBER EVERYTHING', 'Kills + grazes charge the bottom meter. When it reads READY, tap F (or gamepad LB) to unleash a time-slowing, screen-clearing nova'),
+      rule('DAYBREAK', 'Kills + grazes charge the bottom meter. When it reads READY, tap F (or gamepad LB) to break the cipher — a time-slowing, screen-clearing burst of light'),
       rule('Power-ups', 'Bosses and Champions drop timed buffs — run over the glowing pickup to grab it (one active at a time)'),
       rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
@@ -1100,7 +1102,7 @@ export class UI {
     this.goScore.textContent = '0';
     this.goHead.textContent = info.won ? 'THE LIGHT HOLDS' : 'THE LIGHT DIMS';
     this.goHead.style.color = info.won ? 'var(--amber)' : 'var(--pink)';
-    this.goSub.textContent = info.won ? 'Lancefall remembers itself' : `the kingdom forgets a little more · ${info.deathCause}`;
+    this.goSub.textContent = info.won ? 'Lancefall remembers itself' : `the city slips back to grey · ${info.deathCause}`;
     this.choiceRow.classList.toggle('hidden', !info.choicePending);
     this.saveReplayBtn.classList.toggle('hidden', !info.canReplay);
     this.goBadge.classList.toggle('hidden', !info.newBest);
@@ -1222,7 +1224,7 @@ export class UI {
     const ready = od.meter >= 1 && od.cooldown <= 0;
     this.odFill.style.transform = `scaleX(${Math.max(0, Math.min(1, od.meter))})`;
     this.odWrap.classList.toggle('od-ready', ready);
-    this.odLabel.textContent = od.cooldown > 0 ? `FADING ${Math.ceil(od.cooldown)}s` : ready ? 'REMEMBER EVERYTHING READY [F]' : 'REMEMBER';
+    this.odLabel.textContent = od.cooldown > 0 ? `FADING ${Math.ceil(od.cooldown)}s` : ready ? 'DAYBREAK READY [F]' : 'DAYBREAK';
 
     // active POWER-UP badge
     const pu = world.powerup;

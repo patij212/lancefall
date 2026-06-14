@@ -514,7 +514,7 @@ export class Game {
     // score + spectacle
     const bonus = Math.round(OVERDRIVE.scoreBonus * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.score += bonus;
-    w.particles.floatText(p.x, p.y - 44, `REMEMBER EVERYTHING +${bonus.toLocaleString()}`, '#ffffff', 1.7);
+    w.particles.floatText(p.x, p.y - 44, `DAYBREAK +${bonus.toLocaleString()}`, '#ffffff', 1.7);
     w.particles.ring(p.x, p.y, OVERDRIVE.novaRadius, '#ffffff', 0.5);
     w.particles.ring(p.x, p.y, OVERDRIVE.novaRadius * 0.6, '#5beaff', 0.4);
     w.particles.burst(p.x, p.y, 70, '#ffffff');
@@ -526,8 +526,8 @@ export class Game {
     this.audio.setMixState('overdrive'); // momentary duck under the nova, then bloom back
     this.cam.zoom = Math.max(this.cam.zoom, 1.18);
     this.input.rumble(0.8, 1, 280);
-    this.ui.announce('REMEMBER EVERYTHING', '#ffffff');
-    coherenceBeatKick(this.coherence, true); // THE DROP — REMEMBER EVERYTHING floods the world back to neon
+    this.ui.announce('DAYBREAK', '#ffffff');
+    coherenceBeatKick(this.coherence, true); // THE DROP — DAYBREAK decrypts the world back to full neon light
   }
 
   private openEvent(id: RunEventId): void {
