@@ -6,7 +6,18 @@
 import { tracksForLayering, type MusicSourceManifest, type MusicTrackKey } from './audioManifest';
 
 const BEATS_PER_BAR = 4;
-const CROSSFADE_S = 0.6; // longer equal-power fade — distinct songs blend smoothly on a rotation switch
+const CROSSFADE_S = 1.5; // smooth fade — distinct songs blend over a loop-boundary trade-off
+
+// Equal-power (constant-energy) crossfade curves: sin in / cos out so the two uncorrelated tracks
+// keep a flat perceived level through the blend (a LINEAR crossfade dips ~3 dB at the midpoint).
+const FADE_N = 64;
+const EQUAL_POWER_IN = new Float32Array(FADE_N);
+const EQUAL_POWER_OUT = new Float32Array(FADE_N);
+for (let i = 0; i < FADE_N; i++) {
+  const x = (i / (FADE_N - 1)) * (Math.PI / 2);
+  EQUAL_POWER_IN[i] = Math.sin(x);
+  EQUAL_POWER_OUT[i] = Math.cos(x);
+}
 
 export function barSeconds(bpm: number, beatsPerBar: number): number {
   return (60 / bpm) * beatsPerBar;
@@ -63,8 +74,7 @@ export class LayerPlayer {
     const loopEnd = durs.length ? Math.min(idealLoopEnd, ...durs) : idealLoopEnd;
 
     const master = this.ctx.createGain();
-    master.gain.setValueAtTime(0, at);
-    master.gain.linearRampToValueAtTime(1, at + CROSSFADE_S);
+    master.gain.setValueCurveAtTime(EQUAL_POWER_IN, at, CROSSFADE_S); // equal-power fade-in
     master.connect(this.destination);
 
     const tracks = new Map<MusicTrackKey, { src: AudioBufferSourceNode; gain: GainNode }>();
@@ -84,8 +94,7 @@ export class LayerPlayer {
     const old = this.current;
     if (old) {
       old.master.gain.cancelScheduledValues(at);
-      old.master.gain.setValueAtTime(1, at);
-      old.master.gain.linearRampToValueAtTime(0, at + CROSSFADE_S);
+      old.master.gain.setValueCurveAtTime(EQUAL_POWER_OUT, at, CROSSFADE_S); // equal-power fade-out
       this.teardown(old, at + CROSSFADE_S + 0.05);
     }
     this.current = { id: source.id, master, tracks };

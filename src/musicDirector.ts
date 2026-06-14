@@ -6,11 +6,11 @@
 import { sourceById, type MusicLayering, type MusicTrackKey } from './audioManifest';
 
 // The arena picks ONE of these 4 energetic tracks per run (from the run seed → musicVariant) so the
-// player settles into a coherent VIBE — no constant within-run switching. Variety comes across runs
-// (+ the boss track). A VERY slow drift only kicks in on a marathon run (every SLOW_ROTATE_BARS bars
-// ≈ many minutes), at a bar downbeat, so even then it changes rarely, not constantly.
+// player settles into a coherent VIBE, then gently TRADES OFF to the next track over a long session.
+// TRADE_BARS is a MULTIPLE of the 32-bar loop, so a switch always lands on a loop boundary — the
+// track "finishes naturally" before the (equal-power, in LayerPlayer) crossfade. 4 loops ≈ ~5 min.
 const ARENA_POOL = ['aurora_verse', 'aurora_build', 'aurora_chorus', 'aurora_drop'] as const;
-const SLOW_ROTATE_BARS = 256; // = one full 24-bar loop per phase (clean switch at the loop boundary)
+const ARENA_TRADE_BARS = 128; // = one full 24-bar loop per phase (clean switch at the loop boundary)
 
 export interface BossMusicState {
   kind: string;
@@ -46,9 +46,10 @@ export function sourceFor(state: MusicDirectorState, absoluteBar: number): strin
     if (state.boss.hpFrac <= 0.34) return 'warden_enraged';
     return state.boss.kind === 'warden' && state.boss.phase === 1 ? 'warden_fan' : 'warden_spiral';
   }
-  // arena: ONE track for the whole run (from the run seed) so you settle in and vibe; the loop cutoff
-  // (decideMusic) gives the intensity curve within it. Only a marathon run drifts to the next track.
-  const drift = Math.floor(Math.max(0, absoluteBar) / SLOW_ROTATE_BARS);
+  // arena: start on this run's track (seed → musicVariant) and gently trade off to the next every
+  // ARENA_TRADE_BARS (loop-aligned, so it switches at a natural loop boundary). The loop cutoff
+  // (decideMusic) gives the intensity curve within each track.
+  const drift = Math.floor(Math.max(0, absoluteBar) / ARENA_TRADE_BARS);
   return ARENA_POOL[((state.musicVariant ?? 0) + drift) % ARENA_POOL.length];
 }
 

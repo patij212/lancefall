@@ -7,19 +7,20 @@ const warden = (phase: number, hpFrac: number): MusicDirectorState => ({
 });
 
 describe('music director — horizontal source selection', () => {
-  it('plays ONE arena track for the whole run (from musicVariant) — vibe, not constant switching', () => {
+  it('settles on ONE arena track (from musicVariant), trading off at a loop boundary every 128 bars', () => {
     const run = (variant: number): MusicDirectorState => ({ intensity: 0, coherence: 0, boss: null, musicVariant: variant });
-    // a run stays on ITS track across the whole arena (no per-section/per-phase switching)
+    // a run holds ITS track for the whole ~5-min trade window (128 bars = 4 of the 32-bar loops)
     expect(sourceFor(run(0), 0)).toBe('aurora_verse');
-    expect(sourceFor(run(0), 50)).toBe('aurora_verse'); // minutes in — same track
-    expect(sourceFor(run(0), 200)).toBe('aurora_verse'); // still same (< SLOW_ROTATE_BARS)
-    // different runs pick different tracks (variety lives ACROSS runs); raw seeds wrap via % pool
+    expect(sourceFor(run(0), 50)).toBe('aurora_verse');
+    expect(sourceFor(run(0), 127)).toBe('aurora_verse'); // still — just before the boundary
+    // then gently trades off to the next track at the loop boundary
+    expect(sourceFor(run(0), 128)).toBe('aurora_build');
+    expect(sourceFor(run(0), 256)).toBe('aurora_chorus');
+    // different runs start on different tracks (variety across runs); raw seeds wrap via % pool
     expect(sourceFor(run(1), 0)).toBe('aurora_build');
     expect(sourceFor(run(2), 0)).toBe('aurora_chorus');
     expect(sourceFor(run(3), 0)).toBe('aurora_drop');
     expect(sourceFor(run(4), 0)).toBe('aurora_verse'); // wraps
-    // only a MARATHON run (≥256 bars) drifts one step
-    expect(sourceFor(run(0), 256)).toBe('aurora_build');
   });
 
   it('selects the WARDEN source from phase, then enrage at ≤34% HP', () => {

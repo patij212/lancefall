@@ -55,7 +55,7 @@ interface FakeCtx extends BaseAudioContext {
 function makeCtx(): FakeCtx {
   let disc = 0;
   const srcs: { onended: (() => void) | null }[] = [];
-  const sink = () => ({ connect: (d: unknown) => d, disconnect() { disc++; }, gain: { value: 0, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {} } });
+  const sink = () => ({ connect: (d: unknown) => d, disconnect() { disc++; }, gain: { value: 0, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, setValueCurveAtTime() {}, cancelScheduledValues() {} } });
   const ctx = {
     currentTime: 0,
     createGain: sink,
