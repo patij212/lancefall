@@ -36,7 +36,8 @@ describe('cipher integration — spawnSovereignCores arms the keypad', () => {
 
   it('derives the order from (seed, bossWave) — Daily-shared, not from world.rng', () => {
     const w = armed(20260621, 1);
-    expect(w.cipher!.order).toEqual(makeCipher(SOVEREIGN.coreCount, cipherSeed(20260621, 1)).order);
+    // seed = bossWave*97 + cipherCycle (0 on the first arm) — a fresh code per re-lock
+    expect(w.cipher!.order).toEqual(makeCipher(SOVEREIGN.coreCount, cipherSeed(20260621, 1 * 97 + 0)).order);
     // same seed+wave → same cipher even from a different world.rng state
     expect(armed(20260621, 1).cipher!.order).toEqual(w.cipher!.order);
   });
@@ -80,7 +81,7 @@ describe('THE LONGEST DAY — generic ring cipher', () => {
     boss.bossWave = 1;
     spawnCipherRing(w, boss, CIPHER.ringCount);
     expect(w.cipher).not.toBeNull();
-    expect(w.cipher!.order).toEqual(makeCipher(CIPHER.ringCount, cipherSeed(12345, 1)).order);
+    expect(w.cipher!.order).toEqual(makeCipher(CIPHER.ringCount, cipherSeed(12345, 1 * 97 + 0)).order);
     expect(boss.cipherExposed).toBe(0);
     let cores = 0;
     w.enemies.forEachActive((e) => {
@@ -103,5 +104,23 @@ describe('THE LONGEST DAY — generic ring cipher', () => {
     updateBoss(boss, w, 0.2); // window closes within this tick → re-arm
     expect(boss.cipherExposed).toBe(0);
     expect(w.cipher).not.toBeNull(); // a fresh ring cipher is armed
+  });
+
+  it('spawnCipherRing draws ZERO world.rng (the seeded wave stream is untouched)', () => {
+    const setup = () => {
+      const w = new World(createRng(42));
+      w.reset(800, 600);
+      w.seed = 1;
+      const boss = w.spawnEnemy('darter', 400, 300, 1, 1, false)!;
+      boss.kind = 'warden';
+      boss.bossWave = 1;
+      return { w, boss };
+    };
+    const a = setup();
+    spawnCipherRing(a.w, a.boss, CIPHER.ringCount);
+    const afterRing = a.w.rng.next();
+    const b = setup(); // identical world.rng draws, but NO ring armed
+    const noRing = b.w.rng.next();
+    expect(afterRing).toBe(noRing); // arming the ring consumed no world.rng
   });
 });

@@ -1024,6 +1024,8 @@ export class Game {
     const maxX = Math.max(ax, bx) + r + 30;
     const maxY = Math.max(ay, by) + r + 30;
     w.hash.queryAABB(minX, minY, maxX, maxY, this.candidates);
+    let cipherBest: Enemy | null = null; // the cipher core the spear reaches first
+    let cipherBestD = Infinity;
     for (const e of this.candidates) {
       if (!e.active || e.lastDashId === p.dashId) continue;
       if (this.spearBlocked(e)) {
@@ -1042,9 +1044,12 @@ export class Game {
         // PRESS (read the code, dash in order) — not a kill. One key per dash so
         // you can't sweep the ring; this forces deliberate per-core routing.
         if (e.kind === 'sovereign_core' && w.cipher && !w.cipher.solved) {
-          if (w.cipherKeyDashId !== p.dashId) {
-            w.cipherKeyDashId = p.dashId;
-            this.keyCipherCore(e);
+          // record the nearest-to-origin core; key exactly one after the sweep so a
+          // wide hitbox (OVERREACH) keys the core you aimed at, not a hash-order one
+          const d = (e.x - ax) * (e.x - ax) + (e.y - ay) * (e.y - ay);
+          if (d < cipherBestD) {
+            cipherBestD = d;
+            cipherBest = e;
           }
           continue;
         }
@@ -1052,6 +1057,12 @@ export class Game {
         const dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
         this.damageEnemy(e, dmg, true);
       }
+    }
+    // CIPHER-LOCK: key ONE core per dash — the first the spear reaches (nearest the
+    // dash origin), so a wide hitbox can't mis-key and unfairly re-lock the cipher.
+    if (cipherBest && w.cipherKeyDashId !== p.dashId) {
+      w.cipherKeyDashId = p.dashId;
+      this.keyCipherCore(cipherBest);
     }
     // Riposte: shatter enemy bullets along the spear (boss shots stay lethal)
     if (w.stats.dashShatterRadius > 0) {
@@ -1116,9 +1127,12 @@ export class Game {
 
   /** Apply damage; on death run the kill cascade (combo, score, particles, chain). */
   private damageEnemy(e: Enemy, dmg: number, fromDash: boolean): void {
-    // Sovereign Cores are a dash-skill target — only the spear shatters them, never
-    // graze-burn / eruption / other AoE. (The OVERDRIVE nova excludes them upstream.)
-    if (e.kind === 'sovereign_core' && !fromDash) return;
+    // Cipher cores are a dash-SKILL target: killable ONLY through the keypad
+    // (resolveDashHits → keyCipherCore → solveCipher → shatterCore). Block ALL
+    // direct damage while a cipher is unsolved — this closes the fromDash AoE hole
+    // (Nova Dash / Chain Reaction / FRENZY) that would otherwise shatter cores out
+    // of order and soft-lock a ring boss. Non-dash AoE is blocked always.
+    if (e.kind === 'sovereign_core' && (!fromDash || (this.world.cipher != null && !this.world.cipher.solved))) return;
     e.hp -= dmg;
     e.hitFlash = 0.1;
     if (e.hp > 0) {
@@ -1319,7 +1333,7 @@ export class Game {
     if (boss && boss.kind === 'sovereign') {
       // the master cipher: shatter cores → the final one trips CROWN EXPOSED (existing path)
       w.particles.floatText(boss.x, boss.y - 60, 'CIPHER BROKEN', '#fde047', 1.4);
-      for (const core of cores) this.shatterCore(core, true);
+      for (const core of cores) if (core.active) this.shatterCore(core, true);
       return;
     }
     // a generic RING-cipher boss: open a punish window, then updateBoss re-locks it
@@ -1330,7 +1344,7 @@ export class Game {
       this.audio.bossStinger();
       this.shake.add(0.5);
     }
-    for (const core of cores) this.shatterCore(core, true); // generic reward (non-sovereign → early return)
+    for (const core of cores) if (core.active) this.shatterCore(core, true); // generic reward (non-sovereign → early return)
     w.cipher = null; // re-armed when the expose window closes
   }
 

@@ -187,6 +187,9 @@ export class World {
   cipher: CipherState | null = null;
   /** the dashId that last registered a cipher key — enforces one key per dash. */
   cipherKeyDashId = -1;
+  /** counts cipher (re-)arms this run → mixed into the cipher seed so each re-lock
+   *  is a FRESH code, not a repeat. Deterministic; never draws world.rng. */
+  cipherCycle = 0;
 
   constructor(rng: Rng) {
     this.rng = rng;
@@ -215,6 +218,7 @@ export class World {
     this.killCount = 0;
     this.cipher = null;
     this.cipherKeyDashId = -1;
+    this.cipherCycle = 0;
     this.maxDashChain = 0;
     this.bossKills = 0;
     this.sovereignDown = false;

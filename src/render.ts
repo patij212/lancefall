@@ -1216,11 +1216,12 @@ export class Renderer {
       const slot = e.phase;
       const glyph = cipher.glyphs[slot] ?? slot;
       const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed in order
-      const isNext = cipher.order[cipher.progress] === slot; // the next correct key
+      // No "next core" waypoint — you READ the glyphs (the HUD shows the order); a
+      // static ring keeps it a11y-safe (no motion/flash to gate). Keyed cores go green.
       ctx.save();
       ctx.lineWidth = 2;
-      ctx.globalAlpha = isNext ? 0.55 + 0.45 * Math.sin(e.spawnTime * 8) : 0.8;
-      ctx.strokeStyle = keyed ? '#34d399' : isNext ? '#ffffff' : 'rgba(253,224,71,0.55)';
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = keyed ? '#34d399' : 'rgba(253,224,71,0.7)';
       ctx.beginPath();
       ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
       ctx.stroke();

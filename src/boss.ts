@@ -502,7 +502,8 @@ export function spawnSovereignCores(world: World, boss: Enemy): void {
   // CIPHER-LOCK: the cores become a keypad. The decoded order comes from a stable
   // hash of (seed, bossWave) via a LOCAL generator — shared on a Daily seed and
   // NEVER drawing world.rng, so the scoring stream stays bit-identical.
-  world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave));
+  world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle));
+  world.cipherCycle++; // each re-lock is a fresh code
 }
 
 /** Bosses that get the GENERIC ring cipher in a cipher-lock mode (Warden, Weaver,
@@ -530,7 +531,8 @@ export function spawnCipherRing(world: World, boss: Enemy, n: number): void {
     }
   }
   boss.cipherExposed = 0;
-  world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave));
+  world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle));
+  world.cipherCycle++; // each re-lock is a fresh code
 }
 
 /** Release any Cores still alive when the Sovereign falls (so they don't linger). */
