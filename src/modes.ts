@@ -20,6 +20,7 @@ export interface RunConfig {
   canFail: boolean;
   arena: boolean; // scripted finite winnable gauntlet
   bossrush: boolean; // the bosses back-to-back
+  cipherLock?: boolean; // ring-cipher bosses (Warden/Weaver/Beacon) armored until decoded — THE LONGEST DAY
 }
 
 const ENDLESS: RunConfig = {
@@ -49,6 +50,13 @@ export const MODES: RunConfig[] = [
     id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0.06,
     shieldStart: 999, shieldMax: 0, shardMul: 1.3, perks: true, canFail: true, arena: false, bossrush: true,
+  },
+  {
+    id: 'longestday', name: 'THE LONGEST DAY',
+    desc: 'Every boss is a cipher. Break the code, bring the light back — to the longest day.',
+    seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 38, speedBonus: 0,
+    shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
+    cipherLock: true,
   },
 ];
 

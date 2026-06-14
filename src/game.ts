@@ -17,7 +17,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, E
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores } from './boss';
+import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit } from './collision';
@@ -512,7 +512,7 @@ export class Game {
     for (const e of victims) if (e.active) this.killEnemy(e, false);
     // chunk a boss too (a fair reward, not a oneshot) — but respect the Sovereign's
     // armor: the nova only bites the crown once it's EXPOSED, like the dash.
-    if (w.bossAlive && w.boss && !sovereignBodyArmored(w.boss)) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
+    if (w.bossAlive && w.boss && !sovereignBodyArmored(w.boss) && !this.bossCipherArmored(w.boss)) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
     // score + spectacle
     const bonus = Math.round(OVERDRIVE.scoreBonus * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.score += bonus;
@@ -1101,9 +1101,16 @@ export class Game {
   /** Can the spear (a dash OR its afterimage ghost) damage this enemy right now?
    *  The Sovereign body is armored until EXPOSED; the Hollow is intangible outside
    *  its sync window. Enforced on EVERY spear path here so the two can never drift. */
+  /** A generic RING-cipher boss is armored until its cipher is broken (and re-armed
+   *  between expose windows). Shared by the spear paths AND the DAYBREAK nova. */
+  private bossCipherArmored(e: Enemy): boolean {
+    return bossUsesRingCipher(e.kind) && this.world.cipher != null && !this.world.cipher.solved && (e.cipherExposed ?? 0) <= 0;
+  }
+
   private spearBlocked(e: Enemy): boolean {
     if (e.kind === 'hollow' && !hollowSyncActive(e)) return true;
     if (sovereignBodyArmored(e)) return true;
+    if (this.bossCipherArmored(e)) return true;
     return false;
   }
 
@@ -1303,13 +1310,28 @@ export class Game {
    *  shatter trips the existing CROWN EXPOSED crack via countSovereignCores===0. */
   private solveCipher(): void {
     const w = this.world;
-    w.particles.floatText(w.boss?.x ?? w.width / 2, (w.boss?.y ?? w.height / 2) - 60, 'CIPHER BROKEN', '#fde047', 1.4);
+    const boss = w.boss;
     this.renderer.flash('#fde047', 0.18);
     const cores: Enemy[] = [];
     w.enemies.forEachActive((e) => {
       if (e.kind === 'sovereign_core') cores.push(e);
     });
-    for (const core of cores) this.shatterCore(core, true);
+    if (boss && boss.kind === 'sovereign') {
+      // the master cipher: shatter cores → the final one trips CROWN EXPOSED (existing path)
+      w.particles.floatText(boss.x, boss.y - 60, 'CIPHER BROKEN', '#fde047', 1.4);
+      for (const core of cores) this.shatterCore(core, true);
+      return;
+    }
+    // a generic RING-cipher boss: open a punish window, then updateBoss re-locks it
+    if (boss) {
+      w.particles.floatText(boss.x, boss.y - boss.radius - 16, 'CIPHER BROKEN', '#fde047', 1.4);
+      boss.cipherExposed = CIPHER.exposeDuration;
+      this.ui.announce('EXPOSED', '#fde047');
+      this.audio.bossStinger();
+      this.shake.add(0.5);
+    }
+    for (const core of cores) this.shatterCore(core, true); // generic reward (non-sovereign → early return)
+    w.cipher = null; // re-armed when the expose window closes
   }
 
   /** Fire an arcade announcement when the combo crosses a new milestone tier. */
@@ -1455,6 +1477,7 @@ export class Game {
       cleanupSovereignCores(w); // clear orbiting cores
       w.sovereignDown = true;
     }
+    if (bossUsesRingCipher(e.kind)) cleanupSovereignCores(w); // clear any generic ring cores + the cipher
     w.enemies.release(e);
     w.bossAlive = false;
     w.boss = null;
@@ -1947,6 +1970,9 @@ export class Game {
     const w = this.world;
     // bossCount is the true boss-appearance ordinal in every mode (drives HP scaling)
     const boss = spawnBoss(w, this.director.bossCount, force);
+    // THE LONGEST DAY: wrap ring-cipher bosses in a code-lock (the Sovereign arms
+    // its own in spawnBoss; the Hollow/Mirrorblade are already their own puzzles)
+    if (boss && this.mode.cipherLock && bossUsesRingCipher(boss.kind)) spawnCipherRing(w, boss, CIPHER.ringCount);
     this.audio.bossWarn();
     this.audio.bossMusic(true, boss?.kind); // per-boss tension theme
     this.shake.add(TUNE.juice.traumaBossSpawn);

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
-import { spawnSovereignCores } from './boss';
+import { spawnSovereignCores, spawnCipherRing, bossUsesRingCipher, updateBoss } from './boss';
 import { makeCipher, cipherSeed, dashCipherCore } from './cipher';
-import { SOVEREIGN } from './tune';
+import { SOVEREIGN, CIPHER } from './tune';
 
 // The boss→cipher wiring (boss.ts) + the determinism invariant: the cipher order
 // is derived from (world.seed, bossWave), NOT world.rng — so a Daily seed yields
@@ -57,5 +57,51 @@ describe('cipher integration — spawnSovereignCores arms the keypad', () => {
     expect(dashCipherCore(c, wrongSlot)).toBe('wrong');
     expect(c.progress).toBe(0);
     expect(c.solved).toBe(false);
+  });
+});
+
+describe('THE LONGEST DAY — generic ring cipher', () => {
+  it('only Warden/Weaver/Beacon use the generic ring (others are their own puzzles)', () => {
+    expect(bossUsesRingCipher('warden')).toBe(true);
+    expect(bossUsesRingCipher('weaver')).toBe(true);
+    expect(bossUsesRingCipher('beacon')).toBe(true);
+    expect(bossUsesRingCipher('hollow')).toBe(false);
+    expect(bossUsesRingCipher('mirrorblade')).toBe(false);
+    expect(bossUsesRingCipher('sovereign')).toBe(false);
+  });
+
+  it('spawnCipherRing arms a deterministic ring around any boss (no rng dependence)', () => {
+    const w = new World(createRng(0xfeed));
+    w.reset(800, 600);
+    w.seed = 12345;
+    const boss = w.spawnEnemy('darter', 400, 300, 1, 1, false)!;
+    boss.kind = 'warden';
+    boss.isBoss = true;
+    boss.bossWave = 1;
+    spawnCipherRing(w, boss, CIPHER.ringCount);
+    expect(w.cipher).not.toBeNull();
+    expect(w.cipher!.order).toEqual(makeCipher(CIPHER.ringCount, cipherSeed(12345, 1)).order);
+    expect(boss.cipherExposed).toBe(0);
+    let cores = 0;
+    w.enemies.forEachActive((e) => {
+      if (e.kind === 'sovereign_core') cores++;
+    });
+    expect(cores).toBe(CIPHER.ringCount);
+  });
+
+  it('a ring boss re-locks (re-arms a fresh cipher) when its expose window closes', () => {
+    const w = new World(createRng(0xfeed));
+    w.reset(800, 600);
+    w.seed = 999;
+    const boss = w.spawnEnemy('darter', 400, 300, 1, 1, false)!;
+    boss.kind = 'warden';
+    boss.isBoss = true;
+    boss.bossWave = 1;
+    // simulate a solved cipher → open punish window (cipher cleared, exposed timer set)
+    w.cipher = null;
+    boss.cipherExposed = 0.1;
+    updateBoss(boss, w, 0.2); // window closes within this tick → re-arm
+    expect(boss.cipherExposed).toBe(0);
+    expect(w.cipher).not.toBeNull(); // a fresh ring cipher is armed
   });
 });

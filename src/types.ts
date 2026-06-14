@@ -93,6 +93,7 @@ export interface Enemy {
   scale: number; // render pop scale (juice tween target)
   fireTimer: number; // boss: time to next shot
   subPhase: number; // generic sub-state: boss fan-counter / brooder hatch-count / herald gap-offset px
+  cipherExposed?: number; // generic ring-cipher boss: >0 = punish window open (THE LONGEST DAY)
 }
 
 export interface Bullet {

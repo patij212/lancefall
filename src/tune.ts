@@ -607,6 +607,8 @@ export const BEACON = {
 export const CIPHER = {
   wrongShake: 0.18, // trauma on a wrong key (the cipher re-locks)
   keyShake: 0.1, // trauma on a correct key
+  ringCount: 3, // cores in a generic boss ring (THE LONGEST DAY)
+  exposeDuration: 3.5, // s a generic ring boss stays vulnerable after its cipher breaks
 } as const;
 
 // SIXTH & FINAL boss: THE SOVEREIGN — a crowned monarch that warps space. Its

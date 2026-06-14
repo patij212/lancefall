@@ -3,7 +3,7 @@
 // bursts with a rest window that is your damage opening. HP scales each
 // appearance. Takes 1 "dash-hit" per dash (one-hit-per-dashId enforced upstream).
 
-import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN } from './tune';
+import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN, CIPHER } from './tune';
 import { cipherSeed, makeCipher } from './cipher';
 import { norm, clamp } from './vec';
 import type { World } from './world';
@@ -79,6 +79,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.scale = 0.1;
   e.fireTimer = 0;
   e.subPhase = 0;
+  e.cipherExposed = 0;
   world.bossAlive = true;
   world.boss = e;
   if (kind === 'sovereign') {
@@ -89,6 +90,16 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
 }
 
 export function updateBoss(e: Enemy, world: World, dt: number): void {
+  // GENERIC ring-cipher expose window: while cracked the boss is vulnerable; when
+  // the window closes the cipher re-locks (a fresh ring). Dormant unless a ring was
+  // armed (cipher-lock mode), so every other mode is completely unaffected.
+  if (bossUsesRingCipher(e.kind) && (e.cipherExposed ?? 0) > 0) {
+    e.cipherExposed = (e.cipherExposed ?? 0) - dt;
+    if (e.cipherExposed <= 0) {
+      e.cipherExposed = 0;
+      spawnCipherRing(world, e, CIPHER.ringCount);
+    }
+  }
   if (e.kind === 'weaver') updateWeaver(e, world, dt);
   else if (e.kind === 'beacon') updateBeacon(e, world, dt);
   else if (e.kind === 'mirrorblade') updateMirrorblade(e, world, dt);
@@ -492,6 +503,34 @@ export function spawnSovereignCores(world: World, boss: Enemy): void {
   // hash of (seed, bossWave) via a LOCAL generator — shared on a Daily seed and
   // NEVER drawing world.rng, so the scoring stream stays bit-identical.
   world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave));
+}
+
+/** Bosses that get the GENERIC ring cipher in a cipher-lock mode (Warden, Weaver,
+ *  Beacon). The Hollow (one-time key), Mirrorblade (imitation game) and Sovereign
+ *  (master cipher) are already code-breaking puzzles in their own right. */
+export function bossUsesRingCipher(kind: Enemy['kind']): boolean {
+  return kind === 'warden' || kind === 'weaver' || kind === 'beacon';
+}
+
+/** Arm a generic cipher RING around a boss: cores at fixed angles (passed
+ *  explicitly, so NO world.rng draw) + a fresh cipher from (seed, bossWave). Used
+ *  by THE LONGEST DAY; re-armed via the expose window in updateBoss + solveCipher. */
+export function spawnCipherRing(world: World, boss: Enemy, n: number): void {
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const c = world.spawnEnemy(
+      'sovereign_core',
+      boss.x + Math.cos(a) * SOVEREIGN.coreOrbitRadius,
+      boss.y + Math.sin(a) * SOVEREIGN.coreOrbitRadius,
+      1, 1, false, false, a,
+    );
+    if (c) {
+      c.angle = a;
+      c.phase = i;
+    }
+  }
+  boss.cipherExposed = 0;
+  world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave));
 }
 
 /** Release any Cores still alive when the Sovereign falls (so they don't linger). */

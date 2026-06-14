@@ -49,6 +49,7 @@ function makeEnemy(): Enemy {
     scale: 1,
     fireTimer: 0,
     subPhase: 0,
+    cipherExposed: 0,
   };
 }
 

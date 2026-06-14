@@ -444,11 +444,11 @@ function hollowEcho(e: Enemy, world: World, dt: number): void {
   }
 }
 
-/** A Sovereign Core: rigidly orbits the crown. Dash through it to shatter it
- *  (that's the only way to chip the armored body). Orphaned if the boss is gone. */
+/** A cipher core: rigidly orbits its boss (the Sovereign's crown, or a generic
+ *  ring boss in THE LONGEST DAY). Dash it to key the cipher. Stops if no boss. */
 function sovereignCore(e: Enemy, world: World, dt: number): void {
   const b = world.boss;
-  if (!b || b.kind !== 'sovereign') {
+  if (!b) {
     e.vx = 0;
     e.vy = 0;
     return;
