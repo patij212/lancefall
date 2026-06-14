@@ -277,6 +277,7 @@ export class Game {
     const challenge = this.pendingChallenge;
     this.pendingChallenge = null;
     this.seed = challenge ? challenge.seed : cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
+    this.audio.setMusicVariant(this.seed); // one coherent arena track per run (reads the seed, no rng draw)
     this.world.rng = createRng(this.seed);
     // power-up drops draw from a SEPARATE stream so death-timed draws never perturb
     // the seeded director/spawn stream (keeps the Daily's waves identical for all)

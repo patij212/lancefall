@@ -87,11 +87,11 @@ const variants = (id: string, n: number): CodecAssetSet[] =>
 export const FLAGSHIP_AUDIO_MANIFEST: AudioManifest = {
   version: 1,
   music: [
-    // AURORA arena — 4 DISTINCT energetic tracks, 24-bar loops, rotated by run-progress (musicDirector).
-    loopSource('aurora_verse', 'aurora', 'verse', 107, 'A minor', 24, CREDIT.magenta),     // Magenta Metropolis
-    loopSource('aurora_build', 'aurora', 'build', 110, 'A minor', 24, CREDIT.cyberpunk),    // Cyberpunk Renaissance
-    loopSource('aurora_chorus', 'aurora', 'chorus', 120, 'A minor', 24, CREDIT.afterglow),  // Afterglow Love
-    loopSource('aurora_drop', 'aurora', 'drop', 96, 'A minor', 24, CREDIT.neon),            // Neon Drive
+    // AURORA arena — 4 DISTINCT energetic tracks, long 32-bar loops; ONE picked per run (musicDirector).
+    loopSource('aurora_verse', 'aurora', 'verse', 107, 'A minor', 32, CREDIT.magenta),     // Magenta Metropolis
+    loopSource('aurora_build', 'aurora', 'build', 110, 'A minor', 32, CREDIT.cyberpunk),    // Cyberpunk Renaissance
+    loopSource('aurora_chorus', 'aurora', 'chorus', 120, 'A minor', 32, CREDIT.afterglow),  // Afterglow Love
+    loopSource('aurora_drop', 'aurora', 'drop', 96, 'A minor', 32, CREDIT.neon),            // Neon Drive
     // WARDEN boss — the dark/driving Cyber Thriller (3 escalating 16-bar regions).
     loopSource('warden_spiral', 'warden', 'spiral', 112, 'A minor', 16, CREDIT.cyberThriller),
     loopSource('warden_fan', 'warden', 'fan', 112, 'A minor', 16, CREDIT.cyberThriller),

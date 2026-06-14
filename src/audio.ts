@@ -1164,6 +1164,12 @@ export class AudioEngine {
     this.hybrid?.setIntensity(n); // feed the authored vertical mix (loopCutoff opens with intensity)
   }
 
+  /** Pick this run's arena track (from the run seed) so the authored music is one coherent vibe per
+   *  run, not a constant rotation. Safe before the hybrid exists (no-op). */
+  setMusicVariant(n: number): void {
+    this.hybrid?.setMusicVariant(n);
+  }
+
   /** Select the active soundtrack (Settings). Safe to call before the context
    *  exists — it just swaps the profile the scheduler reads each step. */
   setSoundtrack(id: SoundtrackId): void {

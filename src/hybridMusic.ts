@@ -49,7 +49,7 @@ export interface HybridMusicDeps {
 }
 
 export class HybridMusic {
-  private readonly state: MusicDirectorState = { intensity: 0, coherence: 0, boss: null };
+  private readonly state: MusicDirectorState = { intensity: 0, coherence: 0, boss: null, musicVariant: 0 };
   private currentSourceId: string | null = null;
   private authoredActive = false;
   private bpm = PROCEDURAL_BPM;
@@ -66,6 +66,11 @@ export class HybridMusic {
 
   setCoherence(value: number): void {
     this.state.coherence = value;
+  }
+
+  /** Pick the arena track for this run (from the run seed) — one coherent track, not constant rotation. */
+  setMusicVariant(value: number): void {
+    this.state.musicVariant = value;
   }
 
   /** Update the boss music state and emit Warden edge samples (arrival/phase/fan) once per edge. */

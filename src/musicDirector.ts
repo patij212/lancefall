@@ -5,10 +5,12 @@
 
 import { sourceById, type MusicLayering, type MusicTrackKey } from './audioManifest';
 
-// The arena rotates through these 4 distinct energetic tracks, one per ROTATE_BARS-bar phase —
-// variety across a run, coherence within a phase, and the switch lands on a bar downbeat.
+// The arena picks ONE of these 4 energetic tracks per run (from the run seed → musicVariant) so the
+// player settles into a coherent VIBE — no constant within-run switching. Variety comes across runs
+// (+ the boss track). A VERY slow drift only kicks in on a marathon run (every SLOW_ROTATE_BARS bars
+// ≈ many minutes), at a bar downbeat, so even then it changes rarely, not constantly.
 const ARENA_POOL = ['aurora_verse', 'aurora_build', 'aurora_chorus', 'aurora_drop'] as const;
-const ARENA_ROTATE_BARS = 24; // = one full 24-bar loop per phase (clean switch at the loop boundary)
+const SLOW_ROTATE_BARS = 256; // = one full 24-bar loop per phase (clean switch at the loop boundary)
 
 export interface BossMusicState {
   kind: string;
@@ -21,6 +23,7 @@ export interface MusicDirectorState {
   intensity: number; // 0..1
   coherence: number; // 0..1
   boss: BossMusicState | null;
+  musicVariant?: number; // per-run arena-track pick (from the seed); stable for the whole run
 }
 
 export interface MusicDecision {
@@ -43,9 +46,10 @@ export function sourceFor(state: MusicDirectorState, absoluteBar: number): strin
     if (state.boss.hpFrac <= 0.34) return 'warden_enraged';
     return state.boss.kind === 'warden' && state.boss.phase === 1 ? 'warden_fan' : 'warden_spiral';
   }
-  // arena: rotate the distinct-track pool by run-progress; the loop cutoff (decideMusic) gives the
-  // intensity curve within each track, so variety comes from the pool, energy from the reactive open.
-  return ARENA_POOL[Math.floor(Math.max(0, absoluteBar) / ARENA_ROTATE_BARS) % ARENA_POOL.length];
+  // arena: ONE track for the whole run (from the run seed) so you settle in and vibe; the loop cutoff
+  // (decideMusic) gives the intensity curve within it. Only a marathon run drifts to the next track.
+  const drift = Math.floor(Math.max(0, absoluteBar) / SLOW_ROTATE_BARS);
+  return ARENA_POOL[((state.musicVariant ?? 0) + drift) % ARENA_POOL.length];
 }
 
 /** Authored vertical layering per source shape. `loop` rides at full gain (its intensity comes
