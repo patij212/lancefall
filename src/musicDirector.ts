@@ -8,7 +8,7 @@ import { sourceById, type MusicLayering, type MusicTrackKey } from './audioManif
 // The arena rotates through these 4 distinct energetic tracks, one per ROTATE_BARS-bar phase —
 // variety across a run, coherence within a phase, and the switch lands on a bar downbeat.
 const ARENA_POOL = ['aurora_verse', 'aurora_build', 'aurora_chorus', 'aurora_drop'] as const;
-const ARENA_ROTATE_BARS = 32;
+const ARENA_ROTATE_BARS = 24; // = one full 24-bar loop per phase (clean switch at the loop boundary)
 
 export interface BossMusicState {
   kind: string;

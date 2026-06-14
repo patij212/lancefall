@@ -8,7 +8,7 @@
 //
 // Usage: node tools/audio/conform-flagship.mjs   (reads loops.json; skips sources with no sourceWav)
 
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { barSeconds, loopSeconds } from './lib.mjs';
@@ -42,8 +42,9 @@ function probeDuration(input) {
   return r.status === 0 ? Number(r.stdout.trim()) || 0 : 0;
 }
 
-/** The overlap-add seam-bake filtergraph for one source (see Deep Dive C). */
-function loopFilter(startSec, loopSec, xfSec, lufs, tp, stretchTempo) {
+/** The overlap-add seam-bake filtergraph for one source (see Deep Dive C). Loudness is applied
+ *  AFTER, as a precise 2-pass step (masterLoudness), so this just builds the seamless loop. */
+function loopFilter(startSec, loopSec, xfSec, stretchTempo) {
   const end = startSec + loopSec;
   const pre = stretchTempo ? `${stretchTempo},` : '';
   return [
@@ -54,8 +55,29 @@ function loopFilter(startSec, loopSec, xfSec, lufs, tp, stretchTempo) {
     `[0:a]${pre}atrim=start=${end}:end=${end + xfSec},asetpts=N/SR/TB,afade=t=out:curve=qsin:st=0:d=${xfSec}[tailfade]`,
     `[headfade][tailfade]amix=inputs=2:normalize=0:duration=shortest[seam]`,
     `[body]atrim=start=${xfSec}:end=${loopSec},asetpts=N/SR/TB[rest]`,
-    `[seam][rest]concat=n=2:v=0:a=1,loudnorm=I=${lufs}:TP=${tp}:LRA=11,aresample=48000[outa]`,
+    `[seam][rest]concat=n=2:v=0:a=1,aresample=48000[outa]`,
   ].join(';');
+}
+
+/** Professional EBU R128 2-pass loudness normalisation: pass 1 MEASURES the loop, pass 2 applies a
+ *  LINEAR gain to hit the integrated-LUFS + true-peak targets EXACTLY (preserves dynamics — no
+ *  pumping, unlike single-pass). Matches all tracks to the same loudness so the rotation is seamless.
+ *  Falls back to single-pass if the measurement JSON can't be parsed. */
+function masterLoudness(inputWav, outputWav, lufs, tp) {
+  const r = spawnSync('ffmpeg', [
+    '-hide_banner', '-i', inputWav,
+    '-af', `loudnorm=I=${lufs}:TP=${tp}:LRA=11:print_format=json`, '-f', 'null', '-',
+  ], { encoding: 'utf8' });
+  let m = null;
+  try { m = JSON.parse((r.stderr || '').match(/\{[\s\S]*?\}/g)?.pop() ?? ''); } catch { m = null; }
+  const measured = m && Number.isFinite(+m.input_i)
+    ? `:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}:linear=true`
+    : '';
+  run('ffmpeg', [
+    '-hide_banner', '-y', '-i', inputWav,
+    '-af', `loudnorm=I=${lufs}:TP=${tp}:LRA=11${measured}`,
+    '-ar', '48000', '-c:a', 'pcm_s16le', outputWav,
+  ]);
 }
 
 function conformMusic(src, stretchFilter) {
@@ -89,12 +111,17 @@ function conformMusic(src, stretchFilter) {
   const outDir = resolve(OUT_MUSIC, src.id);
   mkdirSync(outDir, { recursive: true });
   const output = resolve(outDir, 'main.wav');
+  const raw = resolve(outDir, 'main.raw.wav');
+  // Step 1: build the seamless bar-aligned loop (no loudness yet).
   run('ffmpeg', [
     '-hide_banner', '-y', '-i', input,
-    '-filter_complex', loopFilter(startSec, loopSec, xfSec, TARGET_LUFS, TARGET_TP, stretchTempo),
-    '-map', '[outa]', '-ar', '48000', '-c:a', 'pcm_s16le', output,
+    '-filter_complex', loopFilter(startSec, loopSec, xfSec, stretchTempo),
+    '-map', '[outa]', '-ar', '48000', '-c:a', 'pcm_s16le', raw,
   ]);
-  console.log(`  ✓ ${src.id}: ${bars}-bar loop @ ${src.bpm} BPM (${loopSec.toFixed(3)} s) → ${output}`);
+  // Step 2: 2-pass EBU R128 mastering → final.
+  masterLoudness(raw, output, TARGET_LUFS, TARGET_TP);
+  rmSync(raw, { force: true });
+  console.log(`  ✓ ${src.id}: ${bars}-bar loop @ ${src.bpm} BPM (${loopSec.toFixed(3)} s, 2-pass mastered) → ${output}`);
   return true;
 }
 

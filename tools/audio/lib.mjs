@@ -89,7 +89,7 @@ export function findMissing(paths, existsFn) {
   return paths.filter((p) => !existsFn(p));
 }
 
-const MAX_RUNTIME_BYTES = 8 * 1024 * 1024;
+const MAX_RUNTIME_BYTES = 14 * 1024 * 1024; // raised for longer (24-bar) professional loops
 
 /** The build gate: returns one human-readable error per failed check (empty ⇒ pass).
  *  Each record is a probed source: { id, suite, bpm, key, layering, trackDurations:{key:sec},
@@ -133,7 +133,7 @@ export function validateManifestAssets(records, opts = {}) {
 
   const totalBytes = records.reduce((sum, r) => sum + (r.bytes ?? 0), 0);
   if (totalBytes > maxBytes) {
-    errors.push(`runtime budget exceeded: ${(totalBytes / 1024 / 1024).toFixed(2)} MB > 8 MB`);
+    errors.push(`runtime budget exceeded: ${(totalBytes / 1024 / 1024).toFixed(2)} MB > ${(maxBytes / 1024 / 1024).toFixed(0)} MB`);
   }
 
   return errors;

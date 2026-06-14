@@ -74,9 +74,9 @@ const CREDIT = {
   cyberThriller: '"Cyber Thriller" by FSM Team & <e s c p> (free-stock-music.com), licensed under CC BY 4.0',
 };
 const loopSource = (
-  id: string, suite: MusicSuite, role: string, bpm: number, key: string, attribution: string,
+  id: string, suite: MusicSuite, role: string, bpm: number, key: string, bars: number, attribution: string,
 ): MusicSourceManifest => ({
-  id, suite, role, bpm, key, layering: 'loop', bars: 8,
+  id, suite, role, bpm, key, layering: 'loop', bars,
   tracks: { main: codec(`/audio/flagship/music/${id}/main`) },
   conformed: true, license: 'CC-BY', attribution, integratedLufs: -20, truePeakDbtp: -1,
 });
@@ -87,15 +87,15 @@ const variants = (id: string, n: number): CodecAssetSet[] =>
 export const FLAGSHIP_AUDIO_MANIFEST: AudioManifest = {
   version: 1,
   music: [
-    // AURORA arena — 4 DISTINCT energetic tracks, rotated by run-progress (musicDirector.sourceFor).
-    loopSource('aurora_verse', 'aurora', 'verse', 107, 'A minor', CREDIT.magenta),     // Magenta Metropolis
-    loopSource('aurora_build', 'aurora', 'build', 110, 'A minor', CREDIT.cyberpunk),    // Cyberpunk Renaissance
-    loopSource('aurora_chorus', 'aurora', 'chorus', 120, 'A minor', CREDIT.afterglow),  // Afterglow Love
-    loopSource('aurora_drop', 'aurora', 'drop', 96, 'A minor', CREDIT.neon),            // Neon Drive
-    // WARDEN boss — the dark/driving Cyber Thriller (3 escalating loop regions).
-    loopSource('warden_spiral', 'warden', 'spiral', 112, 'A minor', CREDIT.cyberThriller),
-    loopSource('warden_fan', 'warden', 'fan', 112, 'A minor', CREDIT.cyberThriller),
-    loopSource('warden_enraged', 'warden', 'enraged', 112, 'A minor', CREDIT.cyberThriller),
+    // AURORA arena — 4 DISTINCT energetic tracks, 24-bar loops, rotated by run-progress (musicDirector).
+    loopSource('aurora_verse', 'aurora', 'verse', 107, 'A minor', 24, CREDIT.magenta),     // Magenta Metropolis
+    loopSource('aurora_build', 'aurora', 'build', 110, 'A minor', 24, CREDIT.cyberpunk),    // Cyberpunk Renaissance
+    loopSource('aurora_chorus', 'aurora', 'chorus', 120, 'A minor', 24, CREDIT.afterglow),  // Afterglow Love
+    loopSource('aurora_drop', 'aurora', 'drop', 96, 'A minor', 24, CREDIT.neon),            // Neon Drive
+    // WARDEN boss — the dark/driving Cyber Thriller (3 escalating 16-bar regions).
+    loopSource('warden_spiral', 'warden', 'spiral', 112, 'A minor', 16, CREDIT.cyberThriller),
+    loopSource('warden_fan', 'warden', 'fan', 112, 'A minor', 16, CREDIT.cyberThriller),
+    loopSource('warden_enraged', 'warden', 'enraged', 112, 'A minor', 16, CREDIT.cyberThriller),
   ],
   sfx: [
     { id: 'dash_fire', gain: 0.55, priority: 2, maxVoices: 3, variants: variants('dash_fire', 3) },

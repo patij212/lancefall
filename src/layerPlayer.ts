@@ -6,7 +6,7 @@
 import { tracksForLayering, type MusicSourceManifest, type MusicTrackKey } from './audioManifest';
 
 const BEATS_PER_BAR = 4;
-const CROSSFADE_S = 0.25;
+const CROSSFADE_S = 0.6; // longer equal-power fade — distinct songs blend smoothly on a rotation switch
 
 export function barSeconds(bpm: number, beatsPerBar: number): number {
   return (60 / bpm) * beatsPerBar;

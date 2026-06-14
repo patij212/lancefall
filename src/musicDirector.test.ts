@@ -7,13 +7,13 @@ const warden = (phase: number, hpFrac: number): MusicDirectorState => ({
 });
 
 describe('music director — horizontal source selection', () => {
-  it('rotates the arena through the distinct-track pool by run-progress (32-bar phases)', () => {
+  it('rotates the arena through the distinct-track pool by run-progress (24-bar phases)', () => {
     expect(sourceFor(arena(), 0)).toBe('aurora_verse'); // phase 0
-    expect(sourceFor(arena(), 31)).toBe('aurora_verse'); // still phase 0
-    expect(sourceFor(arena(), 32)).toBe('aurora_build'); // phase 1
-    expect(sourceFor(arena(), 64)).toBe('aurora_chorus'); // phase 2
-    expect(sourceFor(arena(), 96)).toBe('aurora_drop'); // phase 3
-    expect(sourceFor(arena(), 128)).toBe('aurora_verse'); // wraps
+    expect(sourceFor(arena(), 23)).toBe('aurora_verse'); // still phase 0
+    expect(sourceFor(arena(), 24)).toBe('aurora_build'); // phase 1
+    expect(sourceFor(arena(), 48)).toBe('aurora_chorus'); // phase 2
+    expect(sourceFor(arena(), 72)).toBe('aurora_drop'); // phase 3
+    expect(sourceFor(arena(), 96)).toBe('aurora_verse'); // wraps
   });
 
   it('selects the WARDEN source from phase, then enrage at ≤34% HP', () => {

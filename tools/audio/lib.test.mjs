@@ -183,11 +183,11 @@ describe('validateManifestAssets — the build gate', () => {
     expect(errs.some((e) => /provenance/i.test(e))).toBe(true);
   });
 
-  it('flags a runtime budget over 8 MB total', () => {
+  it('flags a runtime budget over the limit', () => {
     const big = ok();
-    big.bytes = 9 * 1024 * 1024;
+    big.bytes = 15 * 1024 * 1024; // over the 14 MB cap
     const errs = validateManifestAssets([big]);
-    expect(errs.some((e) => /8 MB|budget/i.test(e))).toBe(true);
+    expect(errs.some((e) => /budget/i.test(e))).toBe(true);
   });
 
   it('accepts an arena pool of DISTINCT-bpm sources (no shared-suite rule — the grid adapts)', () => {

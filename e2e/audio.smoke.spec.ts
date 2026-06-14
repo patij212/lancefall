@@ -50,10 +50,10 @@ test('flagship audio: assets preload + the authored AURORA bed actually plays, n
     )
     .toBe(true);
 
-  // the started loop is an authored arena bed (8 bars @ 96–120 BPM ⇒ 16–20s) — proves the whole
+  // the started loop is an authored arena bed (24 bars @ 96–120 BPM ⇒ ~48–60s) — proves the whole
   // chain: fetch → decode → director → LayerPlayer → looping playback.
   const loopDurations = await page.evaluate(() => [...new Set((window as unknown as { __loopStarts: number[] }).__loopStarts)]);
-  expect(loopDurations.some((d) => d >= 15 && d <= 21)).toBe(true);
+  expect(loopDurations.some((d) => d >= 40 && d <= 65)).toBe(true);
 
   expect(errors, errors.join('\n')).toEqual([]);
 });

@@ -20,7 +20,7 @@ import {
   durationTable,
 } from './lib.mjs';
 
-const MAX_RUNTIME_BYTES = 8 * 1024 * 1024;
+const MAX_RUNTIME_BYTES = 14 * 1024 * 1024; // raised for longer (24-bar) professional loops
 
 const ROOT = resolve(process.cwd());
 const LOOPS = resolve(ROOT, 'audio-src/flagship/loops.json');
@@ -117,7 +117,7 @@ function main() {
 
   if (records.length) {
     console.log(durationTable(records));
-    console.log(`SFX: ${sfxRecords.length} ids OK · total runtime ${(totalBytes / 1024 / 1024).toFixed(2)} MB / 8 MB`);
+    console.log(`SFX: ${sfxRecords.length} ids OK · total runtime ${(totalBytes / 1024 / 1024).toFixed(2)} MB / ${(MAX_RUNTIME_BYTES / 1024 / 1024).toFixed(0)} MB`);
     console.log('');
   }
 
