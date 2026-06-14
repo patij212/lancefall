@@ -1403,14 +1403,18 @@ export class AudioEngine {
     // register-capped to the pad slot. The harmonic backbone; once per bar, always present.
     if (pos.sixteenthInBar === 0 && this.layerOn('pad')) this.padChord(t, 16 * sixteenth, chord);
 
-    // ── BUILD → DROP (one clock, quantized to bars): a riser + accelerating fill in the
-    //    last bar before a chorus, an IMPACT on the chorus/drop downbeat. ──
+    // ── BUILD → DROP (one clock, quantized to bars): a riser + accelerating fill in the last bar
+    //    before a chorus, an IMPACT on the chorus/drop downbeat. PROCEDURAL-ONLY: an authored
+    //    full-mix track carries its own builds/drops, so this drama (esp. the tom fill) would clash
+    //    as a stray out-of-place drum over the bed. (Boss-spawn impact() still fires — it's separate.)
     const intoChorus = sec.next === 'chorus' && sec.barInSection === sec.sectionBars - 1;
-    if (pos.sixteenthInBar === 0) {
-      if (inChorus && sec.barInSection === 0) this.impactAt(t); // the drop into the payoff
-      if (intoChorus) this.riserAt(t, 16 * sixteenth);
+    if (!this.authoredActive) {
+      if (pos.sixteenthInBar === 0) {
+        if (inChorus && sec.barInSection === 0) this.impactAt(t); // the drop into the payoff
+        if (intoChorus) this.riserAt(t, 16 * sixteenth);
+      }
+      if (intoChorus && pos.sixteenthInBar >= 12) this.fillHit(t, pos.sixteenthInBar - 12);
     }
-    if (intoChorus && pos.sixteenthInBar >= 12) this.fillHit(t, pos.sixteenthInBar - 12);
 
     // L1.5 RIFF — the always-on baseline groove (verse/pre), but it STEPS BACK in the
     //    chorus (where the hook sings) and DROPS in the bridge, so it never piles on the lead.
