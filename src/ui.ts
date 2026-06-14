@@ -117,6 +117,7 @@ export class UI {
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
   private creditsPanel!: HTMLElement;
+  private fallPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
@@ -193,6 +194,7 @@ export class UI {
     this.buildHowTo();
     this.buildCodex();
     this.buildCredits();
+    this.buildFall();
     this.buildHeat();
     this.buildArchetype();
     this.buildLeaderboard();
@@ -201,7 +203,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -294,6 +296,8 @@ export class UI {
     codexBtn.addEventListener('click', () => this.showCodex());
     const creditsBtn = el('button', { class: 'btn btn-ghost' }, '♪ CREDITS');
     creditsBtn.addEventListener('click', () => this.showCredits());
+    const fallBtn = el('button', { class: 'btn btn-ghost' }, '◈ THE FALL');
+    fallBtn.addEventListener('click', () => this.showFall());
     const heatBtn = el('button', { class: 'btn btn-ghost' }, '🔥 HEAT');
     heatBtn.addEventListener('click', () => this.openHeat());
     const archBtn = el('button', { class: 'btn btn-ghost' }, '◈ BUILD');
@@ -304,7 +308,7 @@ export class UI {
     duelBtn.addEventListener('click', () => this.openDuel());
     this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
     this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, settingsBtn, how, codexBtn, creditsBtn);
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, settingsBtn, how, codexBtn, fallBtn, creditsBtn);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -656,6 +660,13 @@ export class UI {
     body.append(
       el('div', { class: 'credit-foot' }, 'The recurring LANCE THEME melody + the procedural reactive layer are original to LANCEFALL.'),
     );
+    body.append(
+      el(
+        'div',
+        { class: 'credit-foot credit-dedication' },
+        'Made for the June Solstice Game Jam — an ode to Alan Turing (1912–1954): code-breaking, algorithms, and the machine that learned to think. Every cipher here is a small tribute.',
+      ),
+    );
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.creditsPanel.classList.add('hidden'));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
@@ -664,6 +675,28 @@ export class UI {
 
   private showCredits(): void {
     this.creditsPanel.classList.remove('hidden');
+  }
+
+  /** THE FALL — the premise card (the encryption story). Diegetic; sets the
+   *  Turing×solstice frame for new players and the jam judges. */
+  private buildFall(): void {
+    const h = el('h2', {}, 'THE FALL');
+    const body = el('div', { class: 'howto-body fall-prose' });
+    const paras = [
+      'Lancefall was a kingdom whose memory was kept as living light — every name, every bell, every street written in code, so the dark would always have somewhere to fail.',
+      'When the fear came, the Six did not let the city fall. They enciphered it — scrambled its light into grey noise, so the loss could not be read, or felt.',
+      'You are the last key: a spear that reads the pattern and breaks it. Descend through the cipher of the fall, crack the six who hold the rotors, and decrypt the city back to its longest day — when the light stands highest, and the dark, at last, begins to lose.',
+      'To decrypt is to remember. To remember is to relight.',
+    ];
+    for (const p of paras) body.append(el('p', { class: 'fall-para' }, p));
+    const close = el('button', { class: 'btn btn-primary' }, 'DESCEND');
+    close.addEventListener('click', () => this.fallPanel.classList.add('hidden'));
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    this.fallPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+  }
+
+  private showFall(): void {
+    this.fallPanel.classList.remove('hidden');
   }
 
   private buildDuel(): void {

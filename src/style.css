@@ -853,6 +853,27 @@ body {
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
 }
 
+.fall-prose {
+  text-align: left;
+  max-width: 64ch;
+  margin: 0 auto;
+}
+.fall-para {
+  color: var(--text, #e8eefc);
+  line-height: 1.65;
+  margin: 0 0 14px;
+  font-size: 14px;
+}
+.fall-para:last-of-type {
+  color: var(--amber, #fbbf24);
+  font-style: italic;
+}
+.credit-dedication {
+  margin-top: 14px;
+  color: var(--amber, #fbbf24);
+  opacity: 0.9;
+}
+
 .hud-overdrive {
   position: absolute;
   left: 50%;
