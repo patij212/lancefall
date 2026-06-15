@@ -52,6 +52,7 @@ export interface Player {
   dashDirY: number;
   dashId: number; // increments each dash, tags enemies hit so one dash hits each once
   killsThisDash: number;
+  refundThisDash: number; // stamina refunded so far this dash (Siphon), capped per dash
   iframe: number; // seconds of invulnerability remaining
 
   stamina: number; // 0..maxStamina

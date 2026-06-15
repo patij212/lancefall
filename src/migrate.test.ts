@@ -46,7 +46,6 @@ describe('save migration', () => {
     expect(out.stillpointFragments).toEqual([]);
     expect(out.fragmentsSpent).toBe(0);
     expect(out.stillpointLore).toEqual([]);
-    expect(out.stillpointDossiers).toEqual([]);
     expect(out.stillpointChoice).toBe('none');
     expect(out.ngPlusLevel).toBe(0);
     expect(out.ngPlusActive).toBe(false);

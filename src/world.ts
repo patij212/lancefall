@@ -98,6 +98,7 @@ function makePlayer(): Player {
     dashDirY: 0,
     dashId: 0,
     killsThisDash: 0,
+    refundThisDash: 0,
     iframe: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment,
     regenDelay: 0,

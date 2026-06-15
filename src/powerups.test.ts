@@ -65,13 +65,16 @@ describe('powerups — buffs', () => {
     expect(s.dashLenMul).toBeGreaterThan(1);
   });
 
-  it('GREED doubles score + shards', () => {
+  it('GREED doubles score live (its shard half is doubled at pickup, not via shardMul)', () => {
     const p = makePowerup();
     activatePowerup(p, 'greed');
     const s = deriveStats({});
     applyPowerup(p, s);
     expect(s.scoreMul).toBeCloseTo(2, 6);
-    expect(s.shardMul).toBeCloseTo(2, 6);
+    // shardMul is NOT touched: shards bank by shardMul at run-end when GREED is long
+    // expired, so doubling it here would be a no-op. The game doubles raw shards at
+    // pickup instead (see the gem-collect path).
+    expect(s.shardMul).toBeCloseTo(1, 6);
   });
 
   it('FRENZY raises dash damage', () => {

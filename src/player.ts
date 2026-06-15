@@ -157,6 +157,7 @@ function fireDash(
   p.dashDuration = slingshot ? slingshotDuration(travel) : dashDuration(travel);
   p.dashId++;
   p.killsThisDash = 0;
+  p.refundThisDash = 0; // reset the Siphon per-dash refund budget
   p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(travel)
   p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout

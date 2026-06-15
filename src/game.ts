@@ -1091,6 +1091,9 @@ export class Game {
         }
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
         let dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
+        // cap per-window damage to the HOLLOW so even a max-damage stack needs ≥2 sync
+        // windows — the mechanic — and can never one-shot through its intangibility.
+        if (e.kind === 'hollow') dmg = Math.min(dmg, Math.max(2, Math.ceil(e.maxHp * 0.45)));
         // WARDEN rear weak-point: a dash whose APPROACH comes from its back arc crits ×3.
         // (e.facing turns toward you at a bounded rate — flank it faster than it can turn.)
         if (e.kind === 'warden' && e.facing !== undefined && withinArc(e.facing + Math.PI, Math.atan2(ay - e.y, ax - e.x), WARDEN.rearArc / 2)) {
@@ -1222,10 +1225,19 @@ export class Game {
     if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
     chargeFromKill(w.overdrive, w.combo); // build the OVERDRIVE meter
 
-    // Siphon: dash-kills refund stamina
+    // Siphon: dash-kills refund stamina — but CAPPED to ~1 segment per dash so a
+    // chain/AoE kill spree can't refund the whole bar (the near-infinite-dash loop).
+    // A direct spear kill still gives a full ~1-segment refund; chained kills top up
+    // only the remaining budget.
     if (fromDash && w.stats.killStaminaRefund > 0) {
-      const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
-      w.player.stamina = Math.min(max, w.player.stamina + w.stats.killStaminaRefund);
+      const p = w.player;
+      const budget = Math.max(0, TUNE.stamina.perSegment - p.refundThisDash);
+      const give = Math.min(w.stats.killStaminaRefund, budget);
+      if (give > 0) {
+        const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
+        p.stamina = Math.min(max, p.stamina + give);
+        p.refundThisDash += give;
+      }
     }
 
     const gained = Math.round(scoreForKill(e.baseScore, w.combo, Math.max(0, w.player.killsThisDash - 1)) * w.stats.scoreMul);
@@ -1679,7 +1691,7 @@ export class Game {
       g.vx *= 0.92;
       g.vy *= 0.92;
       if (d < p.radius + 14) {
-        w.shards += g.value;
+        w.shards += g.value * (w.powerup.active === 'greed' ? 2 : 1); // GREED doubles shards at PICKUP (shardMul banks at run-end, when it's expired)
         w.collectStreak++;
         w.collectStreakTimer = 1.2;
         this.audio.pickup(w.collectStreak);

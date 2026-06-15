@@ -40,7 +40,11 @@ export const POWERUPS: Record<PowerupKind, PowerupDef> = {
   greed: {
     kind: 'greed', name: 'GREED', color: '#fbbf24', blurb: 'double score + shards',
     duration: 10,
-    apply: (s) => { s.scoreMul *= 2; s.shardMul *= 2; },
+    // Shards are banked by shardMul at the END of the run (when GREED is long expired),
+    // so a shardMul ×2 here would be a near-total no-op. The shard half is doubled at
+    // PICKUP instead (see the gem-collect path). Score IS applied per-kill, so scoreMul
+    // ×2 lands live during the window.
+    apply: (s) => { s.scoreMul *= 2; },
   },
   aegis: {
     kind: 'aegis', name: 'AEGIS', color: '#a78bfa', blurb: 'grazing keeps you alive',

@@ -61,8 +61,6 @@ export interface SaveData {
   fragmentsSpent: number;
   /** unlocked lore entry ids */
   stillpointLore: string[];
-  /** unlocked betrayer dossier ids (== boss EnemyKind) */
-  stillpointDossiers: string[];
   /** THE CHOICE on a Sovereign kill: hold the light (catch), let it go (fall), or not yet made */
   stillpointChoice: 'catch' | 'fall' | 'none';
   /** highest NG+ loop reached */
@@ -145,7 +143,6 @@ export function defaultSave(): SaveData {
     stillpointFragments: [],
     fragmentsSpent: 0,
     stillpointLore: [],
-    stillpointDossiers: [],
     stillpointChoice: 'none',
     ngPlusLevel: 0,
     ngPlusActive: false,
