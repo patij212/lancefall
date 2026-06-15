@@ -10,9 +10,22 @@ import {
   bgExposure,
   vignetteDeepenFactor,
   trailBrightness,
+  beatFlashRing,
 } from './renderMath';
 
 describe('renderMath — coherence→render mappings + a11y gates', () => {
+  it('C1: beatFlashRing rises with beatFlash, caps alpha (reduceFlashing), freezes radius (reduceMotion), survives all gates', () => {
+    const lo = beatFlashRing(0.2, false, false);
+    const hi = beatFlashRing(1, false, false);
+    expect(hi.alpha).toBeGreaterThan(lo.alpha);
+    expect(hi.alpha).toBeLessThanOrEqual(1);
+    expect(beatFlashRing(0, false, false).alpha).toBe(0);
+    expect(beatFlashRing(1, true, false).alpha).toBe(COHERENCE.beatRingAlphaCap); // reduceFlashing cap
+    expect(beatFlashRing(1, false, true).radiusLift).toBe(COHERENCE.beatRingRadiusLift * 0.5); // reduceMotion freeze
+    // a LOCALIZED player ring stays visible where the frame-wide wash would be killed
+    expect(beatFlashRing(0.8, false, false).alpha).toBeGreaterThan(0);
+  });
+
   it('clamp01 + lerp basics', () => {
     expect(clamp01(-1)).toBe(0);
     expect(clamp01(2)).toBe(1);

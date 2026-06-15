@@ -158,6 +158,7 @@ export class UI {
   private dailyCaption!: HTMLElement;
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
+  private beatPip!: HTMLElement;
   private staminaWrap!: HTMLElement;
   private staminaSegs: HTMLElement[] = [];
   private shieldsWrap!: HTMLElement;
@@ -250,7 +251,8 @@ export class UI {
     this.comboEl = el('div', { class: 'hud-combo' }, '');
     this.comboBar = el('div', { class: 'hud-combo-fill' });
     const comboBarWrap = el('div', { class: 'hud-combo-bar' }, this.comboBar);
-    const topCenter = el('div', { class: 'hud-topcenter' }, this.comboEl, comboBarWrap);
+    this.beatPip = el('div', { class: 'hud-beatpip' });
+    const topCenter = el('div', { class: 'hud-topcenter' }, this.comboEl, comboBarWrap, this.beatPip);
 
     this.staminaWrap = el('div', { class: 'hud-stamina' });
     this.shieldsWrap = el('div', { class: 'hud-shields' });
@@ -1345,6 +1347,15 @@ export class UI {
     this.comboEl.classList.remove('break');
     void this.comboEl.offsetWidth; // restart animation
     this.comboEl.classList.add('break');
+  }
+
+  /** C1 (v6 §1) — flash the HUD beat-grade pip cyan (Good) / gold (Perfect). A static
+   *  color fade (no motion) — caller gates it off under reduceFlashing. */
+  flashBeatPip(perfect: boolean): void {
+    this.beatPip.classList.remove('on', 'perfect');
+    void this.beatPip.offsetWidth; // restart the fade
+    this.beatPip.classList.add('on');
+    if (perfect) this.beatPip.classList.add('perfect');
   }
 
   // ── per-frame HUD update ──

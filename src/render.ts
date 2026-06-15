@@ -20,6 +20,7 @@ import {
   bgExposure,
   vignetteDeepenFactor,
   trailBrightness,
+  beatFlashRing,
 } from './renderMath';
 
 export interface Camera {
@@ -64,6 +65,7 @@ export class Renderer {
   // ── THE LAST LANCE one-bus (render half) — pushed each frame by setCoherence ──
   private coherence = 0;
   private focusPulse = 0;
+  private beatFlash = 0; // C1 — localized beat-grade ring envelope (pushed by setCoherence)
   private quality = 1; // perf-adaptive (1 = full; lower under load)
   private reduceMotionR = false;
   private clarityR = false;
@@ -89,9 +91,10 @@ export class Renderer {
 
   /** THE ONE BUS (render half) — pushed each frame: the eased Coherence value +
    *  the Perfect-dash focus-snap envelope. Read by the wash, skyline, and glow. */
-  setCoherence(c: number, focus: number): void {
+  setCoherence(c: number, focus: number, beatFlash = 0): void {
     this.coherence = c;
     this.focusPulse = focus;
+    this.beatFlash = beatFlash;
   }
   /** Perf-adaptive quality 0.4..1 (mirrors the director's perfScale). */
   setQuality(q: number): void {
@@ -1310,6 +1313,24 @@ export class Renderer {
       ctx.arc(p.x, p.y, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, od.meter));
       ctx.stroke();
       ctx.restore();
+    }
+
+    // C1 (v6 §1) — the LOCALIZED on-beat ring: a brief cyan/gold halo on a graded dash.
+    // a11y-gated via beatFlashRing (alpha capped under reduceFlashing, radius frozen under
+    // reduceMotion); player-anchored so it survives the frame-wide present() wash gates.
+    if (this.beatFlash > 0) {
+      const { alpha, radiusLift } = beatFlashRing(this.beatFlash, this.reduceFlashingR, this.reduceMotionR);
+      if (alpha > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = this.colorblindR ? '#cfe2ff' : '#67e8f9';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, TUNE.player.spriteRadius + 8 + radiusLift, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // dash spear line + streaking ship afterimages (the "snap" of the dash)

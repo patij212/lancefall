@@ -415,6 +415,13 @@ export const COHERENCE = {
   onbeatKick: 0.06, // smaller jump for a Good on-beat dash
   focusPulseDecay: 0.5, // seconds for focusPulse 1→0
   focusSnapLift: 0.35, // added to the wash strength at peak focusPulse
+  // ── C1 (v6 §1) — localized, a11y-safe beat-grade ring (BOTH grades; survives the
+  //    frame-wide wash gates by being small + player-anchored) ──
+  beatFlashDecay: 0.45, // seconds for the localized beat ring beatFlash 1→0
+  beatFlashGood: 0.6, // beatFlash level for a Good on-beat dash (Perfect = 1.0)
+  beatRingAlpha: 0.55, // peak localized ring alpha at beatFlash 1
+  beatRingAlphaCap: 0.3, // max ring alpha under reduceFlashing
+  beatRingRadiusLift: 10, // px the ring expands at peak; halved + frozen under reduceMotion
   // ── render wash ──
   satFloor: 0.12, // min saturation multiplier at coherence 0 (never fully gray — readability)
   washGain: 0.88, // saturation lift from full coherence (satFloor..satFloor+washGain)

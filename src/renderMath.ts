@@ -74,3 +74,19 @@ export function trailBrightness(c: number, reduceFlashing: boolean, clarity: boo
   if (reduceFlashing) cc = Math.min(cc, CO.flashCap);
   return CO.trailDim + (1 - CO.trailDim) * cc;
 }
+
+/** C1 (v6 §1) — the LOCALIZED beat-grade ring around the player. Unlike the frame-wide
+ *  wash it is NOT killed by Clarity: a small player-anchored element is allowed under all
+ *  a11y gates (parity with the opt-in beat-ring). reduceFlashing caps the alpha;
+ *  reduceMotion freezes the radius (no growing-ring motion). */
+export function beatFlashRing(
+  beatFlash: number,
+  reduceFlashing: boolean,
+  reduceMotion: boolean,
+): { alpha: number; radiusLift: number } {
+  const b = clamp01(beatFlash);
+  let alpha = CO.beatRingAlpha * b;
+  if (reduceFlashing) alpha = Math.min(alpha, CO.beatRingAlphaCap);
+  const radiusLift = (reduceMotion ? CO.beatRingRadiusLift * 0.5 : CO.beatRingRadiusLift) * b;
+  return { alpha: clamp01(alpha), radiusLift };
+}

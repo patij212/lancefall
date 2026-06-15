@@ -6,13 +6,14 @@ import {
   coherenceTarget,
   tickCoherence,
   coherenceBeatKick,
+  coherenceBeatFlash,
   comboTier,
 } from './coherence';
 
 describe('coherence — the soul dial', () => {
   it('newCoherence is zero; resetCoherence returns to zero', () => {
-    expect(newCoherence()).toEqual({ value: 0, target: 0, focusPulse: 0, tier: 0 });
-    const c = { value: 0.5, target: 0.7, focusPulse: 0.3, tier: 4 };
+    expect(newCoherence()).toEqual({ value: 0, target: 0, focusPulse: 0, tier: 0, beatFlash: 0 });
+    const c = { value: 0.5, target: 0.7, focusPulse: 0.3, tier: 4, beatFlash: 0.8 };
     resetCoherence(c);
     expect(c).toEqual(newCoherence());
   });
@@ -113,6 +114,19 @@ describe('coherence — the soul dial', () => {
     const steps = Math.ceil(COHERENCE.focusPulseDecay / (1 / 60)) + 5;
     for (let i = 0; i < steps; i++) tickCoherence(c, 1 / 60);
     expect(c.focusPulse).toBe(0);
+  });
+
+  it('C1: coherenceBeatFlash lights the ring (perfect=1, good=beatFlashGood) and decays to 0', () => {
+    const cp = newCoherence();
+    coherenceBeatFlash(cp, true);
+    expect(cp.beatFlash).toBe(1);
+    const cg = newCoherence();
+    coherenceBeatFlash(cg, false);
+    expect(cg.beatFlash).toBe(COHERENCE.beatFlashGood);
+    // decays to exactly 0, never negative
+    const steps = Math.ceil(COHERENCE.beatFlashDecay / (1 / 60)) + 5;
+    for (let i = 0; i < steps; i++) tickCoherence(cp, 1 / 60);
+    expect(cp.beatFlash).toBe(0);
   });
 
   it('kick clamps value at exactly 1', () => {

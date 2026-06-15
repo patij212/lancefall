@@ -1335,6 +1335,27 @@ body {
   box-shadow: 0 0 6px rgba(91, 234, 255, 0.6);
 }
 .reduce-motion .shield-pip.filled { box-shadow: none; }
+
+/* C1 (v6 §1) — beat-grade pip: a tiny dot that fades cyan (Good) / gold (Perfect) on a
+   graded dash. Color-only (no transform); the caller no-ops it under reduceFlashing. */
+.hud-beatpip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin: 4px auto 0;
+  background: transparent;
+  opacity: 0;
+}
+.hud-beatpip.on {
+  background: #67e8f9;
+  animation: beatpip-fade 0.5s ease-out;
+}
+.hud-beatpip.perfect.on { background: #fde047; }
+@keyframes beatpip-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.reduce-motion .hud-beatpip { animation: none !important; opacity: 0; }
 .hud-graze,
 .hud-bestcombo {
   font-family: 'JetBrains Mono', monospace;

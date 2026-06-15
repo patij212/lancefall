@@ -14,10 +14,12 @@ export interface CoherenceState {
   focusPulse: number;
   /** 0..6 combo tier (audio root transpose; mirrors COMBO_TIERS cut points) */
   tier: number;
+  /** 0..1 decaying beat-grade ring envelope (BOTH grades; localized, a11y-safe) — C1 */
+  beatFlash: number;
 }
 
 export function newCoherence(): CoherenceState {
-  return { value: 0, target: 0, focusPulse: 0, tier: 0 };
+  return { value: 0, target: 0, focusPulse: 0, tier: 0, beatFlash: 0 };
 }
 
 export function resetCoherence(c: CoherenceState): void {
@@ -25,6 +27,7 @@ export function resetCoherence(c: CoherenceState): void {
   c.target = 0;
   c.focusPulse = 0;
   c.tier = 0;
+  c.beatFlash = 0;
 }
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -53,6 +56,7 @@ export function tickCoherence(c: CoherenceState, dt: number): void {
   // so the bloom feels identical on 60/120/144 Hz; at 60fps ~= the old min(1,rate*dt))
   c.value += (c.target - c.value) * (1 - Math.exp(-rate * dt));
   c.focusPulse = Math.max(0, c.focusPulse - dt / CO.focusPulseDecay);
+  c.beatFlash = Math.max(0, c.beatFlash - dt / CO.beatFlashDecay);
 }
 
 /** A graded on-beat dash kicks the bus + (perfect) lights the focus-snap. This
@@ -60,6 +64,12 @@ export function tickCoherence(c: CoherenceState, dt: number): void {
 export function coherenceBeatKick(c: CoherenceState, perfect: boolean): void {
   c.value = clamp01(c.value + (perfect ? CO.perfectKick : CO.onbeatKick));
   if (perfect) c.focusPulse = 1;
+}
+
+/** C1 (v6 §1) — a graded on-beat dash lights the LOCALIZED beat ring (BOTH grades,
+ *  distinct from the Perfect-only focusPulse wash). Cosmetic, never a sim effect. */
+export function coherenceBeatFlash(c: CoherenceState, perfect: boolean): void {
+  c.beatFlash = perfect ? 1 : CO.beatFlashGood;
 }
 
 /** Monotone non-decreasing combo→tier index (audio transpose). Reuses the

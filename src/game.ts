@@ -61,7 +61,7 @@ import {
 } from './save';
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind } from './types';
-import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick } from './coherence';
+import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
@@ -845,7 +845,15 @@ export class Game {
     if (this.dashFiredThisStep) {
       this.dashFiredThisStep = false;
       const grade = gradeRelease(this.beat.beatError(), this.beat.synced);
-      if (grade !== 'off') coherenceBeatKick(this.coherence, grade === 'perfect');
+      if (grade !== 'off') {
+        const perfect = grade === 'perfect';
+        coherenceBeatKick(this.coherence, perfect);
+        coherenceBeatFlash(this.coherence, perfect); // C1 — localized beat ring (both grades)
+        // C1 — legible LOCALIZED beat cue. floatText is determinism-safe (no rng); use
+        // this.world directly (cw isn't assigned until below this block).
+        this.world.particles.floatText(this.world.player.x, this.world.player.y - 34, perfect ? 'PERFECT' : 'ON BEAT', perfect ? '#fde047' : '#67e8f9', perfect ? 0.95 : 0.75);
+        if (!this.settings.reduceFlashing) this.ui.flashBeatPip(perfect);
+      }
       if (grade === 'perfect' && !this.settings.reduceFlashing)
         this.audio.perfectDashSnare(this.audio.clock + (this.beat.nextGridTime() - this.beat.t));
     }
@@ -868,7 +876,7 @@ export class Game {
     // THE ONE BUS — push the eased Coherence value to sight AND sound on the SAME
     // frame with the SAME value (the audio glides smooth the per-frame writes; the
     // call no-ops when music isn't running, so the title hub stays silent-safe).
-    this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse);
+    this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse, this.coherence.beatFlash);
     this.audio.setCoherence(this.coherence.value, this.coherence.tier);
 
     // narrator (cosmetic; own rng; frame-context, never the seeded sim)
