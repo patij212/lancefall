@@ -663,10 +663,12 @@ export class Renderer {
 
   private drawEnemies(world: World, opts: RenderOpts): void {
     const ctx = this.bctx;
-    world.enemies.forEachActive((e) => this.drawEnemy(ctx, e, opts));
+    // shipId is threaded down so the Mirrorblade can wear the player's silhouette
+    // (the imitation game, SHOWN) — see drawMirrorblade.
+    world.enemies.forEachActive((e) => this.drawEnemy(ctx, e, opts, world.shipId));
   }
 
-  private drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, opts: RenderOpts): void {
+  private drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, opts: RenderOpts, shipId: string): void {
     const flash = e.hitFlash > 0;
     const baseColor = flash ? '#ffffff' : e.color;
     const r = e.radius * (0.4 + 0.6 * e.scale);
@@ -943,7 +945,7 @@ export class Renderer {
         this.drawBeacon(ctx, e, r);
         break;
       case 'mirrorblade':
-        this.drawMirrorblade(ctx, e, r);
+        this.drawMirrorblade(ctx, e, r, shipId);
         break;
       case 'sovereign':
         this.drawSovereign(ctx, e, r);
@@ -1137,7 +1139,7 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private drawMirrorblade(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+  private drawMirrorblade(ctx: CanvasRenderingContext2D, e: Enemy, r: number, shipId: string): void {
     // wind-up aim line — the lunge tell
     if (e.phase === 0 && e.telegraph > 0) {
       ctx.save();
@@ -1166,18 +1168,22 @@ export class Renderer {
       ctx.stroke();
       ctx.restore();
     }
-    // hostile mirror-ship body (red echo of the player), pointing along its lunge
+    // THE IMITATION GAME, SHOWN — the Mirrorblade wears the PLAYER's own ship
+    // silhouette (the same shared hull drawPlayer uses), so a viewer reads "that's me."
+    // It's tinted toward a doubt/mirror violet — a desaturated, off-key echo of you —
+    // and points along its lunge. Steady fill/stroke (brightens only when vulnerable),
+    // no envelope/strobe → reduceFlashing / reduceMotion / clarity safe. The boss
+    // health-read (the hp ring below) and the lunge tells are untouched.
+    const exposed = e.phase === 2; // vulnerable pause after a lunge
     ctx.save();
     ctx.rotate(e.angle);
-    ctx.fillStyle = e.phase === 2 ? '#ffd0d0' : '#2a0a0a'; // brightens when vulnerable
-    ctx.strokeStyle = '#ff5b5b';
-    ctx.lineWidth = 3;
-    poly(ctx, [
-      [r * 1.4, 0],
-      [-r * 0.8, r * 0.8],
-      [-r * 0.4, 0],
-      [-r * 0.8, -r * 0.8],
-    ]);
+    drawShipSilhouette(ctx, shipId, r * MIRRORBLADE.silhouetteScale, {
+      fill: exposed ? '#e9d5ff' : '#1a0f24', // brightens when you can punish it
+      stroke: '#a78bfa', // the violet echo — your colour, doubted
+      lineWidth: 3,
+      detail: exposed ? '#c4b5fd' : '#7c5cc4',
+      core: exposed ? '#f5f3ff' : '#8b5cf6',
+    });
     ctx.restore();
     // hp ring
     const frac = e.hp / e.maxHp;

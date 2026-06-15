@@ -2320,6 +2320,12 @@ export class Game {
     if (boss?.kind === 'sovereign') {
       w.particles.floatText(w.width / 2, w.height / 2 + 90, 'SHATTER THE CORES', '#fde047', 1.2);
     }
+    // THE IMITATION GAME — the Mirrorblade wears your ship and asks the Turing question
+    // out loud, ONCE on arrival (spawnWarden runs once per boss spawn). The violet echo
+    // colour matches the silhouette it now wears (drawMirrorblade), so word and image agree.
+    if (boss?.kind === 'mirrorblade') {
+      this.ui.announce('TELL ME WHICH OF US IS REAL', '#a78bfa');
+    }
   }
 
   // ENDLESS depth — a named milestone callout every Nth wave gives an open-ended run a

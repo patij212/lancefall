@@ -734,6 +734,9 @@ export const MIRRORBLADE = {
   // enrage (HP < 50%)
   windupFast: 0.45,
   recoverFast: 0.6,
+  // THE IMITATION GAME (render): the boss wears the player's ship silhouette, drawn
+  // at this multiple of the boss draw-radius so it fills the slot and reads as "you."
+  silhouetteScale: 1.05,
 } as const;
 
 // Third boss: the BEACON — a rotating laser-sweep boss. The beam is a diameter
