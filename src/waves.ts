@@ -248,7 +248,9 @@ export class Director {
       if (this.spawnTimer <= 0) {
         const sw = stretchSwell(this.bossTimer);
         this.spawnTimer = (spawnInterval(I) / sw) * this.cfg.spawnMul;
-        const room = Math.round(maxConcurrent(I) * sw) - concurrent;
+        // the swell densifies toward the boss but never breaches the hard concurrency
+        // ceiling — keeps the cap honest + consistent with the wisp-pack clamp.
+        const room = Math.min(TUNE.director.maxConcurrentCap, Math.round(maxConcurrent(I) * sw)) - concurrent;
         if (room > 0) {
           const n = Math.min(room, Math.round(enemiesPerSpawn(I) * sw));
           const weights = enemyWeights(this.t, I).map((w) => ({ v: w.v, w: w.w * (this.biomeBias[w.v] ?? 1) }));

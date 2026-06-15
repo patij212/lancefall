@@ -70,4 +70,9 @@ describe('save migration', () => {
     const s = defaultSave();
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);
   });
+
+  it('domain-guards a corrupted selectedMode back to the default, preserves a real one', () => {
+    expect(migrateSave({ version: 6, selectedMode: 'garbage-not-a-mode' }, defaultSave()).selectedMode).toBe('endless');
+    expect(migrateSave({ version: 6, selectedMode: 'nightmare' }, defaultSave()).selectedMode).toBe('nightmare');
+  });
 });

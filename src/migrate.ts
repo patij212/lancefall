@@ -8,6 +8,7 @@
 // to keep this module free of a runtime import cycle with save.ts.
 
 import type { SaveData } from './save';
+import { MODES } from './modes';
 
 export const SAVE_VERSION = 6;
 
@@ -60,6 +61,9 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   if (o.stillpointChoice !== 'catch' && o.stillpointChoice !== 'fall' && o.stillpointChoice !== 'none') {
     o.stillpointChoice = b.stillpointChoice;
   }
+  // selectedMode must be a REAL mode id (not just any string), or the title highlight
+  // desyncs from the launch target (no card lit while PLAY falls back to endless).
+  if (!MODES.some((m) => m.id === o.selectedMode)) o.selectedMode = b.selectedMode;
   return out;
 }
 
