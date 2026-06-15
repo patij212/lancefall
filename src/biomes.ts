@@ -3,6 +3,7 @@
 // readable (no vision-reducing fog) per the design review.
 
 import type { EnemyKind } from './types';
+import { BIOME_RULES } from './tune';
 
 export interface Biome {
   id: string;
@@ -13,6 +14,12 @@ export interface Biome {
   bias: Partial<Record<EnemyKind, number>>;
   speedMul: number; // light enemy/bullet speed modifier
   shieldBonus: number; // added to the shielded-variant chance
+  /** RULE: live bullets accelerate along their heading by this many px/s²
+   *  (0 = ballistic). THE EMBERWALL turns up the heat — bullets speed up. */
+  bulletAccel?: number;
+  /** RULE: a graze DEAD-ZONE — grazing grants no stamina/combo/score here.
+   *  THE NULL strips the skill-reward economy: survive on dashes alone. */
+  noGraze?: boolean;
 }
 
 export const BIOME_DURATION = 70; // seconds per biome before cycling — locked to TUNE.director.bossInterval (keep aligned)
@@ -25,6 +32,7 @@ export const BIOMES: Biome[] = [
   {
     id: 'ember', name: 'THE EMBERWALL', accent: '#fb923c',
     nebula: ['#3a1810', '#3a1020', '#2a1428'], bias: { darter: 1.6, bomber: 1.6 }, speedMul: 1.08, shieldBonus: 0,
+    bulletAccel: BIOME_RULES.emberBulletAccel, // RULE: bullets speed up — read earlier
   },
   {
     id: 'lattice', name: 'THE VAULTS', accent: '#38bdf8',
@@ -41,6 +49,7 @@ export const BIOMES: Biome[] = [
   {
     id: 'null', name: 'THE NULL', accent: '#94a3b8',
     nebula: ['#1a1f2a', '#15151a', '#202028'], bias: {}, speedMul: 1.12, shieldBonus: 0.12,
+    noGraze: true, // RULE: graze dead-zone — no skill-reward economy; dash to live
   },
 ];
 

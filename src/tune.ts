@@ -200,11 +200,17 @@ export const DARTER = {
   lungeTime: 0.4,
 };
 
+// Orbiter — circles the player and fires aimed shots. Its distinct VERB: every
+// `mineEvery`-th shot it drops a STATIONARY mine instead of an aimed bolt — slow
+// area-denial that lingers where it was laid (it expires on the normal bullet
+// life). Cadence-timed via e.timer / e.subPhase → fully deterministic, no rng.
 export const ORBITER = {
   orbitRadius: 240,
   angularSpeed: 1.1,
   fireCadence: 1.6,
   bulletSpeed: 240,
+  mineEvery: 3, // every Nth shot is a dropped mine (rest are aimed bolts)
+  mineColor: '#67e8f9', // a cooler cyan so a parked mine reads apart from a flying bolt
 };
 
 export const SPLITTER = {
@@ -231,11 +237,16 @@ export const BLOOMER = {
   driftSpeed: 30,
 };
 
+// Lancer — a long-range sniper. Its distinct VERB: a DOUBLE-TAP — after the first
+// bolt it fires a quick second shot on the same frozen aim line `doubleTapDelay`
+// later (you must keep moving off the line, not just sidestep once). Scheduled via
+// e.subPhase / e.fireTimer → cadence-timed, fully deterministic, no rng.
 export const LANCER = {
   range: 380, // preferred standoff distance
   repositionTime: 1.1,
   lockTime: 0.85, // telegraph; aim is frozen at lock start (the dodge window)
   bulletSpeed: 410,
+  doubleTapDelay: 0.22, // s between the two bolts of the double-tap
 };
 
 export const BOMBER = {
@@ -299,6 +310,16 @@ export const SHADE_TUNE = {
   blinkCadence: 3.2, // s between blinks
   telegraphTime: 0.4, // s of pre-blink warning flash
 };
+
+// BIOME RULES — the per-biome modifiers that change a RULE, not just the palette.
+// All deterministic (no rng) and a11y-neutral (they alter physics/economy, never
+// flashing). Wired through biomes.ts (which carries the per-biome flags) into the
+// game loop. Kept here so feel stays tunable from one place.
+export const BIOME_RULES = {
+  // THE EMBERWALL accelerates every live bullet along its heading — the screen
+  // gets faster, demanding earlier reads. Gentle (px/s²) so it ramps, not snaps.
+  emberBulletAccel: 70,
+} as const;
 
 // Enemy SHIELD — a darter/orbiter can arrive with a frontal shield that tracks you.
 // A dash into the shielded arc CLANGS (no damage); flank it — dash in from the side

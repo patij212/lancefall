@@ -124,9 +124,17 @@ function orbiter(e: Enemy, world: World, dt: number): void {
   e.timer -= dt;
   if (e.timer <= 0) {
     e.timer = ORBITER.fireCadence;
-    const [nx, ny] = norm(p.x - e.x, p.y - e.y);
-    const sp = ORBITER.bulletSpeed * e.bulletMul;
-    world.spawnBullet(e.x, e.y, nx * sp, ny * sp, 6, '#5beaff', false);
+    // VERB: every Nth shot is a dropped MINE — a stationary hazard parked where the
+    // orbiter stands, denying that patch of arena until it expires on the normal
+    // bullet life. subPhase counts shots → fully deterministic (no world.rng draw).
+    e.subPhase++;
+    if (e.subPhase % ORBITER.mineEvery === 0) {
+      world.spawnBullet(e.x, e.y, 0, 0, 8, ORBITER.mineColor, false); // vx=vy=0 → a parked mine
+    } else {
+      const [nx, ny] = norm(p.x - e.x, p.y - e.y);
+      const sp = ORBITER.bulletSpeed * e.bulletMul;
+      world.spawnBullet(e.x, e.y, nx * sp, ny * sp, 6, '#5beaff', false);
+    }
   }
 }
 
@@ -341,9 +349,23 @@ function lancer(e: Enemy, world: World, dt: number): void {
     if (e.timer <= 0) {
       const bs = LANCER.bulletSpeed * e.bulletMul;
       world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false);
+      // VERB: DOUBLE-TAP — schedule a quick second bolt on the SAME frozen aim line.
+      // phase 2 counts down fireTimer, then fires once and resets. All cadence-timed
+      // off sim dt → fully deterministic, no world.rng draw.
+      e.phase = 2;
+      e.fireTimer = LANCER.doubleTapDelay;
+      e.telegraph = 0;
+    }
+  } else if (e.phase === 2) {
+    // the brief beat between the two bolts of the double-tap
+    e.vx *= 0.15;
+    e.vy *= 0.15;
+    e.fireTimer -= dt;
+    if (e.fireTimer <= 0) {
+      const bs = LANCER.bulletSpeed * e.bulletMul;
+      world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false);
       e.phase = 0;
       e.timer = LANCER.repositionTime;
-      e.telegraph = 0;
     }
   }
 }

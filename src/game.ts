@@ -112,6 +112,8 @@ export class Game {
   private milestoneWave = 0; // last wave we fired an ENDLESS milestone callout for (edge guard)
   private biomeSpeedMul = 1;
   private biomeShield = 0;
+  private biomeBulletAccel = 0; // RULE: px/s² added along each live bullet's heading (THE EMBERWALL)
+  private biomeNoGraze = false; // RULE: graze dead-zone — no graze reward economy (THE NULL)
   private deathCause = 'a bullet';
   private nudgedHandle = false; // show the "set a handle" leaderboard nudge once per session
 
@@ -1707,6 +1709,11 @@ export class Game {
     const p = w.player;
     const grazeR = w.stats.grazeRadius;
     const hitR = p.radius;
+    // BIOME RULE (THE EMBERWALL) — accelerate every live bullet along its heading.
+    // Per-frame speed boost: scale the velocity so its magnitude grows by accel*dt
+    // while the direction is preserved. Deterministic (no rng); affects sim + render
+    // identically. ratio guards a near-zero (parked mine) bullet from a divide blowup.
+    const accel = this.biomeBulletAccel;
     // THE SOVEREIGN warps space: its bullets curve toward the crown (galaxy arms).
     // Math inlined (kept identical to the pure gravityPull, which the tests cover)
     // so the hottest loop in the game stays allocation-free.
@@ -1734,6 +1741,15 @@ export class Game {
         const a = cur + turn;
         b.vx = Math.cos(a) * speed;
         b.vy = Math.sin(a) * speed;
+      }
+      // THE EMBERWALL — bullets speed up along their heading (parked mines, sp≈0, stay put)
+      if (accel > 0) {
+        const sp = Math.hypot(b.vx, b.vy);
+        if (sp > 1) {
+          const ratio = (sp + accel * dt) / sp;
+          b.vx *= ratio;
+          b.vy *= ratio;
+        }
       }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
@@ -1767,6 +1783,17 @@ export class Game {
     const w = this.world;
     const p = w.player;
     b.grazeCd = TUNE.graze.cooldown;
+    // BIOME RULE (THE NULL) — graze DEAD-ZONE: the skill-reward economy is stripped
+    // here, so a graze grants nothing (no stamina/combo/score/overdrive). We still
+    // set the cooldown above so a hugging bullet can't re-poll every frame, and emit
+    // a faint LOCALIZED muted spark (no flash, no shake, no rumble) so the dead-zone
+    // reads on contact. Deterministic — particle is the only side effect and it is
+    // purely cosmetic. The grazeCount stat is intentionally NOT incremented (no graze
+    // happened, economically).
+    if (this.biomeNoGraze) {
+      w.particles.graze(b.x, b.y);
+      return;
+    }
     w.grazeCount++;
     // PERFECT THREAD — count grazes within a SINGLE dash; reward once at threshold.
     if (p.phase === 'dashing') {
@@ -2335,6 +2362,8 @@ export class Game {
     this.renderer.setBiomeTint(b.nebula);
     this.biomeSpeedMul = b.speedMul;
     this.biomeShield = b.shieldBonus;
+    this.biomeBulletAccel = b.bulletAccel ?? 0;
+    this.biomeNoGraze = b.noGraze ?? false;
     if (announce) {
       this.ui.announce(`⟐ ${b.name}`, b.accent);
       this.narrateOne('toast', NARRATOR.strata[index]);

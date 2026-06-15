@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { BIOMES, BIOME_DURATION, biomeAt } from './biomes';
+import { BIOME_RULES } from './tune';
 import type { EnemyKind } from './types';
 
 describe('biomes', () => {
@@ -39,5 +40,22 @@ describe('biomes', () => {
     expect((bias.brooder ?? 1)).toBeGreaterThan(1);
     expect((bias.shade ?? 1)).toBeGreaterThan(1);
     expect((bias.drifter ?? 1)).toBeGreaterThan(1);
+  });
+
+  it('THE EMBERWALL changes a RULE: live bullets accelerate (bulletAccel > 0)', () => {
+    const ember = BIOMES.find((b) => b.id === 'ember');
+    expect(ember).toBeDefined();
+    expect(ember!.bulletAccel).toBe(BIOME_RULES.emberBulletAccel);
+    expect(ember!.bulletAccel!).toBeGreaterThan(0);
+    // no other biome accelerates bullets — the rule is what makes EMBERWALL distinct
+    expect(BIOMES.filter((b) => (b.bulletAccel ?? 0) > 0)).toHaveLength(1);
+  });
+
+  it('THE NULL changes a RULE: it is a graze dead-zone (noGraze)', () => {
+    const nul = BIOMES.find((b) => b.id === 'null');
+    expect(nul).toBeDefined();
+    expect(nul!.noGraze).toBe(true);
+    // exactly one biome strips the graze economy — the others all reward grazing
+    expect(BIOMES.filter((b) => b.noGraze)).toHaveLength(1);
   });
 });
