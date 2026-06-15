@@ -1,3 +1,4 @@
+import './fonts'; // self-hosted webfonts (no Google Fonts CDN — see fonts.ts)
 import './style.css';
 import { Game } from './game';
 

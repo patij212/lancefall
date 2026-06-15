@@ -3,13 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+  <!--
+    Content-Security-Policy for a same-origin Canvas/Web-Audio game on Cloudflare
+    Pages with a Cloudflare Worker leaderboard. The app is an ES module, so scripts
+    need only 'self' (no inline-script allowance). Fonts are self-hosted (see
+    src/fonts.ts) — no Google Fonts CDN — so style/font-src stay same-origin.
+      script-src 'self' blob:   — bundle + the GIF-export module Worker (Vite may blob it)
+      style-src  'self' 'unsafe-inline' — bundled CSS + a few inline style.cssText overlays
+      img-src    'self' data: blob:     — canvas exports, favicon data URIs, GIF frames
+      media-src  'self' blob:           — same-origin audio beds + decoded WAV blobs
+      connect-src 'self' https:         — the leaderboard Worker (a build-time https origin)
+      worker-src 'self' blob:           — the GIF-export Worker
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https:; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'" />
   <title>LANCEFALL — neon dash-combat bullet-hell</title>
   <meta name="description" content="Your only weapon is a momentum dash. Charge, release, and spear everything in your path. Chain kills, graze bullets, survive the swarm." />
   <meta name="theme-color" content="#0e0f13" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 </head>
 <body>
   <canvas id="game" role="application" aria-label="LANCEFALL — a neon dash-combat game. Charge and release to dash; played with keyboard and mouse, gamepad, or touch."></canvas>
