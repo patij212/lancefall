@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ONBOARDING, ONBOARDING_STEPS, hintFor } from './onboarding';
+import { ONBOARDING, ONBOARDING_STEPS, hintFor, beatTeachState, BEAT_HINT_TEXT } from './onboarding';
 import type { OnboardTrigger } from './onboarding';
 
 describe('onboarding sequence', () => {
@@ -33,5 +33,18 @@ describe('onboarding sequence', () => {
     expect(shown.length).toBe(ONBOARDING_STEPS);
     // past the end, nothing more fires
     expect(hintFor(step, 'kill')).toBeNull();
+  });
+});
+
+describe('C5 beatTeachState (teach dash-on-the-beat)', () => {
+  it('shows the ring + hint for the first runs, then retires at the cap', () => {
+    expect(beatTeachState(0, 3, 3)).toEqual({ ring: true, hint: true });
+    expect(beatTeachState(2, 3, 3)).toEqual({ ring: true, hint: true });
+    expect(beatTeachState(3, 3, 3)).toEqual({ ring: false, hint: false }); // retired at the cap
+    expect(beatTeachState(10, 3, 3)).toEqual({ ring: false, hint: false });
+  });
+  it('the hint text is non-empty and mentions the beat', () => {
+    expect(BEAT_HINT_TEXT.length).toBeGreaterThan(0);
+    expect(BEAT_HINT_TEXT.toLowerCase()).toContain('beat');
   });
 });

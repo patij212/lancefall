@@ -26,3 +26,12 @@ export function hintFor(step: number, trigger: OnboardTrigger): OnboardHint | nu
   const h = ONBOARDING[step];
   return h && h.trigger === trigger ? h : null;
 }
+
+/** C5 (v6 §1) — the dash-on-the-beat teaching nudge. */
+export const BEAT_HINT_TEXT = 'Dash ON THE BEAT — release as the ring tightens to bloom the city.';
+
+/** C5 — for a player's first few runs, auto-show the beat-ring and offer a one-time
+ *  dash-on-beat hint (a soft nudge, NOT flipping the rhythmAssist default). Pure. */
+export function beatTeachState(runs: number, capRing: number, capHint: number): { ring: boolean; hint: boolean } {
+  return { ring: runs < capRing, hint: runs < capHint };
+}

@@ -442,6 +442,9 @@ export const COHERENCE = {
   cityMemFloor: 0.18, // meter neon-tint floor at coherence 0 (gray but legible)
   spearNeonFloor: 0.45, // spear-line alpha floor at coherence 0 (the dash is ALWAYS visible)
   spearNeonGain: 0.55, // alpha added to the spear at full coherence (→ 1.0)
+  // ── C5 (v6 §1) — teach dash-on-the-beat for a new player's first few runs ──
+  firstRunsBeatRing: 3, // auto-show the beat-ring for this many of a player's first runs
+  firstRunsBeatHintRuns: 3, // offer the one-time dash-on-beat hint for this many runs
   skylineFloor: 0.05, // skyline band alpha at coherence 0 (a ghost of the dead city)
   skylineGain: 0.7, // …added at coherence 1 (the City of Lancefall resolves)
   // ── accessibility caps ──

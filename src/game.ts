@@ -28,7 +28,7 @@ import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore, leaderboardEnabled } from './api';
-import { hintFor, ONBOARDING_STEPS } from './onboarding';
+import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield } from './survival';
@@ -149,6 +149,8 @@ export class Game {
   private runHeat = 0; // heat level locked in for the active run
   private onboarding = false; // first-run progressive tutorial active
   private onboardStep = 0;
+  private showBeatRingThisRun = false; // C5 — auto-show the beat-ring for the first few runs
+  private beatHintShownThisRun = false; // C5 — one-time dash-on-beat hint per run
   private intensityTimer = 0;
   // adaptive perf: scale particle density down when frames run slow, restore when fast
   private baseDensity = 1;
@@ -413,6 +415,10 @@ export class Game {
     } else {
       this.onboarding = false;
     }
+    // C5 — teach dash-on-the-beat for the first few runs (a soft nudge, not a default flip)
+    const teach = beatTeachState(this.save.firstRunsBeatHint, COHERENCE.firstRunsBeatRing, COHERENCE.firstRunsBeatHintRuns);
+    this.showBeatRingThisRun = teach.ring;
+    this.beatHintShownThisRun = !teach.hint; // already-shown if no hint is due this run
   }
 
   /** Advance the first-run onboarding when the current step's trigger fires. */
@@ -854,6 +860,10 @@ export class Game {
         // this.world directly (cw isn't assigned until below this block).
         this.world.particles.floatText(this.world.player.x, this.world.player.y - 34, perfect ? 'PERFECT' : 'ON BEAT', perfect ? '#fde047' : '#67e8f9', perfect ? 0.95 : 0.75);
         if (!this.settings.reduceFlashing) this.ui.flashBeatPip(perfect);
+        if (!this.beatHintShownThisRun) {
+          this.beatHintShownThisRun = true;
+          this.ui.toast(BEAT_HINT_TEXT); // C5 — one-time nudge: you just hit the beat
+        }
       }
       if (grade === 'perfect' && !this.settings.reduceFlashing)
         this.audio.perfectDashSnare(this.audio.clock + (this.beat.nextGridTime() - this.beat.t));
@@ -917,7 +927,7 @@ export class Game {
       caScale: this.settings.chromAberration,
       reduceMotion: this.settings.reduceMotion,
       clarity: this.settings.clarity,
-      beatRing: this.settings.rhythmAssist,
+      beatRing: this.settings.rhythmAssist || this.showBeatRingThisRun,
       beatPhase: this.beat.beatPhase(),
       slingshot: this.settings.dashStyle === 'slingshot',
     });
@@ -1962,6 +1972,8 @@ export class Game {
         this.save.ngPlusActive = true; // queued for the next run; toggle off on the title
       }
       this.save.totalRuns++;
+      // C5 — count early runs so the beat-teaching retires after a few descents
+      if (this.save.firstRunsBeatHint < COHERENCE.firstRunsBeatHintRuns) this.save.firstRunsBeatHint++;
       // MEMORY FRAGMENTS — carry one out of every descent + earn milestone fragments
       for (const f of fragmentsForRun({
         runOrdinal: this.save.totalRuns,
