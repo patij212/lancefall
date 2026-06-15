@@ -460,6 +460,9 @@ export class Game {
   }
 
   private toTitle(): void {
+    // §5 U2 fix — drop any latched input edges (e.g. an in-run arrow-key press) so they
+    // can't fire a phantom mode-card nav on the first title frame (mirrors start()).
+    this.input.clearHeld();
     this.state = 'title';
     this.ui.show('title');
     this.ui.refreshTitle(this.save);
