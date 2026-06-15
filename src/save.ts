@@ -202,11 +202,42 @@ export function saveSave(data: SaveData): void {
   }
 }
 
+/** Coerce a parsed settings blob field-by-field against the defaults (matching the rigor of
+ *  migrateSave) so a corrupted/old/hand-edited blob can never inject a wrong-typed or
+ *  out-of-range value into the live game. Pure + exported for tests. */
+export function sanitizeSettings(raw: unknown): Settings {
+  const d = defaultSettings();
+  if (!raw || typeof raw !== 'object') return d;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown, lo: number, hi: number, def: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def;
+  const bool = (v: unknown, def: boolean) => (typeof v === 'boolean' ? v : def);
+  const oneOf = <T extends string>(v: unknown, allowed: readonly T[], def: T): T =>
+    typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : def;
+  return {
+    master: num(r.master, 0, 1, d.master),
+    sfx: num(r.sfx, 0, 1, d.sfx),
+    music: num(r.music, 0, 1, d.music),
+    shake: num(r.shake, 0, 1.5, d.shake),
+    reduceFlashing: bool(r.reduceFlashing, d.reduceFlashing),
+    reduceMotion: bool(r.reduceMotion, d.reduceMotion),
+    particleDensity: oneOf(r.particleDensity, ['low', 'med', 'high'] as const, d.particleDensity),
+    colorblind: bool(r.colorblind, d.colorblind),
+    clarity: bool(r.clarity, d.clarity),
+    rhythmAssist: bool(r.rhythmAssist, d.rhythmAssist),
+    dashStyle: oneOf(r.dashStyle, ['lance', 'slingshot'] as const, d.dashStyle),
+    soundtrack: oneOf(r.soundtrack, ['aurora', 'surge'] as const, d.soundtrack),
+    hudScale: num(r.hudScale, 0.8, 1.4, d.hudScale),
+    chromAberration: num(r.chromAberration, 0, 1, d.chromAberration),
+    rumble: bool(r.rumble, d.rumble),
+  };
+}
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaultSettings();
-    return { ...defaultSettings(), ...JSON.parse(raw) };
+    return sanitizeSettings(JSON.parse(raw));
   } catch {
     return defaultSettings();
   }
