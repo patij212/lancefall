@@ -1,20 +1,20 @@
 // LANCEFALL leaderboard — a tiny Cloudflare Worker backed by D1.
-// Endpoints (all CORS-open, JSON):
+// Endpoints (JSON, CORS scoped to the LANCEFALL origins):
 //   POST /score        { mode, name, score, wave, combo, heat, daily? }  -> { ok }
-//   GET  /leaderboard?mode=<m>[&daily=YYYY-MM-DD]                         -> { entries }
+//   GET  /leaderboard?mode=<m>[&daily=YYYY-MM-DD][&scope=weekly]         -> { entries }
 //   GET  /daily                                                          -> { seed, date }
 //
-// The game is client-authoritative, so scores can't be cryptographically trusted
-// on a zero-friction casual board. We apply pragmatic sanity caps + per-handle
-// best-only aggregation rather than full replay verification. Deploy: see README.
+// The game is client-authoritative, so this is a COMMUNITY (unverified) board: scores
+// can't be cryptographically trusted on a zero-friction casual board. We apply pragmatic
+// sanity + plausibility caps (validate.ts) and per-handle best-only aggregation rather than
+// full replay verification (which is infeasible — the ghost is a position trace, not inputs).
+import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders } from './validate';
 
 export interface Env {
   DB: D1Database;
   /** optional KV namespace for IP rate-limiting; if unbound, limiting is skipped */
   RL?: KVNamespace;
 }
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Soft IP rate limit via KV (eventually-consistent, best-effort). Allows all if
  *  KV isn't configured, so the worker deploys and runs without it. */
@@ -27,45 +27,11 @@ async function rateOk(env: Env, ip: string, bucket: string, limit: number): Prom
   return true;
 }
 
-/** Valid YYYY-MM-DD that isn't in the future (1 day of timezone slack). */
-function validDaily(d: string): boolean {
-  if (!DATE_RE.test(d)) return false;
-  const t = Date.parse(d + 'T00:00:00Z');
-  return Number.isFinite(t) && t <= Date.now() + 86_400_000;
-}
-
-/** Start-of-week (Monday 00:00 UTC) in ms — the boundary for the weekly board, so
- *  it resets each Monday and everyone competes in the same window. */
-function weekStartMs(now: number): number {
-  const d = new Date(now);
-  const sinceMonday = (d.getUTCDay() + 6) % 7; // 0=Sun..6=Sat → days since Monday
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - sinceMonday);
-}
-
-const CORS: Record<string, string> = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'content-type',
-};
-
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'content-type': 'application/json', ...CORS },
+    headers: { 'content-type': 'application/json', ...cors },
   });
-}
-
-// MUST mirror the mode ids in src/modes.ts MODES (the worker can't import it).
-// 'longestday' was missing → THE LONGEST DAY scores were rejected 400 'bad mode'.
-const MODES = new Set(['endless', 'arena', 'daily', 'nightmare', 'bossrush', 'longestday']);
-
-function sanitizeName(n: unknown): string {
-  return (
-    String(n ?? '')
-      .replace(/[^\w \-]/g, '')
-      .slice(0, 16)
-      .trim() || 'ANON'
-  );
 }
 
 interface ScoreRow {
@@ -80,49 +46,48 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const ip = req.headers.get('CF-Connecting-IP') || 'anon';
+    const cors = corsHeaders(req.headers.get('Origin') || '');
 
-    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
     // ── submit a score ──
     if (req.method === 'POST' && url.pathname === '/score') {
-      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429);
+      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429, cors);
       let b: Record<string, unknown>;
       try {
         b = (await req.json()) as Record<string, unknown>;
       } catch {
-        return json({ error: 'bad json' }, 400);
+        return json({ error: 'bad json' }, 400, cors);
       }
       const mode = String(b.mode ?? '');
-      if (!MODES.has(mode)) return json({ error: 'bad mode' }, 400);
+      if (!MODES.has(mode)) return json({ error: 'bad mode' }, 400, cors);
       const score = Math.floor(Number(b.score) || 0);
       const wave = Math.floor(Number(b.wave) || 0);
       const combo = Math.floor(Number(b.combo) || 0);
       const heat = Math.max(0, Math.min(7, Math.floor(Number(b.heat) || 0)));
-      // pragmatic sanity caps — reject implausible client-authoritative payloads
-      if (score <= 0 || score > 50_000_000 || wave < 0 || wave > 2000 || combo < 0 || combo > 10_000) {
-        return json({ error: 'rejected' }, 422);
-      }
+      // pragmatic sanity + wave-relative plausibility — reject implausible payloads
+      if (!capsOk(score, wave, combo, heat)) return json({ error: 'rejected' }, 422, cors);
       const name = sanitizeName(b.name);
       let daily: string | null = null;
       if (mode === 'daily') {
         daily = String(b.daily ?? '').slice(0, 10);
-        if (!validDaily(daily)) return json({ error: 'bad daily date' }, 400);
+        if (!validDaily(daily, Date.now())) return json({ error: 'bad daily date' }, 400, cors);
       }
       await env.DB.prepare(
         'INSERT INTO scores (mode, daily, name, score, wave, combo, heat, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       )
         .bind(mode, daily, name, score, wave, combo, heat, Date.now())
         .run();
-      return json({ ok: true });
+      return json({ ok: true }, 200, cors);
     }
 
     // ── read a board (best score per handle, top 100) ──
     if (req.method === 'GET' && url.pathname === '/leaderboard') {
-      if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429);
+      if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429, cors);
       const mode = url.searchParams.get('mode') ?? '';
-      if (!MODES.has(mode)) return json({ error: 'bad mode' }, 400);
+      if (!MODES.has(mode)) return json({ error: 'bad mode' }, 400, cors);
       const daily = url.searchParams.get('daily');
-      if (daily !== null && !DATE_RE.test(daily)) return json({ error: 'bad daily date' }, 400);
+      if (daily !== null && !DATE_RE.test(daily)) return json({ error: 'bad daily date' }, 400, cors);
       // SQLite bare-column rule: with MAX(score), the other columns come from that row.
       // scope=weekly restricts a non-daily board to the current calendar week.
       const scope = url.searchParams.get('scope');
@@ -145,14 +110,18 @@ export default {
         combo: r.combo,
         heat: r.heat,
       }));
-      return json({ entries });
+      return json({ entries }, 200, cors);
     }
 
     // ── shared daily seed (days-since-epoch) ──
     if (req.method === 'GET' && url.pathname === '/daily') {
-      return json({ seed: Math.floor(Date.now() / 86_400_000), date: new Date().toISOString().slice(0, 10) });
+      return json(
+        { seed: Math.floor(Date.now() / 86_400_000), date: new Date().toISOString().slice(0, 10) },
+        200,
+        cors,
+      );
     }
 
-    return json({ error: 'not found' }, 404);
+    return json({ error: 'not found' }, 404, cors);
   },
 };
