@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from './rng';
-import { newCoherence, coherenceTarget, tickCoherence, coherenceBeatKick, comboTier } from './coherence';
+import { newCoherence, coherenceTarget, tickCoherence, coherenceBeatKick, coherenceBeatFlash, coherenceEdges, comboTier } from './coherence';
 import { makeGrid, BeatClock, gradeRelease } from './beat';
 
 // Guards the #1 invariant: the COHERENCE + BEAT layer is purely cosmetic and must
@@ -28,9 +28,14 @@ describe('coherence/beat — determinism guard (draw-count invariance)', () => {
       beat.advance(1 / 60);
       c.tier = comboTier(20);
       c.target = coherenceTarget(20, 1, 3, 0);
+      const prev = c.value;
       tickCoherence(c, 1 / 60);
       const grade = gradeRelease(beat.beatError(), beat.synced);
-      if (grade !== 'off') coherenceBeatKick(c, grade === 'perfect');
+      if (grade !== 'off') {
+        coherenceBeatKick(c, grade === 'perfect');
+        coherenceBeatFlash(c, grade === 'perfect'); // C1 envelope — pure, no rng
+      }
+      coherenceEdges(prev, c.value); // C2/C3 crossing detection — pure, no rng
     });
     expect(withSoul).toEqual(baseline);
   });

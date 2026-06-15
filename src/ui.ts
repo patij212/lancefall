@@ -161,6 +161,7 @@ export class UI {
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
   private beatPip!: HTMLElement;
+  private cityMemToggle: HTMLInputElement | null = null;
   private cityMemWrap!: HTMLElement;
   private cityMemFill!: HTMLElement;
   private staminaWrap!: HTMLElement;
@@ -517,6 +518,13 @@ export class UI {
     };
 
     const s = this.settings;
+    // City-memory is backed by SaveData (not Settings), and buildSettings() runs once in
+    // the constructor when saveRef is still null — so capture this checkbox and refresh it
+    // from the live save each time the panel opens (see openSettings()).
+    const cityMemRow = toggle('City memory meter', this.saveRef?.cityMemoryMeter ?? true, (v) =>
+      this.cb.onToggleCityMemory(v),
+    );
+    this.cityMemToggle = cityMemRow.querySelector('input');
     body.append(
       slider('Master volume', 0, 1, 0.05, s.master, (v) => this.patch({ master: v })),
       slider('SFX volume', 0, 1, 0.05, s.sfx, (v) => this.patch({ sfx: v })),
@@ -530,7 +538,7 @@ export class UI {
       toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
       toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
       toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v })),
-      toggle('City memory meter', this.saveRef?.cityMemoryMeter ?? true, (v) => this.cb.onToggleCityMemory(v)),
+      cityMemRow,
       toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) =>
         this.patch({ dashStyle: v ? 'slingshot' : 'lance' }),
       ),
@@ -668,6 +676,9 @@ export class UI {
   }
 
   private openSettings(): void {
+    // buildSettings() ran in the constructor before any save loaded, so the city-memory
+    // checkbox was rendered against a null saveRef. Re-sync it to the live save on open.
+    if (this.cityMemToggle) this.cityMemToggle.checked = this.saveRef?.cityMemoryMeter ?? true;
     this.settingsPanel.classList.remove('hidden');
   }
   private closeSettings(): void {
