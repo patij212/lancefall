@@ -32,6 +32,18 @@ export function shouldSlowmo(killsThisDash: number): boolean {
   return killsThisDash >= TUNE.juice.slowmoChainThreshold;
 }
 
+/** PERFECT THREAD — true only the first time a single dash reaches the graze
+ *  threshold. `alreadyFired` is the per-dash one-shot latch, so this stays a
+ *  single reward no matter how many further grazes land in the same dash. */
+export function perfectThreadReady(grazesThisDash: number, alreadyFired: boolean): boolean {
+  return !alreadyFired && grazesThisDash >= TUNE.perfectThread.threshold;
+}
+
+/** Combo-scaled score awarded by a PERFECT THREAD. */
+export function perfectThreadScore(combo: number): number {
+  return Math.round(TUNE.perfectThread.score * comboMultiplier(combo));
+}
+
 /** Advance the combo decay timer. Returns the new combo/timer and whether the
  *  combo just broke this step (for the shatter FX). comboTimer is NOT ticked by
  *  the caller during slow-mo/hitstop — that's enforced upstream. */

@@ -8,6 +8,8 @@ import {
   registerKill,
   hitstopFor,
   clearTimeBonus,
+  perfectThreadReady,
+  perfectThreadScore,
 } from './combat';
 import { TUNE } from './tune';
 
@@ -98,5 +100,51 @@ describe('hitstop', () => {
     expect(hitstopFor(1)).toBeCloseTo(TUNE.juice.hitstopBase);
     expect(hitstopFor(100)).toBeCloseTo(TUNE.juice.hitstopMax);
     expect(hitstopFor(3)).toBeGreaterThan(hitstopFor(1));
+  });
+});
+
+describe('PERFECT THREAD', () => {
+  const T = TUNE.perfectThread.threshold;
+
+  it('does not fire below the threshold', () => {
+    for (let g = 0; g < T; g++) {
+      expect(perfectThreadReady(g, false)).toBe(false);
+    }
+  });
+
+  it('fires exactly at the threshold and stays armed only while not yet fired', () => {
+    expect(perfectThreadReady(T, false)).toBe(true);
+    // once the per-dash latch is set, it never re-fires no matter how many more grazes land
+    expect(perfectThreadReady(T, true)).toBe(false);
+    expect(perfectThreadReady(T + 5, true)).toBe(false);
+  });
+
+  it('rewards once across a single dash: counting up, latching, and resetting next dash', () => {
+    // Mirror the game.ts graze() loop: a per-dash counter + a one-shot latch.
+    let grazesThisDash = 0;
+    let fired = false;
+    let fireCount = 0;
+    const graze = () => {
+      grazesThisDash++;
+      if (perfectThreadReady(grazesThisDash, fired)) {
+        fired = true;
+        fireCount++;
+      }
+    };
+    // thread far past the threshold within one dash
+    for (let i = 0; i < T + 4; i++) graze();
+    expect(fireCount).toBe(1); // rewarded exactly ONCE this dash
+    expect(grazesThisDash).toBe(T + 4);
+
+    // a new dash re-arms the latch (player.ts dash-fire reset)
+    grazesThisDash = 0;
+    fired = false;
+    for (let i = 0; i < T; i++) graze();
+    expect(fireCount).toBe(2); // a second dash that threads the threshold rewards again
+  });
+
+  it('score scales with the live combo multiplier', () => {
+    expect(perfectThreadScore(0)).toBe(TUNE.perfectThread.score);
+    expect(perfectThreadScore(10)).toBe(TUNE.perfectThread.score * 2);
   });
 });

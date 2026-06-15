@@ -60,6 +60,16 @@ export const TUNE = {
     cooldown: 0.25, // per-bullet cooldown to avoid spamming on slow bullets
   },
 
+  // PERFECT THREAD — a risk/reward verb: graze `threshold` bullets in ONE dash to
+  // fire a single combo-scaled reward (no world.rng; localized, a11y-safe juice).
+  perfectThread: {
+    threshold: 4, // grazes required within one dash to trigger
+    score: 120, // base bonus, scaled by the live combo multiplier
+    comboWindowFloor: 1.2, // seconds the combo decay window is floored to on a thread
+    flashAlpha: 0.16, // brief full-frame flash strength (gated by reduceFlashing at draw)
+    trauma: 0.18, // a small shake kick
+  },
+
   juice: {
     hitstopBase: 0.045, // s, single kill
     hitstopPerExtra: 0.012,

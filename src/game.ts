@@ -21,7 +21,7 @@ import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, hollowSy
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
-import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus } from './combat';
+import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, perfectThreadReady, perfectThreadScore } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
@@ -1722,6 +1722,14 @@ export class Game {
     const p = w.player;
     b.grazeCd = TUNE.graze.cooldown;
     w.grazeCount++;
+    // PERFECT THREAD — count grazes within a SINGLE dash; reward once at threshold.
+    if (p.phase === 'dashing') {
+      p.grazesThisDash++;
+      if (perfectThreadReady(p.grazesThisDash, p.perfectThreadFired)) {
+        p.perfectThreadFired = true;
+        this.firePerfectThread();
+      }
+    }
     chargeFromGraze(w.overdrive); // grazing trickles the OVERDRIVE meter
     const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
     p.stamina = Math.min(max, p.stamina + w.stats.grazeStaminaRefund);
@@ -1759,6 +1767,30 @@ export class Game {
       });
       if (best) this.damageEnemy(best, w.stats.grazeBurnDmg, false);
     }
+  }
+
+  /** PERFECT THREAD — the once-per-dash reward for threading the graze threshold
+   *  of bullets in a single dash. Combo-scaled score + a LOCALIZED chromatic/bloom
+   *  pop (the coherence focusPulse) + a floatText. No world.rng — purely cosmetic
+   *  feedback, and all flashing is a11y-gated at draw time. */
+  private firePerfectThread(): void {
+    const w = this.world;
+    const p = w.player;
+    const PT = TUNE.perfectThread;
+    const bonus = perfectThreadScore(w.combo);
+    w.score += Math.round(bonus * w.stats.scoreMul);
+    // keep the chain breathing — floor the decay window like a graze does
+    if (w.combo > 0) w.comboTimer = Math.max(w.comboTimer, PT.comboWindowFloor);
+    // localized chromatic/bloom pop, anchored on the player (not a frame-wide strobe)
+    this.coherence.focusPulse = 1; // drives the saturation/chroma bloom (a11y-gated by washSaturation)
+    w.particles.ring(p.x, p.y, w.stats.grazeRadius + 22, '#a78bfa', 0.4);
+    w.particles.burst(p.x, p.y, 18, '#c4b5fd');
+    w.particles.floatText(p.x, p.y - 34, `PERFECT THREAD +${bonus}`, '#c4b5fd', 1.05);
+    this.renderer.flash('#a78bfa', PT.flashAlpha); // gated by reduceFlashing at draw time
+    this.shake.add(PT.trauma);
+    this.input.rumble(0.2, 0.3, 90);
+    this.audio.comboErupt();
+    this.ui.announce('PERFECT THREAD', '#c4b5fd');
   }
 
   private updateGems(dt: number): void {

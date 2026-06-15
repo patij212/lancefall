@@ -163,6 +163,8 @@ function fireDash(
   p.dashDuration = slingshot ? slingshotDuration(travel) : dashDuration(travel);
   p.dashId++;
   p.killsThisDash = 0;
+  p.grazesThisDash = 0; // PERFECT THREAD: fresh graze tally for this dash
+  p.perfectThreadFired = false; // re-arm the once-per-dash reward
   p.refundThisDash = 0; // reset the Siphon per-dash refund budget
   p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(travel)
   p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);

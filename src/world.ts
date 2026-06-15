@@ -98,6 +98,8 @@ function makePlayer(): Player {
     dashDirY: 0,
     dashId: 0,
     killsThisDash: 0,
+    grazesThisDash: 0,
+    perfectThreadFired: false,
     refundThisDash: 0,
     iframe: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment,

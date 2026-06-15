@@ -52,6 +52,8 @@ export interface Player {
   dashDirY: number;
   dashId: number; // increments each dash, tags enemies hit so one dash hits each once
   killsThisDash: number;
+  grazesThisDash: number; // bullets grazed in this SINGLE dash (PERFECT THREAD risk/reward verb)
+  perfectThreadFired: boolean; // one-shot latch: PERFECT THREAD rewards at most once per dash
   refundThisDash: number; // stamina refunded so far this dash (Siphon), capped per dash
   iframe: number; // seconds of invulnerability remaining
 
