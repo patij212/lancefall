@@ -151,3 +151,103 @@ Lifts Turing 6→8, Creativity 7→8, technical depth — and it is the thing th
 - **A11y invariant:** every new visual respects reduce-flashing / reduce-motion / clarity; per-event feedback localized.
 - **Quality gate per commit:** `tsc` + full `vitest` + `vite build` + in-browser smoke (0 console errors).
 - **Casual mode and any assist must be off the leaderboards** so the boards stay meaningful.
+
+---
+
+# v2 — THE HARDENED PLAN (adversarial pass)
+
+> Authored after a 5-lens adversarial cross-examination of v1 (jam-win / fun-beauty / scope-risk / ambition / retention-trust — each red-team critique independently verified, only code/rule-backed, deadline-feasible items kept). **v1's prize premise (3 Overall + Best Ode to Alan Turing; a submission may win one Overall slot AND/OR one category) is verified CORRECT against the official rules** — this is a re-sequencing and a sharpening, not a rewrite. **v2 supersedes v1's sequencing and Pillar-2 spec where they conflict.**
+
+## The one-sentence through-line
+
+**"Today the whole world breaks the same key, and breaking it brings back the light."** One deterministic cipher you *actually read*, cracked under fire, that detonates into an authored sunrise we auto-capture as the share GIF — so **Turing (real cryptanalysis), Theme (literal solstice), Beauty (one peak frame), and Social (the tie-break artifact) all land in a single ~6-second beat** the video opens AND closes on. That beat is the spine; everything else is hygiene that stops it from being hidden.
+
+## What changed from v1, and why (code-verified)
+
+| v1 said | v2 says | Why v1 was wrong/risky |
+|---|---|---|
+| Pillar 2 first; post **last** "once filmable" | **Post + video FIRST** (Jun 16) against today's build; re-shoot only the cracked-key beat | The only hard-DQ gate was behind 4 slip-prone features. Rubric requires video+repo; as-shipped Writing = 3/10. Inverting this is the single biggest risk reduction. |
+| Real decode lives in **THE LONGEST DAY** mode | Real decode lives on the **default first boss + the Sovereign final lock, in every mode** | `game.ts:2211` only arms the rich cipher when `mode.cipherLock`; the median 60–90s judge never opens the side mode. |
+| Decode = **Caesar + crib**, "wrong key reveals a contradiction" | Decode = **read a substitution off an on-screen legend** as a **read-only skin**; reducer `dashCipherCore` stays **byte-identical** | v1's "wrong key punishes" reverses the two forgiveness commits (`18b649e`+`bf1bac8`; `cipher.ts:61-72` is a *forgiving no-op* by design) and reads worse under fire. Skin it instead. |
+| Mode named **"THE LONGEST DAY"** | **Rename → "SOLSTICE PROTOCOL"**; final lock → **"THE SOLSTICE KEY"** | Collides *exactly* with the rival's whole finished game ("The Longest Day"). A judge who plays both reads us as the derivative. Rename is free. |
+| **"DAYBREAK win"** floods to daylight | **"DAYBREAK" is already the ultimate's name** (`ui.ts:1480`). Win beat renamed **"FIRST LIGHT"**, a **new warm-gold above-wash palette**, not more neon | `game.ts:574`: the ultimate *already* floods the world to full neon — reusing it wouldn't read as a climax. |
+| GIF untouched; share = post-jam | **Brand the GIF + lead with it** is jam-critical | `replay.ts:120-130` is a silent `<a download>` with no caption/score/seed/brand. The tie-break **is** post reactions; a bare file is shared by ~no one. |
+| Leaderboard "plausibility cap" post-jam | **Relabel "community board (unverified)"** now; **drop re-sim verification entirely** | `ghost.ts` stores *positions* (90 samples), **not inputs** — you cannot replay-verify a score. Re-sim is multi-day/infeasible; candor is the only survivable fix. |
+
+## CUT for the jam window (discipline)
+
+1. **Worker re-simulation / trusted board** — infeasible (ghost is a position trace, not inputs). Ship **candor relabel** instead.
+2. **"Wrong key = contradiction" reducer change** — reverses forgiveness; risks Clarity-8/Fairness-7 under fire. The legible Bombe gesture ships **cosmetically** (struck-out glyphs) with no reducer touch.
+3. **Caesar/frequency-analysis-while-dodging** — too hard to grasp <10s under fire; breaks Pillar 1. One-substitution read off a visible legend delivers "cryptanalysis is *played*" at a fraction of the risk.
+4. **Daily-seed-as-theme (invisible)** — replaced by the on-screen **"SOLSTICE — the longest day"** title stamp on Jun 21 (`rng.ts:46` already yields `20260621`) + the visible FIRST LIGHT sunrise.
+5. **Duel-as-URL** — packaging, no public artifact. Redirect to **ONE pinned "CHALLENGE THE DEV" seed**.
+6. **Standalone score-card PNG** — fold "burn seed+score" into the GIF; don't staff a second artifact.
+7. **All Grid-B "fun"-tier content** (biomes-rule, zoner verbs, meta-as-unlocks, weekly mutator, engine-as-product, god-object split, modal a11y, DPR cap, CORS/CSP) — invisible to a brief judge; stays post-jam.
+
+## Pillar 2 (sharpened) — REAL cryptanalysis that beats the Bombe rival *on our terms*
+
+We won't out-Bombe a finished 676-position Bombe on faithfulness. We win the axis the rival is weak on: **legibility-under-action — "code-breaking *is* the verb you press."** Their deduction is a separate screen; **ours narrates live on the HUD while you dodge.**
+
+**"READ THE KEY" (read-only decode skin):**
+- **Engine untouched.** `cipher.ts` + `dashCipherCore` stay byte-identical (forgiveness + determinism intact — `cipher.ts:4-7` draws zero `world.rng`). All changes in `render.ts` (~1258–1282) + `ui.ts` (~1482–1499) + one pure label-map + one HUD panel.
+- **Glyphs become letters** via a static `glyphToLetter[]` map; plaintext spells a short word (`DAY`/`DAWN`/`LIGHT`/`SUN`, 4–5 glyphs).
+- **Show ciphertext + the legend, not the answer.** HUD shows the scrambled letters + a visible substitution **key strip** with ONE anchor pair pre-lit as the crib; the player **derives** the next core. **Delete the `isNext` white ring (`render.ts:1264-1270`) + `.next` hand-off (`ui.ts:1491`) during the decode locks** — that ring is what makes today's mechanic follow-the-highlight.
+- **Visible Bombe gesture for free:** a wrong dash (already a forgiving no-op) **crosses out that glyph in the legend** ("rule out what contradicts") — cosmetic, derived from `progress`/`wrongFlash`, no reducer change.
+- **Assist stays:** the white-ring highlight survives as a Casual/off-leaderboard toggle; solving without it grants a small visible bonus.
+- **Arms on:** the **default first boss** (trivial 3-glyph read + `READ THE KEY → DASH IN ORDER` tooltip) **and** the **Sovereign final lock "THE SOLSTICE KEY"** (4–5 glyphs) in **every mode**.
+- **Determinism guard (non-negotiable):** every skin input derives **only** from `cipher.order`/`glyphs` + the static map — **never `world.rng`** (`cipherCycle` is skill-dependent and would silently fork the Daily).
+- **Tests first (TDD):** 6–8 round-trip assertions incl. **zero new `world.rng` draws** (extend `cipherIntegration.test.ts:109`). Effort **M.**
+
+## Pillar 1 + Theme — the signature WOW: **FIRST LIGHT**
+
+Build **before** the cipher so a WOW is guaranteed even if decode slips.
+- **Trigger:** cracking THE SOLSTICE KEY (final lock / win), *not* the ultimate.
+- **The frame (new, distinct from the neon ultimate flood):** hard cross-fade to a **warm white-gold "day" palette layered ABOVE the COHERENCE wash**, invert the gray vignette into a **bloom halo**, light every skyline window gold, hold **~2s slow-mo** with choir+lead full, **freeze a clean tableau** with the cracked plaintext glowing.
+- **Auto-capture** via the existing `ReplayRecorder` (6s/60-frame buffer + GIF encoder) → hero GIF + the video's closing frame.
+- **a11y:** cross-fade, **never flash**; honor `reduce-motion`/`reduce-flashing`; validate vs the Clarity-8 baseline. Name it **FIRST LIGHT** (avoid the DAYBREAK ultimate). Effort **M.** Lifts Theme 6→8 and is the biggest lever on the reactions tie-break.
+
+## Social — manufacture the comment loop (tie-break = reactions)
+
+Reframe every social task by *"does a stranger reading the thread react?"* — GIF-in-comment and challenge-the-dev pass; clipboard duel fails.
+- **Brand the GIF (S):** burn score+seed+`lancefall.pages.dev` watermark; in-page preview + copy-image/`navigator.share` (replace the silent `a.download`). Video + post both **open on this GIF**.
+- **Pin ONE "CHALLENGE THE DEV" seed (S):** fixed seed + author ghost (`toChallengeCode` exists) → "beat my run, drop your GIF below."
+- **Relabel board "community board (unverified)" (S):** `README.md:3` + RANKS screen — candor a dev audience respects.
+- **Daily streak counter (S):** `save.ts:80-81` already persists the last-played date; zero sim risk.
+
+## THE JAM-CRITICAL TRACK (ship by Jun 21, in order)
+
+| # | Item | Effort |
+|---|---|---|
+| **0** | **Boot guard** — `window.onerror` + static fallback overlay (`main.ts:8` is a bare `game.boot()`) | S |
+| **0b** | **Determinism safety net** — full-run / `world.rng` draw-count test, asserts bit-identical after arming the skin | S–M |
+| **1** | **RENAME** `THE LONGEST DAY → SOLSTICE PROTOCOL`; final lock → `THE SOLSTICE KEY` | S |
+| **2** | **FIRST LIGHT** signature win-state + auto-capture (built **before** the cipher) | M |
+| **3** | **Brand the GIF + share path** (watermark, preview, copy-image/share) | S |
+| **4** | **SUBMISSION POST + VIDEO against today's build** — valid complete submission by **Jun 16** | M |
+| **5** | **READ THE KEY decode skin** (letters + legend + crib, drop `isNext` ring, struck-glyph gesture, assist) + tests | M |
+| **6** | **Title declutter** (autofocus big `PLAY`; demote meta to a "More" drawer) | S |
+| **7** | **Casual mode** (off-leaderboard via `ModeRules.ranked` + api gate) + threat **neon RIM** (1px, not full saturation) | M |
+| **8** | **Pin "CHALLENGE THE DEV"** + **relabel board** + **Daily streak** + **"SOLSTICE" Jun-21 title stamp** | S |
+| **9** | **Re-shoot the decode beat** into the video; **fix "Cheating Death"** (`achievements.ts:55` fires on *using* last breath, not surviving) | S |
+
+**Decision gate — Jun 19, 18:00:** Is READ THE KEY clean, legible <10s under fire, and filmable? **Yes →** headline it, re-cut the video to open on it. **No →** do *not* half-ship a broken decode — fall back to all-in **Overall** (Technical 9 + FIRST LIGHT + the solstice stamp), Turing as a tasteful *named* allegory (Mirrorblade = imitation game, THE CHOICE = halting problem). #0–#4 + #6–#8 already shipped a complete submission, so the gate protects win-probability.
+
+## POST-JAM TRACK (proud-to-share; no jam value)
+
+- **PERFECT THREAD** verb (graze≥N in one dash → chromatic bloom + bonus) — replaces v1's "cap infinite dash", which is **already shipped** (`game.ts:1303-1314`); reallocate that slot here. **S.**
+- **Stage the Mirrorblade reveal** (player silhouette + `TELL ME WHICH OF US IS REAL` card; `drawMirrorblade` exists but is narrator-text-only) — *told* → *shown* Turing. **S.**
+- Biomes-change-a-rule (one biome); zoner verbs; meta-as-unlocks; weekly mutator; god-object split; Worker tests+CI; modal a11y; DPR cap + gate `shadowBlur`; offscreen bg; self-host fonts; CORS/CSP; engine-as-starter-kit. **M–L.**
+
+## RISKS & MITIGATIONS
+
+| Risk | Mitigation |
+|---|---|
+| **Determinism fork** (skin samples `world.rng` via skill-dependent `cipherCycle`) | Skin derives only from `cipher.order`/`glyphs` + static map; ship the draw-count test (#0b) **first**; reducer byte-identical. |
+| **a11y regression** (FIRST LIGHT flash; strike flicker; RIM strobe) | Cross-fade not flash; static strike; 1px constant RIM; validate vs `reduce-motion`/`reduce-flashing`. |
+| **Clarity-8 regression** in `render.ts` | Use the **neon RIM**, never full-body saturation; gate behind a before/after legibility screenshot. |
+| **Forgiveness reversal** | **Never touch `dashCipherCore`**; decode is read-only render/ui; Bombe "rule-out" cosmetic only. |
+| **Cipher slip** | Post+video+FIRST LIGHT ship first (Jun 16); the Jun-19 gate falls back to a complete Overall submission. |
+| **Blank-page DQ** | Boot guard is commit #0. |
+| **Read-as-derivative** | Rename (commit #1) before any screenshots/video. |
+
+**Per-commit gate (enforced):** `tsc` + full `vitest` + `vite build` + in-browser smoke (0 console errors). For any render/skin commit: a before/after screenshot vs the Clarity-8 + `reduce-motion` baselines, and the `world.rng` draw-count assertion green.
