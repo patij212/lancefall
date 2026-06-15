@@ -1131,7 +1131,6 @@ export class UI {
       const glyph = el('canvas', { class: 'ship-glyph' }) as HTMLCanvasElement;
       this.paintShipGlyph(glyph, ship.id, ship.accent);
       chip.append(
-        glyph,
         el(
           'div',
           { class: 'ship-info' },
@@ -1139,6 +1138,7 @@ export class UI {
           el('div', { class: 'ship-desc' }, ship.desc),
           el('div', { class: 'ship-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : `◆ ${ship.unlockShards.toLocaleString()}`),
         ),
+        el('div', { class: 'ship-preview' }, glyph), // hidden by default; reveals big below the text on hover
       );
       chip.title = ship.desc;
       chip.addEventListener('click', () => {
@@ -1220,11 +1220,11 @@ export class UI {
     this.playBtn.title = 'Play ' + modeById(save.selectedMode).name;
   }
 
-  /** Paint a ship's silhouette into its select-chip canvas (nose-up, in its accent), so
-   *  the whole roster reads at a glance and a hovered tile shows the model up close. */
+  /** Paint a ship's big silhouette into its hover-preview canvas (nose-up, in its accent).
+   *  Hidden by default; the chip reveals it on hover (see .ship-preview in the CSS). */
   private paintShipGlyph(canvas: HTMLCanvasElement, shipId: string, accent: string): void {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const size = 80; // logical draw area; CSS displays it smaller so it stays crisp when hover-scaled
+    const size = 128; // logical draw area; CSS displays it a touch smaller so it stays crisp
     canvas.width = Math.round(size * dpr);
     canvas.height = Math.round(size * dpr);
     const ctx = canvas.getContext('2d');
@@ -1234,7 +1234,7 @@ export class UI {
     ctx.rotate(-Math.PI / 2); // nose up, like a ship in a hangar
     const r = size * 0.42;
     const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-    g.addColorStop(0, accent + '4d');
+    g.addColorStop(0, accent + '55');
     g.addColorStop(1, accent + '00');
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = g;
@@ -1242,10 +1242,10 @@ export class UI {
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
-    drawShipSilhouette(ctx, shipId, size * 0.27, {
+    drawShipSilhouette(ctx, shipId, size * 0.3, {
       fill: '#0a0b0f',
       stroke: accent,
-      lineWidth: 2,
+      lineWidth: 2.5,
       detail: accent,
       core: '#eaf2ff',
     });
