@@ -31,6 +31,14 @@ import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
+import {
+  type ShareGif,
+  canCopyImage,
+  canShareFile,
+  copyImageToClipboard,
+  shareImageFile,
+  downloadGif,
+} from './replay';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
@@ -143,6 +151,11 @@ export class UI {
   private announceEl!: HTMLElement;
   private choiceRow!: HTMLElement;
   private saveReplayBtn!: HTMLButtonElement;
+  private sharePanel!: HTMLElement;
+  private shareImg!: HTMLImageElement;
+  private shareBody!: HTMLElement;
+  private shareActions!: HTMLElement;
+  private shareUrl = '';
   private announceTimer = 0;
   private saveRef: SaveData | null = null;
 
@@ -226,11 +239,12 @@ export class UI {
     this.buildLeaderboard();
     this.buildDuel();
     this.buildInspect();
+    this.buildShare();
     // aria-live so the narrator's SOUL payload reaches screen-reader users:
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -483,7 +497,7 @@ export class UI {
     duel.addEventListener('click', () => this.cb.onCreateChallenge());
     const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
     menu.addEventListener('click', () => this.cb.onQuit());
-    this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SAVE GIF ⬇') as HTMLButtonElement;
+    this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SHARE GIF ⤴') as HTMLButtonElement;
     this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
     const row = el('div', { class: 'go-row' }, again, copy, dna, duel, this.saveReplayBtn, menu);
     // THE CHOICE — shown only on the first Sovereign kill (hold the light / let it go)
@@ -1425,6 +1439,98 @@ export class UI {
       if (k < 1 && this.current === 'gameover') requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
+  }
+
+  // ── SHARE GIF — in-page preview + copy/share/download ──────────────────────
+  private buildShare(): void {
+    const h = el('h2', {}, 'SHARE YOUR RUN');
+    this.shareImg = el('img', { class: 'share-img', alt: 'Your watermarked run clip' }) as HTMLImageElement;
+    this.shareBody = el('div', { class: 'share-body' }, this.shareImg);
+    this.shareActions = el('div', { class: 'share-actions' });
+    const close = el('button', { class: 'btn btn-ghost' }, 'CLOSE');
+    close.addEventListener('click', () => this.closeShare());
+    const panel = el('div', { class: 'panel' }, h, this.shareBody, this.shareActions, close);
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', 'Share your run');
+    this.sharePanel = el('div', { class: 'screen screen-dim hidden' }, panel);
+  }
+
+  /** Called the moment SHARE GIF is pressed — open the modal with a spinner. */
+  beginShareReplay(): void {
+    this.revokeShare();
+    this.shareImg.classList.add('hidden');
+    this.shareActions.replaceChildren();
+    this.shareBody.classList.add('share-loading');
+    this.shareBody.setAttribute('data-msg', 'encoding clip…');
+    this.sharePanel.classList.remove('hidden');
+  }
+
+  /** The encode finished — show the watermarked preview + share/copy/download. */
+  showSharePreview(gif: ShareGif): void {
+    this.revokeShare();
+    this.shareUrl = URL.createObjectURL(gif.blob);
+    this.shareImg.src = this.shareUrl;
+    this.shareImg.classList.remove('hidden');
+    this.shareBody.classList.remove('share-loading');
+    this.shareBody.removeAttribute('data-msg');
+
+    this.shareActions.replaceChildren();
+    // Primary affordance: OS share sheet if available (mobile + some desktops),
+    // else copy-image-to-clipboard, else fall straight to download.
+    if (canShareFile(gif.blob)) {
+      const share = el('button', { class: 'btn btn-primary' }, '⤴ SHARE');
+      share.addEventListener('click', () => {
+        void shareImageFile(gif.blob, gif.caption).then((ok) => {
+          if (ok) this.toast('Shared!');
+        });
+      });
+      this.shareActions.append(share);
+    }
+    if (canCopyImage()) {
+      const copy = el('button', { class: 'btn btn-primary' }, '⧉ COPY IMAGE');
+      copy.addEventListener('click', () => {
+        void copyImageToClipboard(gif.blob).then((ok) =>
+          this.toast(ok ? 'GIF copied — paste it anywhere!' : 'Copy unavailable — downloading instead'),
+        );
+        if (!canCopyImage()) downloadGif(gif.blob);
+      });
+      this.shareActions.append(copy);
+    }
+    const dl = el('button', { class: 'btn btn-ghost' }, '⬇ DOWNLOAD');
+    dl.addEventListener('click', () => downloadGif(gif.blob));
+    this.shareActions.append(dl);
+    // Always offer copying the caption text too (works fully offline).
+    const txt = el('button', { class: 'btn btn-ghost' }, '⧉ COPY TEXT');
+    txt.addEventListener('click', () => {
+      try {
+        void navigator.clipboard?.writeText(gif.caption);
+        this.toast('Caption copied!');
+      } catch {
+        this.toast(gif.caption);
+      }
+    });
+    this.shareActions.append(txt);
+  }
+
+  /** Encode failed / nothing to share — tell the player, keep the modal closed. */
+  failShareReplay(): void {
+    this.closeShare();
+    this.toast('Could not build the clip — try again after a run.');
+  }
+
+  private closeShare(): void {
+    this.sharePanel.classList.add('hidden');
+    this.shareBody.classList.remove('share-loading');
+    this.revokeShare();
+  }
+
+  private revokeShare(): void {
+    if (this.shareUrl) {
+      URL.revokeObjectURL(this.shareUrl);
+      this.shareUrl = '';
+    }
+    this.shareImg.removeAttribute('src');
   }
 
   toast(msg: string): void {

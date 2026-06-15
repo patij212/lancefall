@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { webSafePalette, quantizeFrame, encodeGif, encodeRgbaFrames } from './gif';
+import { webSafePalette, quantizeFrame, encodeGif, encodeRgbaFrames, drawWatermark, watermarkTextWidth } from './gif';
 
 // A reference GIF-LZW decoder (canonical rule) — used only to prove the encoder
 // round-trips. If this passes AND a browser renders the output, the encoder is
@@ -154,5 +154,56 @@ describe('gif — dependency-free GIF89a encoder', () => {
     const expected = Array.from(quantizeFrame(rgba, w, h, false));
     const gif = encodeRgbaFrames([rgba], w, h, 8, false);
     expect(decodeGifFrames(gif, w, h)[0]).toEqual(expected);
+  });
+});
+
+describe('gif — branded share watermark', () => {
+  const mark = { score: '127,400 PTS', seed: 'SEED 20260615', site: 'lancefall.pages.dev' };
+
+  it('drawWatermark burns ink into the bottom of the frame (mutates pixels there)', () => {
+    const w = 200;
+    const h = 120;
+    // a uniform mid-grey frame: the watermark must visibly change the lower band
+    const flat = new Uint8Array(w * h * 4).fill(128);
+    for (let i = 3; i < flat.length; i += 4) flat[i] = 255; // opaque alpha
+    const before = flat.slice();
+    drawWatermark(flat, w, h, mark);
+
+    // the TOP rows are untouched (watermark sits at the bottom)
+    const topRow = (y: number, x: number) => flat[(y * w + x) * 4];
+    expect(topRow(2, 10)).toBe(128);
+
+    // SOME pixels in the lower band differ — both the darkened strip and bright glyphs
+    let changed = 0;
+    let brightened = 0;
+    for (let y = h - 30; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const p = (y * w + x) * 4;
+        if (flat[p] !== before[p] || flat[p + 1] !== before[p + 1] || flat[p + 2] !== before[p + 2]) changed++;
+        if (flat[p] > 150 || flat[p + 1] > 150 || flat[p + 2] > 200) brightened++;
+      }
+    }
+    expect(changed).toBeGreaterThan(200); // the letterbox strip + glyphs
+    expect(brightened).toBeGreaterThan(20); // the amber/cyan/white type is legible
+  });
+
+  it('watermarkTextWidth grows with text length and frame width', () => {
+    const w = 360;
+    expect(watermarkTextWidth('AB', w)).toBeGreaterThan(0);
+    expect(watermarkTextWidth('ABCD', w)).toBeGreaterThan(watermarkTextWidth('AB', w));
+    expect(watermarkTextWidth('ABCD', 360)).toBeGreaterThan(watermarkTextWidth('ABCD', 120));
+  });
+
+  it('encodeRgbaFrames with a watermark still yields a valid, decodable GIF', () => {
+    const w = 64;
+    const h = 40;
+    const frames = [new Uint8Array(w * h * 4).fill(60), new Uint8Array(w * h * 4).fill(90)];
+    for (const f of frames) for (let i = 3; i < f.length; i += 4) f[i] = 255;
+    const gif = encodeRgbaFrames(frames, w, h, 10, true, mark);
+    expect(String.fromCharCode(gif[0], gif[1], gif[2], gif[3], gif[4], gif[5])).toBe('GIF89a');
+    expect(gif[gif.length - 1]).toBe(0x3b); // trailer
+    const decoded = decodeGifFrames(gif, w, h);
+    expect(decoded.length).toBe(2);
+    expect(decoded[0].length).toBe(w * h);
   });
 });

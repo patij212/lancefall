@@ -65,7 +65,7 @@ import type { Enemy, EnemyKind } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash, coherenceEdges } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
-import { ReplayRecorder } from './replay';
+import { ReplayRecorder, type ShareMeta } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode } from './ghost';
@@ -181,7 +181,7 @@ export class Game {
       onCopyScore: () => this.copyScore(),
       onCopyBuildDna: () => this.copyBuildDna(),
       onChoice: (c) => this.makeChoice(c),
-      onSaveReplay: () => this.replay.saveGif(),
+      onSaveReplay: () => this.shareReplay(),
       onUnlockLore: (id) => this.unlockLore(id),
       onToggleNgPlus: () => this.toggleNgPlus(),
       onCreateChallenge: () => this.createChallenge(),
@@ -771,6 +771,24 @@ export class Game {
     } catch {
       this.ui.toast(str);
     }
+  }
+
+  /** Encode the buffered replay into a BRANDED, watermarked GIF and open the
+   *  in-page share/copy/download preview. Cosmetic/IO only — no world.rng. */
+  private shareReplay(): void {
+    const meta: ShareMeta = {
+      score: this.world.score,
+      seed: this.seed,
+      daily: this.mode.id === 'daily' || this.mode.seedKind === 'date',
+    };
+    this.ui.beginShareReplay();
+    void this.replay
+      .encodeShare(meta)
+      .then((gif) => {
+        if (gif) this.ui.showSharePreview(gif);
+        else this.ui.failShareReplay();
+      })
+      .catch(() => this.ui.failShareReplay());
   }
 
   // ── main loop ──

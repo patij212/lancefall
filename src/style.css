@@ -1643,6 +1643,53 @@ body {
   }
 }
 
+/* ── Share GIF preview ── */
+.share-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: min(420px, 84vw);
+  min-height: 140px;
+  border-radius: 12px;
+  background: rgba(6, 7, 11, 0.6);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.share-img {
+  display: block;
+  max-width: min(420px, 84vw);
+  max-height: 52vh;
+  border-radius: 12px;
+  image-rendering: auto;
+}
+.share-body.share-loading::after {
+  content: attr(data-msg);
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  /* gentle pulse — static-color, no flashing; disabled under reduce-motion */
+  animation: share-pulse 1.2s ease-in-out infinite;
+}
+@keyframes share-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.reduce-motion .share-body.share-loading::after {
+  animation: none !important;
+  opacity: 0.7;
+}
+
 /* explicit in-game "Reduce motion" toggle (independent of the OS setting) */
 .reduce-motion .screen,
 .reduce-motion .btn,
