@@ -923,6 +923,9 @@ export class Game {
       this.renderer.setGhost(null, 0);
     }
 
+    // FIRST LIGHT — the daybreak wash ramps up smoothly over ~0.8s once a run is WON, then
+    // holds for the victory cinematic (a cross-fade, so it's reduce-motion/flashing-safe).
+    const flT = this.winning ? Math.min(1, (2.4 - this.winTimer) / 0.8) : 0;
     this.renderer.render(this.world, this.cam, {
       reduceFlashing: this.settings.reduceFlashing,
       colorblind: this.settings.colorblind,
@@ -933,6 +936,7 @@ export class Game {
       beatRing: this.settings.rhythmAssist || this.showBeatRingThisRun,
       beatPhase: this.beat.beatPhase(),
       slingshot: this.settings.dashStyle === 'slingshot',
+      firstLight: flT * flT * (3 - 2 * flT),
     });
     if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density, this.coherence.value);
 

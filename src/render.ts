@@ -45,6 +45,7 @@ export interface RenderOpts {
   beatRing: boolean; // draw the opt-in beat-ring (rhythm assist)
   beatPhase: number; // 0..1 within the current beat (drives the ring radius)
   slingshot: boolean; // slingshot dash style → draw the load tether while charging
+  firstLight: number; // 0..1 — FIRST LIGHT victory day-wash (the sun returns on a win)
 }
 
 export class Renderer {
@@ -76,6 +77,7 @@ export class Renderer {
   private colorblindR = false;
   private reduceFlashingR = false;
   private slingshotR = false;
+  private firstLightR = 0; // FIRST LIGHT victory day-wash (0..1), set per frame from the win cinematic
   private ghostX: number | null = null;
   private ghostY = 0;
   private towers: { x: number; w: number; h: number; band: number }[] = [];
@@ -183,6 +185,7 @@ export class Renderer {
     this.clarityR = opts.clarity;
     this.colorblindR = opts.colorblind;
     this.slingshotR = opts.slingshot;
+    this.firstLightR = opts.firstLight;
     // ── draw the world to the buffer ──
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.globalCompositeOperation = 'source-over';
@@ -1578,6 +1581,30 @@ export class Renderer {
       sctx.globalCompositeOperation = 'source-over';
       sctx.globalAlpha = 1;
     }
+
+    // ── FIRST LIGHT — the authored daybreak on a cipher-cracked WIN. A warm white→gold sky
+    // floods the frame to DAY, ABOVE the neon wash (distinct from the OVERDRIVE neon flood).
+    // A sustained cross-fade: no strobe (reduceFlashing-safe) and no motion (reduceMotion-
+    // safe) — just the sun returning. Driven by firstLightR (ramped by the win cinematic). ──
+    if (this.firstLightR > 0.001) {
+      // softened under reduce-flashing (a gentler sunrise), kept legible so the tableau
+      // (and the cracked plaintext) reads through the wash.
+      const fl = Math.min(1, this.firstLightR) * (this.reduceFlashingR ? 0.6 : 1);
+      const sky = sctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, `rgba(255,250,236,${(0.4 * fl).toFixed(3)})`);
+      sky.addColorStop(0.55, `rgba(255,226,150,${(0.3 * fl).toFixed(3)})`);
+      sky.addColorStop(1, `rgba(255,198,98,${(0.17 * fl).toFixed(3)})`);
+      sctx.globalCompositeOperation = 'lighter';
+      sctx.globalAlpha = 1;
+      sctx.fillStyle = sky;
+      sctx.fillRect(0, 0, W, H);
+      // a gentle warm tint to pull the whole palette toward day
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.globalAlpha = 0.09 * fl;
+      sctx.fillStyle = '#ffdca8';
+      sctx.fillRect(0, 0, W, H);
+      sctx.globalAlpha = 1;
+    }
   }
 
   private drawVignette(opts: RenderOpts, world: World): void {
@@ -1593,12 +1620,23 @@ export class Renderer {
       0.92,
       (0.5 + (lowHp ? 0.12 : 0)) *
         vignetteDeepenFactor(this.coherence, this.reduceFlashingR, this.reduceMotionR, this.clarityR),
-    );
+    ) * (1 - this.firstLightR); // FIRST LIGHT lifts the dark edge — the world opens up to day
     const grad = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
     grad.addColorStop(1, `rgba(0,0,0,${edge})`);
     sctx.fillStyle = grad;
     sctx.fillRect(0, 0, W, H);
+
+    // FIRST LIGHT — invert the vignette into a soft golden bloom halo (the dark gives way)
+    if (this.firstLightR > 0.001) {
+      const halo = sctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.62);
+      halo.addColorStop(0, `rgba(255,240,205,${(0.3 * this.firstLightR).toFixed(3)})`);
+      halo.addColorStop(1, 'rgba(255,240,205,0)');
+      sctx.globalCompositeOperation = 'lighter';
+      sctx.fillStyle = halo;
+      sctx.fillRect(0, 0, W, H);
+      sctx.globalCompositeOperation = 'source-over';
+    }
 
     // fog of war (mutator): darken everything beyond a radius around the player
     if (world.stats.fogRadius > 0 && world.player.alive) {
