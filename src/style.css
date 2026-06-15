@@ -242,7 +242,7 @@ body {
   display: flex;
   flex-direction: column;
   width: 190px;
-  min-height: 150px; /* every tile the same size regardless of description length */
+  min-height: 168px; /* every tile the same size — clears the tallest (REAVER's 5-line desc) */
   text-align: left;
   background: var(--bg-raised);
   border: 1px solid var(--border);
