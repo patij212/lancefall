@@ -12,8 +12,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <canvas id="game"></canvas>
+  <canvas id="game" role="application" aria-label="LANCEFALL — a neon dash-combat game. Charge and release to dash; played with keyboard and mouse, gamepad, or touch."></canvas>
   <div id="ui-root"></div>
+  <noscript>
+    <div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0a0b0f;color:#22d3ee;font-family:system-ui,sans-serif;font-size:18px;text-align:center;padding:24px;">
+      LANCEFALL needs JavaScript enabled to play. Turn it on and reload.
+    </div>
+  </noscript>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
