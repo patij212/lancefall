@@ -192,6 +192,7 @@ export class Game {
       onHeatChange: (level) => this.setHeat(level),
       onArchetypeChange: (id) => this.setArchetype(id),
       onSelectMode: (id) => this.selectMode(id),
+      onToggleCityMemory: (v) => { this.save.cityMemoryMeter = v; saveSave(this.save); },
       onSetHandle: (name) => this.setHandle(name),
     });
 
@@ -920,7 +921,7 @@ export class Game {
       beatPhase: this.beat.beatPhase(),
       slingshot: this.settings.dashStyle === 'slingshot',
     });
-    if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density);
+    if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density, this.coherence.value);
 
     requestAnimationFrame((t) => this.frame(t));
   }

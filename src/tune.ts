@@ -437,6 +437,11 @@ export const COHERENCE = {
   exposureGain: 0.3, // exposure added by full coherence
   vignetteDeepen: 0.4, // how much LOW coherence deepens the vignette (world closing in)
   trailDim: 0.4, // ink-trail ghost dimmer floor at coherence 0
+  // ── C4 (v6 §1) — the CITY MEMORY meter + coherence-bound spear neon (focal object
+  //    lights with your momentum). Gated like the other coherence visuals. ──
+  cityMemFloor: 0.18, // meter neon-tint floor at coherence 0 (gray but legible)
+  spearNeonFloor: 0.45, // spear-line alpha floor at coherence 0 (the dash is ALWAYS visible)
+  spearNeonGain: 0.55, // alpha added to the spear at full coherence (→ 1.0)
   skylineFloor: 0.05, // skyline band alpha at coherence 0 (a ghost of the dead city)
   skylineGain: 0.7, // …added at coherence 1 (the City of Lancefall resolves)
   // ── accessibility caps ──

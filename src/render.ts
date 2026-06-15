@@ -21,6 +21,7 @@ import {
   vignetteDeepenFactor,
   trailBrightness,
   beatFlashRing,
+  spearNeonLift,
 } from './renderMath';
 
 export interface Camera {
@@ -1343,7 +1344,7 @@ export class Renderer {
       ctx.strokeStyle = col;
       ctx.lineWidth = TUNE.dash.hitboxRadius * 0.8;
       ctx.lineCap = 'round';
-      ctx.globalAlpha = 0.5;
+      ctx.globalAlpha = spearNeonLift(this.coherence, this.reduceFlashingR, this.clarityR); // C4 — momentum lights the spear
       ctx.beginPath();
       ctx.moveTo(p.dashFromX, p.dashFromY);
       ctx.lineTo(p.x, p.y);

@@ -11,6 +11,8 @@ import {
   vignetteDeepenFactor,
   trailBrightness,
   beatFlashRing,
+  cityMemoryFill,
+  spearNeonLift,
 } from './renderMath';
 
 describe('renderMath — coherence→render mappings + a11y gates', () => {
@@ -33,6 +35,22 @@ describe('renderMath — coherence→render mappings + a11y gates', () => {
     expect(washSaturation(0.5, 0, false, true, false, 1)).toBe(washSaturation(0.5, 0, false, true, false, 0)); // reduceMotion
     expect(washSaturation(0.5, 0, false, false, true, 1)).toBe(washSaturation(0.5, 0, false, false, true, 0)); // clarity
     expect(washSaturation(0, 0, false, false, false, 1)).toBeGreaterThanOrEqual(0); // never < 0
+  });
+
+  it('C4: cityMemoryFill — fill follows coherence; neon gated (clarity const, reduceFlashing capped)', () => {
+    expect(cityMemoryFill(0, false, false).fill).toBe(0);
+    expect(cityMemoryFill(1, false, false).fill).toBe(1);
+    expect(cityMemoryFill(0.5, false, false).neon).toBeGreaterThan(cityMemoryFill(0, false, false).neon);
+    expect(cityMemoryFill(1, false, true).neon).toBe(1); // clarity → const full
+    expect(cityMemoryFill(1, true, false).neon).toBeLessThanOrEqual(cityMemoryFill(COHERENCE.flashCap, false, false).neon + 1e-9);
+  });
+
+  it('C4: spearNeonLift — floors low / rises to 1; clarity full, reduceFlashing capped', () => {
+    expect(spearNeonLift(0, false, false)).toBeCloseTo(COHERENCE.spearNeonFloor);
+    expect(spearNeonLift(1, false, false)).toBeCloseTo(1);
+    expect(spearNeonLift(0.8, false, false)).toBeGreaterThan(spearNeonLift(0.2, false, false));
+    expect(spearNeonLift(1, false, true)).toBe(1); // clarity → full
+    expect(spearNeonLift(1, true, false)).toBeLessThan(1); // reduceFlashing caps below full
   });
 
   it('clamp01 + lerp basics', () => {

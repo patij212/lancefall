@@ -95,3 +95,27 @@ export function beatFlashRing(
   const radiusLift = (reduceMotion ? CO.beatRingRadiusLift * 0.5 : CO.beatRingRadiusLift) * b;
   return { alpha: clamp01(alpha), radiusLift };
 }
+
+/** C4 (v6 §1) — the CITY MEMORY meter readout: a fill 0..1 (= coherence) and a gray→neon
+ *  tint scalar (gated like cityGlowAlpha: Clarity freezes it, reduceFlashing caps it). */
+export function cityMemoryFill(c: number, reduceFlashing: boolean, clarity: boolean): { fill: number; neon: number } {
+  const fill = clamp01(c);
+  let neon: number;
+  if (clarity) neon = 1;
+  else {
+    let cc = fill;
+    if (reduceFlashing) cc = Math.min(cc, CO.flashCap);
+    neon = CO.cityMemFloor + (1 - CO.cityMemFloor) * cc;
+  }
+  return { fill, neon: clamp01(neon) };
+}
+
+/** C4 (v6 §1) — the dash-spear alpha lifts with coherence (momentum lights the world).
+ *  Parity with trailBrightness: Clarity → full, reduceFlashing caps; floor keeps the dash
+ *  always visible. Localized to the spear → survives the frame-wide wash gates. */
+export function spearNeonLift(c: number, reduceFlashing: boolean, clarity: boolean): number {
+  if (clarity) return 1;
+  let cc = clamp01(c);
+  if (reduceFlashing) cc = Math.min(cc, CO.flashCap);
+  return clamp01(CO.spearNeonFloor + CO.spearNeonGain * cc);
+}

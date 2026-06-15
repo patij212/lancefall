@@ -24,6 +24,7 @@ import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, nextModeId } from './modes';
 import { dailyMutatorPreview } from './mutators';
+import { cityMemoryFill } from './renderMath';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
@@ -59,6 +60,7 @@ export interface UICallbacks {
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
   onSelectMode: (id: string) => void;
+  onToggleCityMemory: (v: boolean) => void;
   onSetHandle: (name: string) => void;
 }
 
@@ -159,6 +161,8 @@ export class UI {
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
   private beatPip!: HTMLElement;
+  private cityMemWrap!: HTMLElement;
+  private cityMemFill!: HTMLElement;
   private staminaWrap!: HTMLElement;
   private staminaSegs: HTMLElement[] = [];
   private shieldsWrap!: HTMLElement;
@@ -258,7 +262,9 @@ export class UI {
     this.shieldsWrap = el('div', { class: 'hud-shields' });
     this.grazeEl = el('div', { class: 'hud-graze' }, '');
     this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
-    const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.shieldsWrap, this.bestComboEl);
+    this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
+    this.cityMemWrap = el('div', { class: 'hud-citymem' }, this.cityMemFill);
+    const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.shieldsWrap, this.cityMemWrap, this.bestComboEl);
 
     // OVERDRIVE meter (below the stamina bar)
     this.odLabel = el('div', { class: 'hud-od-label' }, 'DAYBREAK');
@@ -524,6 +530,7 @@ export class UI {
       toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
       toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
       toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v })),
+      toggle('City memory meter', this.saveRef?.cityMemoryMeter ?? true, (v) => this.cb.onToggleCityMemory(v)),
       toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) =>
         this.patch({ dashStyle: v ? 'slingshot' : 'lance' }),
       ),
@@ -1359,8 +1366,16 @@ export class UI {
   }
 
   // ── per-frame HUD update ──
-  updateHud(world: World, particleDensity: number): void {
+  updateHud(world: World, particleDensity: number, coherence = 0): void {
     void particleDensity;
+    // C4 — CITY MEMORY meter: fill = coherence value, gray→neon tint; hidden when toggled off
+    const showMem = this.saveRef?.cityMemoryMeter !== false;
+    this.cityMemWrap.style.display = showMem ? '' : 'none';
+    if (showMem) {
+      const { fill, neon } = cityMemoryFill(coherence, this.settings.reduceFlashing, this.settings.clarity);
+      this.cityMemFill.style.transform = `scaleX(${fill})`;
+      this.cityMemFill.style.opacity = String(neon);
+    }
     // score odometer
     this.displayScore += (world.score - this.displayScore) * 0.18;
     if (Math.abs(world.score - this.displayScore) < 1) this.displayScore = world.score;
