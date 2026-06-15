@@ -27,7 +27,7 @@ function makeParticle(): Particle {
 }
 
 function makeText(): FloatingText {
-  return { active: false, text: '', x: 0, y: 0, vy: 0, life: 0, maxLife: 1, scale: 1, color: '#fff' };
+  return { active: false, text: '', x: 0, y: 0, y0: 0, vy: 0, life: 0, maxLife: 1, scale: 1, color: '#fff' };
 }
 
 export class Particles {
@@ -178,6 +178,7 @@ export class Particles {
         t.active = true;
         t.x = x;
         t.y = y;
+        t.y0 = y;
         t.vy = -60;
         t.text = text;
         t.color = color;

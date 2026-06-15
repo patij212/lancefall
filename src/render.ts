@@ -1478,11 +1478,14 @@ export class Renderer {
     for (const t of world.particles.texts) {
       if (!t.active) continue;
       const a = clamp(t.life / t.maxLife, 0, 1);
-      const grow = 1 + (1 - a) * 0.4;
+      // reduce-motion: kill the upward drift (render at the spawn Y) and the grow-scale ramp,
+      // so beat-grade / +ARMOR / DAYBREAK pops fade in place instead of arcing.
+      const grow = this.reduceMotionR ? 1 : 1 + (1 - a) * 0.4;
+      const y = this.reduceMotionR ? t.y0 : t.y;
       ctx.globalAlpha = a;
       ctx.font = `700 ${Math.round(20 * t.scale * grow)}px "Space Grotesk", system-ui, sans-serif`;
       ctx.fillStyle = t.color;
-      ctx.fillText(t.text, t.x, t.y);
+      ctx.fillText(t.text, t.x, y);
     }
     ctx.restore();
   }

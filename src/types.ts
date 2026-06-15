@@ -141,6 +141,7 @@ export interface FloatingText {
   text: string;
   x: number;
   y: number;
+  y0: number; // spawn Y — rendered in place (no drift) under reduce-motion
   vy: number;
   life: number;
   maxLife: number;
