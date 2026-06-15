@@ -35,6 +35,23 @@ export function maxConcurrent(I: number): number {
   );
 }
 
+/** D2 stretch swell: as a wave nears its boss, ramp spawn cadence + density to a
+ *  crescendo. Keyed off REMAINING time (seconds to the next boss) so the peak lands
+ *  at the boss for ANY wave length (70..120s). Pure; applied to cadence/density only,
+ *  NEVER to speed (avoids a difficulty cliff). 1.0 far out → 1+stretchSwell at the boss. */
+export function stretchSwell(remaining: number): number {
+  const d = TUNE.director;
+  const p = clamp(1 - remaining / d.stretchWindow, 0, 1);
+  const s = p * p * (3 - 2 * p); // smoothstep
+  return 1 + d.stretchSwell * s;
+}
+
+/** D3 pre-boss calm: true when the boss is so close that chaff spawns should pause,
+ *  so the boss roars into a clean arena. Pure function of the remaining time. */
+export function preBossSilent(remaining: number): boolean {
+  return remaining < TUNE.director.preBossCalm;
+}
+
 export function enemySpeedMul(I: number): number {
   return 0.9 + 0.45 * clamp(I, 0, 2);
 }
@@ -136,6 +153,8 @@ export class Director {
   cfg: RunConfig = MODES[0];
   private spawnTimer = 0;
   private bossTimer: number = TUNE.director.bossInterval; // counts DOWN, but only during non-boss play
+  private prevBossAlive = false; // D3: detect the boss true→false death edge (pure, no rng)
+  private lullUntil = 0; // D3: absolute this.t until which post-boss chaff spawns are paused
   private nextPerkAt: number = TUNE.director.perkFirst;
   private nextEventAt: number = TUNE.director.eventFirst;
   bossCount = 0;
@@ -162,6 +181,8 @@ export class Director {
     this.bossCount = 0;
     this.wave = 1;
     this.bossTimer = this.cfg.bossInterval;
+    this.prevBossAlive = false;
+    this.lullUntil = 0;
     this.nextPerkAt = TUNE.director.perkFirst;
     this.nextEventAt = TUNE.director.eventFirst;
     this.waveIndex = 0;
@@ -183,6 +204,11 @@ export class Director {
   private updateEndless(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, d: DirectorDecision): DirectorDecision {
     const I = intensity(this.t) * this.cfg.intensityMul;
     this.wave = Math.floor(this.t / 30) + 1;
+
+    // D3: detect the boss death edge → open a short payoff breath so the gem/power-up/
+    // perk reward after a kill isn't stepped on by chaff. Pure (this.t + bossAlive), no rng.
+    if (this.prevBossAlive && !bossAlive) this.lullUntil = this.t + TUNE.director.bossLull;
+    this.prevBossAlive = bossAlive;
 
     // The inter-boss "wave" is a fixed budget of NON-BOSS play: bossTimer only
     // ticks while no boss is alive, so a long fight never shortens (or pads) the
@@ -212,13 +238,19 @@ export class Director {
       d.event = true; // the game rolls the id off world.eventRng (off the seeded stream)
       this.nextEventAt = this.t + TUNE.director.eventInterval;
     }
-    if (!bossAlive && !d.boss) {
+    // D2/D3: the spawn branch is gated by the post-boss lull + the pre-boss calm, and
+    // its cadence/density SWELL to a crescendo as the boss nears (never speed). Both the
+    // gates and the swell are pure functions of this.t + bossTimer, so the swell only
+    // changes the `n` BOUND on the existing single rng.weighted draw — the seeded stream
+    // is byte-identical for any two players on the same seed + sim inputs.
+    if (!bossAlive && !d.boss && this.t >= this.lullUntil && !preBossSilent(this.bossTimer)) {
       this.spawnTimer -= dt;
       if (this.spawnTimer <= 0) {
-        this.spawnTimer = spawnInterval(I) * this.cfg.spawnMul;
-        const room = maxConcurrent(I) - concurrent;
+        const sw = stretchSwell(this.bossTimer);
+        this.spawnTimer = (spawnInterval(I) / sw) * this.cfg.spawnMul;
+        const room = Math.round(maxConcurrent(I) * sw) - concurrent;
         if (room > 0) {
-          const n = Math.min(room, enemiesPerSpawn(I));
+          const n = Math.min(room, Math.round(enemiesPerSpawn(I) * sw));
           const weights = enemyWeights(this.t, I).map((w) => ({ v: w.v, w: w.w * (this.biomeBias[w.v] ?? 1) }));
           for (let i = 0; i < n; i++) d.spawn.push(rng.weighted(weights));
         }

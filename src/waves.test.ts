@@ -12,6 +12,8 @@ import {
   eliteChance,
   ELITE_KINDS,
   Director,
+  stretchSwell,
+  preBossSilent,
 } from './waves';
 import { createRng } from './rng';
 import { modeById, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
@@ -213,6 +215,111 @@ describe('endless wave pacing', () => {
     // and it actually reaches the cap and holds there (no runaway 4-min waves)
     expect(w[6]).toBeCloseTo(cap, 1);
     expect(w[6] - w[5]).toBeLessThanOrEqual(ext + 1e-6);
+  });
+});
+
+// v6 §2 — the stretch swell (D2) and the payoff-breath / pre-boss-calm (D3) shape the
+// inter-boss stretch into build-up → crescendo → boss → breath. All pure functions of
+// sim state (this.t + the boss timer), so the seeded spawn stream is never forked.
+describe('D2 stretch swell', () => {
+  const W = TUNE.director.stretchWindow;
+  const PEAK = 1 + TUNE.director.stretchSwell;
+  it('is neutral (1.0) far from the boss and peaks at the boss', () => {
+    expect(stretchSwell(W)).toBeCloseTo(1, 5);
+    expect(stretchSwell(0)).toBeCloseTo(PEAK, 5);
+  });
+  it('rises monotonically as the boss nears (remaining → 0)', () => {
+    let prev = stretchSwell(W);
+    for (let r = W; r >= 0; r -= 1) {
+      const v = stretchSwell(r);
+      expect(v).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = v;
+    }
+  });
+  it('clamps past both ends', () => {
+    expect(stretchSwell(W * 5)).toBeCloseTo(1, 5);
+    expect(stretchSwell(-1)).toBeCloseTo(PEAK, 5);
+  });
+  it('the midpoint sits strictly between neutral and peak', () => {
+    const mid = stretchSwell(W / 2);
+    expect(mid).toBeGreaterThan(1);
+    expect(mid).toBeLessThan(PEAK);
+  });
+});
+
+describe('D3 pre-boss calm', () => {
+  it('goes silent only inside the preBossCalm window', () => {
+    expect(preBossSilent(TUNE.director.preBossCalm - 0.01)).toBe(true);
+    expect(preBossSilent(TUNE.director.preBossCalm)).toBe(false);
+    expect(preBossSilent(99)).toBe(false);
+  });
+});
+
+describe('D3 spawn gating in the director', () => {
+  const DT = 1 / 60;
+  it('no chaff spawns in the ~preBossCalm window before a boss (clean arena)', () => {
+    const d = new Director();
+    d.configure(modeById('endless'));
+    const rng = createRng(3);
+    let t = 0;
+    let lastSpawnT = -1;
+    for (let i = 0; i < 6000; i++) {
+      const dec = d.update(DT, 0, false, rng);
+      t += DT;
+      if (dec.spawn.length) lastSpawnT = t;
+      if (dec.boss) {
+        // the last chaff spawned at least preBossCalm before the boss arrived
+        expect(t - lastSpawnT).toBeGreaterThanOrEqual(TUNE.director.preBossCalm - DT);
+        return;
+      }
+    }
+    throw new Error('no boss fired within the window');
+  });
+  it('payoff breath: no chaff for ~bossLull seconds after a boss dies, then resumes', () => {
+    const d = new Director();
+    d.configure(modeById('endless'));
+    const rng = createRng(5);
+    let firedBoss = false;
+    for (let i = 0; i < 6000; i++) {
+      if (d.update(DT, 0, false, rng).boss) { firedBoss = true; break; }
+    }
+    expect(firedBoss).toBe(true);
+    for (let k = 0; k < 60; k++) d.update(DT, 0, true, rng); // ~1s of fight
+    let spawnsDuringLull = 0;
+    const ticks = Math.round((TUNE.director.bossLull - DT) / DT);
+    for (let k = 0; k < ticks; k++) spawnsDuringLull += d.update(DT, 0, false, rng).spawn.length;
+    expect(spawnsDuringLull).toBe(0);
+    let resumed = 0;
+    for (let k = 0; k < 600; k++) resumed += d.update(DT, 0, false, rng).spawn.length;
+    expect(resumed).toBeGreaterThan(0);
+  });
+});
+
+describe('D2/D3 determinism — swell/lull are pure, never fork the seeded stream', () => {
+  const DT = 1 / 60;
+  function spawnStream(seed: number): string[] {
+    const d = new Director();
+    d.configure(modeById('daily'));
+    const rng = createRng(seed);
+    const out: string[] = [];
+    let bossAlive = false;
+    let fight = 0;
+    for (let i = 0; i < 18000; i++) {
+      // ~300s — crosses several bosses + lulls
+      const dec = d.update(DT, 0, bossAlive, rng);
+      for (const s of dec.spawn) out.push(s);
+      if (dec.boss) { bossAlive = true; fight = 0; }
+      else if (bossAlive) { fight += DT; if (fight >= 6) bossAlive = false; }
+    }
+    return out;
+  }
+  it('two fresh directors on the same daily seed + script produce an identical spawn stream', () => {
+    const a = spawnStream(20260615);
+    expect(a.length).toBeGreaterThan(0);
+    expect(spawnStream(20260615)).toEqual(a);
+  });
+  it('different seeds produce different streams (the rng actually drives variety)', () => {
+    expect(spawnStream(1)).not.toEqual(spawnStream(2));
   });
 });
 

@@ -118,6 +118,11 @@ export const TUNE = {
     waveExtend: 15, // each consecutive inter-boss wave is this many seconds longer than the last…
     waveLenMax: 120, // …capped here, so a marathon run keeps a steady boss drumbeat instead of 4-minute waves
     bossBreather: 7, // keep a mid-run EVENT off the very frame a boss dies (its timer is wall-clock)
+    // v6 §2 — stretch shaping: the inter-boss wave builds to a crescendo, then breathes
+    stretchSwell: 0.35, // D2: peak multiplier on spawn cadence/density (NOT speed) as a wave nears its boss
+    stretchWindow: 18, // D2: seconds before the boss over which the swell builds; keyed off REMAINING time so the peak lands at the boss for any wave length (70..120s)
+    bossLull: 3.5, // D3: seconds of no chaff spawns after a boss dies, so the gem/power-up/perk payoff isn't stepped on
+    preBossCalm: 1.5, // D3: seconds before a scheduled boss with spawns suppressed, so it roars into a clean arena
     spawnTelegraph: 0.4, // seconds an incoming-arrow shows before a spawn
     enemySpeedRamp: 0.3, // effective = base*(0.85 + 0.30*clamp(I,0,1))... handled in code
     bulletSpeedRamp: 0.3,
