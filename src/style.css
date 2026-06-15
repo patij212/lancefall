@@ -395,6 +395,7 @@ body {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
+  visibility: hidden; /* removes the clipped controls from the Tab/focus order while collapsed */
   margin-top: 0;
   overflow: hidden;
   transition: grid-template-rows 0.24s ease, opacity 0.2s ease, margin-top 0.24s ease;
@@ -409,6 +410,7 @@ body {
 .title-more.open {
   grid-template-rows: 1fr;
   opacity: 1;
+  visibility: visible;
   margin-top: 16px;
 }
 /* a11y: respect reduce-motion — snap open/closed instead of sliding */

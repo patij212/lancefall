@@ -459,6 +459,14 @@ export class UI {
     // canvas touch handlers, and stopPropagation so the tap isn't read as a dash.
     this.touchPauseBtn = el('button', { class: 'hud-touch-pause', 'aria-label': 'Pause', type: 'button' }, 'II');
     if (!matchMediaCoarse()) this.touchPauseBtn.classList.add('hidden');
+    // re-evaluate on pointer-modality change (hybrid / detachable / touch-laptop devices)
+    try {
+      window.matchMedia('(pointer: coarse)').addEventListener('change', (e) =>
+        this.touchPauseBtn.classList.toggle('hidden', !e.matches),
+      );
+    } catch {
+      /* older browsers: the one-time gate above stands */
+    }
     const fireePause = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1354,6 +1362,7 @@ export class UI {
     // any screen transition dismisses every modal so none can block play or strand the
     // focus-trap; clear the open-stack/opener bookkeeping to match (focus is set below).
     for (const p of this.modalPanels) {
+      if (!p.classList.contains('hidden')) this.modalOnClose.get(p)?.(); // run teardown (e.g. revoke the share blob URL)
       p.classList.add('hidden');
       this.modalOpener.delete(p);
     }

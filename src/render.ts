@@ -715,7 +715,8 @@ export class Renderer {
     // at low combo, while the dark fill rides the wash. A flashing enemy keeps its
     // white outline (already max-luminance). Steady, no envelope → reduceFlashing /
     // clarity safe, never strobes. (colorblind already widens lineWidth above.)
-    ctx.strokeStyle = flash ? '#ffffff' : threatRim(e.color, THREAT_RIM.lift);
+    const rimColor = flash ? '#ffffff' : threatRim(e.color, THREAT_RIM.lift);
+    ctx.strokeStyle = rimColor;
     ctx.fillStyle = flash ? '#ffffff' : shade(e.color, 0.18);
 
     switch (e.kind) {
@@ -741,7 +742,7 @@ export class Renderer {
         break;
       case 'bloomer': {
         rect(ctx, r * 1.25);
-        ctx.strokeStyle = baseColor;
+        ctx.strokeStyle = rimColor; // §7b: keep the telegraph ring legible under the wash too
         ctx.globalAlpha = 0.5 + 0.5 * (e.telegraph || 0);
         ctx.beginPath();
         ctx.arc(0, 0, r * (1.6 + (e.telegraph || 0) * 0.6), 0, Math.PI * 2);
@@ -917,7 +918,7 @@ export class Renderer {
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.strokeStyle = baseColor;
+        ctx.strokeStyle = rimColor; // §7b: keep the telegraph ring legible under the wash too
         ctx.globalAlpha = 0.6 + 0.4 * (e.telegraph || 0);
         ctx.beginPath();
         ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2); // reticle ring
