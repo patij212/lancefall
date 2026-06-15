@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from './rng';
 import { choiceEnding, echoVignette, echoLine, nemesisOf, ngPlusIntensityMul } from './stillpoint';
+import { NG_PLUS } from './tune';
 
 describe('stillpoint — THE CHOICE + ECHO + nemesis', () => {
   it('choiceEnding is distinct for catch vs fall', () => {
@@ -58,5 +59,11 @@ describe('NG+ intensity gate — the determinism invariant', () => {
     expect(ngPlusIntensityMul(1, true, 0, 'random', 0.14, 8)).toBe(1);
     expect(ngPlusIntensityMul(1, true, 1, 'random', 0.14, 8)).toBeCloseTo(1.14, 6);
     expect(ngPlusIntensityMul(1, true, 100, 'random', 0.1, 8)).toBeCloseTo(1.8, 6); // capped at 8 loops
+  });
+  it('the SHIPPED NG+ curve is the gentler one (player feedback): +9%/loop, ~1.72× at the cap', () => {
+    // pins the actual tuned constants so the curve can't silently drift back to the old ~2.12×
+    expect(NG_PLUS.intensityPerLoop).toBeCloseTo(0.09, 6);
+    expect(ngPlusIntensityMul(1, true, 1, 'random', NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop)).toBeCloseTo(1.09, 6);
+    expect(ngPlusIntensityMul(1, true, NG_PLUS.maxLoop, 'random', NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop)).toBeCloseTo(1.72, 6);
   });
 });

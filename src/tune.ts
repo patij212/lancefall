@@ -675,7 +675,11 @@ export const BEAT = {
 // NG+ — a difficulty loop unlocked by felling the Sovereign. The effect is gated
 // at start() to NON-seeded modes so a Daily/seeded run stays bit-identical for all.
 export const NG_PLUS = {
-  intensityPerLoop: 0.14, // intensityMul *= 1 + level*this (non-seeded runs only)
+  // intensityMul *= 1 + level*this (non-seeded runs only). Gentler than it was (0.14):
+  // each earned loop adds +9% intensity, so the NG+8 cap is ~1.72× — a real, climbing
+  // ladder for players who beat the game, without the old ~2.12× that made high loops
+  // feel oppressive rather than rewarding (player feedback).
+  intensityPerLoop: 0.09,
   maxLoop: 8,
 } as const;
 
