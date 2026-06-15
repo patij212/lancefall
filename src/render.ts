@@ -1215,15 +1215,16 @@ export class Renderer {
     if (cipher && !cipher.solved) {
       const slot = e.phase;
       const glyph = cipher.glyphs[slot] ?? slot;
-      const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed in order
-      // No "next core" waypoint — you READ the glyphs (the HUD shows the order); a
-      // static ring keeps it a11y-safe (no motion/flash to gate). Keyed cores go green.
+      const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed
+      const isNext = cipher.order[cipher.progress] === slot; // the core to dash now
+      // The NEXT core gets a bright, thick, STATIC white ring (no motion → a11y-safe)
+      // so the target is obvious under fire; keyed cores go green, the rest amber.
       ctx.save();
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.85;
-      ctx.strokeStyle = keyed ? '#34d399' : 'rgba(253,224,71,0.7)';
+      ctx.lineWidth = isNext ? 3.5 : 2;
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = keyed ? '#34d399' : isNext ? '#ffffff' : 'rgba(253,224,71,0.5)';
       ctx.beginPath();
-      ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
+      ctx.arc(0, 0, r * (isNext ? 1.7 : 1.5), 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
       ctx.save();

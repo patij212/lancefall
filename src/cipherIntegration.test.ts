@@ -50,13 +50,13 @@ describe('cipher integration — spawnSovereignCores arms the keypad', () => {
     expect(c.progress).toBe(SOVEREIGN.coreCount);
   });
 
-  it('a wrong key re-locks before the cipher is solved', () => {
+  it('a wrong key is forgiving — keeps progress (no reset)', () => {
     const w = armed(555, 1);
     const c = w.cipher!;
-    dashCipherCore(c, c.order[0]); // correct first key
+    dashCipherCore(c, c.order[0]); // correct first key → progress 1
     const wrongSlot = c.order[c.order.length - 1]; // not the expected second key
     expect(dashCipherCore(c, wrongSlot)).toBe('wrong');
-    expect(c.progress).toBe(0);
+    expect(c.progress).toBe(1); // KEPT
     expect(c.solved).toBe(false);
   });
 });

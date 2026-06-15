@@ -55,8 +55,9 @@ function shuffle(n: number, rng: ReturnType<typeof createRng>): number[] {
 export type DashResult = 'progress' | 'solved' | 'wrong' | 'noop';
 
 /** Register a dash on the core at orbit-slot `slot`. Pure reducer (mutates the
- *  passed state). The correct next slot advances progress; any wrong slot resets
- *  progress to 0 (the cipher re-locks) and flags a cosmetic flash. */
+ *  passed state). The correct next slot advances progress; a wrong slot is a
+ *  FORGIVING no-op — progress is KEPT (this is a bullet-hell; one mis-dash must
+ *  not wipe the whole code) with only a cosmetic flash. Never a full reset. */
 export function dashCipherCore(c: CipherState, slot: number): DashResult {
   if (c.solved) return 'noop';
   if (slot === c.order[c.progress]) {
@@ -67,8 +68,7 @@ export function dashCipherCore(c: CipherState, slot: number): DashResult {
     }
     return 'progress';
   }
-  c.progress = 0;
-  c.wrongFlash = 1;
+  c.wrongFlash = 1; // a soft "not that one" cue — progress is preserved
   return 'wrong';
 }
 

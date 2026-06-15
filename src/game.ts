@@ -1301,22 +1301,21 @@ export class Game {
     if (!c) return;
     const res = dashCipherCore(c, core.phase);
     if (res === 'wrong') {
-      w.particles.floatText(core.x, core.y - core.radius - 12, 'WRONG KEY', '#ff6b6b', 0.9);
-      w.particles.burst(core.x, core.y, 8, '#ff6b6b');
-      this.audio.thunk(0, this.panFor(core.x)); // a low, dull clang
-      this.shake.add(CIPHER.wrongShake);
-      this.input.rumble(0.2, 0.4, 70);
+      // forgiving: progress is kept — just a soft "not that one" tick, no punish
+      w.particles.burst(core.x, core.y, 4, '#9fb0c8');
+      this.audio.thunk(6, this.panFor(core.x));
       return;
     }
-    // a correct key — pitch rises as the cipher resolves
-    w.particles.burst(core.x, core.y, 12, SOVEREIGN.coreColor);
-    this.audio.thunk(Math.min(40 + c.progress * 8, 90), this.panFor(core.x));
+    // a correct key — the feedback BUILDS as the cipher resolves (rising pitch + pop)
+    w.particles.burst(core.x, core.y, 14, SOVEREIGN.coreColor);
+    w.particles.ring(core.x, core.y, core.radius + 16, '#fde047', 0.4);
+    this.audio.thunk(Math.min(46 + c.progress * 10, 96), this.panFor(core.x));
     this.shake.add(CIPHER.keyShake);
-    this.input.rumble(0.1, 0.3, 40);
+    this.input.rumble(0.12, 0.3, 45);
     if (res === 'solved') {
       this.solveCipher();
     } else {
-      w.particles.floatText(core.x, core.y - core.radius - 12, `KEY ${c.progress}/${c.order.length}`, '#fde047', 0.8);
+      w.particles.floatText(core.x, core.y - core.radius - 12, `KEY ${c.progress}/${c.order.length}`, '#fde047', 0.85);
     }
   }
 
@@ -1325,7 +1324,8 @@ export class Game {
   private solveCipher(): void {
     const w = this.world;
     const boss = w.boss;
-    this.renderer.flash('#fde047', 0.18);
+    this.scheduler.requestHitstop(0.1); // a satisfying freeze on the crack
+    this.renderer.flash('#fde047', 0.24);
     const cores: Enemy[] = [];
     w.enemies.forEachActive((e) => {
       if (e.kind === 'sovereign_core') cores.push(e);

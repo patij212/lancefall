@@ -51,17 +51,17 @@ describe('cipher — the deterministic code-breaking layer', () => {
     expect(dashCipherCore(c, seq[0])).toBe('noop');
   });
 
-  it('a wrong dash re-locks the cipher (resets progress, flags a flash)', () => {
+  it('a wrong dash is forgiving — keeps progress (no reset), flags a flash', () => {
     const c = makeCipher(4, cipherSeed(7, 2));
     const seq = [...c.order];
-    expect(dashCipherCore(c, seq[0])).toBe('progress');
+    expect(dashCipherCore(c, seq[0])).toBe('progress'); // progress 1
     const wrong = seq[2]; // not the expected second slot (seq[1])
     expect(dashCipherCore(c, wrong)).toBe('wrong');
-    expect(c.progress).toBe(0);
+    expect(c.progress).toBe(1); // KEPT — a mis-dash never wipes the code
     expect(c.wrongFlash).toBe(1);
     expect(c.solved).toBe(false);
-    // must restart from the top
-    expect(dashCipherCore(c, seq[0])).toBe('progress');
+    // continue right where we left off
+    expect(dashCipherCore(c, seq[1])).toBe('progress'); // progress 2
   });
 
   it('ciphertext is the glyphs listed in required dash order', () => {

@@ -605,7 +605,6 @@ export const BEACON = {
 // THE CIPHER-LOCK — the code-breaking layer (an ode to Turing). Cosmetic-feedback
 // constants only; the cipher itself is pure + deterministic (see cipher.ts).
 export const CIPHER = {
-  wrongShake: 0.18, // trauma on a wrong key (the cipher re-locks)
   keyShake: 0.1, // trauma on a correct key
   ringCount: 3, // cores in a generic boss ring (THE LONGEST DAY)
   exposeDuration: 3.5, // s a generic ring boss stays vulnerable after its cipher breaks
@@ -627,7 +626,7 @@ export const SOVEREIGN = {
   // orbiting Cores — the weak points
   coreCount: 3,
   coreOrbitRadius: 132,
-  coreOrbitSpin: 0.95, // rad/s
+  coreOrbitSpin: 0.78, // rad/s — a touch slower so the cipher cores are dash-able under fire
   coreWeakBonus: 4, // dash-damage chunk dealt to the crown when a core shatters
   exposeDuration: 4.0, // s the body is vulnerable after all cores fall
   // armored phase cadence
