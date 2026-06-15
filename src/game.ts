@@ -175,6 +175,7 @@ export class Game {
       onStart: (cfg) => this.start(cfg),
       onRestart: () => this.start(this.mode),
       onResume: () => this.resume(),
+      onPause: () => { if (this.state === 'playing') this.pause(); }, // touch PAUSE button
       onQuit: () => this.toTitle(),
       onPick: (i) => this.pickPerk(i),
       onPickEvent: (i) => this.pickEvent(i),
@@ -263,6 +264,7 @@ export class Game {
     // reduce-flashing only tames it. The strongest active reducer wins.
     this.shake.intensity = s.shake * (s.reduceMotion ? 0 : s.reduceFlashing ? 0.4 : 1);
     this.input.rumbleEnabled = s.rumble;
+    this.input.setKeymap(s.keymap); // apply rebindable core-action keys (dash / overdrive / pause)
     this.baseDensity = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);
     this.world.particles.density = this.baseDensity * this.perfScale;
     // reduce-motion disables decorative UI animations/transitions (CSS)

@@ -8,6 +8,23 @@ interface GamepadVibration {
   vibrationActuator?: { playEffect(type: string, opts: Record<string, number>): Promise<unknown> };
 }
 
+/** Rebindable core actions. Keys are stored lowercased (e.KeyboardEvent.key). Each
+ *  action can have more than one bound key; the defaults preserve the historical
+ *  bindings so an un-rebound install behaves exactly as before. */
+export interface KeyBindings {
+  dash: string[];
+  overdrive: string[];
+  pause: string[];
+}
+
+export function defaultKeyBindings(): KeyBindings {
+  return {
+    dash: [' ', 'j'],
+    overdrive: ['f', 'shift'],
+    pause: ['escape', 'p'],
+  };
+}
+
 export class InputManager {
   private keys = new Set<string>();
   private mouseX = 0;
@@ -15,6 +32,7 @@ export class InputManager {
   private mouseDown = false;
   private hasMouse = false;
   private prevDash = false;
+  private dashTapEdge = false; // latched on any dash press; survives until the next poll so a sub-frame tap is never dropped
   private pauseEdge = false;
   private overdriveEdge = false;
   private selectEdge = -1;
@@ -35,6 +53,9 @@ export class InputManager {
   private aimTY = 0;
   isCoarse = false;
 
+  /** rebindable core-action key map (defaults match the legacy hard-coded keys). */
+  keymap: KeyBindings = defaultKeyBindings();
+
   readonly state: InputState = {
     moveX: 0,
     moveY: 0,
@@ -42,6 +63,7 @@ export class InputManager {
     aimY: 0,
     dashHeld: false,
     dashReleased: false,
+    dashTapped: false,
     pausePressed: false,
     overdrivePressed: false,
     selectIndex: -1,
@@ -59,8 +81,9 @@ export class InputManager {
       const k = e.key.toLowerCase();
       this.keys.add(k);
       this.anyEdge = true;
-      if (k === 'escape' || k === 'p') this.pauseEdge = true;
-      if (k === 'f' || k === 'shift') this.overdriveEdge = true; // OVERDRIVE ultimate
+      if (this.keymap.pause.includes(k)) this.pauseEdge = true;
+      if (this.keymap.overdrive.includes(k)) this.overdriveEdge = true; // OVERDRIVE ultimate
+      if (this.keymap.dash.includes(k)) this.dashTapEdge = true; // latch the tap so a sub-frame press isn't dropped
       if (k === '1') this.selectEdge = 0;
       if (k === '2') this.selectEdge = 1;
       if (k === '3') this.selectEdge = 2;
@@ -93,6 +116,7 @@ export class InputManager {
         this.mouseDown = true;
         this.hasMouse = true;
         this.anyEdge = true;
+        this.dashTapEdge = true; // a quick click+release between polls still fires a tap-dash
         rectPoint(e.clientX, e.clientY);
       }
     });
@@ -156,7 +180,7 @@ export class InputManager {
     if (this.keys.has('w') || this.keys.has('arrowup')) s.moveY -= 1;
     if (this.keys.has('s') || this.keys.has('arrowdown')) s.moveY += 1;
 
-    let dashHeld = this.keys.has(' ') || this.keys.has('j') || this.mouseDown;
+    let dashHeld = this.keymap.dash.some((k) => this.keys.has(k)) || this.mouseDown;
     let aimX = this.hasMouse ? this.mouseX : playerX + 1;
     let aimY = this.hasMouse ? this.mouseY : playerY;
 
@@ -198,6 +222,11 @@ export class InputManager {
     s.aimY = aimY;
     s.dashHeld = dashHeld;
     s.dashReleased = this.prevDash && !dashHeld;
+    // TAP-DASH: a press landed since the last poll but the key is no longer held — a
+    // quick tap that never reached the held/charging path. The sim fires an instant
+    // minimum dash. Only when NOT held (a still-held press becomes a normal charge).
+    s.dashTapped = this.dashTapEdge && !dashHeld;
+    this.dashTapEdge = false;
     this.prevDash = dashHeld;
 
     s.pausePressed = this.pauseEdge;
@@ -217,6 +246,7 @@ export class InputManager {
     this.keys.clear();
     this.mouseDown = false;
     this.prevDash = false;
+    this.dashTapEdge = false;
     this.moveTouchId = -1;
     this.aimTouchId = -1;
     this.startEdge = false;
@@ -224,6 +254,20 @@ export class InputManager {
     this.selectEdge = -1;
     this.menuEdge = 0;
     this.overdriveEdge = false;
+  }
+
+  /** Apply a (possibly partial / user-rebound) key map. Each action falls back to its
+   *  default when the caller supplies an empty list, so an action can never become
+   *  permanently unbound by a bad save. */
+  setKeymap(km: Partial<KeyBindings> | undefined | null): void {
+    const d = defaultKeyBindings();
+    const pick = (v: unknown, def: string[]) =>
+      Array.isArray(v) && v.length > 0 && v.every((k) => typeof k === 'string') ? (v as string[]) : def;
+    this.keymap = {
+      dash: pick(km?.dash, d.dash),
+      overdrive: pick(km?.overdrive, d.overdrive),
+      pause: pick(km?.pause, d.pause),
+    };
   }
 
   /** Consume the one-shot restart edge (R key). */

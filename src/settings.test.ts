@@ -47,4 +47,31 @@ describe('sanitizeSettings', () => {
     const s = sanitizeSettings({ ...defaultSettings(), hackerField: 'pwned' }) as unknown as Record<string, unknown>;
     expect(s.hackerField).toBeUndefined();
   });
+
+  it('defaults include a keymap for the core actions', () => {
+    const d = defaultSettings();
+    expect(d.keymap.dash).toContain(' ');
+    expect(d.keymap.overdrive.length).toBeGreaterThan(0);
+    expect(d.keymap.pause).toContain('escape');
+  });
+
+  it('accepts a valid rebound keymap (deduped + lowercased)', () => {
+    const s = sanitizeSettings({ keymap: { dash: ['Q', 'q'], overdrive: ['E'], pause: ['Tab'] } });
+    expect(s.keymap.dash).toEqual(['q']); // 'Q' lowercased, duplicate dropped
+    expect(s.keymap.overdrive).toEqual(['e']);
+    expect(s.keymap.pause).toEqual(['tab']);
+  });
+
+  it('falls back to default for an empty / wrong-typed action so nothing is ever unbound', () => {
+    const d = defaultSettings();
+    const s = sanitizeSettings({ keymap: { dash: [], overdrive: 'nope', pause: [42, null] } });
+    expect(s.keymap.dash).toEqual(d.keymap.dash); // empty → default
+    expect(s.keymap.overdrive).toEqual(d.keymap.overdrive); // wrong type → default
+    expect(s.keymap.pause).toEqual(d.keymap.pause); // no valid strings → default
+  });
+
+  it('a missing keymap object falls back to the full default', () => {
+    const d = defaultSettings();
+    expect(sanitizeSettings({ master: 0.5 }).keymap).toEqual(d.keymap);
+  });
 });

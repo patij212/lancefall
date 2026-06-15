@@ -4,6 +4,7 @@
 
 import type { World } from './world';
 import type { Settings, SaveData } from './save';
+import { defaultKeyBindings } from './input';
 import { PERKS } from './perks';
 import type { PerkDef } from './perks';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
@@ -47,6 +48,7 @@ export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
   onRestart: () => void;
   onResume: () => void;
+  onPause: () => void;
   onQuit: () => void;
   onPick: (index: number) => void;
   onPickEvent: (index: number) => void;
@@ -118,6 +120,22 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** Human-readable label for a bound key list (e.SPACE / J / ESC). */
+function keyLabel(keys: string[]): string {
+  const one = (k: string) =>
+    k === ' ' ? 'SPACE' : k === 'escape' ? 'ESC' : k === 'arrowleft' ? '←' : k === 'arrowright' ? '→' : k === 'arrowup' ? '↑' : k === 'arrowdown' ? '↓' : k.toUpperCase();
+  return keys.map(one).join(' / ');
+}
+
+/** Coarse pointer (touch) — gates the on-screen PAUSE button so desktop keeps a clean HUD. */
+function matchMediaCoarse(): boolean {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
+}
+
 export class UI {
   private root: HTMLElement;
   private cb: UICallbacks;
@@ -148,6 +166,8 @@ export class UI {
   private inspectPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
+  private touchPauseBtn!: HTMLButtonElement;
+  private rebinding: 'dash' | 'overdrive' | 'pause' | null = null; // active key-capture, if any
   private announceEl!: HTMLElement;
   private choiceRow!: HTMLElement;
   private saveReplayBtn!: HTMLButtonElement;
@@ -298,7 +318,20 @@ export class UI {
     // CIPHER-LOCK readout — the code to break, in required dash order (boss fights)
     this.cipherEl = el('div', { class: 'hud-cipher' });
 
-    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap, this.cipherEl);
+    // Touch PAUSE — a 44px tap target (the iOS/Android min) shown only on coarse
+    // pointers; phones have no Esc/P key. Pointerdown so it never competes with the
+    // canvas touch handlers, and stopPropagation so the tap isn't read as a dash.
+    this.touchPauseBtn = el('button', { class: 'hud-touch-pause', 'aria-label': 'Pause', type: 'button' }, 'II');
+    if (!matchMediaCoarse()) this.touchPauseBtn.classList.add('hidden');
+    const fireePause = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.cb.onPause();
+    };
+    this.touchPauseBtn.addEventListener('pointerdown', fireePause);
+    this.touchPauseBtn.addEventListener('click', fireePause);
+
+    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap, this.cipherEl, this.touchPauseBtn);
     this.rebuildStamina(TUNE.stamina.segments);
   }
 
@@ -627,6 +660,49 @@ export class UI {
       trackWrap.append(b);
     }
     body.append(trackWrap);
+
+    // ── key rebinding for the core actions (keyboard only; gamepad/touch unchanged) ──
+    body.append(el('div', { class: 'setting setting-section' }, el('span', {}, 'KEY BINDINGS')));
+    const rebindBtns: Array<{ action: 'dash' | 'overdrive' | 'pause'; btn: HTMLButtonElement }> = [];
+    const refreshKeyLabels = () => {
+      for (const { action, btn } of rebindBtns) btn.textContent = keyLabel(this.settings.keymap[action]);
+    };
+    const rebindRow = (label: string, action: 'dash' | 'overdrive' | 'pause') => {
+      const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, keyLabel(this.settings.keymap[action]));
+      rebindBtns.push({ action, btn });
+      btn.addEventListener('click', () => {
+        if (this.rebinding) return; // one capture at a time
+        this.rebinding = action;
+        btn.classList.add('active');
+        btn.textContent = 'press a key…';
+        const onKey = (e: KeyboardEvent) => {
+          e.preventDefault();
+          e.stopImmediatePropagation(); // swallow the capture key so it can't also trigger the old binding
+          window.removeEventListener('keydown', onKey, true);
+          this.rebinding = null;
+          btn.classList.remove('active');
+          const k = e.key.toLowerCase();
+          // Escape cancels the capture; anything else binds (single key — the default's
+          // extra alias is dropped on an explicit rebind).
+          if (k !== 'escape') this.patch({ keymap: { ...this.settings.keymap, [action]: [k] } });
+          refreshKeyLabels();
+        };
+        // capture phase so we intercept BEFORE the global game keydown handler reacts
+        window.addEventListener('keydown', onKey, true);
+      });
+      return el('label', { class: 'setting' }, el('span', {}, label), btn);
+    };
+    body.append(
+      rebindRow('Dash', 'dash'),
+      rebindRow('Overdrive', 'overdrive'),
+      rebindRow('Pause', 'pause'),
+    );
+    const resetKeys = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Reset keys to default');
+    resetKeys.addEventListener('click', () => {
+      this.patch({ keymap: defaultKeyBindings() });
+      refreshKeyLabels();
+    });
+    body.append(el('div', { class: 'setting' }, resetKeys));
 
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeSettings());

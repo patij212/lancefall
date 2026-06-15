@@ -185,6 +185,10 @@ export interface InputState {
   dashHeld: boolean;
   /** edge: released this frame */
   dashReleased: boolean;
+  /** edge: a dash press was seen since the last poll but is NOT still held — a quick
+   *  TAP. Fires an instant minimum dash so a sub-frame tap is never dropped and never
+   *  has to wait out a charge frame. One-shot; cleared every poll. */
+  dashTapped: boolean;
   pausePressed: boolean;
   /** edge: OVERDRIVE ultimate activation pressed this frame */
   overdrivePressed: boolean;

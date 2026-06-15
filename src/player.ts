@@ -73,7 +73,17 @@ export function updatePlayer(
     p.y += p.vy * dt;
 
     // ── charge / dash input ──
-    if (input.dashHeld && canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
+    if (
+      input.dashTapped &&
+      p.phase !== 'charging' &&
+      canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))
+    ) {
+      // TAP-DASH FLOOR — a press+release that landed (or completed) before this frame
+      // never reached the charging branch (it isn't held now). Fire an instant minimum
+      // dash so a quick tap is snappy and a sub-frame tap is never silently dropped.
+      p.charge = 0; // minimum charge → chargeToLen(0) === TUNE.dash.minLen
+      fireDash(p, aimAngle, input, stats, width, height, ev, slingshot, insetFrac);
+    } else if (input.dashHeld && canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
       if (p.phase !== 'charging') {
         p.phase = 'charging';
         p.charge = 0;

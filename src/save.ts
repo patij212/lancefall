@@ -6,6 +6,7 @@ import { dateString } from './rng';
 import { SAVE_VERSION, migrateSave } from './migrate';
 import { TUNE } from './tune';
 import type { SoundtrackId } from './soundtracks';
+import { defaultKeyBindings, type KeyBindings } from './input';
 
 const SAVE_KEY = 'lancefall.save';
 const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
@@ -103,6 +104,7 @@ export interface Settings {
   hudScale: number; // 0.8..1.4
   chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
   rumble: boolean; // gamepad rumble on/off
+  keymap: KeyBindings; // rebindable core actions (dash / overdrive / pause)
 }
 
 function prefersReducedMotion(): boolean {
@@ -174,6 +176,7 @@ export function defaultSettings(): Settings {
     hudScale: 1,
     chromAberration: 1,
     rumble: true,
+    keymap: defaultKeyBindings(),
   };
 }
 
@@ -214,6 +217,15 @@ export function sanitizeSettings(raw: unknown): Settings {
   const bool = (v: unknown, def: boolean) => (typeof v === 'boolean' ? v : def);
   const oneOf = <T extends string>(v: unknown, allowed: readonly T[], def: T): T =>
     typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : def;
+  // keymap: each action must be a non-empty array of strings (deduped, lowercased) or
+  // it falls back to its default so an action can never end up permanently unbound.
+  const keyList = (v: unknown, def: string[]): string[] => {
+    if (!Array.isArray(v)) return def;
+    const out = [...new Set(v.filter((k): k is string => typeof k === 'string' && k.length > 0).map((k) => k.toLowerCase()))];
+    return out.length > 0 ? out : def;
+  };
+  const dk = defaultKeyBindings();
+  const km = (r.keymap && typeof r.keymap === 'object' ? r.keymap : {}) as Record<string, unknown>;
   return {
     master: num(r.master, 0, 1, d.master),
     sfx: num(r.sfx, 0, 1, d.sfx),
@@ -230,6 +242,11 @@ export function sanitizeSettings(raw: unknown): Settings {
     hudScale: num(r.hudScale, 0.8, 1.4, d.hudScale),
     chromAberration: num(r.chromAberration, 0, 1, d.chromAberration),
     rumble: bool(r.rumble, d.rumble),
+    keymap: {
+      dash: keyList(km.dash, dk.dash),
+      overdrive: keyList(km.overdrive, dk.overdrive),
+      pause: keyList(km.pause, dk.pause),
+    },
   };
 }
 

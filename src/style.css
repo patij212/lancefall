@@ -1255,6 +1255,14 @@ body {
   height: 18px;
   accent-color: var(--cyan);
 }
+.setting.setting-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+}
 
 /* ── Stats / achievements ── */
 .stats-body {
@@ -1384,6 +1392,30 @@ body {
   pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
+/* Touch PAUSE — 44px tap target, top-right, only un-hidden on coarse pointers (see ui.ts). */
+.hud-touch-pause {
+  position: absolute;
+  top: calc(14px * var(--hud-scale));
+  right: calc(16px * var(--hud-scale));
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(8, 12, 24, 0.55);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto; /* the HUD root is pointer-events:none; this one is tappable */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.hud-touch-pause.hidden { display: none; }
 .hud-topleft {
   position: absolute;
   top: calc(18px * var(--hud-scale));
