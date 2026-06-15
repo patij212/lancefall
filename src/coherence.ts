@@ -54,6 +54,10 @@ export function coherenceTarget(
 /** Ease value→target on REAL dt. Asymmetric: blooms fast, decays slow. The
  *  focus-snap envelope decays linearly to 0. */
 export function tickCoherence(c: CoherenceState, dt: number): void {
+  // A non-finite / non-positive dt (a NaN clock, a backward timestamp, ±Infinity)
+  // must spend no time — never poison the dial. An un-guarded NaN here turns value
+  // NaN forever (it never recovers), which downstream crashes the vignette gradient.
+  if (!Number.isFinite(dt) || dt <= 0) return;
   const rate = c.target > c.value ? CO.riseRate : CO.fallRate;
   // exact exponential smoothing → frame-rate independent (composes across dt splits,
   // so the bloom feels identical on 60/120/144 Hz; at 60fps ~= the old min(1,rate*dt))

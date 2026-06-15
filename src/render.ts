@@ -1657,11 +1657,15 @@ export class Renderer {
     const lowHp = world.player.alive && world.player.iframe <= 0 && world.player.stamina < 100;
     // low coherence deepens the vignette (the dead world closing in); capped so it
     // never fully blacks out, and gated off under reduceFlashing/reduceMotion/clarity.
-    const edge = Math.min(
-      0.92,
-      (0.5 + (lowHp ? 0.12 : 0)) *
-        vignetteDeepenFactor(this.coherence, this.reduceFlashingR, this.reduceMotionR, this.clarityR),
-    ) * (1 - this.firstLightR); // FIRST LIGHT lifts the dark edge — the world opens up to day
+    const rawEdge =
+      Math.min(
+        0.92,
+        (0.5 + (lowHp ? 0.12 : 0)) *
+          vignetteDeepenFactor(this.coherence, this.reduceFlashingR, this.reduceMotionR, this.clarityR),
+      ) * (1 - this.firstLightR); // FIRST LIGHT lifts the dark edge — the world opens up to day
+    // Defense-in-depth: a NaN edge (a poisoned coherence/firstLight from anywhere) would make
+    // addColorStop throw 'rgba(0,0,0,NaN)' and hard-crash the whole frame. Never let it reach canvas.
+    const edge = Number.isFinite(rawEdge) ? clamp(rawEdge, 0, 0.92) : 0.5;
     const grad = sctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
     grad.addColorStop(1, `rgba(0,0,0,${edge})`);

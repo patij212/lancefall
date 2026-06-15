@@ -196,6 +196,21 @@ describe('coherence — the soul dial', () => {
     }
   });
 
+  it('a non-finite or non-advancing dt spends no time and never poisons the dial', () => {
+    // Regression: a NaN/backward clock once turned value NaN forever, which crashed
+    // the vignette gradient (rgba(0,0,0,NaN)). tickCoherence must be a no-op for it.
+    const c = newCoherence();
+    c.target = 1;
+    tickCoherence(c, 1 / 60); // a real step, value now > 0
+    const after = c.value;
+    expect(after).toBeGreaterThan(0);
+    for (const bad of [NaN, -1, 0, -Infinity, Infinity]) {
+      tickCoherence(c, bad);
+      expect(Number.isFinite(c.value)).toBe(true);
+    }
+    expect(c.value).toBe(after); // every bad dt was a true no-op
+  });
+
   it('is deterministic: identical schedules give identical state', () => {
     const run = () => {
       const c = newCoherence();

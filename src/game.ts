@@ -825,7 +825,13 @@ export class Game {
   private frame(now: number): void {
     let realDt = (now - this.lastTime) / 1000;
     this.lastTime = now;
-    if (realDt > 0.1) realDt = 0.1;
+    // Guard the clock: a NaN / backward / non-advancing timestamp (tab refocus,
+    // a flaky performance.now(), or a synthetic-timestamp harness) must spend NO
+    // time this frame — never NaN. An un-clamped NaN here poisons realDt → the
+    // coherence dial (tickCoherence) → drawVignette's gradient stop, hard-crashing
+    // the whole render. `!(realDt > 0)` catches NaN and ≤0 alike.
+    if (!(realDt > 0)) realDt = 0;
+    else if (realDt > 0.1) realDt = 0.1; // clamp huge gaps to one big step
 
     if (this.state === 'playing') this.adaptPerf(realDt);
 
