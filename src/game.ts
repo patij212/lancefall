@@ -959,7 +959,7 @@ export class Game {
       this.applyDirector(dec.spawn);
       if (dec.boss) this.spawnWarden(dec.bossKind);
       if (dec.perk) this.pendingDraft = true;
-      if (dec.event) this.pendingEvent = rollEventId(w.eventRng); // off the seeded wave stream
+      if (dec.event && this.mode.rules?.events !== 'none') this.pendingEvent = rollEventId(w.eventRng); // off the seeded wave stream; rules.events:'none' suppresses (zero world.rng either way)
       if (dec.win) this.winRun();
     }
 

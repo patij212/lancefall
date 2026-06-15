@@ -44,6 +44,14 @@ describe('heat ladder', () => {
     expect(out.bossInterval).toBeCloseTo(base.bossInterval * HEAT_LEVELS[6].bossIntervalMod);
   });
 
+  it('carries an optional ModeRules block through the clone untouched (M1 spine)', () => {
+    const base = { ...modeById('endless'), rules: { events: 'none' as const, oneLife: true } };
+    const out = applyHeatConfig(base, 6);
+    expect(out.rules).toBeDefined();
+    expect(out.rules).toEqual(base.rules);
+    expect(out.rules?.events).toBe('none');
+  });
+
   it('heatLevel clamps out-of-range input', () => {
     expect(heatLevel(-5).level).toBe(0);
     expect(heatLevel(99).level).toBe(MAX_HEAT);

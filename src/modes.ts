@@ -4,6 +4,20 @@
 
 import type { EnemyKind } from './types';
 
+// v6 §4 — declarative per-mode rules. Optional + additive: an absent `rules` block
+// means today's behavior EXACTLY. Each flag hangs off ONE read site (events is wired
+// here; oneLife/scoreFrame/suddenDeath/biomeLock/perkCadenceMul get their read sites
+// in the mode-identity phase). Pure data — rides the Heat/mutator clone pipeline by
+// reference (read-only; a future per-run-mutable rule must deep-clone at that point).
+export interface ModeRules {
+  events?: 'normal' | 'none' | 'curated';
+  oneLife?: boolean;
+  scoreFrame?: 'survival' | 'cleartime' | 'nohit';
+  suddenDeath?: { afterBoss?: number; graceSeconds?: number };
+  biomeLock?: number;
+  perkCadenceMul?: number;
+}
+
 export interface RunConfig {
   id: string;
   name: string;
@@ -21,6 +35,7 @@ export interface RunConfig {
   arena: boolean; // scripted finite winnable gauntlet
   bossrush: boolean; // the bosses back-to-back
   cipherLock?: boolean; // ring-cipher bosses (Warden/Weaver/Beacon) armored until decoded — THE LONGEST DAY
+  rules?: ModeRules; // v6 §4: optional declarative mode rules; absent = today's behavior
 }
 
 const ENDLESS: RunConfig = {

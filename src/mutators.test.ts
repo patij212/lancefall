@@ -54,6 +54,14 @@ describe('mutators', () => {
     expect(out.speedBonus).toBeCloseTo(base.speedBonus + 0.15);
   });
 
+  it('carries an optional ModeRules block through the clone while config() still mutates only the clone (M1 spine)', () => {
+    const base = { ...modeById('endless'), rules: { events: 'none' as const } };
+    const out = applyMutatorConfig(base, ['bulletStorm']);
+    expect(out.rules?.events).toBe('none'); // rules rides the spread
+    expect(out.spawnMul).toBeLessThan(base.spawnMul); // bulletStorm mutated the CLONE
+    expect(base.spawnMul).toBe(modeById('endless').spawnMul); // original untouched
+  });
+
   it('warlords quickens the boss cadence and rewards extra shards', () => {
     const base = modeById('daily');
     const intervalBefore = base.bossInterval;
