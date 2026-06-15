@@ -56,14 +56,20 @@ export function circleHit(
   return dx * dx + dy * dy <= rr * rr;
 }
 
+/** True if `testAngle` falls within ±`half` of `centerAngle` (shortest signed wrap).
+ *  The shared primitive behind the enemy SHIELD block and the WARDEN rear weak-point. */
+export function withinArc(centerAngle: number, testAngle: number, half: number): boolean {
+  let d = testAngle - centerAngle;
+  d = Math.atan2(Math.sin(d), Math.cos(d)); // wrap to [-π, π]
+  return Math.abs(d) <= half;
+}
+
 /** A shielded enemy blocks a spear whose APPROACH (the direction from the enemy
  *  toward where the dash came from) falls within ±arcHalf of where its shield faces.
  *  Flank it — approach from the side/back, outside the cone — to land. Pure angle
  *  test; arcHalf is passed in (TUNE.SHIELD.arcHalf) and must match the rendered arc. */
 export function shieldBlocks(shieldAngle: number, approachAngle: number, arcHalf: number): boolean {
-  let d = approachAngle - shieldAngle;
-  d = Math.atan2(Math.sin(d), Math.cos(d)); // wrap to [-π, π]
-  return Math.abs(d) <= arcHalf;
+  return withinArc(shieldAngle, approachAngle, arcHalf);
 }
 
 export interface HasPos {

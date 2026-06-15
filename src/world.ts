@@ -50,6 +50,7 @@ function makeEnemy(): Enemy {
     fireTimer: 0,
     subPhase: 0,
     cipherExposed: 0,
+    facing: 0,
   };
 }
 

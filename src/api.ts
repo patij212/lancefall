@@ -33,7 +33,11 @@ export function leaderboardEnabled(): boolean {
 /** Submit a score. Fire-and-forget — resolves immediately for the caller and
  *  never throws; failures (offline, server down) are swallowed by design. */
 export async function submitScore(p: SubmitPayload): Promise<void> {
-  if (!BASE || !p.name || p.score <= 0) return;
+  // a blank handle is NOT dropped — the worker aggregates it under a single 'ANON'
+  // entry (sanitizeName fallback), so a handle-less player's best score still ranks
+  // (and the game nudges them to set a handle to claim it). Only no-backend / no-score
+  // short-circuit here.
+  if (!BASE || p.score <= 0) return;
   try {
     await fetch(`${BASE}/score`, {
       method: 'POST',

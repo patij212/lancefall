@@ -21,6 +21,22 @@ export function bossName(kind: Enemy['kind']): string {
 
 const BOSS_CYCLE: Enemy['kind'][] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
 
+/** True for the six real boss kinds (excludes chaff + the hollow_echo / sovereign_core
+ *  sub-entities). Used to filter the nemesis read so stale prose-keyed entries from an
+ *  older save can't mislabel a non-boss as 'THE WARDEN'. */
+export function isBossKind(kind: string): boolean {
+  return (BOSS_CYCLE as string[]).includes(kind);
+}
+
+/** Rotate `cur` toward `target` by at most `maxStep` radians (shortest direction). */
+function turnToward(cur: number, target: number, maxStep: number): number {
+  let d = target - cur;
+  d = Math.atan2(Math.sin(d), Math.cos(d)); // shortest signed delta
+  if (d > maxStep) d = maxStep;
+  else if (d < -maxStep) d = -maxStep;
+  return cur + d;
+}
+
 /** Is the Beacon's sweep beam currently lethal? (active sub-phase of sweep). */
 export function beaconBeamActive(e: Enemy): boolean {
   return e.kind === 'beacon' && e.phase === 0 && e.subPhase === 1;
@@ -80,6 +96,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.fireTimer = 0;
   e.subPhase = 0;
   e.cipherExposed = 0;
+  e.facing = Math.atan2(world.player.y - e.y, world.player.x - e.x); // WARDEN rear weak-point seed (harmless for others)
   world.bossAlive = true;
   world.boss = e;
   if (kind === 'sovereign') {
@@ -142,6 +159,11 @@ function updateWarden(e: Enemy, world: World, dt: number): void {
   e.vy = ny * WARDEN.moveSpeed;
   e.x += e.vx * dt;
   e.y += e.vy * dt;
+
+  // FACING — the keeper watches you, but turns at a bounded rate, so a quick flank
+  // dash can catch its exposed REAR (the weak-point; see resolveDashHits + render).
+  const wantFace = Math.atan2(world.player.y - e.y, world.player.x - e.x);
+  e.facing = turnToward(e.facing ?? wantFace, wantFace, WARDEN.turnRate * dt);
 
   // phase swap
   e.timer -= dt;

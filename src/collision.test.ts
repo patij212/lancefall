@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { pointSegDist2, segCircleHit, circleHit, SpatialHash, shieldBlocks } from './collision';
-import { SHIELD } from './tune';
+import { pointSegDist2, segCircleHit, circleHit, SpatialHash, shieldBlocks, withinArc } from './collision';
+import { SHIELD, WARDEN } from './tune';
 
 describe('pointSegDist2', () => {
   it('is zero on the segment', () => {
@@ -106,5 +106,24 @@ describe('shieldBlocks (frontal-arc dash block)', () => {
     expect(shieldBlocks(Math.PI - 0.02, -Math.PI + 0.02, H)).toBe(true);
     // shield faces -π+0.1; approach at π-0.1 is ~0.2 rad away → still blocked
     expect(shieldBlocks(-Math.PI + 0.1, Math.PI - 0.1, H)).toBe(true);
+  });
+});
+
+describe('withinArc (shared shield + WARDEN-rear gate)', () => {
+  it('is true inside ±half and false outside, with ±π wrapping', () => {
+    expect(withinArc(0, 0, 1)).toBe(true);
+    expect(withinArc(0, 0.9, 1)).toBe(true);
+    expect(withinArc(0, 1.1, 1)).toBe(false);
+    // wrap: center ~π, test ~-π is the same direction → inside
+    expect(withinArc(Math.PI - 0.05, -Math.PI + 0.05, 0.5)).toBe(true);
+  });
+
+  it('models the WARDEN rear weak-point: behind crits, front/flank do not', () => {
+    const facing = 0; // warden looks toward +x (the player)
+    const rear = facing + Math.PI; // its back points -x
+    const half = WARDEN.rearArc / 2; // 60°
+    expect(withinArc(rear, Math.PI, half)).toBe(true); // dash from directly behind → crit
+    expect(withinArc(rear, 0, half)).toBe(false); // dash from the front (it's looking at you) → no crit
+    expect(withinArc(rear, Math.PI / 2, half)).toBe(false); // a 90° flank is outside the 60° half-arc
   });
 });

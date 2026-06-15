@@ -560,8 +560,12 @@ export const WARDEN = {
   fanSpread: 0.26, // radians
   fanRest: 2.0,
   fanBulletSpeed: 230,
-  rearArc: 2.094, // 120 deg: bonus damage zone
-  rearMultiplier: 3,
+  // REAR WEAK-POINT — the keeper watches you but turns at turnRate (rad/s); flank it
+  // faster than it can turn and dash its exposed BACK arc for rearMultiplier× damage.
+  // The gold rear arc is telegraphed (render.ts). Boss #1's teachable "get behind it".
+  turnRate: 1.6, // rad/s the warden rotates its facing toward the player
+  rearArc: 2.094, // 120° (full) bonus-damage zone centered on its rear; ±half is the gate
+  rearMultiplier: 3, // dash damage × this inside the rear arc
 } as const;
 
 // Second boss: the WEAVER — a pinwheel/ring boss, distinct from the Warden.

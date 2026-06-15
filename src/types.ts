@@ -94,6 +94,7 @@ export interface Enemy {
   fireTimer: number; // boss: time to next shot
   subPhase: number; // generic sub-state: boss fan-counter / brooder hatch-count / herald gap-offset px
   cipherExposed?: number; // generic ring-cipher boss: >0 = punish window open (THE LONGEST DAY)
+  facing?: number; // WARDEN: bounded-turn heading toward the player; its REAR arc is the weak-point
 }
 
 export interface Bullet {

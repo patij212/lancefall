@@ -17,17 +17,17 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, s
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
+import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
-import { segCircleHit, circleHit, shieldBlocks } from './collision';
+import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
-import { submitScore } from './api';
+import { submitScore, leaderboardEnabled } from './api';
 import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
@@ -64,7 +64,7 @@ import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
-import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul } from './stillpoint';
+import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode } from './ghost';
 import type { Ghost } from './ghost';
@@ -107,6 +107,7 @@ export class Game {
   private biomeSpeedMul = 1;
   private biomeShield = 0;
   private deathCause = 'a bullet';
+  private nudgedHandle = false; // show the "set a handle" leaderboard nudge once per session
 
   /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
   private coherence = newCoherence();
@@ -707,6 +708,15 @@ export class Game {
     }
   }
 
+  /** "THE HOLLOW ×4" — the boss you've fallen to most (debrief flavor). Needs ≥2
+   *  losses (a nemesis is one you keep losing to); '' otherwise, or if the leader is
+   *  a stale non-boss key from a pre-fix save. */
+  private nemesisLine(): string {
+    const nem = nemesisOf(this.save.nemesis);
+    if (!nem || nem.count < 2 || !isBossKind(nem.kind)) return '';
+    return `${bossName(nem.kind as EnemyKind)} ×${nem.count}`;
+  }
+
   private copyScore(): void {
     const shipName = shipById(this.save.selectedShip).name;
     const perks = this.buildLine();
@@ -1080,7 +1090,16 @@ export class Game {
           continue;
         }
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
-        const dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
+        let dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
+        // WARDEN rear weak-point: a dash whose APPROACH comes from its back arc crits ×3.
+        // (e.facing turns toward you at a bounded rate — flank it faster than it can turn.)
+        if (e.kind === 'warden' && e.facing !== undefined && withinArc(e.facing + Math.PI, Math.atan2(ay - e.y, ax - e.x), WARDEN.rearArc / 2)) {
+          dmg *= WARDEN.rearMultiplier;
+          w.particles.floatText(e.x, e.y - e.radius - 12, 'WEAK POINT', '#fde047', 0.95);
+          w.particles.burst(e.x, e.y, 18, '#fde047');
+          this.shake.add(0.25);
+          this.audio.thunk(60, this.panFor(e.x));
+        }
         this.damageEnemy(e, dmg, true);
       }
     }
@@ -1822,7 +1841,13 @@ export class Game {
       this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
       this.save.bestWave = Math.max(this.save.bestWave, wave);
       this.save.deepestWave = Math.max(this.save.deepestWave, wave);
-      if (!won && this.deathCause) this.save.nemesis[this.deathCause] = (this.save.nemesis[this.deathCause] ?? 0) + 1;
+      // nemesis = the BOSS bearing down when you fell (one boss at a time), keyed by
+      // EnemyKind so nemesisOf + bossName can name it. Falling to chaff doesn't count —
+      // a nemesis is a boss you keep losing to. (Old prose-keyed entries are harmless.)
+      if (!won && w.bossAlive && w.boss) {
+        const nk = w.boss.kind;
+        this.save.nemesis[nk] = (this.save.nemesis[nk] ?? 0) + 1;
+      }
       this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
       if (won && w.sovereignDown) {
         // NG+ — felling the Sovereign deepens the loop. Pure save state; the EFFECT
@@ -1882,7 +1907,7 @@ export class Game {
     }
     // fire-and-forget online leaderboard submission (no-op if not configured).
     // A duel is a private 1v1 on a fixed seed — never submit it to the public boards.
-    if (!this.inChallenge)
+    if (!this.inChallenge) {
       void submitScore({
         mode: this.mode.id,
         name: this.save.handle,
@@ -1892,6 +1917,12 @@ export class Game {
         heat: this.runHeat,
         daily: this.mode.id === 'daily' ? dateString() : undefined,
       });
+      // posted under 'ANON'? nudge the player once to claim their scores with a handle
+      if (leaderboardEnabled() && !this.save.handle && w.score > 0 && !this.nudgedHandle) {
+        this.nudgedHandle = true;
+        this.ui.toast('Posted as ANON — set a handle in ⊞ RANKS to claim your scores');
+      }
+    }
     const info: GameOverInfo = {
       score: w.score,
       combo: w.bestComboRun,
@@ -1907,6 +1938,7 @@ export class Game {
       ship: shipById(this.save.selectedShip).name,
       perks: this.buildLine(),
       deathCause: won ? '' : this.deathCause,
+      nemesis: this.nemesisLine(),
       pbDelta: w.score - prevHigh,
       newAchievements: newAch.map((a) => a.name),
       mutators: this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })),

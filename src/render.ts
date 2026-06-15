@@ -980,6 +980,20 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
     ctx.stroke();
+
+    // REAR weak-point telegraph — a gold back arc; dash it from behind for ×3 damage.
+    // World-aligned (the frame is unrotated here), matching the resolveDashHits gate.
+    if (e.facing !== undefined) {
+      const rear = e.facing + Math.PI;
+      const pulse = 0.7 + 0.3 * Math.sin(this.bgT * 5);
+      ctx.strokeStyle = `rgba(253, 224, 71, ${pulse})`;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.18, rear - WARDEN.rearArc / 2, rear + WARDEN.rearArc / 2);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
   }
 
   private drawWeaver(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
