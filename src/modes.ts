@@ -14,6 +14,8 @@ export interface ModeRules {
   events?: 'normal' | 'none' | 'curated';
   scoreFrame?: 'cleartime'; // completion-quality scoring (cleartime + folded no-hit bonus)
   suddenDeath?: { afterBoss?: number; graceSeconds?: number };
+  ranked?: boolean; // §7 — false = OFF the leaderboards (Casual/Story). ABSENT = ranked (today's behavior).
+  casualShields?: number; // §7 — extra ARMOR shields a Casual mode grants so players can SEE the content
   oneLife?: boolean; // reserved — not yet wired
   biomeLock?: number; // reserved — not yet wired
   perkCadenceMul?: number; // reserved — not yet wired
@@ -78,10 +80,26 @@ export const MODES: RunConfig[] = [
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
   },
+  {
+    // §7 — CASUAL/STORY. A gentler ENDLESS so anyone can SEE the content (bosses, biomes,
+    // the story). OFF the leaderboards (rules.ranked:false → no submission) and with a fat
+    // ARMOR cushion. A separate mode/config — it never touches the Daily seed path.
+    id: 'casual', name: 'CASUAL', desc: 'See it all — bosses, biomes, the story. Extra ARMOR, no pressure. Off the leaderboards.',
+    seedKind: 'random', intensityMul: 0.85, spawnMul: 1.15, bossInterval: 75, speedBonus: 0,
+    shieldStart: 150, shieldMax: 0.25, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
+    rules: { ranked: false, casualShields: 4 }, // off-board + 4 extra absorbs
+  },
 ];
 
 export function modeById(id: string): RunConfig {
   return MODES.find((m) => m.id === id) ?? ENDLESS;
+}
+
+/** §7 — does this mode submit to the public leaderboards? ABSENT `rules.ranked` = ranked
+ *  (every mode shipped before Casual). Only an explicit `ranked:false` opts a mode OUT.
+ *  The SINGLE source of truth shared by the api gate (game.ts) and the modes test. */
+export function modeRanked(cfg: RunConfig): boolean {
+  return cfg.rules?.ranked !== false;
 }
 
 /** v6 §5 — a short difficulty/reward brief derived purely from a RunConfig, for the
@@ -90,15 +108,17 @@ export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note:
   const d = cfg.intensityMul * (1 / cfg.spawnMul) * (1 + cfg.speedBonus);
   const tier = d >= 1.3 ? 'BRUTAL' : d >= 1.1 ? 'HARD' : 'STANDARD';
   const reward = `×${cfg.shardMul} shards`;
-  const note = cfg.arena || cfg.bossrush
-    ? 'WINNABLE'
-    : cfg.rules?.suddenDeath
-      ? 'SUDDEN DEATH'
-      : cfg.cipherLock
-        ? 'CIPHER'
-        : cfg.seedKind === 'date'
-          ? 'SEEDED'
-          : '';
+  const note = cfg.rules?.ranked === false
+    ? 'CASUAL · OFF-BOARD'
+    : cfg.arena || cfg.bossrush
+      ? 'WINNABLE'
+      : cfg.rules?.suddenDeath
+        ? 'SUDDEN DEATH'
+        : cfg.cipherLock
+          ? 'CIPHER'
+          : cfg.seedKind === 'date'
+            ? 'SEEDED'
+            : '';
   return { tier, reward, note };
 }
 

@@ -45,7 +45,7 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString } from './rng';
 import { evaluate as evalAchievements } from './achievements';
-import { MODES, modeById, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
+import { MODES, modeById, modeRanked, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
 import type { RunConfig } from './modes';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
@@ -363,6 +363,13 @@ export class Game {
     if (this.mode.rules?.suddenDeath) {
       this.world.player.shields = 0;
       this.world.player.maxShields = 0;
+    }
+    // §7 — CASUAL grants a fat ARMOR cushion so anyone can SEE the content (rng-free, never
+    // touches the seeded stream). An off-board mode, so the extra shields can't game the boards.
+    const casualShields = this.mode.rules?.casualShields ?? 0;
+    if (casualShields > 0) {
+      this.world.player.maxShields += casualShields;
+      this.world.player.shields += casualShields;
     }
     this.applySettings(this.settings);
     this.director.configure(runCfg);
@@ -2105,7 +2112,8 @@ export class Game {
     }
     // fire-and-forget online leaderboard submission (no-op if not configured).
     // A duel is a private 1v1 on a fixed seed — never submit it to the public boards.
-    if (!this.inChallenge) {
+    // §7 — an UNRANKED mode (Casual/Story) is OFF the boards: it never submits, by design.
+    if (!this.inChallenge && modeRanked(this.mode)) {
       void submitScore({
         mode: this.mode.id,
         name: this.save.handle,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId } from './modes';
+import { MODES, modeById, modeBrief, modeRanked, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -8,9 +8,10 @@ describe('modes', () => {
     expect(modeById('bogus').id).toBe('endless'); // junk → fallback, never throws
   });
 
-  it('has the 6 expected modes incl. SOLSTICE PROTOCOL (id longestday)', () => {
-    expect(MODES.length).toBe(6);
+  it('has the expected modes incl. SOLSTICE PROTOCOL (longestday) and CASUAL', () => {
+    expect(MODES.length).toBe(7);
     expect(MODES.map((m) => m.id)).toContain('longestday');
+    expect(MODES.map((m) => m.id)).toContain('casual');
   });
 
   it('NIGHTMARE carries the sudden-death rule; others do not (M2)', () => {
@@ -32,6 +33,37 @@ describe('modes', () => {
     expect(modeById('bossrush').rules?.events).toBe('none');
     expect(modeById('endless').rules?.events).toBeUndefined();
     expect(modeById('longestday').rules?.events).toBeUndefined();
+  });
+});
+
+// §7 — the leaderboard gate. CASUAL is OFF the boards; every mode shipped before it stays ON
+// (an ABSENT rules.ranked must read as ranked). game.ts gates submitScore on modeRanked(mode).
+describe('§7 ranked gate (Casual = off-leaderboard)', () => {
+  it('CASUAL exists, is explicitly unranked, and carries a casual ARMOR cushion', () => {
+    const casual = modeById('casual');
+    expect(casual.id).toBe('casual');
+    expect(casual.rules?.ranked).toBe(false);
+    expect(modeRanked(casual)).toBe(false); // → game.ts skips submitScore
+    expect(casual.rules?.casualShields).toBeGreaterThan(0); // SEE the content
+  });
+
+  it('every EXISTING mode still submits (absent rules.ranked = ranked)', () => {
+    for (const id of ['endless', 'arena', 'daily', 'nightmare', 'bossrush', 'longestday']) {
+      const m = modeById(id);
+      expect(m.rules?.ranked).not.toBe(false); // never opted out
+      expect(modeRanked(m)).toBe(true); // → game.ts still submits exactly as today
+    }
+  });
+
+  it('modeRanked treats only an explicit false as unranked', () => {
+    expect(modeRanked({ ...modeById('endless'), rules: undefined })).toBe(true);
+    expect(modeRanked({ ...modeById('endless'), rules: {} })).toBe(true);
+    expect(modeRanked({ ...modeById('endless'), rules: { ranked: true } })).toBe(true);
+    expect(modeRanked({ ...modeById('endless'), rules: { ranked: false } })).toBe(false);
+  });
+
+  it('the Casual card surfaces an off-board note on the title (modeBrief)', () => {
+    expect(modeBrief(modeById('casual')).note).toBe('CASUAL · OFF-BOARD');
   });
 });
 
