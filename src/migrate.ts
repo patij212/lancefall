@@ -9,7 +9,7 @@
 
 import type { SaveData } from './save';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -26,6 +26,9 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          fragmentsSpent, stillpointChoice, ngPlusLevel/Active, nemesis,
   //          deepestWave). Purely additive → default-filled by the spread; no
   //          explicit transform needed.
+  // v5 → v6: reserved the v6-pass fields (selectedMode, dailyAttempts,
+  //          dailyAttemptDate, baseShields, cityMemoryMeter, firstRunsBeatHint).
+  //          Purely additive → default-filled by the spread; no explicit transform.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
   return { ...base, ...data, version: SAVE_VERSION };

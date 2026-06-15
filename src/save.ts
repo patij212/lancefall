@@ -4,6 +4,7 @@
 
 import { dateString } from './rng';
 import { SAVE_VERSION, migrateSave } from './migrate';
+import { TUNE } from './tune';
 import type { SoundtrackId } from './soundtracks';
 
 const SAVE_KEY = 'lancefall.save';
@@ -72,6 +73,20 @@ export interface SaveData {
   nemesis: Record<string, number>;
   /** deepest descent (wave) reached — the hub run-state line */
   deepestWave: number;
+  // ── v6 "THE FULL PASS" — reserved by the single 5→6 bump. All additive;
+  //    consumption logic lands in later v6 phases (none write rng). ──
+  /** active game mode id; endless is the default loop */
+  selectedMode: string;
+  /** daily-challenge attempts used on dailyAttemptDate */
+  dailyAttempts: number;
+  /** date-string the dailyAttempts counter applies to; empty = never played */
+  dailyAttemptDate: string;
+  /** survivability: hits absorbed before death; 0 = one-hit model */
+  baseShields: number;
+  /** show the City-of-Lancefall memory meter (cosmetic/coherence toggle) */
+  cityMemoryMeter: boolean;
+  /** count of early runs that still get the dash-on-the-beat hint */
+  firstRunsBeatHint: number;
 }
 
 export interface Settings {
@@ -136,6 +151,12 @@ export function defaultSave(): SaveData {
     ngPlusActive: false,
     nemesis: {},
     deepestWave: 0,
+    selectedMode: 'endless',
+    dailyAttempts: 0,
+    dailyAttemptDate: '',
+    baseShields: TUNE.player.baseShields,
+    cityMemoryMeter: true,
+    firstRunsBeatHint: 0,
   };
 }
 

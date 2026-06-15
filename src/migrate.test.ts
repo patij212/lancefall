@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { migrateSave, SAVE_VERSION } from './migrate';
 import { defaultSave } from './save';
+import { TUNE } from './tune';
 
 describe('save migration', () => {
   it('returns a fresh default for null/garbage input', () => {
@@ -40,7 +41,7 @@ describe('save migration', () => {
   it('default-fills the v5 Stillpoint fields for a v4 save (single additive bump)', () => {
     const v4 = { version: 4, highScore: 46472, bestCombo: 31, handle: '' };
     const out = migrateSave(v4, defaultSave());
-    expect(out.version).toBe(SAVE_VERSION); // 5
+    expect(out.version).toBe(SAVE_VERSION); // 6
     expect(out.highScore).toBe(46472); // pre-existing data preserved
     expect(out.stillpointFragments).toEqual([]);
     expect(out.fragmentsSpent).toBe(0);
@@ -51,5 +52,23 @@ describe('save migration', () => {
     expect(out.ngPlusActive).toBe(false);
     expect(out.nemesis).toEqual({});
     expect(out.deepestWave).toBe(0);
+  });
+
+  it('default-fills the v6 pass fields for a v5 save (single additive bump)', () => {
+    const v5 = { version: 5, highScore: 46472, stillpointChoice: 'none' };
+    const out = migrateSave(v5, defaultSave());
+    expect(out.version).toBe(SAVE_VERSION); // 6
+    expect(out.highScore).toBe(46472); // pre-existing data preserved
+    expect(out.selectedMode).toBe('endless');
+    expect(out.dailyAttempts).toBe(0);
+    expect(out.dailyAttemptDate).toBe('');
+    expect(out.baseShields).toBe(TUNE.player.baseShields);
+    expect(out.cityMemoryMeter).toBe(true);
+    expect(out.firstRunsBeatHint).toBe(0);
+  });
+
+  it('round-trips a full default save unchanged', () => {
+    const s = defaultSave();
+    expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);
   });
 });

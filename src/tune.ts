@@ -17,6 +17,7 @@ export const TUNE = {
     friction: 0.86, // velocity *= friction each 1/60s frame when settling
     turnLerp: 18, // rad/s the ship rotates toward aim
     chargeMoveMul: 0.55, // movement throttle while charging
+    baseShields: 0, // hits absorbed before death; 0 keeps the one-hit-death model until the v6 survivability phase wires it in
   },
 
   dash: {
