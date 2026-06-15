@@ -13,9 +13,12 @@ export function loadDrift(charge: number): number {
   return SLINGSHOT.loadDrift * clamp01(charge);
 }
 
-/** The slingshot dash length for a charge — longer than the Lance (the fling). */
+/** The slingshot dash length for a charge — the range bonus RAMPS with charge so a
+ *  tap is ~Lance length and only a full, exposed load earns the full fling. */
 export function slingshotLen(charge: number, dashLenMul: number): number {
-  return chargeToLen(charge) * dashLenMul * SLINGSHOT.lenMul;
+  const c = clamp01(charge);
+  const mul = SLINGSHOT.lenMulMin + (SLINGSHOT.lenMul - SLINGSHOT.lenMulMin) * c;
+  return chargeToLen(charge) * dashLenMul * mul;
 }
 
 /** Travel time for a slingshot dash of length `len` — a snappier, faster snap. */

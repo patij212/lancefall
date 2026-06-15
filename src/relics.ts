@@ -26,8 +26,15 @@ export const RELICS: Record<RelicId, RelicDef> = {
   },
   berserker: {
     id: 'berserker', name: "BERSERKER'S MARK", glyph: '⚔', accent: '#ef4444', isRelic: true,
-    desc: '+2 dash damage — but a stamina segment is gone and the spear is thinner.',
-    apply: (s) => { s.dashDamage += 2; s.staminaSegments = Math.max(1, s.staminaSegments - 1); s.dashHitboxRadius = Math.max(8, s.dashHitboxRadius - 4); },
+    desc: '+2 dash damage — but a stamina segment is gone (regen suffers if you only have one) and the spear is thinner.',
+    // a 1-segment (Glass Cannon) build can't lose a segment, so it pays in regen
+    // instead — the curse always bites, never a free +2 damage.
+    apply: (s) => {
+      s.dashDamage += 2;
+      if (s.staminaSegments > 1) s.staminaSegments -= 1;
+      else s.regenPerSec *= 0.7;
+      s.dashHitboxRadius = Math.max(8, s.dashHitboxRadius - 4);
+    },
   },
   hoarder: {
     id: 'hoarder', name: "HOARDER'S CURSE", glyph: '💰', accent: '#34d399', isRelic: true,
@@ -36,13 +43,15 @@ export const RELICS: Record<RelicId, RelicDef> = {
   },
   overcharge: {
     id: 'overcharge', name: 'OVERCHARGE', glyph: '⚡', accent: '#fbbf24', isRelic: true,
-    desc: 'Blazing stamina regen & dash-kill refund — but a much tighter graze.',
-    apply: (s) => { s.regenPerSec += 40; s.killStaminaRefund += 30; s.grazeRadius *= 0.7; },
+    desc: 'Blazing stamina regen & dash-kill refund — but dashes cost more and the graze is tighter.',
+    // the boon is a stamina engine, so the cost bites stamina (pricier dashes) too —
+    // not just a graze the kill-fueled build it empowers never needed.
+    apply: (s) => { s.regenPerSec += 40; s.killStaminaRefund += 30; s.dashCostMul *= 1.15; s.grazeRadius *= 0.75; },
   },
   volatile: {
     id: 'volatile', name: 'VOLATILE CORE', glyph: '💥', accent: '#fb923c', isRelic: true,
-    desc: 'Grants chain + nova blasts (or supercharges them) — but dashes cost ×1.5.',
-    apply: (s) => { s.chainRadius += 70; s.chainDmg = Math.max(s.chainDmg + 1, 2); s.dashNovaRadius += 70; s.dashCostMul *= 1.5; },
+    desc: 'Grants chain + nova blasts (or supercharges them) — but dashes cost ×1.65.',
+    apply: (s) => { s.chainRadius += 70; s.chainDmg = Math.max(s.chainDmg + 1, 2); s.dashNovaRadius += 70; s.dashCostMul *= 1.65; },
   },
   zealot: {
     id: 'zealot', name: 'ZEALOT', glyph: '✠', accent: '#a855f7', isRelic: true,

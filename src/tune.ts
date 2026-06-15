@@ -528,8 +528,12 @@ export const NG_PLUS = {
 // farther + faster on release. Same swept-spear / i-frame mechanism fires it.
 export const SLINGSHOT = {
   loadDrift: 540, // px/s backward pull while loading (drift away from aim — the wind-up)
-  lenMul: 1.5, // the snap flings ~50% farther than the Lance
-  durMul: 0.8, // …and snaps faster (shorter travel time for the same length → higher speed)
+  // the range reward RAMPS with charge: a tap-slingshot is ~Lance length (lenMulMin),
+  // only the held, EXPOSED load earns the full fling — so it's a risk/reward sidegrade,
+  // not a strict upgrade. (Slingshot still has 20% fewer i-frames via durMul, the cost.)
+  lenMulMin: 1.0, // length multiplier at charge 0 (parity with the Lance)
+  lenMul: 1.5, // …ramping to ~50% farther at full charge (the exposed-load payoff)
+  durMul: 0.8, // …and snaps faster (shorter travel for the same length → higher speed, fewer i-frames)
 } as const;
 
 // POWER-UP DROPS — temporary power-fantasy buffs. Bosses always drop one; elite

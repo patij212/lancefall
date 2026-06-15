@@ -16,10 +16,10 @@ import { createRng } from './rng';
 const REQ_STACKS: Record<EvolutionId, PerkStacks> = {
   impaler: { longreach: 3, pierce: 2 },
   supernova: { chain: 3, nova: 2 },
-  perpetual: { siphon: 2, timethief: 1 },
+  perpetual: { siphon: 2, timethief: 2 },
   wraith: { afterimage: 2, longreach: 2 },
-  inferno: { grazeburn: 2, slipstream: 1 },
-  juggernaut: { secondwind: 2, chain: 1 },
+  inferno: { grazeburn: 2, slipstream: 2 },
+  juggernaut: { secondwind: 2, chain: 2 },
   aegis: { reflect: 2, secondwind: 2 },
 };
 

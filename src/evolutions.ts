@@ -42,7 +42,7 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
     glyph: 'impaler',
     evolved: true,
     requires: [
-      { id: 'longreach', stacks: 3 },
+      { id: 'longreach', stacks: 2 }, // normalized to a 4-pick fusion (was 5: longreach×3)
       { id: 'pierce', stacks: 2 },
     ],
     apply: (s) => {
@@ -60,7 +60,7 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
     glyph: 'supernova',
     evolved: true,
     requires: [
-      { id: 'chain', stacks: 3 },
+      { id: 'chain', stacks: 2 }, // normalized to a 4-pick fusion (was 5: chain×3)
       { id: 'nova', stacks: 2 },
     ],
     apply: (s) => {
@@ -79,7 +79,7 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
     evolved: true,
     requires: [
       { id: 'siphon', stacks: 2 },
-      { id: 'timethief', stacks: 1 },
+      { id: 'timethief', stacks: 2 }, // normalized to a 4-pick fusion (was 3: timethief×1)
     ],
     apply: (s) => {
       // strong stamina identity, but curbed so it isn't an infinite-dash / permanent-slowmo loop
@@ -118,7 +118,7 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
     evolved: true,
     requires: [
       { id: 'grazeburn', stacks: 2 },
-      { id: 'slipstream', stacks: 1 },
+      { id: 'slipstream', stacks: 2 }, // normalized to a 4-pick fusion (was 3: slipstream×1)
     ],
     apply: (s) => {
       s.grazeBurnDmg += 2;
@@ -137,7 +137,7 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
     evolved: true,
     requires: [
       { id: 'secondwind', stacks: 2 },
-      { id: 'chain', stacks: 1 },
+      { id: 'chain', stacks: 2 }, // normalized to a 4-pick fusion (was 3: chain×1)
     ],
     apply: (s) => {
       s.staminaSegments += 2;

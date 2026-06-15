@@ -12,12 +12,17 @@ describe('slingshot — the alternate dash style (pure math)', () => {
     expect(loadDrift(-1)).toBe(0);
   });
 
-  it('the slingshot flings farther than the Lance, respecting dashLenMul', () => {
+  it('the fling RAMPS with charge: ~Lance length at a tap, full fling at full charge', () => {
+    // ramp helper mirrors slingshotLen's lenMulMin→lenMul interpolation
+    const mul = (c: number) => SLINGSHOT.lenMulMin + (SLINGSHOT.lenMul - SLINGSHOT.lenMulMin) * c;
     for (const c of [0.2, 0.5, 1]) {
-      expect(slingshotLen(c, 1)).toBeCloseTo(chargeToLen(c) * SLINGSHOT.lenMul, 6);
-      expect(slingshotLen(c, 1)).toBeGreaterThan(chargeToLen(c)); // lenMul > 1
+      expect(slingshotLen(c, 1)).toBeCloseTo(chargeToLen(c) * mul(c), 6);
     }
-    expect(slingshotLen(1, 2)).toBeCloseTo(chargeToLen(1) * 2 * SLINGSHOT.lenMul, 6);
+    // a tap (charge 0) is parity with the Lance — no free range; full charge is the payoff
+    expect(slingshotLen(0, 1)).toBeCloseTo(chargeToLen(0) * SLINGSHOT.lenMulMin, 6);
+    expect(slingshotLen(1, 1)).toBeCloseTo(chargeToLen(1) * SLINGSHOT.lenMul, 6);
+    expect(slingshotLen(1, 1)).toBeGreaterThan(slingshotLen(0, 1)); // it does fling farther held
+    expect(slingshotLen(1, 2)).toBeCloseTo(chargeToLen(1) * 2 * SLINGSHOT.lenMul, 6); // respects dashLenMul
   });
 
   it('the slingshot snaps faster than a Lance dash of the same length', () => {

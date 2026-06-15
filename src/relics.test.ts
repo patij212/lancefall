@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { RELICS, RELIC_IDS, availableRelics, describeRelics } from './relics';
 import type { RelicId } from './relics';
 import { deriveStats } from './perks';
+import type { RunStats } from './perks';
 import { rollDraftCards, isRelic } from './evolutions';
 import { createRng } from './rng';
 
@@ -31,6 +32,15 @@ describe('cursed relics', () => {
     expect(r.dashDamage).toBe(base.dashDamage + 2);
     expect(r.staminaSegments).toBe(Math.max(1, base.staminaSegments - 1));
     expect(r.staminaSegments).toBeGreaterThanOrEqual(1);
+  });
+
+  it('BERSERKER on a 1-segment build pays in regen instead (curse is never free)', () => {
+    const oneSeg = (s: RunStats) => { s.staminaSegments = 1; };
+    const base = deriveStats({}, oneSeg);
+    const r = deriveStats({}, oneSeg, undefined, undefined, (s) => RELICS.berserker.apply(s));
+    expect(r.staminaSegments).toBe(1); // can't drop below 1…
+    expect(r.regenPerSec).toBeCloseTo(base.regenPerSec * 0.7); // …so the cost lands on regen
+    expect(r.dashDamage).toBe(base.dashDamage + 2);
   });
 
   it('relic offer consumes a FIXED rng amount regardless of taken set (Daily-safe)', () => {

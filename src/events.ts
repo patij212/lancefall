@@ -73,8 +73,9 @@ export const RUN_EVENTS: Record<RunEventId, RunEventDef> = {
     buildChoices: () => [
       { id: 'safe', name: 'Pocket It', desc: '+3,000 score. No risk.', accent: '#34d399', risk: 'none', resolve: (w) => { w.score += 3000; } },
       {
-        id: 'risk', name: 'Double or Nothing', desc: '55%: +12,000 score. 45%: lose 40% of your shards.', accent: '#ef4444', risk: 'high',
-        resolve: (w) => { if (w.eventRng.next() < 0.55) w.score += 12000; else w.shards = Math.floor(w.shards * 0.6); },
+        id: 'risk', name: 'Double or Nothing', desc: '55%: +12,000 score. 45%: −4,000 score.', accent: '#ef4444', risk: 'high',
+        // same-currency wager (score for score) — real tension, no cross-currency free-roll
+        resolve: (w) => { if (w.eventRng.next() < 0.55) w.score += 12000; else w.score = Math.max(0, w.score - 4000); },
       },
     ],
   },
@@ -105,7 +106,7 @@ export const RUN_EVENTS: Record<RunEventId, RunEventDef> = {
     flavor: 'Power has a price. Always.',
     accent: '#ef4444',
     buildChoices: () => [
-      { id: 'blood', name: 'Pay in Blood', desc: 'Lose ALL shards now — gain +2 dash damage for the run.', accent: '#ef4444', risk: 'high', resolve: (w) => { w.shards = 0; boon(w, (s) => { s.dashDamage += 2; }); } },
+      { id: 'blood', name: 'Pay in Blood', desc: 'Lose ALL shards AND a quarter of your score — gain +2 dash damage for the run.', accent: '#ef4444', risk: 'high', resolve: (w) => { w.shards = 0; w.score = Math.floor(w.score * 0.75); boon(w, (s) => { s.dashDamage += 2; }); } },
       { id: 'glory', name: 'Pay in Glory', desc: 'Halve your score — gain an extra revive.', accent: '#f97316', risk: 'high', resolve: (w) => { w.score = Math.floor(w.score * 0.5); w.reviveLeft += 1; } },
       { id: 'walk', name: 'Walk Away', desc: 'Refuse the pact. +500 score.', accent: '#94a3b8', risk: 'none', resolve: (w) => { w.score += 500; } },
     ],
