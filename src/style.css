@@ -1025,6 +1025,26 @@ body {
 .cipher-pair.next .cipher-sym {
   color: #fff;
 }
+/* literal solstice stamp on the title (judging window) + leaderboard candour note */
+.title-solstice {
+  display: none;
+  margin: -2px 0 10px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+.title-solstice.on {
+  display: inline-block;
+}
+.leader-note {
+  color: #93a4c4;
+  font-size: 12px;
+  opacity: 0.85;
+}
 
 .fall-prose {
   text-align: left;

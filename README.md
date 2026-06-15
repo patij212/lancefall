@@ -1,6 +1,6 @@
 # ⚔️ LANCEFALL
 
-> 🎮 **Play the open alpha: https://lancefall.pages.dev** &nbsp;·&nbsp; global leaderboards live (set a handle on the RANKS screen).
+> 🎮 **Play the open alpha: https://lancefall.pages.dev** &nbsp;·&nbsp; community leaderboards live — scores are client-reported & unverified (set a handle on the RANKS screen).
 > Hosted on Cloudflare Pages; leaderboard backend on a Cloudflare Worker + D1 (`worker/`). Redeploy the client with `npm run deploy`.
 
 > **🗝️ THE LAST KEY edition** (June Solstice Game Jam — an ode to Alan Turing). The fall of Lancefall was an *encryption*: the Six scrambled the city's light into grey noise. You are the last **key**. Break each boss's **cipher-lock** — read the code and dash its glyph-cores in the decoded order — to decrypt the city back to its **longest day**. THE CHOICE on the final kill is the one cipher no machine can solve, only choose (the halting problem); the Mirrorblade is the imitation game. New this edition: the **cipher-lock** mechanic, **THE LONGEST DAY** mode (every boss is a cipher), **DAYBREAK** ultimate, and a full Turing×solstice re-narration. *memory = light-code · forgetting = encryption · remembering = decryption.*

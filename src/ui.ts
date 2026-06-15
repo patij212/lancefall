@@ -368,12 +368,22 @@ export class UI {
       el('b', {}, 'F / LB'),
     );
 
+    // literal solstice hook during the judging window — the longest day, on the longest day
+    const today = dateString();
+    const isSolstice = today.endsWith('-06-20') || today.endsWith('-06-21');
+    const solsticeStamp = el(
+      'div',
+      { class: 'title-solstice' + (isSolstice ? ' on' : '') },
+      '☀ SOLSTICE — the longest day · today the whole world breaks the same key',
+    );
+
     this.title = el(
       'div',
       { class: 'screen screen-title' },
       wordmark,
       subtitle,
       tagline,
+      solsticeStamp,
       play,
       this.modeGrid,
       row,
@@ -1022,6 +1032,12 @@ export class UI {
       this.leaderPanel.classList.remove('hidden');
       return;
     }
+
+    // candour over a cheat-cap: the game is client-authoritative, so be honest about it
+    // (a developer audience respects that more than a silently spoofable "global" board).
+    body.append(
+      el('div', { class: 'event-flavor leader-note' }, '🛈 Community board — scores are client-reported and unverified.'),
+    );
 
     const modeRow = el('div', { class: 'leader-modes' });
     const scopeRow = el('div', { class: 'leader-modes' });
