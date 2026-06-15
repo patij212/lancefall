@@ -25,7 +25,7 @@ export interface RunConfig {
   id: string;
   name: string;
   desc: string;
-  seedKind: 'random' | 'date';
+  seedKind: 'random' | 'date' | 'week'; // 'date' = Daily, 'week' = weekly challenge — both reproducible-for-all
   intensityMul: number; // scales the endless intensity curve
   spawnMul: number; // multiplies spawn interval (smaller = denser)
   bossInterval: number; // seconds between bosses (time-driven modes)
@@ -60,6 +60,16 @@ export const MODES: RunConfig[] = [
     seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
     rules: { events: 'curated' }, // §4 M5 — the Daily echo serves the high-risk pool
+  },
+  {
+    // WEEKLY CHALLENGE — a WEEK-STABLE seeded run (snaps to the week's Monday): the same
+    // waves + mutators for the whole world all week, a fresh one next Monday. RANKED to the
+    // WEEKLY board. Reproducible exactly like the Daily (seedKind:'week' rides every seeded
+    // protection — NG+ off, ghost-race its own week PB). A spicier curated mutator rotation.
+    id: 'weekly', name: 'WEEKLY SIEGE', desc: 'One seed for the whole world, all week. A spicy mutator set, a fresh siege every Monday. Race the weekly board.',
+    seedKind: 'week', intensityMul: 1.05, spawnMul: 0.95, bossInterval: 62, speedBonus: 0.04,
+    shieldStart: 100, shieldMax: 0.38, shardMul: 1.3, perks: true, canFail: true, arena: false, bossrush: false,
+    rules: { events: 'curated' }, // serves the high-risk pool, like the Daily echo (one eventRng draw)
   },
   {
     id: 'nightmare', name: 'NIGHTMARE', desc: 'Sudden death — the walls close in, no ARMOR. +75% shards.',
@@ -102,6 +112,13 @@ export function modeRanked(cfg: RunConfig): boolean {
   return cfg.rules?.ranked !== false;
 }
 
+/** Is this a SEEDED, reproducible-for-everyone mode (Daily or Weekly)? The single
+ *  predicate the run-setup uses to gate every "stays bit-identical for all" rule:
+ *  NG+ stays OFF, the run races/saves its own seeded PB ghost. Random modes return false. */
+export function modeSeeded(cfg: RunConfig): boolean {
+  return cfg.seedKind === 'date' || cfg.seedKind === 'week';
+}
+
 /** v6 §5 — a short difficulty/reward brief derived purely from a RunConfig, for the
  *  title mode-cards. A display heuristic ONLY — keep OUT of tune.ts and any sim path. */
 export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note: string } {
@@ -116,9 +133,11 @@ export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note:
         ? 'SUDDEN DEATH'
         : cfg.cipherLock
           ? 'CIPHER'
-          : cfg.seedKind === 'date'
-            ? 'SEEDED'
-            : '';
+          : cfg.seedKind === 'week'
+            ? 'WEEKLY'
+            : cfg.seedKind === 'date'
+              ? 'SEEDED'
+              : '';
   return { tier, reward, note };
 }
 

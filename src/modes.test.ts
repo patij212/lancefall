@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, modeRanked, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId } from './modes';
+import { MODES, modeById, modeBrief, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -8,10 +8,27 @@ describe('modes', () => {
     expect(modeById('bogus').id).toBe('endless'); // junk → fallback, never throws
   });
 
-  it('has the expected modes incl. SOLSTICE PROTOCOL (longestday) and CASUAL', () => {
-    expect(MODES.length).toBe(7);
+  it('has the expected modes incl. SOLSTICE PROTOCOL (longestday), WEEKLY SIEGE and CASUAL', () => {
+    expect(MODES.length).toBe(8);
     expect(MODES.map((m) => m.id)).toContain('longestday');
+    expect(MODES.map((m) => m.id)).toContain('weekly');
     expect(MODES.map((m) => m.id)).toContain('casual');
+  });
+
+  it('WEEKLY SIEGE is a week-seeded, ranked challenge with a curated event pool', () => {
+    const weekly = modeById('weekly');
+    expect(weekly.seedKind).toBe('week'); // week-stable seed — reproducible for everyone
+    expect(modeRanked(weekly)).toBe(true); // posts to the weekly board
+    expect(modeSeeded(weekly)).toBe(true); // seeded protections (NG+ off, own PB ghost)
+    expect(weekly.rules?.events).toBe('curated');
+  });
+
+  it('modeSeeded flags only the reproducible-for-all modes (Daily + Weekly)', () => {
+    expect(modeSeeded(modeById('daily'))).toBe(true);
+    expect(modeSeeded(modeById('weekly'))).toBe(true);
+    expect(modeSeeded(modeById('endless'))).toBe(false);
+    expect(modeSeeded(modeById('nightmare'))).toBe(false);
+    expect(modeSeeded(modeById('longestday'))).toBe(false);
   });
 
   it('NIGHTMARE carries the sudden-death rule; others do not (M2)', () => {
@@ -48,7 +65,7 @@ describe('§7 ranked gate (Casual = off-leaderboard)', () => {
   });
 
   it('every EXISTING mode still submits (absent rules.ranked = ranked)', () => {
-    for (const id of ['endless', 'arena', 'daily', 'nightmare', 'bossrush', 'longestday']) {
+    for (const id of ['endless', 'arena', 'daily', 'weekly', 'nightmare', 'bossrush', 'longestday']) {
       const m = modeById(id);
       expect(m.rules?.ranked).not.toBe(false); // never opted out
       expect(modeRanked(m)).toBe(true); // → game.ts still submits exactly as today
@@ -109,6 +126,7 @@ describe('modeBrief', () => {
     expect(modeBrief(modeById('bossrush')).note).toBe('WINNABLE');
     expect(modeBrief(modeById('longestday')).note).toBe('CIPHER');
     expect(modeBrief(modeById('daily')).note).toBe('SEEDED');
+    expect(modeBrief(modeById('weekly')).note).toBe('WEEKLY');
     expect(modeBrief(modeById('nightmare')).note).toBe('SUDDEN DEATH'); // headline rule visible on the card
     expect(modeBrief(modeById('endless')).note).toBe('');
   });

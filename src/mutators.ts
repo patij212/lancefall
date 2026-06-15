@@ -121,11 +121,37 @@ export function pickDailyMutators(seed: number): MutatorId[] {
   return ids.slice(0, count);
 }
 
+/** WEEKLY CHALLENGE — a deterministic mutator set from the WEEK seed (separate stream,
+ *  distinct salt from the Daily so the weekly rotation is its own thing). Same week →
+ *  same set for everyone; never touches world.rng. Weeklies lean spicier (a 2-mutator
+ *  pair more often) to give the week-long board a meatier identity. */
+export function pickWeeklyMutators(seed: number): MutatorId[] {
+  const rng = createRng((seed ^ 0x85ebca6b) >>> 0);
+  const ids = ALL_IDS.slice();
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(rng.next() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  const count = rng.next() < 0.6 ? 2 : 1; // a weekly is usually a spicy pair
+  return ids.slice(0, count);
+}
+
 /** §5 U3 — a READ-ONLY preview of a seed's daily mutators for the title card. Uses
  *  pickDailyMutators' OWN rng (never world.rng/dropRng), so previewing the Daily on the
  *  title can't perturb the seeded run. */
 export function dailyMutatorPreview(seed: number): { name: string; accent: string }[] {
-  return pickDailyMutators(seed).map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent }));
+  return mutatorPreview(pickDailyMutators(seed));
+}
+
+/** §5 U3 — READ-ONLY preview chips for the WEEKLY CHALLENGE card (the week seed's set).
+ *  Uses pickWeeklyMutators' OWN rng — never world.rng — so previewing it is seed-safe. */
+export function weeklyMutatorPreview(seed: number): { name: string; accent: string }[] {
+  return mutatorPreview(pickWeeklyMutators(seed));
+}
+
+/** Map a set of mutator ids to display chips (name + accent). Render-only. */
+export function mutatorPreview(ids: MutatorId[]): { name: string; accent: string }[] {
+  return ids.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent }));
 }
 
 /** Compose the RunStats application for a set of mutators (fed to World.mutatorApply). */

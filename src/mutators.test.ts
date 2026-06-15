@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   MUTATORS,
   pickDailyMutators,
+  pickWeeklyMutators,
   buildMutatorApply,
   applyMutatorConfig,
   mutatorElite,
   describeMutators,
   dailyMutatorPreview,
+  weeklyMutatorPreview,
 } from './mutators';
 import type { MutatorId } from './mutators';
 import { deriveStats } from './perks';
@@ -88,6 +90,40 @@ describe('mutators', () => {
     const a = dailyMutatorPreview(20260615);
     expect(dailyMutatorPreview(20260615)).toEqual(a); // own-rng → deterministic, no world.rng
     expect(a.length).toBe(pickDailyMutators(20260615).length);
+    for (const e of a) {
+      expect(e.name.length).toBeGreaterThan(0);
+      expect(e.accent).toBeTruthy();
+    }
+  });
+
+  it('weekly pick is deterministic for a seed and returns 1-2 valid ids', () => {
+    const a = pickWeeklyMutators(20260615);
+    const b = pickWeeklyMutators(20260615);
+    expect(a).toEqual(b); // own rng stream → reproducible for everyone that week
+    expect(a.length).toBeGreaterThanOrEqual(1);
+    expect(a.length).toBeLessThanOrEqual(2);
+    for (const id of a) expect(MUTATORS[id]).toBeTruthy();
+  });
+
+  it('weekly rotation is its OWN stream — diverges from the daily set on the same seed', () => {
+    // different salt → the weekly set differs from the daily set across seeds (not a copy).
+    let differ = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      if (JSON.stringify(pickWeeklyMutators(seed)) !== JSON.stringify(pickDailyMutators(seed))) differ++;
+    }
+    expect(differ).toBeGreaterThan(20); // independent rotations, not the same picks
+  });
+
+  it('weekly pick varies across weeks (a fresh set each Monday)', () => {
+    const firsts = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) firsts.add(pickWeeklyMutators(seed)[0]);
+    expect(firsts.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('weeklyMutatorPreview is deterministic and mirrors pickWeeklyMutators', () => {
+    const a = weeklyMutatorPreview(20260615);
+    expect(weeklyMutatorPreview(20260615)).toEqual(a);
+    expect(a.length).toBe(pickWeeklyMutators(20260615).length);
     for (const e of a) {
       expect(e.name.length).toBeGreaterThan(0);
       expect(e.accent).toBeTruthy();

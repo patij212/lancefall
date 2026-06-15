@@ -7,7 +7,8 @@
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // MUST mirror the mode ids in src/modes.ts MODES (the worker can't import the client).
-export const MODES = new Set(['endless', 'arena', 'daily', 'nightmare', 'bossrush', 'longestday']);
+// 'weekly' is the WEEKLY CHALLENGE — a normal (non-daily) board read this-week via scope=weekly.
+export const MODES = new Set(['endless', 'arena', 'daily', 'weekly', 'nightmare', 'bossrush', 'longestday']);
 
 export function sanitizeName(n: unknown): string {
   return (

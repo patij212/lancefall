@@ -44,12 +44,12 @@ import { TRAILS, trailById, trailParticleColor, canUnlockTrail } from './trails'
 import type { TrailDef } from './trails';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
-import { createRng, seedFromDate, dateString } from './rng';
+import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
-import { MODES, modeById, modeRanked, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
+import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
 import type { RunConfig } from './modes';
 import { milestoneAt } from './milestones';
-import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
+import { MUTATORS, pickDailyMutators, pickWeeklyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
 import { HEAT_LEVELS, MAX_HEAT, applyHeatStats, applyHeatConfig } from './heat';
 import { archetypeById } from './archetypes';
@@ -305,7 +305,13 @@ export class Game {
         this.ui.toast(`Daily ${MAX_DAILY_ATTEMPTS}/${MAX_DAILY_ATTEMPTS} today — Endless instead. Come back tomorrow.`);
       }
     }
-    this.seed = challenge ? challenge.seed : cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
+    this.seed = challenge
+      ? challenge.seed
+      : cfg.seedKind === 'date'
+        ? seedFromDate()
+        : cfg.seedKind === 'week'
+          ? seedFromWeek() // WEEKLY CHALLENGE — one week-stable seed for everyone, all week
+          : (Date.now() & 0x7fffffff) || 1;
     this.audio.setMusicVariant(this.seed); // one coherent arena track per run (reads the seed, no rng draw)
     this.world.rng = createRng(this.seed);
     this.world.seed = this.seed; // read-only source for the cipher-lock (no rng draw)
@@ -318,8 +324,12 @@ export class Game {
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
     this.world.shipId = this.save.selectedShip; // cosmetic — drives the hull silhouette + accent
-    // run mutators — the Daily picks a deterministic set from the date seed
-    this.activeMutators = cfg.id === 'daily' ? pickDailyMutators(this.seed) : [];
+    // run mutators — the Daily/Weekly pick a deterministic set from the seed (each its
+    // OWN separate rng stream, so previewing/picking never perturbs the seeded wave stream)
+    this.activeMutators =
+      cfg.id === 'daily' ? pickDailyMutators(this.seed)
+      : cfg.seedKind === 'week' ? pickWeeklyMutators(this.seed)
+      : [];
     this.world.mutatorApply = buildMutatorApply(this.activeMutators);
     this.eliteMods = mutatorElite(this.activeMutators);
     // Heat ascension — stat effects via the postApply capstone, director effects via a cloned cfg
@@ -332,7 +342,8 @@ export class Game {
     // A duel forces the challenger's NG+ too (still gated off date seeds) so it reproduces.
     // runNgPlus is now the single source of truth for both the intensity mul and the HUD.
     const ngLevel = challenge ? (challenge.ngPlus ?? 0) : this.save.ngPlusActive ? this.save.ngPlusLevel : 0;
-    this.runNgPlus = cfg.seedKind !== 'date' ? Math.max(0, Math.min(NG_PLUS.maxLoop, Math.round(ngLevel))) : 0;
+    // NG+ is OFF for ANY seeded mode (Daily/Weekly) so the shared run stays bit-identical for all.
+    this.runNgPlus = !modeSeeded(cfg) ? Math.max(0, Math.min(NG_PLUS.maxLoop, Math.round(ngLevel))) : 0;
     const runMul = ngPlusIntensityMul(effCfg.intensityMul, this.runNgPlus > 0, this.runNgPlus, cfg.seedKind, NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop);
     const runCfg = runMul === effCfg.intensityMul ? effCfg : { ...effCfg, intensityMul: runMul };
     this.world.reset(window.innerWidth, window.innerHeight);
@@ -401,7 +412,7 @@ export class Game {
     this.inChallenge = !!challenge;
     this.challengeTarget = challenge?.score ?? 0;
     this.challengeName = challenge?.name ?? '';
-    this.ghostRace = challenge ?? (cfg.seedKind === 'date' ? this.loadGhost(this.dailyGhostKey(this.seed)) : null);
+    this.ghostRace = challenge ?? (modeSeeded(cfg) ? this.loadGhost(this.seededGhostKey(cfg, this.seed)) : null);
     this.state = 'playing';
     this.ui.show('playing');
     this.ui.setMode(cfg);
@@ -2066,8 +2077,8 @@ export class Game {
       this.ghostRec.wave = wave;
       this.ghostRec.name = this.save.handle || 'YOU';
       this.lastRunGhost = this.ghostRec; // for "challenge a friend"
-      if (this.mode.seedKind === 'date' && !this.inChallenge) {
-        const key = this.dailyGhostKey(this.seed);
+      if (modeSeeded(this.mode) && !this.inChallenge) {
+        const key = this.seededGhostKey(this.mode, this.seed);
         const pb = this.loadGhost(key);
         if (!pb || w.score > pb.score) this.saveGhost(key, this.ghostRec);
       }
@@ -2239,6 +2250,11 @@ export class Game {
 
   private dailyGhostKey(seed: number): string {
     return `lancefall.ghost.daily.${seed}`;
+  }
+  /** PB-ghost localStorage key for a SEEDED run. Namespaced by seedKind so a Weekly's
+   *  Monday-YYYYMMDD seed can never collide with a Daily's YYYYMMDD seed (both are ints). */
+  private seededGhostKey(cfg: RunConfig, seed: number): string {
+    return cfg.seedKind === 'week' ? `lancefall.ghost.weekly.${seed}` : this.dailyGhostKey(seed);
   }
   private loadGhost(key: string): Ghost | null {
     try {

@@ -5,8 +5,8 @@ import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES } fro
 // pure validators it relies on, so the only network-facing component has a regression net.
 
 describe('worker — mode allow-list', () => {
-  it('includes every client mode id incl. the renamed SOLSTICE PROTOCOL (id longestday)', () => {
-    for (const id of ['endless', 'arena', 'daily', 'nightmare', 'bossrush', 'longestday']) {
+  it('includes every client mode id incl. SOLSTICE PROTOCOL (longestday) and the WEEKLY CHALLENGE (weekly)', () => {
+    for (const id of ['endless', 'arena', 'daily', 'weekly', 'nightmare', 'bossrush', 'longestday']) {
       expect(MODES.has(id)).toBe(true);
     }
     expect(MODES.has('totally-fake')).toBe(false);

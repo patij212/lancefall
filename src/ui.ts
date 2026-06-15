@@ -25,7 +25,7 @@ import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, nextModeId } from './modes';
-import { dailyMutatorPreview } from './mutators';
+import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill } from './renderMath';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
@@ -41,7 +41,7 @@ import {
   downloadGif,
 } from './replay';
 import type { RunConfig } from './modes';
-import { dateString, seedFromDate } from './rng';
+import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 
 export interface UICallbacks {
@@ -1309,7 +1309,7 @@ export class UI {
     // submittable mode is also viewable — ARENA + SOLSTICE PROTOCOL were submitted
     // but had no board tab.
     const modes: { id: string; name: string }[] = [
-      { id: 'endless', name: 'ENDLESS' }, { id: 'arena', name: 'ARENA' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' }, { id: 'longestday', name: 'SOLSTICE PROTOCOL' },
+      { id: 'endless', name: 'ENDLESS' }, { id: 'arena', name: 'ARENA' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'weekly', name: 'WEEKLY SIEGE' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' }, { id: 'longestday', name: 'SOLSTICE PROTOCOL' },
     ];
     let curMode = 'endless';
     let curWeekly = false;
@@ -1341,7 +1341,8 @@ export class UI {
     scopeRow.append(allBtn, wkBtn);
     for (const m of modes) {
       const b = el('button', { class: 'btn btn-ghost btn-sm' }, m.name);
-      b.addEventListener('click', () => { curMode = m.id; void load(); });
+      // the WEEKLY SIEGE board is canonically the this-week scope — default to it on select
+      b.addEventListener('click', () => { curMode = m.id; if (m.id === 'weekly') curWeekly = true; void load(); });
       modeRow.append(b);
     }
     body.append(modeRow, scopeRow, listWrap);
@@ -1487,9 +1488,13 @@ export class UI {
         const heat = el('button', { class: 'mode-card-heat' }, save.selectedHeat > 0 ? `🔥 HEAT ${save.selectedHeat}` : '🔥 HEAT');
         heat.addEventListener('click', (e) => { e.stopPropagation(); this.openHeat(); });
         foot.append(heat);
-        if (m.seedKind === 'date') {
-          foot.append(el('span', { class: 'mode-card-seed' }, `seed ${seedFromDate()}`));
-          for (const mut of dailyMutatorPreview(seedFromDate())) {
+        // Daily AND Weekly are seeded → preview the seed + the run's deterministic mutators
+        // (each from its OWN rng stream, so previewing never perturbs the seeded wave stream).
+        if (m.seedKind === 'date' || m.seedKind === 'week') {
+          const seed = m.seedKind === 'week' ? seedFromWeek() : seedFromDate();
+          const muts = m.seedKind === 'week' ? weeklyMutatorPreview(seed) : dailyMutatorPreview(seed);
+          foot.append(el('span', { class: 'mode-card-seed' }, `seed ${seed}`));
+          for (const mut of muts) {
             const chip = el('span', { class: 'mode-card-mut' }, mut.name);
             chip.style.setProperty('--accent', mut.accent);
             foot.append(chip);

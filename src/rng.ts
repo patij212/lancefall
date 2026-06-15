@@ -53,3 +53,27 @@ export function dateString(d: Date = new Date()): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${m}-${day}`;
 }
+
+/** Snap a date to the Monday 00:00 UTC of its week — the WEEKLY-CHALLENGE anchor.
+ *  Pure date math (mirrors the worker's weekStartMs so client + server agree on the
+ *  week boundary): same Monday for everyone all week, a new Monday next week. */
+export function weekStart(d: Date = new Date()): Date {
+  const sinceMonday = (d.getUTCDay() + 6) % 7; // 0=Sun..6=Sat → days since Monday
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - sinceMonday));
+}
+
+/** Integer seed for the WEEKLY CHALLENGE — the week's Monday as YYYYMMDD (UTC).
+ *  Week-stable: constant within a week, changes the next. Reproducible for everyone,
+ *  exactly like seedFromDate but snapped to the week (so the whole world shares one run). */
+export function seedFromWeek(d: Date = new Date()): number {
+  const m = weekStart(d);
+  return m.getUTCFullYear() * 10000 + (m.getUTCMonth() + 1) * 100 + m.getUTCDate();
+}
+
+/** Human-readable YYYY-MM-DD label for the week's Monday (the weekly-challenge anchor). */
+export function weekString(d: Date = new Date()): string {
+  const m = weekStart(d);
+  const mm = String(m.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(m.getUTCDate()).padStart(2, '0');
+  return `${m.getUTCFullYear()}-${mm}-${dd}`;
+}
