@@ -34,7 +34,7 @@ import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMileston
 import { consumeShield, regenShield } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
 import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD } from './tune';
-import { RUN_EVENTS, rollEventChoices, rollEventId } from './events';
+import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
@@ -987,7 +987,11 @@ export class Game {
       this.applyDirector(dec.spawn);
       if (dec.boss) this.spawnWarden(dec.bossKind);
       if (dec.perk) this.pendingDraft = true;
-      if (dec.event && this.mode.rules?.events !== 'none') this.pendingEvent = rollEventId(w.eventRng); // off the seeded wave stream; rules.events:'none' suppresses (zero world.rng either way)
+      if (dec.event && this.mode.rules?.events !== 'none') {
+        // §4 M5 — curated modes (NIGHTMARE/Daily) draw from the high-risk pool; ANY pool
+        // is exactly ONE eventRng draw, so the Daily wave stream stays bit-identical for all.
+        this.pendingEvent = rollEventId(w.eventRng, this.mode.rules?.events === 'curated' ? CURATED_IDS : undefined);
+      }
       if (dec.win) this.winRun();
     }
 

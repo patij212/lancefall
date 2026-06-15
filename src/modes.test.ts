@@ -24,6 +24,15 @@ describe('modes', () => {
     expect(modeById('endless').rules?.scoreFrame).toBeUndefined();
     expect(modeById('daily').rules?.scoreFrame).toBeUndefined();
   });
+
+  it('curated/none events are declared per mode (M5)', () => {
+    expect(modeById('nightmare').rules?.events).toBe('curated');
+    expect(modeById('daily').rules?.events).toBe('curated');
+    expect(modeById('arena').rules?.events).toBe('none');
+    expect(modeById('bossrush').rules?.events).toBe('none');
+    expect(modeById('endless').rules?.events).toBeUndefined();
+    expect(modeById('longestday').rules?.events).toBeUndefined();
+  });
 });
 
 describe('§4 M4 daily best-of-3 attempts', () => {

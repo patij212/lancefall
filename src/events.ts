@@ -115,9 +115,15 @@ export const RUN_EVENTS: Record<RunEventId, RunEventDef> = {
 
 const EVENT_IDS = Object.keys(RUN_EVENTS) as RunEventId[];
 
-/** Pick a weighted-random event id (uniform for now). */
-export function rollEventId(rng: Rng): RunEventId {
-  return EVENT_IDS[Math.floor(rng.next() * EVENT_IDS.length)];
+/** §4 M5 — the curated (high-risk) pool for NIGHTMARE + Daily: only the events that
+ *  carry a real gamble. A subset of EVENT_IDS. */
+export const CURATED_IDS: RunEventId[] = ['gamble', 'eliteWave', 'cursedBargain'];
+
+/** Pick a uniform-random event id from a pool (default = the full set). Draws EXACTLY
+ *  ONE rng.next() regardless of which pool — so curated vs full leaves the rng tail
+ *  identically offset, keeping the Daily bit-identical. */
+export function rollEventId(rng: Rng, pool: RunEventId[] = EVENT_IDS): RunEventId {
+  return pool[Math.floor(rng.next() * pool.length)];
 }
 
 /** Build the 2-3 choices for an event. */

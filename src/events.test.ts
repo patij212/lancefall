@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RUN_EVENTS, rollEventChoices, rollEventId } from './events';
+import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
 import type { RunEventId } from './events';
 import { World } from './world';
 import { createRng } from './rng';
@@ -64,6 +64,22 @@ describe('run events', () => {
     choice(w, 'cursedBargain', 'blood');
     expect(w.shards).toBe(0);
     expect(w.stats.dashDamage).toBe(before + 2);
+  });
+});
+
+describe('§4 M5 curated event pool', () => {
+  it('CURATED_IDS is a non-empty subset of the real event ids', () => {
+    const all = Object.keys(RUN_EVENTS);
+    expect(CURATED_IDS.length).toBeGreaterThan(0);
+    for (const id of CURATED_IDS) expect(all).toContain(id);
+  });
+  it('rollEventId draws exactly ONE rng.next() for ANY pool (Daily tail parity)', () => {
+    const a = createRng(7);
+    const b = createRng(7); // same seed
+    rollEventId(a); // full pool — one draw
+    rollEventId(b, CURATED_IDS); // curated pool — also exactly one draw
+    // both advanced by exactly one next(); the remaining streams must be identical
+    expect([a.next(), a.next(), a.next()]).toEqual([b.next(), b.next(), b.next()]);
   });
 });
 

@@ -50,24 +50,25 @@ export const MODES: RunConfig[] = [
     id: 'arena', name: 'ARENA', desc: '15 hand-built waves + 6 bosses. Clear it to WIN.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
     shieldStart: 70, shieldMax: 0.35, shardMul: 1.1, perks: true, canFail: true, arena: true, bossrush: false,
-    rules: { scoreFrame: 'cleartime' }, // §4 M3 — speedrun/no-hit mastery scoring
+    rules: { scoreFrame: 'cleartime', events: 'none' }, // §4 M3 cleartime + M5 no mid-run events
   },
   {
     id: 'daily', name: 'ECHO OF THE FALL', desc: "One citizen's last memory of the fall — the same seed, the same echo, for everyone today.",
     seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
+    rules: { events: 'curated' }, // §4 M5 — the Daily echo serves the high-risk pool
   },
   {
     id: 'nightmare', name: 'NIGHTMARE', desc: 'Sudden death — the walls close in, no ARMOR. +75% shards.',
     seedKind: 'random', intensityMul: 1.35, spawnMul: 0.8, bossInterval: 55, speedBonus: 0.12,
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
-    rules: { suddenDeath: { afterBoss: 1 } },
+    rules: { suddenDeath: { afterBoss: 1 }, events: 'curated' },
   },
   {
     id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0.06,
     shieldStart: 999, shieldMax: 0, shardMul: 1.3, perks: true, canFail: true, arena: false, bossrush: true,
-    rules: { scoreFrame: 'cleartime' }, // §4 M3 — speedrun/no-hit mastery scoring
+    rules: { scoreFrame: 'cleartime', events: 'none' }, // §4 M3 cleartime + M5 no mid-run events
   },
   {
     id: 'longestday', name: 'THE LONGEST DAY',
