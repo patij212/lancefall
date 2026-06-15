@@ -464,6 +464,23 @@ export const COHERENCE = {
   tierCombo: [10, 20, 35, 50, 75, 100], // combo thresholds → tier 1..6
 } as const;
 
+// THREAT RIM (v6 §7b) — render-only legibility. The global COHERENCE wash uses a
+// 'saturation' blend (it PRESERVES luminance, only pulls hue→gray), so a constant
+// thin HIGH-LUMINANCE neon rim on every enemy + bullet stays a bright readable
+// outline even as the frame desaturates at low combo — while the dark fill still
+// rides the wash. The rim is the threat's own neon colour lifted toward white:
+// neon at high coherence (aesthetic preserved), bright-line legible at low.
+// STEADY (no per-frame envelope) → reduceFlashing/clarity safe; no strobe.
+export const THREAT_RIM = {
+  // 0..1 — how far the rim colour is pushed toward white. Moderate: enough luminance
+  // for the wash to keep a bright legible edge at low combo, but the hue stays clearly
+  // neon (with the saturated additive glow underneath) so the aesthetic isn't flattened.
+  lift: 0.45,
+  bulletLift: 0.4, // bullets already have a white core; a gentler lift keeps their colour-id
+  bulletWidth: 1, // px — bullet rim ring
+  bulletAlpha: 0.85,
+} as const;
+
 // ── PERF — render-only fill-rate gates keyed off the director's perfScale (quality
 //    0.4..1). EVERY value is the FULL-QUALITY default at quality 1, so the look is
 //    bit-identical at full quality; the gates only shed the heaviest GPU ops as the

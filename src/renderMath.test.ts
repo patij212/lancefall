@@ -13,10 +13,20 @@ import {
   beatFlashRing,
   cityMemoryFill,
   spearNeonLift,
+  threatRim,
   nebulaBlobCount,
   bossEntranceBlur,
   allowChromaticAberration,
 } from './renderMath';
+
+// luminance proxy (Rec.601-ish) for the rim-survives-the-wash assertion
+function lum(rgb: string): number {
+  const m = rgb.match(/rgb\((\d+),(\d+),(\d+)\)/)!;
+  const r = +m[1];
+  const g = +m[2];
+  const b = +m[3];
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
 
 describe('renderMath — coherence→render mappings + a11y gates', () => {
   it('C1: beatFlashRing rises with beatFlash, caps alpha (reduceFlashing), freezes radius (reduceMotion), survives all gates', () => {
@@ -54,6 +64,29 @@ describe('renderMath — coherence→render mappings + a11y gates', () => {
     expect(spearNeonLift(0.8, false, false)).toBeGreaterThan(spearNeonLift(0.2, false, false));
     expect(spearNeonLift(1, false, true)).toBe(1); // clarity → full
     expect(spearNeonLift(1, true, false)).toBeLessThan(1); // reduceFlashing caps below full
+  });
+
+  it('§7b: threatRim lifts a neon colour toward white → higher luminance survives the wash, hue kept', () => {
+    const neon = '#ff3b6b'; // a darter pink
+    const rim = threatRim(neon, 0.45);
+    // a constant outline, no a11y/coherence args → it cannot strobe or react to flags
+    expect(rim).toMatch(/^rgb\(\d+,\d+,\d+\)$/);
+    // the rim is BRIGHTER than the raw neon: the 'saturation' wash keeps luminance, so a
+    // higher-luminance edge stays legible even when the frame fully desaturates at low combo
+    expect(lum(rim)).toBeGreaterThan(lum('rgb(255,59,107)'));
+    // t=0 is a no-op (unchanged colour); t=1 is pure white (max luminance)
+    expect(threatRim(neon, 0)).toBe('rgb(255,59,107)');
+    expect(threatRim(neon, 1)).toBe('rgb(255,255,255)');
+    // monotone: more lift → never-darker channels (each rises toward 255)
+    expect(lum(threatRim(neon, 0.6))).toBeGreaterThan(lum(threatRim(neon, 0.2)));
+    // but the hue is PRESERVED (R still the dominant channel for a pink) — not flattened to gray
+    const m = threatRim(neon, 0.45).match(/rgb\((\d+),(\d+),(\d+)\)/)!;
+    expect(+m[1]).toBeGreaterThan(+m[3]); // R > B → still reads pink, not desaturated
+    // out-of-range lift clamps (never NaN / never out of 0..255)
+    expect(threatRim(neon, 2)).toBe('rgb(255,255,255)');
+    expect(threatRim(neon, -1)).toBe('rgb(255,59,107)');
+    // accepts 3-digit hex too
+    expect(threatRim('#fff', 0)).toBe('rgb(255,255,255)');
   });
 
   it('clamp01 + lerp basics', () => {

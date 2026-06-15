@@ -7,6 +7,30 @@ import { COHERENCE as CO, PERF } from './tune';
 export const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
+// ── THREAT RIM (v6 §7b) — a constant bright neon outline that survives the wash ──
+
+/** Lift a neon hex colour toward white by `t` (0 = unchanged, 1 = pure white).
+ *  The COHERENCE wash blends with 'saturation' (LUMINANCE-preserving) so a higher-
+ *  luminance rim reads as a bright thin outline even when the frame fully desaturates
+ *  at low combo, while keeping the original hue (neon) at high coherence. Pure + cached.
+ *  Render-only, determinism-safe (no world.rng). Returns an `rgb(...)` string. */
+const rimCache = new Map<string, string>();
+export function threatRim(hex: string, t: number): string {
+  const k = hex + '|' + t;
+  const hit = rimCache.get(k);
+  if (hit) return hit;
+  const tt = clamp01(t);
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const lift = (v: number): number => Math.round(v + (255 - v) * tt);
+  const out = `rgb(${lift(r)},${lift(g)},${lift(b)})`;
+  rimCache.set(k, out);
+  return out;
+}
+
 // ── PERF gates (perf-only; NOT coherence/a11y). Each returns the FULL-QUALITY value
 //    at quality 1, so the look is unchanged at full quality; only the adaptive
 //    director stepping quality DOWN sheds the heaviest fill-rate ops. ──

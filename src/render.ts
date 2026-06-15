@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, WARDEN, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD } from './tune';
+import { TUNE, COMBO_COLORS, WARDEN, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD, THREAT_RIM } from './tune';
 import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
@@ -25,6 +25,7 @@ import {
   trailBrightness,
   beatFlashRing,
   spearNeonLift,
+  threatRim,
   nebulaBlobCount,
   bossEntranceBlur,
   allowChromaticAberration,
@@ -633,13 +634,24 @@ export class Renderer {
   private drawBullets(world: World): void {
     const ctx = this.bctx;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     world.bullets.forEachActive((b: Bullet) => {
       const glow = this.getGlow(b.color);
       const r = b.radius;
+      ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.85;
       ctx.drawImage(glow, b.x - r * 2.4, b.y - r * 2.4, r * 4.8, r * 4.8);
+      // THREAT RIM (§7b) — a constant thin bright-neon ring at the bullet edge. The
+      // wash is luminance-preserving, so this stays a legible outline at low combo
+      // while the body glow rides the desaturation. Steady (no envelope) → a11y-safe.
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = THREAT_RIM.bulletAlpha;
+      ctx.strokeStyle = threatRim(b.color, THREAT_RIM.bulletLift);
+      ctx.lineWidth = THREAT_RIM.bulletWidth;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+      ctx.stroke();
       // bright high-contrast core so bullets stay readable through bloom
+      ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
@@ -695,7 +707,13 @@ export class Renderer {
     ctx.save();
     ctx.translate(e.x, e.y);
     ctx.lineWidth = opts.colorblind ? 3 : 2;
-    ctx.strokeStyle = baseColor;
+    // THREAT RIM (§7b) — the body OUTLINE is the threat's neon colour lifted toward
+    // white. The COHERENCE wash blends with 'saturation' (luminance-preserving), so
+    // this bright outline stays a legible neon edge even when the frame desaturates
+    // at low combo, while the dark fill rides the wash. A flashing enemy keeps its
+    // white outline (already max-luminance). Steady, no envelope → reduceFlashing /
+    // clarity safe, never strobes. (colorblind already widens lineWidth above.)
+    ctx.strokeStyle = flash ? '#ffffff' : threatRim(e.color, THREAT_RIM.lift);
     ctx.fillStyle = flash ? '#ffffff' : shade(e.color, 0.18);
 
     switch (e.kind) {
