@@ -238,7 +238,10 @@ body {
 }
 .ship-chip {
   --accent: var(--cyan);
-  width: 190px;
+  width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   text-align: left;
   background: var(--bg-raised);
   border: 1px solid var(--border);
@@ -247,10 +250,33 @@ body {
   padding: 12px 14px;
   color: var(--text);
   cursor: pointer;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  transform-origin: center bottom;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.12s ease;
+}
+.ship-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* the silhouette badge — always visible so the whole roster reads at a glance */
+.ship-glyph {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  display: block;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent));
+  transition: transform 0.15s ease;
+  transform-origin: center;
 }
 .ship-chip:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px) scale(1.09);
+  border-color: var(--accent);
+  box-shadow: 0 12px 32px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+  z-index: 3;
+}
+/* hovering a tile expands it AND blows the silhouette up close */
+.ship-chip:hover .ship-glyph {
+  transform: scale(1.32);
 }
 .ship-chip.selected {
   border-color: var(--accent);
@@ -261,6 +287,14 @@ body {
 }
 .ship-chip.locked:hover {
   opacity: 0.85;
+}
+/* reduce-motion: keep the highlight (glow/border) but drop the grow/lift animation */
+.reduce-motion .ship-chip {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.12s ease;
+}
+.reduce-motion .ship-chip:hover,
+.reduce-motion .ship-chip:hover .ship-glyph {
+  transform: none;
 }
 .ship-name {
   font-family: 'Space Grotesk', sans-serif;

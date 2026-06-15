@@ -13,8 +13,7 @@ import { trailById, trailGhostColor } from './trails';
 import type { TrailDef } from './trails';
 import { themeById } from './themes';
 import { shipById } from './ships';
-import { shipModel } from './shipModels';
-import type { Pt } from './shipModels';
+import { shipModel, traceShipPath, drawShipSilhouette } from './shipModels';
 import {
   washSaturation,
   cityGlowAlpha,
@@ -1380,7 +1379,7 @@ export class Renderer {
         ctx.translate(gx, gy);
         ctx.rotate(p.angle);
         ctx.scale(s, s);
-        traceHull(ctx, model.hull, gsr);
+        traceShipPath(ctx, model.hull, gsr);
         ctx.closePath();
         ctx.stroke();
         ctx.restore();
@@ -1461,22 +1460,16 @@ export class Renderer {
     ctx.rotate(p.angle);
     const sr = TUNE.player.spriteRadius * (p.phase === 'charging' ? 1 + 0.06 * Math.sin(p.charge * 30) : 1);
     const invuln = p.iframe > 0 && Math.floor(p.iframe * 40) % 2 === 0;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-    ctx.fillStyle = p.hitFlash > 0 ? '#ffffff' : '#0a0b0f';
-    ctx.strokeStyle = invuln || p.hitFlash > 0 ? '#ffffff' : shipAccent;
-    ctx.lineWidth = 2.5;
-    traceHull(ctx, model.hull, sr);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    // inner accent stroke (spine / bulkhead) — a brighter detail line for character
-    if (model.detail && p.hitFlash <= 0 && !invuln) {
-      ctx.strokeStyle = mix(shipAccent, '#ffffff', 0.45);
-      ctx.lineWidth = 1.4;
-      traceHull(ctx, model.detail, sr);
-      ctx.stroke();
-    }
+    // hit-flash whites out the whole ship; the i-frame blink overrides the outline white.
+    // Otherwise the hull + spine/bulkhead detail + cockpit glint all ride the ship accent.
+    const plain = p.hitFlash <= 0 && !invuln;
+    drawShipSilhouette(ctx, world.shipId, sr, {
+      fill: p.hitFlash > 0 ? '#ffffff' : '#0a0b0f',
+      stroke: invuln || p.hitFlash > 0 ? '#ffffff' : shipAccent,
+      lineWidth: 2.5,
+      detail: plain ? mix(shipAccent, '#ffffff', 0.45) : null,
+      core: plain ? mix(shipAccent, '#ffffff', 0.6) : null,
+    });
     ctx.restore();
   }
 
@@ -1655,14 +1648,6 @@ function poly(ctx: CanvasRenderingContext2D, pts: [number, number][]): void {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-}
-
-/** Trace a ship-model path (points in sprite-radius units) scaled by `sr`, leaving the
- *  path OPEN — the caller closes it for a filled hull or strokes it for a detail line. */
-function traceHull(ctx: CanvasRenderingContext2D, pts: ReadonlyArray<Pt>, sr: number): void {
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0] * sr, pts[0][1] * sr);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * sr, pts[i][1] * sr);
 }
 
 function ngon(ctx: CanvasRenderingContext2D, n: number, r: number): void {

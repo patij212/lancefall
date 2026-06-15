@@ -18,6 +18,7 @@ import { leaderboardEnabled, fetchLeaderboard } from './api';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
 import { SHIPS } from './ships';
+import { drawShipSilhouette } from './shipModels';
 import { THEMES } from './themes';
 import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
@@ -1127,10 +1128,17 @@ export class UI {
       const selected = save.selectedShip === ship.id;
       const chip = el('button', { class: 'ship-chip' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
       chip.style.setProperty('--accent', ship.accent);
+      const glyph = el('canvas', { class: 'ship-glyph' }) as HTMLCanvasElement;
+      this.paintShipGlyph(glyph, ship.id, ship.accent);
       chip.append(
-        el('div', { class: 'ship-name' }, ship.name),
-        el('div', { class: 'ship-desc' }, ship.desc),
-        el('div', { class: 'ship-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : `◆ ${ship.unlockShards.toLocaleString()}`),
+        glyph,
+        el(
+          'div',
+          { class: 'ship-info' },
+          el('div', { class: 'ship-name' }, ship.name),
+          el('div', { class: 'ship-desc' }, ship.desc),
+          el('div', { class: 'ship-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : `◆ ${ship.unlockShards.toLocaleString()}`),
+        ),
       );
       chip.title = ship.desc;
       chip.addEventListener('click', () => {
@@ -1210,6 +1218,37 @@ export class UI {
       this.modeGrid.append(card);
     }
     this.playBtn.title = 'Play ' + modeById(save.selectedMode).name;
+  }
+
+  /** Paint a ship's silhouette into its select-chip canvas (nose-up, in its accent), so
+   *  the whole roster reads at a glance and a hovered tile shows the model up close. */
+  private paintShipGlyph(canvas: HTMLCanvasElement, shipId: string, accent: string): void {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const size = 80; // logical draw area; CSS displays it smaller so it stays crisp when hover-scaled
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.translate(size / 2, size / 2);
+    ctx.rotate(-Math.PI / 2); // nose up, like a ship in a hangar
+    const r = size * 0.42;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    g.addColorStop(0, accent + '4d');
+    g.addColorStop(1, accent + '00');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    drawShipSilhouette(ctx, shipId, size * 0.27, {
+      fill: '#0a0b0f',
+      stroke: accent,
+      lineWidth: 2,
+      detail: accent,
+      core: '#eaf2ff',
+    });
   }
 
   /** §5 U2 — step the selected mode-card left/right (keyboard/gamepad), persist, focus it. */

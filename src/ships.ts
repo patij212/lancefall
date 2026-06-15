@@ -68,7 +68,7 @@ export const SHIPS: ShipDef[] = [
     id: 'phantom',
     name: 'PHANTOM',
     desc: 'Knife-edge. Huge dash, fastest regen, +speed — but a SINGLE stamina segment.',
-    accent: '#f472b6',
+    accent: '#c084fc',
     unlockShards: 4500,
     apply: (s) => {
       s.staminaSegments = Math.max(1, s.staminaSegments - 2); // knife-edge: base 3 → 1
