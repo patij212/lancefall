@@ -23,6 +23,11 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+      - name: Install leaderboard worker deps (for its own @cloudflare/workers-types)
+        run: npm install --no-audit --no-fund
+        working-directory: worker
+      - name: Typecheck the leaderboard worker
+        run: npx tsc --noEmit -p worker/tsconfig.json
       - name: Audio provenance / loop / budget gate
         run: npm run audio:validate
       - name: Install Playwright Chromium
