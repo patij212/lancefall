@@ -13,6 +13,22 @@ LANCEFALL is the playground's first **juicy real-time action game** — Geometry
 
 ---
 
+## ✨ What's new in v6 — THE FULL PASS
+
+A coordinated pass over every gameplay/UX system, sitting *underneath* the cipher narrative — the dial that binds sight, sound and meaning now actually reads on screen, the waves breathe, the modes finally feel different, and a death isn't always the end.
+
+- 🪢 **COHERENCE binding layer** — the soul dial now speaks in legible, a11y-safe beat-grade feedback: a graded on-beat dash lights a localized cyan/gold ring around your ship, flashes a HUD beat-pip, and pops "ON BEAT"/"PERFECT" — all player-anchored so they survive the frame-wide wash gates, with the one whole-screen effect (the felt FALL) dying under reduce-flashing, reduce-motion, and Clarity.
+- 💔 **The felt FALL** — a dead combo chain now lurches the saturation wash *down* through the dial's own threshold (edge-triggered, never per-frame) and the narrator reframes it as the city forgetting a street; rebuilding the chain lights the lights back. A City Memory HUD meter and a coherence-bound spear that brightens with your momentum make the dial readable at a glance.
+- 🌃 **Dash-on-the-beat teacher** — for a new player's first three descents the beat-ring auto-shows and a one-time "dash ON THE BEAT" nudge fires the first time they nail it, then retires — a soft teach, never a flipped default.
+- 🌊 **Longer-wave endless director** — the opening wave is now ~70s, and each inter-boss wave builds to a crescendo via a stretch-swell keyed off *time remaining* (so the peak lands at the boss for any 70–120s wave), then breathes: a post-boss payoff lull keeps chaff off your reward, and a pre-boss calm lets each boss roar into a clean arena. The swell densifies cadence only — never speed — and never breaches the concurrency cap.
+- 🔗 **Richer combo economy** — chains now survive lulls, boss fights, and clean dashes: grazing floors the decay window and trickles a fractional combo charge, the kill window *grows* with your streak (hot runs are more forgiving), a clean multi-kill dash buys extra grace on landing, and chipping a boss sustains the combo.
+- 🎛️ **ModeRules — the 6 modes finally differ** — declarative per-mode rules give ARENA and BOSS RUSH cleartime + flawless (no-hit) completion scoring, turn NIGHTMARE into sudden death where the arena walls close in per boss and the ARMOR cushion is stripped, cap the Daily at a best-of-3 attempts, and serve NIGHTMARE/Daily a curated high-risk event pool — all routed through a separate event RNG stream so the Daily's waves stay bit-identical for everyone.
+- 🎮 **Select-then-PLAY title** — every mode is now a selectable card you navigate with arrows or a d-pad; the selected card shows a Heat chip plus, for the Daily, its seed and a read-only mutator preview; one PLAY launches your persisted choice, and touch targets are sized for thumbs.
+- 🛡️ **ARMOR survivability cushion** — a per-run shield buffer (shown as HUD pips) absorbs a would-be-lethal hit *before* LAST BREATH, shoving nearby bullets aside to open an escape lane rather than clearing the screen; clearing a boss regenerates one shield, and the Heat ladder strips shields as a new "shields lost" column for the true one-hit veteran tier.
+- 🧬 **INSPECT a build + nemesis debrief** — paste a friend's Build DNA code to read back exactly what they ran (ship, Heat, perks, fusions, relics), the WARDEN grows a telegraphed gold rear weak-point you flank for ×3 damage, and the game-over screen now names the boss you keep falling to.
+
+---
+
 ## The hook
 
 You don't shoot. You **dash**.
