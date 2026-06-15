@@ -123,6 +123,10 @@ export const TUNE = {
     stretchWindow: 18, // D2: seconds before the boss over which the swell builds; keyed off REMAINING time so the peak lands at the boss for any wave length (70..120s)
     bossLull: 3.5, // D3: seconds of no chaff spawns after a boss dies, so the gem/power-up/perk payoff isn't stepped on
     preBossCalm: 1.5, // D3: seconds before a scheduled boss with spawns suppressed, so it roars into a clean arena
+    // v6 §4 M2 — NIGHTMARE sudden death: the arena walls close in per boss (a FRACTION
+    // per side derived from bossCount, never pixels), capped so it never gets unfair
+    suddenDeathInsetPerBoss: 0.06, // safe zone closes this fraction per side, each boss past afterBoss
+    suddenDeathInsetMax: 0.3, // cap per side → the safe zone never drops below 40% width/height
     spawnTelegraph: 0.4, // seconds an incoming-arrow shows before a spawn
     enemySpeedRamp: 0.3, // effective = base*(0.85 + 0.30*clamp(I,0,1))... handled in code
     bulletSpeedRamp: 0.3,

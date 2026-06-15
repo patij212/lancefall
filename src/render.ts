@@ -197,6 +197,7 @@ export class Renderer {
     bctx.translate(-cam.leanX, -cam.leanY);
 
     this.drawGrid(bctx);
+    this.drawSuddenDeath(world);
     this.drawGems(world);
     this.drawPowerups(world);
     this.drawParticlesBelow(world);
@@ -496,6 +497,28 @@ export class Renderer {
     ctx.strokeStyle = 'rgba(120,140,200,0.25)';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, this.w - 2, this.h - 2);
+    ctx.restore();
+  }
+
+  /** §4 M2 — the NIGHTMARE sudden-death walls: a red danger band + border at the
+   *  shrinking safe zone (world-space, exactly matching the player clamp). Static, no
+   *  flash/animation, so it is reduce-motion/reduce-flashing safe by construction. */
+  private drawSuddenDeath(world: World): void {
+    if (world.sdInset <= 0) return;
+    const ctx = this.bctx;
+    const w = world.width;
+    const h = world.height;
+    const ix = w * world.sdInset;
+    const iy = h * world.sdInset;
+    ctx.save();
+    ctx.fillStyle = 'rgba(239,68,68,0.10)';
+    ctx.fillRect(0, 0, w, iy); // top band
+    ctx.fillRect(0, h - iy, w, iy); // bottom band
+    ctx.fillRect(0, iy, ix, h - 2 * iy); // left band
+    ctx.fillRect(w - ix, iy, ix, h - 2 * iy); // right band
+    ctx.strokeStyle = 'rgba(239,68,68,0.7)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(ix, iy, w - 2 * ix, h - 2 * iy);
     ctx.restore();
   }
 

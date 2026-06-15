@@ -57,9 +57,10 @@ export const MODES: RunConfig[] = [
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
   },
   {
-    id: 'nightmare', name: 'NIGHTMARE', desc: 'Faster, denser, deadlier. +75% shards.',
+    id: 'nightmare', name: 'NIGHTMARE', desc: 'Sudden death — the walls close in, no ARMOR. +75% shards.',
     seedKind: 'random', intensityMul: 1.35, spawnMul: 0.8, bossInterval: 55, speedBonus: 0.12,
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
+    rules: { suddenDeath: { afterBoss: 1 } },
   },
   {
     id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',

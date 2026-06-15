@@ -14,6 +14,7 @@ import {
   Director,
   stretchSwell,
   preBossSilent,
+  suddenDeathInset,
 } from './waves';
 import { createRng } from './rng';
 import { modeById, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
@@ -244,6 +245,26 @@ describe('D2 stretch swell', () => {
     const mid = stretchSwell(W / 2);
     expect(mid).toBeGreaterThan(1);
     expect(mid).toBeLessThan(PEAK);
+  });
+});
+
+describe('§4 M2 sudden-death inset', () => {
+  const SD = { suddenDeath: { afterBoss: 1 } };
+  it('is 0 without a rules block or without suddenDeath (every non-NIGHTMARE mode)', () => {
+    expect(suddenDeathInset(5)).toBe(0);
+    expect(suddenDeathInset(5, { events: 'normal' })).toBe(0);
+  });
+  it('is 0 until the afterBoss threshold', () => {
+    expect(suddenDeathInset(0, SD)).toBe(0);
+  });
+  it('closes by insetPerBoss each boss, capped at insetMax', () => {
+    const d = TUNE.director;
+    expect(suddenDeathInset(1, SD)).toBeCloseTo(d.suddenDeathInsetPerBoss);
+    expect(suddenDeathInset(2, SD)).toBeCloseTo(2 * d.suddenDeathInsetPerBoss);
+    expect(suddenDeathInset(1000, SD)).toBe(d.suddenDeathInsetMax);
+  });
+  it('is a pure function of bossCount (reads no pixels/DPR)', () => {
+    expect(suddenDeathInset(3, SD)).toBe(suddenDeathInset(3, SD));
   });
 });
 

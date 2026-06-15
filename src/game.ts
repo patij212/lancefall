@@ -13,7 +13,7 @@ import { AudioEngine } from './audio';
 import { Scheduler } from './scheduler';
 import { Shake } from './shake';
 import { Director } from './waves';
-import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, shieldChance, ELITE_KINDS } from './waves';
+import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, shieldChance, ELITE_KINDS, suddenDeathInset } from './waves';
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
@@ -338,6 +338,11 @@ export class Game {
     // ARMOR shields for the run (v6 §7) — from the derived stat (Heat strips it)
     this.world.player.shields = this.world.stats.baseShields;
     this.world.player.maxShields = this.world.stats.baseShields;
+    // §4 M2 — NIGHTMARE sudden death strips the ARMOR cushion (the true one-hit veteran tier)
+    if (this.mode.rules?.suddenDeath) {
+      this.world.player.shields = 0;
+      this.world.player.maxShields = 0;
+    }
     this.applySettings(this.settings);
     this.director.configure(runCfg);
     this.winning = false;
@@ -918,7 +923,9 @@ export class Game {
     // player
     resetEvents(this.ev);
     const wasCharging = w.player.phase === 'charging';
-    updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev, this.settings.dashStyle === 'slingshot');
+    // §4 M2 — NIGHTMARE sudden death: the safe zone shrinks per boss (pure fn of bossCount)
+    w.sdInset = suddenDeathInset(this.director.bossCount, this.mode.rules);
+    updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev, this.settings.dashStyle === 'slingshot', w.sdInset);
     this.handlePlayerEvents(wasCharging);
 
     // dash + afterimage hits (share one hash rebuild).

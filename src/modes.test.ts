@@ -12,6 +12,11 @@ describe('modes', () => {
     expect(MODES.length).toBe(6);
     expect(MODES.map((m) => m.id)).toContain('longestday');
   });
+
+  it('NIGHTMARE carries the sudden-death rule; others do not (M2)', () => {
+    expect(modeById('nightmare').rules?.suddenDeath?.afterBoss).toBe(1);
+    expect(modeById('endless').rules).toBeUndefined();
+  });
 });
 
 describe('modeBrief', () => {

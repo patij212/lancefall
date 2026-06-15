@@ -7,7 +7,7 @@ import { TUNE, ELITE } from './tune';
 import { clamp, lerp } from './vec';
 import type { Rng } from './rng';
 import type { EnemyKind } from './types';
-import type { RunConfig } from './modes';
+import type { RunConfig, ModeRules } from './modes';
 import { MODES, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
 
 /** Intensity I(t): ramps 0→1 over rampSeconds, then keeps climbing, unbounded. */
@@ -50,6 +50,19 @@ export function stretchSwell(remaining: number): number {
  *  so the boss roars into a clean arena. Pure function of the remaining time. */
 export function preBossSilent(remaining: number): boolean {
   return remaining < TUNE.director.preBossCalm;
+}
+
+/** §4 M2 sudden death — how far the arena walls have closed in (a FRACTION per side,
+ *  0..suddenDeathInsetMax) given the boss count. Pure fn of SIM STATE (bossCount) —
+ *  reads no pixels/DPR — so it shrinks identically for every player. 0 without a
+ *  rules.suddenDeath block (every non-NIGHTMARE mode) = today's full arena exactly. */
+export function suddenDeathInset(bossCount: number, rules?: ModeRules): number {
+  const sd = rules?.suddenDeath;
+  if (!sd) return 0;
+  const after = sd.afterBoss ?? 0;
+  if (bossCount < after) return 0;
+  const d = TUNE.director;
+  return Math.min(d.suddenDeathInsetMax, (bossCount - after + 1) * d.suddenDeathInsetPerBoss);
 }
 
 export function enemySpeedMul(I: number): number {

@@ -138,6 +138,7 @@ export class World {
   collectStreak = 0;
   collectStreakTimer = 0;
   time = 0;
+  sdInset = 0; // §4 M2 sudden-death safe-zone inset (fraction per side); render reads it
 
   stacks: PerkStacks = {};
   /** evolutions taken this run — fusion capstones built on top of perks */
@@ -241,6 +242,7 @@ export class World {
     this.collectStreak = 0;
     this.collectStreakTimer = 0;
     this.time = 0;
+    this.sdInset = 0;
     this.stacks = {};
     this.evolutions = [];
     this.relics = [];

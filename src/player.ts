@@ -35,6 +35,7 @@ export function updatePlayer(
   height: number,
   ev: PlayerEvents,
   slingshot = false,
+  insetFrac = 0,
 ): void {
   const max = maxStamina(stats.staminaSegments);
 
@@ -89,7 +90,7 @@ export function updatePlayer(
     } else if (p.phase === 'charging' && !input.dashHeld) {
       // released → fire
       if (canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
-        fireDash(p, aimAngle, input, stats, width, height, ev, slingshot);
+        fireDash(p, aimAngle, input, stats, width, height, ev, slingshot, insetFrac);
       } else {
         p.phase = 'idle';
         ev.denied = true;
@@ -104,20 +105,22 @@ export function updatePlayer(
     p.regenDelay = r.regenDelay;
   }
 
-  // hard walls
+  // hard walls — sudden death (M2) closes them in by insetFrac per side (0 = full arena)
   const rad = p.radius + 4;
-  if (p.x < rad) {
-    p.x = rad;
+  const ix = width * insetFrac;
+  const iy = height * insetFrac;
+  if (p.x < ix + rad) {
+    p.x = ix + rad;
     if (p.vx < 0) p.vx = 0;
-  } else if (p.x > width - rad) {
-    p.x = width - rad;
+  } else if (p.x > width - ix - rad) {
+    p.x = width - ix - rad;
     if (p.vx > 0) p.vx = 0;
   }
-  if (p.y < rad) {
-    p.y = rad;
+  if (p.y < iy + rad) {
+    p.y = iy + rad;
     if (p.vy < 0) p.vy = 0;
-  } else if (p.y > height - rad) {
-    p.y = height - rad;
+  } else if (p.y > height - iy - rad) {
+    p.y = height - iy - rad;
     if (p.vy > 0) p.vy = 0;
   }
 }
@@ -131,6 +134,7 @@ function fireDash(
   height: number,
   ev: PlayerEvents,
   slingshot: boolean,
+  insetFrac: number,
 ): void {
   const len = slingshot ? slingshotLen(p.charge, stats.dashLenMul) : chargeToLen(p.charge) * stats.dashLenMul;
   const dx = Math.cos(aimAngle);
@@ -140,8 +144,10 @@ function fireDash(
   let toX = p.x + dx * len;
   let toY = p.y + dy * len;
   const rad = p.radius + 4;
-  toX = clamp(toX, rad, width - rad);
-  toY = clamp(toY, rad, height - rad);
+  const ix = width * insetFrac;
+  const iy = height * insetFrac;
+  toX = clamp(toX, ix + rad, width - ix - rad);
+  toY = clamp(toY, iy + rad, height - iy - rad);
   p.dashToX = toX;
   p.dashToY = toY;
   p.dashDirX = dx;
