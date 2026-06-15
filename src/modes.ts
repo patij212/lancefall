@@ -92,6 +92,16 @@ export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note:
   return { tier, reward, note };
 }
 
+export const MAX_DAILY_ATTEMPTS = 3;
+
+/** §4 M4 — Daily best-of-3. Given today's date, the stored attempt-date + count, return
+ *  the attempts USED today (0 if the stored date isn't today → a fresh day) and whether
+ *  the player is locked out (used >= MAX). Pure — the daily seed is never touched. */
+export function rollDailyAttempt(today: string, lastDate: string, attempts: number): { attempts: number; locked: boolean } {
+  const used = lastDate === today ? attempts : 0;
+  return { attempts: used, locked: used >= MAX_DAILY_ATTEMPTS };
+}
+
 export type ArenaWave =
   | { kind: 'wave'; budget: number; enemies: EnemyKind[] }
   | { kind: 'boss'; boss: EnemyKind };

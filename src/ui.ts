@@ -22,7 +22,7 @@ import { THEMES } from './themes';
 import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
-import { MODES, modeById, modeBrief } from './modes';
+import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS } from './modes';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
@@ -86,6 +86,8 @@ export interface GameOverInfo {
   mutators: { name: string; accent: string }[];
   clearTime?: number; // §4 M3 — set on a winnable-mode victory (cleartime scoring)
   hitsTaken?: number; // §4 M3 — would-be-fatal hits this run (0 = flawless)
+  dailyAttempt?: number; // §4 M4 — which best-of-3 daily attempt this run was (1..3)
+  dailyAttemptsMax?: number;
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft' | 'event';
@@ -1089,11 +1091,13 @@ export class UI {
     this.ngBtn.classList.toggle('btn-primary', save.ngPlusActive);
     this.ngBtn.textContent = save.ngPlusActive ? `★ NG+${save.ngPlusLevel}` : `NG+${save.ngPlusLevel} off`;
 
-    // daily challenge caption — today's seed + your best for it
+    // daily challenge caption — today's seed + your best + best-of-3 attempts
     let daily = `Echo of the Fall · ${dateString()}`;
     if (save.dailySeed === seedFromDate() && save.dailyBest > 0) {
       daily += ` · your best ${save.dailyBest.toLocaleString()}`;
     }
+    const dUsed = save.dailyAttemptDate === dateString() ? save.dailyAttempts : 0;
+    daily += dUsed >= MAX_DAILY_ATTEMPTS ? ` · ${MAX_DAILY_ATTEMPTS}/${MAX_DAILY_ATTEMPTS} done today` : ` · Attempt ${dUsed + 1}/${MAX_DAILY_ATTEMPTS}`;
     this.dailyCaption.textContent = daily;
 
     this.shipRow.replaceChildren();
@@ -1263,6 +1267,9 @@ export class UI {
     if (info.won && info.clearTime !== undefined) {
       goStats.push(stat('clear time', formatTime(info.clearTime)));
       goStats.push(stat('flawless', info.hitsTaken === 0 ? 'YES ✦' : `${info.hitsTaken} hits`));
+    }
+    if (info.dailyAttempt !== undefined) {
+      goStats.push(stat('attempt', `${info.dailyAttempt}/${info.dailyAttemptsMax ?? MAX_DAILY_ATTEMPTS}`));
     }
     this.goStats.replaceChildren(...goStats);
     this.goBuild.replaceChildren(

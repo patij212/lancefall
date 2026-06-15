@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief } from './modes';
+import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -23,6 +23,20 @@ describe('modes', () => {
     expect(modeById('bossrush').rules?.scoreFrame).toBe('cleartime');
     expect(modeById('endless').rules?.scoreFrame).toBeUndefined();
     expect(modeById('daily').rules?.scoreFrame).toBeUndefined();
+  });
+});
+
+describe('§4 M4 daily best-of-3 attempts', () => {
+  it('resets the used count on a new day', () => {
+    expect(rollDailyAttempt('2026-06-15', '2026-06-14', 3)).toEqual({ attempts: 0, locked: false });
+    expect(rollDailyAttempt('2026-06-15', '', 0)).toEqual({ attempts: 0, locked: false });
+  });
+  it('reads the stored count on the same day', () => {
+    expect(rollDailyAttempt('2026-06-15', '2026-06-15', 1)).toEqual({ attempts: 1, locked: false });
+  });
+  it('locks once MAX_DAILY_ATTEMPTS are used today', () => {
+    expect(rollDailyAttempt('2026-06-15', '2026-06-15', MAX_DAILY_ATTEMPTS).locked).toBe(true);
+    expect(rollDailyAttempt('2026-06-15', '2026-06-15', MAX_DAILY_ATTEMPTS - 1).locked).toBe(false);
   });
 });
 

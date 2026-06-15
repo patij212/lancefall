@@ -44,7 +44,7 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString } from './rng';
 import { evaluate as evalAchievements } from './achievements';
-import { MODES, modeById } from './modes';
+import { MODES, modeById, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
 import type { RunConfig } from './modes';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
@@ -291,6 +291,16 @@ export class Game {
     this.mode = cfg;
     const challenge = this.pendingChallenge;
     this.pendingChallenge = null;
+    // §4 M4 — Daily best-of-3: once today's 3 attempts are used, lock the Daily and run
+    // Endless instead (a duel is exempt; it never counts toward the attempt budget).
+    if (cfg.id === 'daily' && !challenge) {
+      const r = rollDailyAttempt(dateString(), this.save.dailyAttemptDate, this.save.dailyAttempts);
+      if (r.locked) {
+        cfg = modeById('endless');
+        this.mode = cfg;
+        this.ui.toast(`Daily ${MAX_DAILY_ATTEMPTS}/${MAX_DAILY_ATTEMPTS} today — Endless instead. Come back tomorrow.`);
+      }
+    }
     this.seed = challenge ? challenge.seed : cfg.seedKind === 'date' ? seedFromDate() : (Date.now() & 0x7fffffff) || 1;
     this.audio.setMusicVariant(this.seed); // one coherent arena track per run (reads the seed, no rng draw)
     this.world.rng = createRng(this.seed);
@@ -1962,6 +1972,11 @@ export class Game {
         }
         this.save.dailyBest = Math.max(this.save.dailyBest, w.score);
         this.save.dailyMutators = this.activeMutators.slice();
+        // §4 M4 — count this attempt (best-of-3); dailyBest above already keeps the best
+        const today = dateString();
+        const r = rollDailyAttempt(today, this.save.dailyAttemptDate, this.save.dailyAttempts);
+        this.save.dailyAttemptDate = today;
+        this.save.dailyAttempts = r.attempts + 1;
       }
       saveSave(this.save);
     }
@@ -2008,6 +2023,8 @@ export class Game {
       canReplay: this.replay.hasClip(),
       clearTime: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.clearTime : undefined,
       hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
+      dailyAttempt: this.mode.id === 'daily' && !this.inChallenge ? this.save.dailyAttempts : undefined,
+      dailyAttemptsMax: MAX_DAILY_ATTEMPTS,
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
