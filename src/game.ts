@@ -43,7 +43,7 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString } from './rng';
 import { evaluate as evalAchievements } from './achievements';
-import { MODES } from './modes';
+import { MODES, modeById } from './modes';
 import type { RunConfig } from './modes';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
@@ -190,6 +190,7 @@ export class Game {
       onBuyMeta: (id) => this.buyMeta(id),
       onHeatChange: (level) => this.setHeat(level),
       onArchetypeChange: (id) => this.setArchetype(id),
+      onSelectMode: (id) => this.selectMode(id),
       onSetHandle: (name) => this.setHandle(name),
     });
 
@@ -684,6 +685,12 @@ export class Game {
     this.ui.refreshTitle(this.save);
   }
 
+  private selectMode(id: string): void {
+    this.save.selectedMode = modeById(id).id; // normalize/reject junk ids
+    saveSave(this.save);
+    this.ui.refreshTitle(this.save);
+  }
+
   private setHandle(name: string): void {
     this.save.handle = name.replace(/[^\w \-]/g, '').slice(0, 16).trim();
     saveSave(this.save);
@@ -879,7 +886,7 @@ export class Game {
   private handleMeta(): void {
     const inp = this.input.state;
     if (this.state === 'title') {
-      if (this.input.consumeStart()) this.start(MODES[0]);
+      if (this.input.consumeStart()) this.start(modeById(this.save.selectedMode)); // launch the persisted mode (parity with PLAY)
     } else if (this.state === 'playing') {
       if (inp.pausePressed) this.pause();
       if (inp.overdrivePressed && canActivate(this.world.overdrive)) this.activateBurst();

@@ -487,6 +487,56 @@ body {
   padding: 9px 16px;
 }
 
+/* ── v6 §5 mode-select cards (title) ── */
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 760px;
+  margin: 10px auto 0;
+}
+.mode-card {
+  --accent: var(--cyan);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg-raised);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.mode-card:hover { transform: translateY(-3px); }
+.mode-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-raised));
+}
+.mode-card-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+}
+.mode-card-tier {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin: 2px 0 4px;
+}
+.mode-card-desc { font-size: 11px; color: var(--text-muted); line-height: 1.35; min-height: 44px; }
+.mode-card-reward {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  margin-top: 6px;
+}
+@media (max-width: 640px) {
+  .mode-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ── Perk draft ── */
 .draft-head {
   color: var(--cyan);
@@ -1349,6 +1399,7 @@ body {
 .reduce-motion .hud-combo,
 .reduce-motion .hud-combo.break,
 .reduce-motion .perk-card,
+.reduce-motion .mode-card,
 .reduce-motion .toast {
   animation: none !important;
   transition: none !important;

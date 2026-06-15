@@ -79,6 +79,16 @@ export function modeById(id: string): RunConfig {
   return MODES.find((m) => m.id === id) ?? ENDLESS;
 }
 
+/** v6 §5 — a short difficulty/reward brief derived purely from a RunConfig, for the
+ *  title mode-cards. A display heuristic ONLY — keep OUT of tune.ts and any sim path. */
+export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note: string } {
+  const d = cfg.intensityMul * (1 / cfg.spawnMul) * (1 + cfg.speedBonus);
+  const tier = d >= 1.3 ? 'BRUTAL' : d >= 1.1 ? 'HARD' : 'STANDARD';
+  const reward = `×${cfg.shardMul} shards`;
+  const note = cfg.arena || cfg.bossrush ? 'WINNABLE' : cfg.cipherLock ? 'CIPHER' : cfg.seedKind === 'date' ? 'SEEDED' : '';
+  return { tier, reward, note };
+}
+
 export type ArenaWave =
   | { kind: 'wave'; budget: number; enemies: EnemyKind[] }
   | { kind: 'boss'; boss: EnemyKind };

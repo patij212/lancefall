@@ -22,7 +22,7 @@ import { THEMES } from './themes';
 import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
-import { MODES, modeById } from './modes';
+import { MODES, modeById, modeBrief } from './modes';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
@@ -57,6 +57,7 @@ export interface UICallbacks {
   onAcceptChallenge: (code: string) => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
+  onSelectMode: (id: string) => void;
   onSetHandle: (name: string) => void;
 }
 
@@ -164,6 +165,8 @@ export class UI {
   private themeRow!: HTMLElement;
   private trailRow!: HTMLElement;
   private shardLine!: HTMLElement;
+  private modeGrid!: HTMLElement;
+  private playBtn!: HTMLButtonElement;
 
   // gameover refs
   private goScore!: HTMLElement;
@@ -280,17 +283,14 @@ export class UI {
     const subtitle = el('p', { class: 'title-sub' }, 'THE LAST KEY');
     const tagline = el('p', { class: 'title-tag' }, 'break the code. bring back the day.');
     const play = el('button', { class: 'btn btn-primary btn-play' }, 'PLAY');
-    play.title = 'Endless mode';
-    play.addEventListener('click', () => this.cb.onStart(modeById('endless')));
-    // mode row: every mode except endless (the big PLAY button)
-    const modeRow = el('div', { class: 'mode-row' });
-    for (const m of MODES) {
-      if (m.id === 'endless') continue;
-      const b = el('button', { class: 'btn btn-ghost btn-mode' }, m.name);
-      b.title = m.desc;
-      b.addEventListener('click', () => this.cb.onStart(m));
-      modeRow.append(b);
-    }
+    this.playBtn = play;
+    play.addEventListener('click', () => {
+      const s = this.saveRef;
+      this.cb.onStart(modeById(s ? s.selectedMode : 'endless'));
+    });
+    // mode grid: every mode is a selectable card; the one PLAY launches the persisted
+    // choice. Populated in refreshTitle (needs save.selectedMode for the .selected highlight).
+    this.modeGrid = el('div', { class: 'mode-grid', role: 'group', 'aria-label': 'Select game mode' });
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
     settingsBtn.addEventListener('click', () => this.openSettings());
     const upgradesBtn = el('button', { class: 'btn btn-ghost' }, 'UPGRADES');
@@ -347,7 +347,7 @@ export class UI {
       subtitle,
       tagline,
       play,
-      modeRow,
+      this.modeGrid,
       row,
       this.dailyCaption,
       shipSection,
@@ -1132,6 +1132,24 @@ export class UI {
       });
       this.trailRow.append(sw);
     }
+
+    // v6 §5 — mode-cards: every mode selectable + persisted; the one PLAY launches it.
+    this.modeGrid.replaceChildren();
+    for (const m of MODES) {
+      const selected = save.selectedMode === m.id;
+      const brief = modeBrief(m);
+      const card = el('button', { class: 'mode-card' + (selected ? ' selected' : ''), 'aria-pressed': String(selected) });
+      card.append(
+        el('div', { class: 'mode-card-name' }, m.name),
+        el('div', { class: 'mode-card-tier' }, `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`),
+        el('div', { class: 'mode-card-desc' }, m.desc),
+        el('div', { class: 'mode-card-reward' }, brief.reward),
+      );
+      card.title = m.desc;
+      card.addEventListener('click', () => this.cb.onSelectMode(m.id));
+      this.modeGrid.append(card);
+    }
+    this.playBtn.title = 'Play ' + modeById(save.selectedMode).name;
   }
 
   hideSoundHint(): void {
