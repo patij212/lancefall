@@ -160,6 +160,9 @@ export const EVOLUTIONS: Record<EvolutionId, EvolutionDef> = {
     ],
     apply: (s) => {
       s.dashShatterRadius += 40;
+      // the walking fortress shatters real boss fire: a generous per-dash budget so a
+      // dash through a pattern actually opens a lane (still finite — not an eraser).
+      s.dashShatterBossBudget += 4;
       s.staminaSegments += 1;
       s.regenPerSec += 15;
       s.grazeRadius += 20;

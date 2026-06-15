@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { deriveStats, applyPerk, rollDraft, PERKS } from './perks';
 import type { PerkStacks } from './perks';
 import { createRng } from './rng';
-import { TUNE } from './tune';
+import { TUNE, RIPOSTE } from './tune';
+import { EVOLUTIONS } from './evolutions';
 
 describe('deriveStats', () => {
   it('returns base stats with no perks', () => {
@@ -66,6 +67,25 @@ describe('deriveStats', () => {
     expect(deriveStats({}).dashShatterRadius).toBe(0);
     expect(deriveStats({ reflect: 1 }).dashShatterRadius).toBe(22);
     expect(deriveStats({ reflect: 2 }).dashShatterRadius).toBe(36);
+  });
+
+  it('Riposte grants a per-dash BOSS-bullet shatter budget that grows per stack', () => {
+    // the fix: Riposte now bites the actual threat (boss shots), not just chaff
+    expect(deriveStats({}).dashShatterBossBudget).toBe(0);
+    expect(deriveStats({ reflect: 1 }).dashShatterBossBudget).toBe(RIPOSTE.bossShatterPerDash);
+    expect(deriveStats({ reflect: 2 }).dashShatterBossBudget).toBe(
+      RIPOSTE.bossShatterPerDash + RIPOSTE.bossShatterPerStack,
+    );
+    // it's a finite lane-carver, never a boss-pattern eraser
+    expect(deriveStats({ reflect: 2 }).dashShatterBossBudget).toBeLessThan(10);
+  });
+
+  it('AEGIS evolution deepens the BOSS-bullet shatter budget (the walking fortress)', () => {
+    const apply = EVOLUTIONS.aegis.apply;
+    const base = deriveStats({ reflect: 2, secondwind: 2 });
+    const evolved = deriveStats({ reflect: 2, secondwind: 2 }, undefined, undefined, apply);
+    expect(evolved.dashShatterBossBudget).toBeGreaterThan(base.dashShatterBossBudget);
+    expect(evolved.dashShatterRadius).toBeGreaterThan(base.dashShatterRadius);
   });
 });
 

@@ -401,6 +401,28 @@ export const OVERDRIVE = {
   slowmoHold: 1.8, // seconds of slow-mo on activation
 };
 
+// RIPOSTE (the `reflect` perk) — the defensive pick. The dash spear shatters
+// enemy bullets in a band around it. CHAFF shots break for free (unlimited),
+// but BOSS shots — the actual threat — are capped to a small per-dash BUDGET so
+// it carves a survivable lane through a boss pattern without erasing it (that's
+// what OVERDRIVE / COMBO ERUPTION are for). The budget grows by 1 per stack.
+export const RIPOSTE = {
+  bossShatterPerDash: 2, // boss bullets a single dash may shatter (×1 stack)
+  bossShatterPerStack: 1, // +N per additional stack
+  shatterScore: 2, // score per chaff bullet shattered
+  bossShatterScore: 8, // score per BOSS bullet shattered (the clutch reward)
+} as const;
+
+// SHARD CACHE (the `shardcache` card) — the only card offered when every real
+// perk is maxed, so it must be a genuine reward, not dead filler. It banks a
+// flat shard boon (× shardMul) AND a combo-scaled score windfall (× combo mult ×
+// scoreMul, like every other bonus) AND refills stamina — a small, satisfying
+// "cash out" that rewards a maxed build instead of wasting the draft.
+export const SHARDCACHE = {
+  score: 1500, // base score windfall (× combo mult × scoreMul)
+  shards: 60, // shards banked (× shardMul)
+} as const;
+
 // CLUTCH MOMENTS — two systems that turn a near-death and a hot streak into a
 // thrill: LAST BREATH (an automatic bullet-time second wind — it doesn't save
 // you, it gives you the time to save yourself) and COMBO ERUPTION (combo

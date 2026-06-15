@@ -35,7 +35,7 @@ import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOv
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD } from './tune';
+import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE } from './tune';
 import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -63,7 +63,7 @@ import {
   buildShareString,
 } from './save';
 import type { SaveData, Settings } from './save';
-import type { Enemy, EnemyKind } from './types';
+import type { Enemy, EnemyKind, Bullet } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash, coherenceEdges } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
@@ -132,6 +132,7 @@ export class Game {
   private lastTime = 0;
   private candidates: Enemy[] = [];
   private chainBuf: Enemy[] = []; // separate buffer so chain explosions don't clobber the dash-hit loop
+  private riposteBossBuf: Bullet[] = []; // boss bullets a Riposte dash intersects, sorted then spent against the budget
   private dashSlowmoTriggered = false;
   private dying = false;
   private dyingTimer = 0;
@@ -528,8 +529,13 @@ export class Game {
       this.shake.add(0.35);
       this.audio.bossStinger();
     } else if (card.id === 'shardcache') {
-      w.score += 200;
-      w.shards += 50;
+      // a genuine cash-out, not dead filler: a combo-scaled score windfall + a real
+      // shard boon + a stamina top-up for breathing room. Honors scoreMul / shardMul
+      // like every other economy source. Deterministic — no rng.
+      w.score += Math.round(SHARDCACHE.score * comboMultiplier(w.combo) * w.stats.scoreMul);
+      w.shards += Math.round(SHARDCACHE.shards * w.stats.shardMul);
+      w.player.stamina = w.stats.staminaSegments * TUNE.stamina.perSegment;
+      this.ui.toast(`SHARD CACHE BANKED`);
     } else {
       applyPerk(w.stacks, card.id);
       w.recomputeStats();
@@ -1223,17 +1229,41 @@ export class Game {
       w.cipherKeyDashId = p.dashId;
       this.keyCipherCore(cipherBest);
     }
-    // Riposte: shatter enemy bullets along the spear (boss shots stay lethal)
+    // Riposte: shatter enemy bullets along the spear. CHAFF shots break for free;
+    // BOSS shots — the actual threat — break too, but only up to a small per-dash
+    // budget (it carves a lane through a boss pattern, it doesn't erase it). The
+    // budget is spent nearest-first so the dash clears the shots most in your way.
     if (w.stats.dashShatterRadius > 0) {
       const br = r + w.stats.dashShatterRadius;
+      let bossBudget = w.stats.dashShatterBossBudget;
+      const bossHits: Bullet[] = this.riposteBossBuf;
+      bossHits.length = 0;
       w.bullets.forEachActive((b) => {
-        if (b.fromBoss) return;
-        if (segCircleHit(ax, ay, bx, by, b.x, b.y, b.radius, br)) {
-          w.particles.burst(b.x, b.y, 2, b.color);
-          w.score += 2;
+        if (!segCircleHit(ax, ay, bx, by, b.x, b.y, b.radius, br)) return;
+        if (b.fromBoss) {
+          if (bossBudget > 0) bossHits.push(b); // defer: spend the budget nearest-first
+          return;
+        }
+        w.particles.burst(b.x, b.y, 2, b.color);
+        w.score += RIPOSTE.shatterScore;
+        w.bullets.release(b);
+      });
+      if (bossBudget > 0 && bossHits.length > 0) {
+        // nearest the dash origin first — clears the shots most in the player's path
+        bossHits.sort(
+          (p1, p2) =>
+            (p1.x - ax) * (p1.x - ax) + (p1.y - ay) * (p1.y - ay) -
+            ((p2.x - ax) * (p2.x - ax) + (p2.y - ay) * (p2.y - ay)),
+        );
+        for (const b of bossHits) {
+          if (bossBudget <= 0) break;
+          if (!b.active) continue;
+          bossBudget--;
+          w.particles.burst(b.x, b.y, 4, b.color);
+          w.score += RIPOSTE.bossShatterScore;
           w.bullets.release(b);
         }
-      });
+      }
     }
     // trigger slow-mo once per dash on big chains
     if (!this.dashSlowmoTriggered && shouldSlowmo(p.killsThisDash)) {

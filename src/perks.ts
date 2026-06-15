@@ -3,7 +3,7 @@
 // derived purely from a stack-count record so the result is deterministic and
 // testable.
 
-import { TUNE, SURVIVAL } from './tune';
+import { TUNE, SURVIVAL, RIPOSTE } from './tune';
 import type { Rng } from './rng';
 
 export type PerkId =
@@ -136,7 +136,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   reflect: {
     id: 'reflect',
     name: 'Riposte',
-    desc: 'Your dash shatters enemy bullets in its path (boss shots excepted).',
+    desc: 'Your dash shatters enemy bullets in its path — including a few boss shots per dash.',
     accent: '#60a5fa',
     glyph: 'reflect',
     maxStacks: 2,
@@ -144,7 +144,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
   shardcache: {
     id: 'shardcache',
     name: 'Shard Cache',
-    desc: 'A burst of bonus score. (No perks left to offer.)',
+    desc: 'Cash out: bonus score, a stash of shards, and a full stamina refill.',
     accent: '#8b8d97',
     glyph: 'gem',
     maxStacks: 99,
@@ -176,6 +176,7 @@ export interface RunStats {
   comboWindowBonus: number; // extra seconds on the combo decay window
   dashNovaRadius: number; // 0 = no nova; shockwave radius on dash launch
   dashShatterRadius: number; // 0 = off; extra band around the spear that destroys enemy bullets
+  dashShatterBossBudget: number; // 0 = off; max BOSS bullets a single dash may shatter (Riposte)
   dashCostMul: number; // multiplier on dash stamina cost (base 1; relics/mutators tweak)
   fogRadius: number; // 0 = off; fog-of-war visibility radius (fog-of-war mutator)
   // meta-progression / economy
@@ -224,6 +225,7 @@ export function deriveStats(
     comboWindowBonus: 0,
     dashNovaRadius: 0,
     dashShatterRadius: 0,
+    dashShatterBossBudget: 0,
     dashCostMul: 1,
     fogRadius: 0,
     scoreMul: 1,
@@ -276,7 +278,13 @@ export function deriveStats(
   if (nv > 0) s.dashNovaRadius = 90 + 30 * (nv - 1);
 
   const rf = stacks.reflect ?? 0;
-  if (rf > 0) s.dashShatterRadius = 22 + 14 * (rf - 1); // widens the bullet-shatter band per stack
+  if (rf > 0) {
+    s.dashShatterRadius = 22 + 14 * (rf - 1); // widens the bullet-shatter band per stack
+    // Riposte now bites the actual threat: each dash may shatter a small, capped
+    // number of BOSS bullets too (chaff stays unlimited). Budget grows per stack so
+    // it carves a lane through a boss pattern without erasing it.
+    s.dashShatterBossBudget = RIPOSTE.bossShatterPerDash + RIPOSTE.bossShatterPerStack * (rf - 1);
+  }
 
   if (evoApply) evoApply(s); // evolutions build on top of perks
   if (postApply) postApply(s); // relics + heat — the final capstone, after evolutions
