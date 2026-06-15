@@ -86,6 +86,13 @@ describe('unlock pacing', () => {
     expect(unlockedKinds(20)).toContain('orbiter');
     expect(unlockedKinds(50)).toContain('splitter');
     expect(unlockedKinds(90)).toContain('bloomer');
+    // v6 D5: opening unlocks pulled earlier (orbiter 18→15, splitter 45→35, lancer 60→50)
+    expect(unlockedKinds(15)).toContain('orbiter');
+    expect(unlockedKinds(14)).not.toContain('orbiter');
+    expect(unlockedKinds(35)).toContain('splitter');
+    expect(unlockedKinds(34)).not.toContain('splitter');
+    expect(unlockedKinds(50)).toContain('lancer');
+    expect(unlockedKinds(49)).not.toContain('lancer');
     expect(unlockedKinds(110)).not.toContain('brooder'); // not yet at t=110
     expect(unlockedKinds(125)).toContain('brooder'); // unlocks at t=120
   });

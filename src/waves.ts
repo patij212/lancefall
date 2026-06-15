@@ -73,9 +73,9 @@ export const ELITE_KINDS: ReadonlySet<EnemyKind> = new Set<EnemyKind>([
 /** Which archetypes are unlocked by elapsed time (stealth tutorial pacing). */
 export function unlockedKinds(t: number): EnemyKind[] {
   const out: EnemyKind[] = ['darter'];
-  if (t >= 18) out.push('orbiter');
-  if (t >= 45) out.push('splitter');
-  if (t >= 60) out.push('lancer');
+  if (t >= 15) out.push('orbiter');
+  if (t >= 35) out.push('splitter');
+  if (t >= 50) out.push('lancer');
   if (t >= 75) out.push('drifter');
   if (t >= 85) out.push('bloomer');
   if (t >= 95) out.push('herald');

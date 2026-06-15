@@ -25,7 +25,7 @@ export interface RunConfig {
 
 const ENDLESS: RunConfig = {
   id: 'endless', name: 'ENDLESS', desc: 'Survive as long as you can. The classic.',
-  seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
+  seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
   shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
 };
 
@@ -38,12 +38,12 @@ export const MODES: RunConfig[] = [
   },
   {
     id: 'daily', name: 'ECHO OF THE FALL', desc: "One citizen's last memory of the fall — the same seed, the same echo, for everyone today.",
-    seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
+    seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
   },
   {
     id: 'nightmare', name: 'NIGHTMARE', desc: 'Faster, denser, deadlier. +75% shards.',
-    seedKind: 'random', intensityMul: 1.35, spawnMul: 0.8, bossInterval: 35, speedBonus: 0.12,
+    seedKind: 'random', intensityMul: 1.35, spawnMul: 0.8, bossInterval: 55, speedBonus: 0.12,
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
   },
   {

@@ -15,7 +15,7 @@ export interface Biome {
   shieldBonus: number; // added to the shielded-variant chance
 }
 
-export const BIOME_DURATION = 45; // seconds per biome before cycling
+export const BIOME_DURATION = 70; // seconds per biome before cycling — locked to TUNE.director.bossInterval (keep aligned)
 
 export const BIOMES: Biome[] = [
   {
