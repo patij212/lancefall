@@ -8,7 +8,7 @@ describe('modes', () => {
     expect(modeById('bogus').id).toBe('endless'); // junk → fallback, never throws
   });
 
-  it('has the 6 expected modes incl. THE LONGEST DAY', () => {
+  it('has the 6 expected modes incl. SOLSTICE PROTOCOL (id longestday)', () => {
     expect(MODES.length).toBe(6);
     expect(MODES.map((m) => m.id)).toContain('longestday');
   });

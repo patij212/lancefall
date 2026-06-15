@@ -901,7 +901,7 @@ export class UI {
       rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
       rule('Bosses', 'Dash through the safe gaps. THE SOVEREIGN is the master cipher — its CORES are a keypad; dash them in the order the CIPHER readout shows to crack it open, then punish the exposed crown'),
-      rule('Cipher', 'A cipher-locked boss is armored until you break its code: read the CIPHER readout and dash its glyph cores in that order. A wrong key just fizzles — your progress is kept, so wait for a safe lane and read the next glyph. (Every boss is a cipher in THE LONGEST DAY.)'),
+      rule('Cipher', 'A cipher-locked boss is armored until you break its code: read the CIPHER readout and dash its glyph cores in that order. A wrong key just fizzles — your progress is kept, so wait for a safe lane and read the next glyph. (Every boss is a cipher in SOLSTICE PROTOCOL.)'),
       rule('Perks', 'Pick a perk every few waves. They STACK — that is the snowball'),
       rule('Unlocks', 'Spend shards on ships + palettes + dash trails; beat the Sovereign for the gold CROWN trail'),
     );
@@ -1027,10 +1027,10 @@ export class UI {
     const scopeRow = el('div', { class: 'leader-modes' });
     const listWrap = el('div', { class: 'leader-list' }, el('div', { class: 'event-flavor' }, 'Loading…'));
     // must mirror src/modes.ts MODES (and the worker's MODES allow-set) so every
-    // submittable mode is also viewable — ARENA + THE LONGEST DAY were submitted
+    // submittable mode is also viewable — ARENA + SOLSTICE PROTOCOL were submitted
     // but had no board tab.
     const modes: { id: string; name: string }[] = [
-      { id: 'endless', name: 'ENDLESS' }, { id: 'arena', name: 'ARENA' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' }, { id: 'longestday', name: 'THE LONGEST DAY' },
+      { id: 'endless', name: 'ENDLESS' }, { id: 'arena', name: 'ARENA' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' }, { id: 'longestday', name: 'SOLSTICE PROTOCOL' },
     ];
     let curMode = 'endless';
     let curWeekly = false;

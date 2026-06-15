@@ -2206,7 +2206,7 @@ export class Game {
     const w = this.world;
     // bossCount is the true boss-appearance ordinal in every mode (drives HP scaling)
     const boss = spawnBoss(w, this.director.bossCount, force);
-    // THE LONGEST DAY: wrap ring-cipher bosses in a code-lock (the Sovereign arms
+    // SOLSTICE PROTOCOL: wrap ring-cipher bosses in a code-lock (the Sovereign arms
     // its own in spawnBoss; the Hollow/Mirrorblade are already their own puzzles)
     if (boss && this.mode.cipherLock && bossUsesRingCipher(boss.kind)) spawnCipherRing(w, boss, CIPHER.ringCount);
     this.audio.bossWarn();

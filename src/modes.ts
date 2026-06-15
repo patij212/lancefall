@@ -35,7 +35,7 @@ export interface RunConfig {
   canFail: boolean;
   arena: boolean; // scripted finite winnable gauntlet
   bossrush: boolean; // the bosses back-to-back
-  cipherLock?: boolean; // ring-cipher bosses (Warden/Weaver/Beacon) armored until decoded — THE LONGEST DAY
+  cipherLock?: boolean; // ring-cipher bosses (Warden/Weaver/Beacon) armored until decoded — SOLSTICE PROTOCOL
   rules?: ModeRules; // v6 §4: optional declarative mode rules; absent = today's behavior
 }
 
@@ -72,8 +72,8 @@ export const MODES: RunConfig[] = [
     rules: { scoreFrame: 'cleartime', events: 'none' }, // §4 M3 cleartime + M5 no mid-run events
   },
   {
-    id: 'longestday', name: 'THE LONGEST DAY',
-    desc: 'Every boss is a cipher. Break the code, bring the light back — to the longest day.',
+    id: 'longestday', name: 'SOLSTICE PROTOCOL',
+    desc: 'Every boss is a cipher. Read the key, break the code, and bring back the longest day.',
     seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 38, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
