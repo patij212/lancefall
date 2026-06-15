@@ -125,6 +125,7 @@ export const TUNE = {
     maxConcurrentEnd: 26,
     maxConcurrentCap: 40,
     bossInterval: 70, // length of WAVE 1 — ~70s of non-boss play before the first boss (time-driven modes; biome cadence locks to this)
+    milestoneInterval: 5, // ENDLESS depth: every Nth wave is a NAMED milestone with an on-screen callout (a next-goal pull). PURE fn of wave count → determinism-safe (no rng touched)
     waveExtend: 15, // each consecutive inter-boss wave is this many seconds longer than the last…
     waveLenMax: 120, // …capped here, so a marathon run keeps a steady boss drumbeat instead of 4-minute waves
     bossBreather: 7, // keep a mid-run EVENT off the very frame a boss dies (its timer is wall-clock)

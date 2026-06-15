@@ -47,6 +47,7 @@ import { createRng, seedFromDate, dateString } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES, modeById, modeRanked, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
 import type { RunConfig } from './modes';
+import { milestoneAt } from './milestones';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
 import { HEAT_LEVELS, MAX_HEAT, applyHeatStats, applyHeatConfig } from './heat';
@@ -108,6 +109,7 @@ export class Game {
   private winning = false;
   private winTimer = 0;
   private biomeIndex = -1;
+  private milestoneWave = 0; // last wave we fired an ENDLESS milestone callout for (edge guard)
   private biomeSpeedMul = 1;
   private biomeShield = 0;
   private deathCause = 'a bullet';
@@ -375,6 +377,7 @@ export class Game {
     this.director.configure(runCfg);
     this.winning = false;
     this.biomeIndex = -1;
+    this.milestoneWave = 0; // re-arm the ENDLESS milestone callout edge for the new run
     this.setBiome(0, false); // first biome, no banner at run start
     // clear any lingering juice/input state so a run never starts frozen,
     // mid-slow-mo, mid-charge-tone, or auto-charging from a held key
@@ -1077,6 +1080,7 @@ export class Game {
         this.pendingEvent = rollEventId(w.eventRng, this.mode.rules?.events === 'curated' ? CURATED_IDS : undefined);
       }
       if (dec.win) this.winRun();
+      this.checkMilestone();
     }
 
     // OVERDRIVE meter/cooldown ticks
@@ -2303,6 +2307,25 @@ export class Game {
     if (boss?.kind === 'sovereign') {
       w.particles.floatText(w.width / 2, w.height / 2 + 90, 'SHATTER THE CORES', '#fde047', 1.2);
     }
+  }
+
+  // ENDLESS depth — a named milestone callout every Nth wave gives an open-ended run a
+  // near horizon to chase. The milestone is a PURE FUNCTION of the wave count (milestoneAt),
+  // drawing ZERO rng, so it never touches the seeded wave stream (Daily stays deterministic).
+  // Time-driven modes only: the scripted Arena/Boss Rush already have their own wave structure
+  // and a finite win state, so a milestone banner there would just be noise. The `milestoneWave`
+  // guard fires the callout once per wave (the director re-evaluates wave every frame).
+  private checkMilestone(): void {
+    if (this.mode.arena || this.mode.bossrush) return;
+    const wave = this.director.wave;
+    if (wave <= this.milestoneWave) return; // not a new wave since the last callout
+    const m = milestoneAt(wave);
+    if (!m) return;
+    this.milestoneWave = wave;
+    this.ui.announce(`◆ ${m.title}`, m.accent);
+    this.narrateOne('toast', `WAVE ${wave} — ${m.line}`);
+    // a static color fade only when flashing is allowed (mirrors the biome banner)
+    if (!this.settings.reduceFlashing) this.renderer.flash(m.accent, 0.1);
   }
 
   private setBiome(index: number, announce: boolean): void {
