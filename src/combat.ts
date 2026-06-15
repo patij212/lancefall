@@ -37,9 +37,14 @@ export function tickCombo(
   return { combo, timer: t, broke: false };
 }
 
-/** Register a kill: bump combo and refresh the decay window. */
+/** Register a kill: bump combo and refresh the decay window. The window GROWS
+ *  with the streak (longer chains earn more grace), capped at windowMax — so a
+ *  hot run is more forgiving than a cold one. windowPerCombo applies to the
+ *  JUST-EARNED kill (next), and the test mirrors that exact choice. */
 export function registerKill(combo: number): { combo: number; timer: number } {
-  return { combo: combo + 1, timer: TUNE.combo.window };
+  const next = combo + 1;
+  const timer = Math.min(TUNE.combo.window + next * TUNE.combo.windowPerCombo, TUNE.combo.windowMax);
+  return { combo: next, timer };
 }
 
 /** Hitstop duration (seconds) for a dash that killed `killsThisDash` enemies. */

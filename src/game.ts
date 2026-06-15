@@ -1008,6 +1008,10 @@ export class Game {
         w.ghostTimer = w.stats.afterimageSec;
         w.ghostDashId = p.dashId;
       }
+      // B3: a clean multi-kill dash buys grace — extend the combo window on landing.
+      if (p.killsThisDash >= 2 && w.combo > 0) {
+        w.comboTimer = Math.max(w.comboTimer, TUNE.combo.window + p.killsThisDash * TUNE.combo.chainWindowBonus);
+      }
     }
   }
 
@@ -1140,6 +1144,9 @@ export class Game {
         this.shake.add(0.04);
         // impact spark — feedback that the spear bit a tanky/elite enemy
         this.world.particles.burst(e.x, e.y, e.elite ? 8 : 5, e.elite ? ELITE.aura : '#ffffff');
+        // B4: chipping a boss/tanky enemy with the spear sustains the combo (refresh only, no increment).
+        if (this.world.combo > 0)
+          this.world.comboTimer = Math.max(this.world.comboTimer, TUNE.combo.bossSustainWindow);
       }
       return;
     }
@@ -1571,6 +1578,17 @@ export class Game {
     const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
     p.stamina = Math.min(max, p.stamina + w.stats.grazeStaminaRefund);
     w.score += Math.round(grazeScore(w.combo) * w.stats.scoreMul);
+    // B1: grazing keeps the chain alive — floor the window + trickle a fractional
+    // combo charge (skill expression feeds the combo, and thus the COHERENCE bloom).
+    if (w.combo > 0) {
+      w.comboTimer = Math.max(w.comboTimer, TUNE.combo.grazeRefreshWindow);
+      w.comboGrazeCharge += TUNE.combo.grazePerGraze;
+      if (w.comboGrazeCharge >= 1) {
+        w.comboGrazeCharge -= 1;
+        w.combo += 1;
+        if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
+      }
+    }
     if (w.stats.grazeComboBonus > 0 && w.combo > 0) w.comboTimer += w.stats.grazeComboBonus;
     w.particles.graze(b.x, b.y);
     this.audio.graze();

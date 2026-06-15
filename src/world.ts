@@ -120,6 +120,7 @@ export class World {
   score = 0;
   combo = 0;
   comboTimer = 0;
+  comboGrazeCharge = 0; // B1: fractional combo charge from grazes (+1 combo at 1.0); pure state, no rng
   bestComboRun = 0;
   lastTierAnnounced = 0; // highest combo-tier milestone shown this chain
   shards = 0;
@@ -211,6 +212,7 @@ export class World {
     this.score = 0;
     this.combo = 0;
     this.comboTimer = 0;
+    this.comboGrazeCharge = 0;
     this.bestComboRun = 0;
     this.lastTierAnnounced = 0;
     this.shards = 0;

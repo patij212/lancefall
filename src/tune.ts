@@ -45,6 +45,13 @@ export const TUNE = {
     window: 1.5, // seconds before combo decays
     multPerCombo: 0.1, // score multiplier = 1 + combo*0.1
     multCap: 12, // cap on multiplier
+    // ── v6 combo economy: chains survive lulls, boss fights, and clean dashes ──
+    grazeRefreshWindow: 1.0, // B1: floor the decay window on a graze while combo>0 (Math.max, never shortens)
+    grazePerGraze: 0.34, // B1: fractional comboGrazeCharge per graze; +1 combo at 1.0 (~3 grazes)
+    windowPerCombo: 0.03, // B2: extra decay-window seconds per combo (registerKill)
+    windowMax: 3.0, // B2: cap on the dynamic decay window
+    chainWindowBonus: 0.25, // B3: per-kill bonus to the post-landing window when a dash chained >=2
+    bossSustainWindow: 1.2, // B4: floor the window when a dash chips (hp>0) a boss/tanky enemy
   },
 
   graze: {

@@ -48,10 +48,15 @@ describe('slow-mo trigger', () => {
 });
 
 describe('combo decay', () => {
-  it('registerKill bumps combo and refreshes the window', () => {
+  it('registerKill bumps combo and grows the window with the streak', () => {
     const r = registerKill(4);
     expect(r.combo).toBe(5);
-    expect(r.timer).toBe(TUNE.combo.window);
+    // the window grows with the just-earned kill (next = 5), capped at windowMax
+    expect(r.timer).toBe(Math.min(TUNE.combo.window + 5 * TUNE.combo.windowPerCombo, TUNE.combo.windowMax));
+  });
+
+  it('clamps the dynamic combo window at windowMax', () => {
+    expect(registerKill(1000).timer).toBe(TUNE.combo.windowMax);
   });
 
   it('ticks down and breaks when the timer expires', () => {
