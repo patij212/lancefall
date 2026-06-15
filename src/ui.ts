@@ -30,7 +30,7 @@ import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
-import { ciphertext } from './cipher';
+import { decodeView } from './cipherDecode';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate } from './rng';
 import { TUNE } from './tune';
@@ -901,7 +901,7 @@ export class UI {
       rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
       rule('Bosses', 'Dash through the safe gaps. THE SOVEREIGN is the master cipher — its CORES are a keypad; dash them in the order the CIPHER readout shows to crack it open, then punish the exposed crown'),
-      rule('Cipher', 'A cipher-locked boss is armored until you break its code: read the CIPHER readout and dash its glyph cores in that order. A wrong key just fizzles — your progress is kept, so wait for a safe lane and read the next glyph. (Every boss is a cipher in SOLSTICE PROTOCOL.)'),
+      rule('Cipher', 'A cipher-locked boss is armored until you BREAK its code: READ THE KEY — the legend maps each ciphered symbol to a letter — then dash the cores whose symbols spell the message, in order. A wrong key just fizzles (progress is kept), so wait for a safe lane and read the next symbol. (Every boss is a cipher in SOLSTICE PROTOCOL.)'),
       rule('Perks', 'Pick a perk every few waves. They STACK — that is the snowball'),
       rule('Unlocks', 'Spend shards on ships + palettes + dash trails; beat the Sovereign for the gold CROWN trail'),
     );
@@ -1479,17 +1479,31 @@ export class UI {
     this.odWrap.classList.toggle('od-ready', ready);
     this.odLabel.textContent = od.cooldown > 0 ? `FADING ${Math.ceil(od.cooldown)}s` : ready ? 'DAYBREAK READY [F]' : 'DAYBREAK';
 
-    // CIPHER-LOCK readout — the glyph sequence to dash, with progress
+    // READ THE KEY — the substitution decode (an ode to Turing, *played*). Show the plaintext
+    // MESSAGE you're decrypting + the KEY (letter ↔ ciphered symbol); the player reads the key
+    // and dashes the core showing the next letter's symbol. The next pair is lit as the crib.
     const cipher = world.cipher;
     if (cipher && !cipher.solved) {
-      const ct = ciphertext(cipher);
+      const v = decodeView(cipher);
+      const cls = (i: number) => (i < v.progress ? ' done' : i === v.progress ? ' next' : '');
       this.cipherEl.replaceChildren(
-        el('span', { class: 'cipher-label' }, 'CIPHER'),
-        ...ct.map((g, i) =>
-          el(
-            'span',
-            { class: 'cipher-glyph' + (i < cipher.progress ? ' done' : i === cipher.progress ? ' next' : '') },
-            String(g + 1),
+        el('span', { class: 'cipher-label' }, 'READ THE KEY'),
+        el(
+          'div',
+          { class: 'cipher-msg' },
+          ...v.plaintext.map((ltr, i) => el('span', { class: 'cipher-glyph' + cls(i) }, ltr)),
+        ),
+        el(
+          'div',
+          { class: 'cipher-key' },
+          ...v.key.map((k, i) =>
+            el(
+              'span',
+              { class: 'cipher-pair' + cls(i) },
+              el('span', { class: 'cipher-plain' }, k.plain),
+              el('span', { class: 'cipher-eq' }, '→'),
+              el('span', { class: 'cipher-sym' }, k.cipher),
+            ),
           ),
         ),
       );

@@ -14,6 +14,7 @@ import type { TrailDef } from './trails';
 import { themeById } from './themes';
 import { shipById } from './ships';
 import { shipModel, traceShipPath, drawShipSilhouette } from './shipModels';
+import { cipherSymbol } from './cipherDecode';
 import {
   washSaturation,
   cityGlowAlpha,
@@ -46,6 +47,7 @@ export interface RenderOpts {
   beatPhase: number; // 0..1 within the current beat (drives the ring radius)
   slingshot: boolean; // slingshot dash style → draw the load tether while charging
   firstLight: number; // 0..1 — FIRST LIGHT victory day-wash (the sun returns on a win)
+  cipherAssist: boolean; // re-light the next cipher core (Casual / opt-in decode assist)
 }
 
 export class Renderer {
@@ -78,6 +80,7 @@ export class Renderer {
   private reduceFlashingR = false;
   private slingshotR = false;
   private firstLightR = 0; // FIRST LIGHT victory day-wash (0..1), set per frame from the win cinematic
+  private cipherAssistR = false; // re-light the next cipher core (Casual / opt-in decode assist)
   private ghostX: number | null = null;
   private ghostY = 0;
   private towers: { x: number; w: number; h: number; band: number }[] = [];
@@ -186,6 +189,7 @@ export class Renderer {
     this.colorblindR = opts.colorblind;
     this.slingshotR = opts.slingshot;
     this.firstLightR = opts.firstLight;
+    this.cipherAssistR = opts.cipherAssist;
     // ── draw the world to the buffer ──
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.globalCompositeOperation = 'source-over';
@@ -1258,29 +1262,30 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
     ctx.fill();
-    // CIPHER glyph — the symbol the player reads off the HUD and dashes in order
+    // CIPHER core — shows the ciphered SYMBOL. The player READS the substitution key on the
+    // HUD to find the next core (no give-away highlight — decoding IS the act). Keyed cores go
+    // green; cores already ruled out by a wrong dash this round get a struck-through tint.
     const cipher = this.cipher;
     if (cipher && !cipher.solved) {
       const slot = e.phase;
       const glyph = cipher.glyphs[slot] ?? slot;
       const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed
-      const isNext = cipher.order[cipher.progress] === slot; // the core to dash now
-      // The NEXT core gets a bright, thick, STATIC white ring (no motion → a11y-safe)
-      // so the target is obvious under fire; keyed cores go green, the rest amber.
+      // `cipherAssist` (Casual / opt-in) re-lights the next core for players who want help
+      const isNext = this.cipherAssistR && cipher.order[cipher.progress] === slot;
       ctx.save();
       ctx.lineWidth = isNext ? 3.5 : 2;
       ctx.globalAlpha = 0.9;
-      ctx.strokeStyle = keyed ? '#34d399' : isNext ? '#ffffff' : 'rgba(253,224,71,0.5)';
+      ctx.strokeStyle = keyed ? '#34d399' : isNext ? '#ffffff' : 'rgba(253,224,71,0.6)';
       ctx.beginPath();
       ctx.arc(0, 0, r * (isNext ? 1.7 : 1.5), 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
       ctx.save();
       ctx.fillStyle = keyed ? '#34d399' : '#0b0e17';
-      ctx.font = `bold ${Math.round(r * 0.85)}px 'Space Grotesk', system-ui, sans-serif`;
+      ctx.font = `bold ${Math.round(r * 0.8)}px 'Space Grotesk', system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(String(glyph + 1), 0, 0);
+      ctx.fillText(cipherSymbol(glyph), 0, 0);
       ctx.restore();
     }
   }

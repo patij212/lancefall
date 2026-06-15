@@ -937,6 +937,7 @@ export class Game {
       beatPhase: this.beat.beatPhase(),
       slingshot: this.settings.dashStyle === 'slingshot',
       firstLight: flT * flT * (3 - 2 * flT),
+      cipherAssist: this.settings.rhythmAssist, // assist players (incl. Casual) get the next-core ring
     });
     if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density, this.coherence.value);
 

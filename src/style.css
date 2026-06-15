@@ -976,6 +976,55 @@ body {
   color: #fff;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
 }
+/* READ THE KEY — message (plaintext) over the substitution key legend */
+.hud-cipher {
+  flex-direction: column;
+  align-items: center;
+}
+.cipher-msg,
+.cipher-key {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.cipher-key {
+  margin-top: 4px;
+}
+.cipher-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(253, 224, 71, 0.25);
+  color: rgba(253, 224, 71, 0.8);
+}
+.cipher-pair .cipher-plain {
+  color: #e8eefc;
+  font-weight: 700;
+}
+.cipher-pair .cipher-eq {
+  opacity: 0.5;
+}
+.cipher-pair .cipher-sym {
+  color: #fbbf24;
+  font-weight: 700;
+}
+.cipher-pair.done {
+  opacity: 0.4;
+  border-color: #34d399;
+}
+.cipher-pair.next {
+  border-color: #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+.cipher-pair.next .cipher-plain,
+.cipher-pair.next .cipher-sym {
+  color: #fff;
+}
 
 .fall-prose {
   text-align: left;
