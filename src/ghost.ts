@@ -15,6 +15,11 @@ export interface Ghost {
   interval: number; // seconds between samples
   xs: number[];
   ys: number[];
+  // run-defining modifiers, baked in so a DUEL reproduces the challenger's fight
+  // (same seed AND same difficulty). Optional: a plain replay ghost leaves them
+  // undefined; an old challenge code decodes them as 0 (COLD / no NG+).
+  heat?: number;
+  ngPlus?: number;
 }
 
 export const GHOST_INTERVAL = 0.1; // sample every 0.1s of world time (10 Hz)
@@ -87,7 +92,7 @@ export function serializeGhost(g: Ghost): string {
     buf[i * 2] = Math.max(-32768, Math.min(32767, Math.round(g.xs[i])));
     buf[i * 2 + 1] = Math.max(-32768, Math.min(32767, Math.round(g.ys[i])));
   }
-  const head = { s: g.seed, m: g.mode, n: g.name, sc: g.score, w: g.wave, iv: Math.round(g.interval * 1000) };
+  const head = { s: g.seed, m: g.mode, n: g.name, sc: g.score, w: g.wave, iv: Math.round(g.interval * 1000), h: g.heat ?? 0, ng: g.ngPlus ?? 0 };
   return JSON.stringify(head) + '|' + b64encode(new Uint8Array(buf.buffer));
 }
 
@@ -111,6 +116,8 @@ export function deserializeGhost(str: string): Ghost | null {
       score: Number(head.sc) || 0,
       wave: Number(head.w) || 0,
       interval: (Number(head.iv) || GHOST_INTERVAL * 1000) / 1000,
+      heat: Number(head.h) || 0, // old codes (no h) → 0 = COLD, the correct default
+      ngPlus: Number(head.ng) || 0,
       xs,
       ys,
     };

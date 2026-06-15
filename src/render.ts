@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD } from './tune';
+import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD } from './tune';
 import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
@@ -897,7 +897,7 @@ export class Renderer {
       ctx.strokeStyle = '#9ff';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(0, 0, r + 6, e.shieldAngle - 1.05, e.shieldAngle + 1.05);
+      ctx.arc(0, 0, r + 6, e.shieldAngle - SHIELD.arcHalf, e.shieldAngle + SHIELD.arcHalf);
       ctx.stroke();
     }
     ctx.restore();

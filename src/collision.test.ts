@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { pointSegDist2, segCircleHit, circleHit, SpatialHash } from './collision';
+import { pointSegDist2, segCircleHit, circleHit, SpatialHash, shieldBlocks } from './collision';
+import { SHIELD } from './tune';
 
 describe('pointSegDist2', () => {
   it('is zero on the segment', () => {
@@ -78,5 +79,32 @@ describe('SpatialHash', () => {
     const out: typeof items[number][] = [];
     hash.queryAABB(0, -10, 1000, 10, out);
     expect(out.length).toBe(20);
+  });
+});
+
+describe('shieldBlocks (frontal-arc dash block)', () => {
+  const H = SHIELD.arcHalf;
+  it('blocks a spear that approaches dead-on into the shielded front', () => {
+    // shield faces 0 rad; spear approaches from the same direction → blocked
+    expect(shieldBlocks(0, 0, H)).toBe(true);
+    // anywhere inside the ±arcHalf cone is blocked
+    expect(shieldBlocks(0, H - 0.01, H)).toBe(true);
+    expect(shieldBlocks(0, -(H - 0.01), H)).toBe(true);
+  });
+
+  it('lets a flank/rear approach through (outside the cone)', () => {
+    // a perpendicular flank (90°) is well outside the ~60° half-cone → lands
+    expect(shieldBlocks(0, Math.PI / 2, H)).toBe(false);
+    // a rear approach lands
+    expect(shieldBlocks(0, Math.PI, H)).toBe(false);
+    // just past the cone edge lands
+    expect(shieldBlocks(0, H + 0.01, H)).toBe(false);
+  });
+
+  it('wraps angles correctly across the ±π seam', () => {
+    // shield faces ~π; an approach at ~-π is the SAME direction → blocked
+    expect(shieldBlocks(Math.PI - 0.02, -Math.PI + 0.02, H)).toBe(true);
+    // shield faces -π+0.1; approach at π-0.1 is ~0.2 rad away → still blocked
+    expect(shieldBlocks(-Math.PI + 0.1, Math.PI - 0.1, H)).toBe(true);
   });
 });

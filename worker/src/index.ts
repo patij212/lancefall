@@ -55,7 +55,9 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-const MODES = new Set(['endless', 'arena', 'daily', 'nightmare', 'bossrush']);
+// MUST mirror the mode ids in src/modes.ts MODES (the worker can't import it).
+// 'longestday' was missing → THE LONGEST DAY scores were rejected 400 'bad mode'.
+const MODES = new Set(['endless', 'arena', 'daily', 'nightmare', 'bossrush', 'longestday']);
 
 function sanitizeName(n: unknown): string {
   return (

@@ -149,10 +149,15 @@ function fireDash(
   p.angle = aimAngle;
   p.phase = 'dashing';
   p.dashTime = 0;
-  p.dashDuration = slingshot ? slingshotDuration(len) : dashDuration(len);
+  // Derive duration (and thus the i-frame window) from the CLAMPED travel distance,
+  // NOT the raw charge length: a full-charge dash into a wall barely moves, so it
+  // must not buy a long stationary invuln (the old corner-hug exploit). Spear speed
+  // stays constant (3000 px/s); the minDuration floor still guards near-zero dashes.
+  const travel = Math.hypot(toX - p.dashFromX, toY - p.dashFromY);
+  p.dashDuration = slingshot ? slingshotDuration(travel) : dashDuration(travel);
   p.dashId++;
   p.killsThisDash = 0;
-  p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(len) for the Lance
+  p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(travel)
   p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout
   p.charge = 0;

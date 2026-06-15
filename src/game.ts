@@ -20,7 +20,7 @@ import { updateEnemy, splitInto } from './enemies';
 import { spawnBoss, updateBoss, bossName, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
-import { segCircleHit, circleHit } from './collision';
+import { segCircleHit, circleHit, shieldBlocks } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
@@ -32,8 +32,8 @@ import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER } from './tune';
-import { RUN_EVENTS, rollEventChoices } from './events';
+import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD } from './tune';
+import { RUN_EVENTS, rollEventChoices, rollEventId } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
@@ -47,7 +47,7 @@ import { MODES } from './modes';
 import type { RunConfig } from './modes';
 import { MUTATORS, pickDailyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
-import { HEAT_LEVELS, applyHeatStats, applyHeatConfig } from './heat';
+import { HEAT_LEVELS, MAX_HEAT, applyHeatStats, applyHeatConfig } from './heat';
 import { archetypeById } from './archetypes';
 import { BIOMES, biomeAt } from './biomes';
 import {
@@ -295,6 +295,9 @@ export class Game {
     // power-up drops draw from a SEPARATE stream so death-timed draws never perturb
     // the seeded director/spawn stream (keeps the Daily's waves identical for all)
     this.world.dropRng = createRng((this.seed ^ 0x1f83d9ab) >>> 0);
+    // mid-run EVENTS get their OWN stream too — their id roll + resolves fire at
+    // player-driven timing/choice, so this keeps world.rng (the wave stream) identical
+    this.world.eventRng = createRng((this.seed ^ 0x2545f491) >>> 0);
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
     // run mutators — the Daily picks a deterministic set from the date seed
@@ -302,12 +305,17 @@ export class Game {
     this.world.mutatorApply = buildMutatorApply(this.activeMutators);
     this.eliteMods = mutatorElite(this.activeMutators);
     // Heat ascension — stat effects via the postApply capstone, director effects via a cloned cfg
-    this.runHeat = this.save.selectedHeat;
+    // Heat ascension — a DUEL forces the CHALLENGER's heat (baked into the code) so
+    // the "same seed" fight is genuinely the same; otherwise the player's selection.
+    this.runHeat = challenge ? Math.max(0, Math.min(MAX_HEAT, Math.round(challenge.heat ?? 0))) : this.save.selectedHeat;
     this.world.postApply = (s) => applyHeatStats(s, this.runHeat);
     const effCfg = applyHeatConfig(applyMutatorConfig(cfg, this.activeMutators), this.runHeat);
-    // NG+ — deepen NON-seeded runs only; daily/seeded stays bit-identical for everyone
-    this.runNgPlus = this.save.ngPlusActive && cfg.seedKind !== 'date' ? Math.min(NG_PLUS.maxLoop, this.save.ngPlusLevel) : 0;
-    const runMul = ngPlusIntensityMul(effCfg.intensityMul, this.save.ngPlusActive, this.save.ngPlusLevel, cfg.seedKind, NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop);
+    // NG+ — deepen NON-seeded runs only; daily/seeded stays bit-identical for everyone.
+    // A duel forces the challenger's NG+ too (still gated off date seeds) so it reproduces.
+    // runNgPlus is now the single source of truth for both the intensity mul and the HUD.
+    const ngLevel = challenge ? (challenge.ngPlus ?? 0) : this.save.ngPlusActive ? this.save.ngPlusLevel : 0;
+    this.runNgPlus = cfg.seedKind !== 'date' ? Math.max(0, Math.min(NG_PLUS.maxLoop, Math.round(ngLevel))) : 0;
+    const runMul = ngPlusIntensityMul(effCfg.intensityMul, this.runNgPlus > 0, this.runNgPlus, cfg.seedKind, NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop);
     const runCfg = runMul === effCfg.intensityMul ? effCfg : { ...effCfg, intensityMul: runMul };
     this.world.reset(window.innerWidth, window.innerHeight);
     // head-start perks (Head Start meta node) — use a SEPARATE rng so they don't
@@ -510,9 +518,11 @@ export class Game {
       if (dx * dx + dy * dy <= r2) victims.push(e);
     });
     for (const e of victims) if (e.active) this.killEnemy(e, false);
-    // chunk a boss too (a fair reward, not a oneshot) — but respect the Sovereign's
-    // armor: the nova only bites the crown once it's EXPOSED, like the dash.
-    if (w.bossAlive && w.boss && !sovereignBodyArmored(w.boss) && !this.bossCipherArmored(w.boss)) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
+    // chunk a boss too (a fair reward, not a oneshot) — but route through the SAME
+    // armor/intangibility gate the spear uses (spearBlocked), so the nova can never
+    // drift from the dash: it respects the Sovereign's armor, a ring-cipher lock AND
+    // THE HOLLOW's intangibility (it only bites during a Clone Sync window).
+    if (w.bossAlive && w.boss && !this.spearBlocked(w.boss)) this.damageEnemy(w.boss, OVERDRIVE.novaDmg * 0.05 + 2, true);
     // score + spectacle
     const bonus = Math.round(OVERDRIVE.scoreBonus * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.score += bonus;
@@ -534,7 +544,7 @@ export class Game {
 
   private openEvent(id: RunEventId): void {
     const def = RUN_EVENTS[id];
-    this.eventChoices = rollEventChoices(id, this.world.rng, this.world);
+    this.eventChoices = rollEventChoices(id, this.world.eventRng, this.world);
     this.state = 'event';
     this.ui.showEvent(def.name, def.flavor, def.accent, this.eventChoices);
     this.audio.duckMusic(true);
@@ -939,7 +949,7 @@ export class Game {
       this.applyDirector(dec.spawn);
       if (dec.boss) this.spawnWarden(dec.bossKind);
       if (dec.perk) this.pendingDraft = true;
-      if (dec.event) this.pendingEvent = dec.event;
+      if (dec.event) this.pendingEvent = rollEventId(w.eventRng); // off the seeded wave stream
       if (dec.win) this.winRun();
     }
 
@@ -965,6 +975,7 @@ export class Game {
         w.particles.floatText(w.player.x, w.player.y - 30, 'COMBO BREAK', '#ef4444', 0.9);
         this.narrate('combo_break', 'toast', NARRATOR.comboBreak, true);
         w.lastTierAnnounced = 0;
+        w.comboGrazeCharge = 0; // a fresh chain starts the graze accumulator clean (no fractional leak across breaks)
         resetErupt(w.clutch); // re-arm COMBO ERUPTION for the next climb
         this.tryHint('comboBreak');
       }
@@ -1057,6 +1068,17 @@ export class Game {
           }
           continue;
         }
+        // shielded chaff (darter/orbiter) blocks a spear that enters its FRONTAL arc.
+        // The shield tracks you, so a straight dash clangs — flank it (dash in from
+        // the side/back, outside the cone) to land. lastDashId (set above) already
+        // bounds this to one interaction per dash.
+        if (e.shielded && shieldBlocks(e.shieldAngle, Math.atan2(ay - e.y, ax - e.x), SHIELD.arcHalf)) {
+          e.hitFlash = 0.08;
+          w.particles.burst(e.x, e.y, 6, '#9ff');
+          w.particles.floatText(e.x, e.y - e.radius - 10, 'ARMORED', '#9ff', 0.6);
+          this.audio.thunk(8, this.panFor(e.x));
+          continue;
+        }
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
         const dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
         this.damageEnemy(e, dmg, true);
@@ -1106,6 +1128,8 @@ export class Game {
       if (!e.active || e.lastDashId === w.ghostDashId) continue;
       if (this.spearBlocked(e)) continue; // the ghost obeys the same armor/intangibility rules
       if (e.kind === 'sovereign_core' && w.cipher && !w.cipher.solved) continue; // only a real dash keys the cipher
+      // ghost obeys the same shield gate as the spear so the two can't disagree on a hit
+      if (e.shielded && shieldBlocks(e.shieldAngle, Math.atan2(w.ghostY0 - e.y, w.ghostX0 - e.x), SHIELD.arcHalf)) continue;
       if (segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, e.x, e.y, e.radius, r)) {
         e.lastDashId = w.ghostDashId;
         this.damageEnemy(e, w.stats.dashDamage, true);
@@ -1300,8 +1324,11 @@ export class Game {
   }
 
   /** A dash registered on a cipher core: read it as a key press in the decoded
-   *  order. A correct key advances (rising pitch); a wrong key re-locks the
-   *  cipher (the cipher reducer resets progress). Solving cracks the crown. */
+   *  order. A correct key advances (rising pitch); a wrong key is a FORGIVING
+   *  no-op — progress is KEPT (just a soft "not that one" tick, no reset/punish;
+   *  it's a bullet-hell, one mis-dash mustn't undo the solve). Solving cracks
+   *  the crown. (The cipher only RE-ARMS a fresh code when an expose window
+   *  closes — see boss.ts — never on a wrong key.) */
   private keyCipherCore(core: Enemy): void {
     const w = this.world;
     const c = w.cipher;
@@ -1482,7 +1509,10 @@ export class Game {
   private bossDeath(e: Enemy): void {
     const w = this.world;
     const bonus = 500 * Math.max(1, e.bossWave);
-    w.score += Math.round(bonus * comboMultiplier(w.combo));
+    // honor scoreMul like every other score source — boss kills are the dominant
+    // score in Boss Rush, so omitting it silently neutered ZEALOT/HOARDER relics,
+    // Heat, meta Scavenger and the OVERDRIVE powerup on the biggest payout.
+    w.score += Math.round(bonus * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.particles.burst(e.x, e.y, 90, '#ffffff');
     w.particles.ring(e.x, e.y, 220, e.color, 0.5);
     w.particles.floatText(e.x, e.y - 40, `${bossName(e.kind).replace('THE ', '')} DOWN`, '#fbbf24', 1.4);
@@ -1938,6 +1968,10 @@ export class Game {
   /** Copy a shareable duel code for the just-finished run (seed + score + ghost path). */
   private createChallenge(): void {
     if (!this.lastRunGhost) return;
+    // bake the run-defining modifiers into the duel code so the acceptor reproduces
+    // the CHALLENGER's fight (same seed AND same Heat/NG+), not their own settings
+    this.lastRunGhost.heat = this.runHeat;
+    this.lastRunGhost.ngPlus = this.runNgPlus;
     const code = toChallengeCode(this.lastRunGhost);
     try {
       void navigator.clipboard?.writeText(code);
@@ -1960,9 +1994,14 @@ export class Game {
 
   private applyDirector(spawn: EnemyKind[]): void {
     const w = this.world;
-    const I = intensity(w.time) * this.mode.intensityMul;
-    const sMul = (enemySpeedMul(I) + this.mode.speedBonus) * this.biomeSpeedMul;
-    const bMul = (bulletSpeedMul(I) + this.mode.speedBonus) * this.biomeSpeedMul;
+    // Read the EFFECTIVE config the director was configured with (heat + mutators +
+    // NG+ folded in), NOT the raw mode — otherwise Heat's enemySpeedAdd and NG+'s
+    // intensity/speed/concurrency never reach the enemies (they spawn on the heated
+    // cadence but at base speed). this.director.cfg == runCfg from start().
+    const cfg = this.director.cfg;
+    const I = intensity(w.time) * cfg.intensityMul;
+    const sMul = (enemySpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul;
+    const bMul = (bulletSpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul;
     const baseShield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
     const shield = Math.min(0.7, baseShield + this.biomeShield);
     const cap = maxConcurrent(I);

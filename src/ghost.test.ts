@@ -69,6 +69,8 @@ describe('ghost — replay trace + challenge codes', () => {
       g.xs.push(Math.round(Math.sin(i) * 400 + 640));
       g.ys.push(Math.round(Math.cos(i) * 300 + 360));
     }
+    g.heat = 5;
+    g.ngPlus = 2;
     const g2 = deserializeGhost(serializeGhost(g))!;
     expect(g2.seed).toBe(g.seed);
     expect(g2.mode).toBe('daily');
@@ -76,8 +78,25 @@ describe('ghost — replay trace + challenge codes', () => {
     expect(g2.score).toBe(12345);
     expect(g2.wave).toBe(7);
     expect(g2.interval).toBeCloseTo(g.interval, 6);
+    expect(g2.heat).toBe(5); // duel modifiers survive the round-trip
+    expect(g2.ngPlus).toBe(2);
     expect(g2.xs).toEqual(g.xs); // int16 exact for these in-range values
     expect(g2.ys).toEqual(g.ys);
+  });
+
+  it('a duel code carries the challenger Heat/NG+; an old code defaults them to 0', () => {
+    const g = newGhost(424242, 'challenge');
+    g.heat = 4;
+    g.ngPlus = 3;
+    for (let i = 0; i < 200; i++) { g.xs.push(i); g.ys.push(i); }
+    const g2 = fromChallengeCode(toChallengeCode(g))!;
+    expect(g2.heat).toBe(4); // the acceptor reproduces the challenger's fight
+    expect(g2.ngPlus).toBe(3);
+    // a legacy code (header without h/ng) decodes to 0 = COLD / no NG+ (safe default)
+    const legacy = '{"s":1,"m":"daily","n":"OLD","sc":1,"w":1,"iv":100}|';
+    const lg = deserializeGhost(legacy)!;
+    expect(lg.heat).toBe(0);
+    expect(lg.ngPlus).toBe(0);
   });
 
   it('challenge code round-trips a downsampled ghost; rejects garbage', () => {

@@ -66,3 +66,37 @@ describe('run events', () => {
     expect(w.stats.dashDamage).toBe(before + 2);
   });
 });
+
+// Mid-run events fire AND resolve at player-driven timing/choice. They MUST draw
+// from world.eventRng — never world.rng — so two players on the same Daily seed
+// (who kill bosses at different times, or pick different options) keep a bit-
+// identical seeded WAVE stream. This guards that contract (see spawnReset.test.ts).
+describe('event determinism (world.rng is never forked by events)', () => {
+  function rngTail(w: World, n: number): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) out.push(w.rng.next());
+    return out;
+  }
+
+  it('resolving the rng-consuming choices never advances world.rng', () => {
+    const a = freshWorld();
+    const b = freshWorld(); // same seed → identical world.rng start
+    a.shards = 1000;
+    choice(a, 'gamble', 'risk'); // gamble roll → eventRng
+    choice(a, 'treasure', 'power'); // free perk (rollDraft) → eventRng
+    choice(a, 'eliteWave', 'hunt'); // 3 champions (edge/kind/angle) → eventRng
+    // b did nothing; world.rng must be byte-identical despite a's event activity
+    expect(rngTail(a, 8)).toEqual(rngTail(b, 8));
+  });
+
+  it('divergent event CHOICES still leave world.rng identical (Daily fairness)', () => {
+    const a = freshWorld();
+    const b = freshWorld();
+    a.shards = b.shards = 1000;
+    choice(a, 'gamble', 'risk'); // a gambles (draws eventRng)
+    choice(b, 'gamble', 'safe'); // b pockets it (no draw)
+    choice(a, 'eliteWave', 'rest'); // a skips the hunt
+    choice(b, 'eliteWave', 'hunt'); // b springs 3 champions (draws eventRng)
+    expect(rngTail(a, 8)).toEqual(rngTail(b, 8));
+  });
+});

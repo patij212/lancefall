@@ -36,7 +36,8 @@ function boon(w: World, fn: (s: RunStats) => void): void {
 }
 
 function grantPerk(w: World): void {
-  const pick = rollDraft(w.rng, w.stacks, 1)[0];
+  // draw from eventRng, NOT world.rng — the event fires at player-driven timing
+  const pick = rollDraft(w.eventRng, w.stacks, 1)[0];
   if (pick && pick.id !== 'shardcache') applyPerk(w.stacks, pick.id);
   w.recomputeStats();
 }
@@ -44,9 +45,11 @@ function grantPerk(w: World): void {
 function spawnChampions(w: World, n: number): void {
   const kinds: EnemyKind[] = ['darter', 'orbiter', 'lancer', 'bomber'];
   for (let i = 0; i < n; i++) {
-    const pt = w.edgeSpawn();
-    const kind = kinds[Math.floor(w.rng.next() * kinds.length)];
-    w.spawnEnemy(kind, pt.x, pt.y, 1, 1, false, true);
+    // every draw here (edge point, kind, spawn facing) routes through eventRng and
+    // passes an explicit angle, so a champion hunt never perturbs the seeded waves
+    const pt = w.edgeSpawn(w.eventRng);
+    const kind = kinds[Math.floor(w.eventRng.next() * kinds.length)];
+    w.spawnEnemy(kind, pt.x, pt.y, 1, 1, false, true, w.eventRng.range(0, Math.PI * 2));
   }
 }
 
@@ -71,7 +74,7 @@ export const RUN_EVENTS: Record<RunEventId, RunEventDef> = {
       { id: 'safe', name: 'Pocket It', desc: '+3,000 score. No risk.', accent: '#34d399', risk: 'none', resolve: (w) => { w.score += 3000; } },
       {
         id: 'risk', name: 'Double or Nothing', desc: '55%: +12,000 score. 45%: lose 40% of your shards.', accent: '#ef4444', risk: 'high',
-        resolve: (w) => { if (w.rng.next() < 0.55) w.score += 12000; else w.shards = Math.floor(w.shards * 0.6); },
+        resolve: (w) => { if (w.eventRng.next() < 0.55) w.score += 12000; else w.shards = Math.floor(w.shards * 0.6); },
       },
     ],
   },

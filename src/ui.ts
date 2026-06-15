@@ -550,13 +550,15 @@ export class UI {
     const s = this.saveRef;
     if (!s) return;
     const body = this.statsPanel.querySelector('#stats-body')!;
+    // stat(label, value) — label-first, matching the helper + the game-over panel
+    // (the value is the big/bold .go-stat-v; the label is the small .go-stat-l)
     const lifetime = el('div', { class: 'stats-grid' },
-      stat(s.highScore.toLocaleString(), 'high score'),
-      stat(`x${s.bestCombo}`, 'best combo'),
-      stat(String(s.totalRuns), 'runs'),
-      stat(s.lifeKills.toLocaleString(), 'total kills'),
-      stat(String(s.lifeBoss), 'bosses down'),
-      stat(s.lifeShards.toLocaleString(), 'shards earned'),
+      stat('high score', s.highScore.toLocaleString()),
+      stat('best combo', `x${s.bestCombo}`),
+      stat('runs', String(s.totalRuns)),
+      stat('total kills', s.lifeKills.toLocaleString()),
+      stat('bosses down', String(s.lifeBoss)),
+      stat('shards earned', s.lifeShards.toLocaleString()),
     );
     const achWrap = el('div', { class: 'ach-grid' });
     const unlockedCount = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
@@ -813,7 +815,7 @@ export class UI {
       rule('Last Breath', 'A fatal hit triggers a one-off bullet-time second wind — dash to safety before it fades'),
       rule('Champions', 'Gold-aura elites are tanky but rain shards — mind the death blast'),
       rule('Bosses', 'Dash through the safe gaps. THE SOVEREIGN is the master cipher — its CORES are a keypad; dash them in the order the CIPHER readout shows to crack it open, then punish the exposed crown'),
-      rule('Cipher', 'A cipher-locked boss is armored until you break its code: read the CIPHER readout and dash its glyph cores in that order. A wrong key re-locks it. (Every boss is a cipher in THE LONGEST DAY.)'),
+      rule('Cipher', 'A cipher-locked boss is armored until you break its code: read the CIPHER readout and dash its glyph cores in that order. A wrong key just fizzles — your progress is kept, so wait for a safe lane and read the next glyph. (Every boss is a cipher in THE LONGEST DAY.)'),
       rule('Perks', 'Pick a perk every few waves. They STACK — that is the snowball'),
       rule('Unlocks', 'Spend shards on ships + palettes + dash trails; beat the Sovereign for the gold CROWN trail'),
     );
@@ -938,8 +940,11 @@ export class UI {
     const modeRow = el('div', { class: 'leader-modes' });
     const scopeRow = el('div', { class: 'leader-modes' });
     const listWrap = el('div', { class: 'leader-list' }, el('div', { class: 'event-flavor' }, 'Loading…'));
+    // must mirror src/modes.ts MODES (and the worker's MODES allow-set) so every
+    // submittable mode is also viewable — ARENA + THE LONGEST DAY were submitted
+    // but had no board tab.
     const modes: { id: string; name: string }[] = [
-      { id: 'endless', name: 'ENDLESS' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' },
+      { id: 'endless', name: 'ENDLESS' }, { id: 'arena', name: 'ARENA' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' }, { id: 'longestday', name: 'THE LONGEST DAY' },
     ];
     let curMode = 'endless';
     let curWeekly = false;

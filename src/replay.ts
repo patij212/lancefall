@@ -87,7 +87,12 @@ export class ReplayRecorder {
         worker?.terminate();
         this.encodeOnMainThread();
       };
-      worker.postMessage({ frames: buffers, w: this.w, h: this.h, delayCs: DELAY_CS }, buffers);
+      try {
+        worker.postMessage({ frames: buffers, w: this.w, h: this.h, delayCs: DELAY_CS }, buffers);
+      } catch {
+        worker.terminate();
+        this.encodeOnMainThread(); // transfer failed — fall back instead of latching
+      }
     } else {
       this.encodeOnMainThread();
     }
@@ -95,16 +100,21 @@ export class ReplayRecorder {
 
   /** Fallback: encode on the main thread (may stutter briefly). */
   private encodeOnMainThread(): void {
-    void import('./gif').then(({ encodeRgbaFrames }) => {
-      const gif = encodeRgbaFrames(
-        this.frames.map((f) => new Uint8Array(f.buffer)),
-        this.w,
-        this.h,
-        DELAY_CS,
-        true,
-      );
-      this.download(new Blob([gif.buffer as ArrayBuffer], { type: 'image/gif' }));
-    });
+    void import('./gif')
+      .then(({ encodeRgbaFrames }) => {
+        const gif = encodeRgbaFrames(
+          this.frames.map((f) => new Uint8Array(f.buffer)),
+          this.w,
+          this.h,
+          DELAY_CS,
+          true,
+        );
+        this.download(new Blob([gif.buffer as ArrayBuffer], { type: 'image/gif' }));
+      })
+      .catch(() => {
+        // a failed import/encode must never latch the button on 'encoding' forever
+        this.encoding = false;
+      });
   }
 
   private download(blob: Blob): void {

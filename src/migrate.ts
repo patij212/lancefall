@@ -31,5 +31,48 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          Purely additive → default-filled by the spread; no explicit transform.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
-  return { ...base, ...data, version: SAVE_VERSION };
+  const out: SaveData = { ...base, ...data, version: SAVE_VERSION };
+
+  // --- total per-field type validation ---
+  // A malformed-but-parseable save (hand-edited, storage-corrupted, or from a newer
+  // build) must degrade to a clean default PER FIELD, never crash the first consumer.
+  // Any field whose stored type doesn't match its default is reset to the default;
+  // the {string:number} records (meta/nemesis) are sanitized value-by-value so a NaN
+  // or string level can't poison deriveStats and soft-lock a run.
+  const b = base as unknown as Record<string, unknown>;
+  const o = out as unknown as Record<string, unknown>;
+  for (const k of Object.keys(b)) {
+    const bv = b[k];
+    const ov = o[k];
+    if (Array.isArray(bv)) {
+      if (!Array.isArray(ov)) o[k] = bv;
+    } else if (bv !== null && typeof bv === 'object') {
+      o[k] = coerceNumberRecord(ov, bv as Record<string, number>);
+    } else if (typeof bv === 'number') {
+      if (typeof ov !== 'number' || !Number.isFinite(ov)) o[k] = bv;
+    } else if (typeof bv === 'string') {
+      if (typeof ov !== 'string') o[k] = bv;
+    } else if (typeof bv === 'boolean') {
+      if (typeof ov !== 'boolean') o[k] = bv;
+    }
+  }
+  // the one string field with a constrained domain (THE CHOICE) gets an enum guard
+  if (o.stillpointChoice !== 'catch' && o.stillpointChoice !== 'fall' && o.stillpointChoice !== 'none') {
+    o.stillpointChoice = b.stillpointChoice;
+  }
+  return out;
+}
+
+/** Keep only the finite-number entries of a {string:number} record (meta/nemesis).
+ *  A NaN / string / object level would otherwise flow into deriveStats and corrupt
+ *  every derived stat — turn that corruption into a clean drop instead. */
+function coerceNumberRecord(ov: unknown, fallback: Record<string, number>): Record<string, number> {
+  if (!ov || typeof ov !== 'object' || Array.isArray(ov)) return { ...fallback };
+  const src = ov as Record<string, unknown>;
+  const clean: Record<string, number> = {};
+  for (const k of Object.keys(src)) {
+    const v = src[k];
+    if (typeof v === 'number' && Number.isFinite(v)) clean[k] = v;
+  }
+  return clean;
 }

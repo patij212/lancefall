@@ -56,6 +56,16 @@ export function circleHit(
   return dx * dx + dy * dy <= rr * rr;
 }
 
+/** A shielded enemy blocks a spear whose APPROACH (the direction from the enemy
+ *  toward where the dash came from) falls within ±arcHalf of where its shield faces.
+ *  Flank it — approach from the side/back, outside the cone — to land. Pure angle
+ *  test; arcHalf is passed in (TUNE.SHIELD.arcHalf) and must match the rendered arc. */
+export function shieldBlocks(shieldAngle: number, approachAngle: number, arcHalf: number): boolean {
+  let d = approachAngle - shieldAngle;
+  d = Math.atan2(Math.sin(d), Math.cos(d)); // wrap to [-π, π]
+  return Math.abs(d) <= arcHalf;
+}
+
 export interface HasPos {
   x: number;
   y: number;

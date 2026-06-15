@@ -9,8 +9,6 @@ import type { Rng } from './rng';
 import type { EnemyKind } from './types';
 import type { RunConfig } from './modes';
 import { MODES, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
-import { rollEventId } from './events';
-import type { RunEventId } from './events';
 
 /** Intensity I(t): ramps 0→1 over rampSeconds, then keeps climbing, unbounded. */
 export function intensity(t: number): number {
@@ -121,7 +119,8 @@ export interface DirectorDecision {
   bossKind?: EnemyKind; // explicit boss for scripted modes (arena/bossrush)
   perk: boolean;
   win: boolean; // run beaten (scripted modes only)
-  event: RunEventId | null; // mid-run event to open (endless/daily/nightmare)
+  event: boolean; // a mid-run event is due — the game rolls the id off world.eventRng
+  // (NOT world.rng) so event timing/choices never fork the seeded wave stream
 }
 
 type ArenaPhase = 'entering' | 'spawning' | 'clearing' | 'bossfight' | 'done';
@@ -169,7 +168,7 @@ export class Director {
 
   update(dt: number, concurrent: number, bossAlive: boolean, rng: Rng): DirectorDecision {
     this.t += dt;
-    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false, event: null };
+    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false, event: false };
     if (this.cfg.arena) return this.updateArena(dt, concurrent, bossAlive, rng, decision);
     if (this.cfg.bossrush) return this.updateBossRush(concurrent, bossAlive, decision);
     return this.updateEndless(dt, concurrent, bossAlive, rng, decision);
@@ -204,7 +203,7 @@ export class Director {
       this.nextEventAt = this.t + TUNE.director.bossBreather;
     }
     if (this.t >= this.nextEventAt && !bossAlive && !d.boss && !d.perk) {
-      d.event = rollEventId(rng);
+      d.event = true; // the game rolls the id off world.eventRng (off the seeded stream)
       this.nextEventAt = this.t + TUNE.director.eventInterval;
     }
     if (!bossAlive && !d.boss) {

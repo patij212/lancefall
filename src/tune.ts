@@ -265,6 +265,14 @@ export const SHADE_TUNE = {
   telegraphTime: 0.4, // s of pre-blink warning flash
 };
 
+// Enemy SHIELD — a darter/orbiter can arrive with a frontal shield that tracks you.
+// A dash into the shielded arc CLANGS (no damage); flank it — dash in from the side
+// or back, outside this cone — to land. arcHalf MUST equal the rendered arc half-
+// width (render.ts) so the glowing arc you read is exactly the arc that blocks.
+export const SHIELD = {
+  arcHalf: 1.05, // radians (±) — a ~120° frontal block cone
+} as const;
+
 // THE HOLLOW — 5th boss. An intangible phantom: NEVER contact-lethal. It seeds
 // killable echo clones and rains concentric rings; the ONLY way to damage it is
 // to dash through its body during a telegraphed "Clone Sync" window (white flash).

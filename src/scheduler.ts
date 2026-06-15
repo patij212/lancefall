@@ -20,9 +20,12 @@ export class Scheduler {
     if (sec > this.hitstop) this.hitstop = sec;
   }
 
-  /** Drop into slow-mo, holding for the configured time (+extra from perks). */
+  /** Drop into slow-mo, holding for the configured time (+extra from perks). Uses
+   *  min() on the scale so a routine dash-chain/erupt/overdrive slow-mo can never
+   *  LIGHTEN a deeper window already running (e.g. LAST BREATH's signature 0.18
+   *  bullet-time) — same invariant requestDeepSlowmo holds. */
   requestSlowmo(extraHold = 0): void {
-    this.timeScale = TUNE.juice.slowmoScale;
+    this.timeScale = Math.min(this.timeScale, TUNE.juice.slowmoScale);
     this.holdTimer = Math.max(this.holdTimer, TUNE.juice.slowmoHold + extraHold);
     this.easing = false;
   }

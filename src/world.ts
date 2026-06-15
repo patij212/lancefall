@@ -178,6 +178,13 @@ export class World {
    *  player-driven timing) never perturb the seeded director/spawn stream — keeps
    *  the Daily's wave composition identical for everyone. Re-seeded per run. */
   dropRng: Rng;
+  /** A SEPARATE stream for mid-run EVENTS (the event id roll + every resolve draw:
+   *  gamble, free-perk, champion hunt). Events fire AND resolve at player-driven
+   *  timing/choice, so drawing them off world.rng forked the seeded wave stream
+   *  (two players on one Daily seed desynced their waves). This stream isolates all
+   *  that variability so world.rng — the wave stream — stays bit-identical for all.
+   *  Re-seeded per run. */
+  eventRng: Rng;
 
   /** the run seed (the same value seeding world.rng). The cipher-lock derives its
    *  per-(seed,boss) code from this, so a Daily seed yields the same cipher for
@@ -195,6 +202,7 @@ export class World {
   constructor(rng: Rng) {
     this.rng = rng;
     this.dropRng = createRng(0xc0ffee);
+    this.eventRng = createRng(0xe7e7e7);
     this.particles = new Particles(rng);
   }
 
@@ -259,19 +267,21 @@ export class World {
     this.stats = deriveStats(this.stacks, this.shipApply, metaThenMutator, evoApplier(this.evolutions), post);
   }
 
-  /** A random point just outside the arena edge, plus an inward velocity. */
-  edgeSpawn(): { x: number; y: number } {
+  /** A random point just outside the arena edge, plus an inward velocity. Defaults
+   *  to the seeded world.rng; pass a separate stream (e.g. eventRng) for draws that
+   *  happen at player-driven timing so the seeded director stream stays clean. */
+  edgeSpawn(rng: Rng = this.rng): { x: number; y: number } {
     const m = 40;
-    const side = this.rng.int(0, 3);
+    const side = rng.int(0, 3);
     switch (side) {
       case 0:
-        return { x: this.rng.range(0, this.width), y: -m };
+        return { x: rng.range(0, this.width), y: -m };
       case 1:
-        return { x: this.width + m, y: this.rng.range(0, this.height) };
+        return { x: this.width + m, y: rng.range(0, this.height) };
       case 2:
-        return { x: this.rng.range(0, this.width), y: this.height + m };
+        return { x: rng.range(0, this.width), y: this.height + m };
       default:
-        return { x: -m, y: this.rng.range(0, this.height) };
+        return { x: -m, y: rng.range(0, this.height) };
     }
   }
 
