@@ -52,7 +52,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'coronation', name: 'Long Live the Lance', desc: 'Defeat the Sovereign at Heat 3 or above.', check: (c) => c.sovereignDown && c.heat >= 3 },
   { id: 'unleashed', name: 'Unleashed', desc: 'Fire DAYBREAK.', check: (c) => c.overdriveUses >= 1 },
   { id: 'overcharged', name: 'Overcharged', desc: 'Fire DAYBREAK 4 times in a single run.', check: (c) => c.overdriveUses >= 4 },
-  { id: 'lastbreath', name: 'Cheating Death', desc: 'Survive a Last Breath bullet-time save.', check: (c) => c.lastBreathUses >= 1 },
+  // require actually SURVIVING the save (reached a later wave or won) — not merely triggering
+  // it then dying the same instant, which misfired on wave-1, 0-score deaths.
+  { id: 'lastbreath', name: 'Cheating Death', desc: 'Survive a Last Breath bullet-time save.', check: (c) => c.lastBreathUses >= 1 && (c.won || c.wave >= 2) },
   { id: 'powerplayer', name: 'Power Player', desc: 'Collect 5 power-ups in one run.', check: (c) => c.powerupsCollected >= 5 },
 ];
 

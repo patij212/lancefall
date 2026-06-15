@@ -86,7 +86,8 @@ describe('achievements', () => {
     expect(evaluate([], { ...base, overdriveUses: 1 }).map((a) => a.id)).toContain('unleashed');
     expect(evaluate([], { ...base, overdriveUses: 3 }).map((a) => a.id)).not.toContain('overcharged');
     expect(evaluate([], { ...base, overdriveUses: 4 }).map((a) => a.id)).toContain('overcharged');
-    expect(evaluate([], { ...base, lastBreathUses: 1 }).map((a) => a.id)).toContain('lastbreath');
+    expect(evaluate([], { ...base, lastBreathUses: 1, wave: 2 }).map((a) => a.id)).toContain('lastbreath'); // used it AND survived
+    expect(evaluate([], { ...base, lastBreathUses: 1, wave: 1 }).map((a) => a.id)).not.toContain('lastbreath'); // used it then died same wave → no misfire
     expect(evaluate([], { ...base, powerupsCollected: 5 }).map((a) => a.id)).toContain('powerplayer');
     expect(evaluate([], { ...base, powerupsCollected: 4 }).map((a) => a.id)).not.toContain('powerplayer');
   });
