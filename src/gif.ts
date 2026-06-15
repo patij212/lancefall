@@ -66,6 +66,8 @@ const FONT_ROWS: Record<string, string[]> = {
   '/': ['    #', '    #', '   # ', '  #  ', ' #   ', '#    ', '#    '],
   '#': [' # # ', ' # # ', '#####', ' # # ', '#####', ' # # ', ' # # '],
   '·': ['     ', '     ', '     ', '  #  ', '     ', '     ', '     '],
+  // a comma (so the watermark score reads "127,400 PTS", not "127 400 PTS")
+  ',': ['     ', '     ', '     ', '     ', '  ## ', '  #  ', ' #   '],
 };
 void FONT5x7; // (kept as a documented fallback marker; FONT_ROWS is authoritative)
 

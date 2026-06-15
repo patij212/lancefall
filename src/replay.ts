@@ -216,11 +216,50 @@ export function canShareFile(blob: Blob): boolean {
   }
 }
 
-/** Copy a GIF blob to the clipboard as an image. Resolves true on success. */
+/** Decode a GIF blob's first frame to a PNG blob via an offscreen canvas. The async
+ *  Clipboard API only accepts image/png on most desktops (Chromium rejects image/gif), so
+ *  COPY IMAGE pastes a watermarked still; the animated GIF stays on SHARE / DOWNLOAD. */
+function gifFirstFrameToPng(gif: Blob): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(gif);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || 1;
+        c.height = img.naturalHeight || 1;
+        const ctx = c.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('no 2d ctx'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        c.toBlob((png) => {
+          URL.revokeObjectURL(url);
+          png ? resolve(png) : reject(new Error('toBlob failed'));
+        }, 'image/png');
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('gif decode failed'));
+    };
+    img.src = url;
+  });
+}
+
+/** Copy the clip to the clipboard as an image. Resolves true on success. Copies a PNG of
+ *  the first frame (the format clipboards actually accept); the Promise is handed straight to
+ *  ClipboardItem so the user-gesture activation survives the async decode. */
 export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
   if (!canCopyImage()) return false;
   try {
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    const png = blob.type === 'image/png' ? Promise.resolve(blob) : gifFirstFrameToPng(blob);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
     return true;
   } catch {
     return false;
