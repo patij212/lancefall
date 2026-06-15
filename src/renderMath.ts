@@ -18,11 +18,16 @@ export function washSaturation(
   reduceFlashing: boolean,
   reduceMotion: boolean,
   clarity: boolean,
+  collapseDip = 0,
 ): number {
   let cc = clamp01(c);
   if (reduceFlashing) cc = Math.min(cc, CO.flashCap);
-  const fp = reduceFlashing || reduceMotion || clarity ? 0 : clamp01(focusPulse);
-  let sat = CO.satFloor + CO.washGain * cc + CO.focusSnapLift * fp;
+  const gated = reduceFlashing || reduceMotion || clarity;
+  const fp = gated ? 0 : clamp01(focusPulse);
+  // C3 — the felt FALL: a brief downward saturation lurch on a dead chain. A full-field
+  // darken reads as motion/flash, so it dies under all three a11y flags (mirrors fp).
+  const dip = gated ? 0 : clamp01(collapseDip);
+  let sat = CO.satFloor + CO.washGain * cc + CO.focusSnapLift * fp - CO.collapseDipDrop * dip;
   if (clarity) sat = Math.max(sat, CO.clarityFloor);
   return clamp01(sat);
 }

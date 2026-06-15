@@ -76,6 +76,8 @@ describe('narrator pool (data coverage)', () => {
       NARRATOR.runStart,
       NARRATOR.firstKill,
       NARRATOR.comboBreak,
+      NARRATOR.collapse,
+      NARRATOR.rise,
       NARRATOR.lastBreath,
       NARRATOR.victory,
       NARRATOR.highCoherence,

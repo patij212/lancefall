@@ -26,6 +26,15 @@ describe('renderMath — coherence→render mappings + a11y gates', () => {
     expect(beatFlashRing(0.8, false, false).alpha).toBeGreaterThan(0);
   });
 
+  it('C3: collapseDip lowers the wash with no flags, and is a no-op under each a11y gate', () => {
+    const base = washSaturation(0.5, 0, false, false, false, 0);
+    expect(washSaturation(0.5, 0, false, false, false, 1)).toBeLessThan(base); // the FALL darkens
+    expect(washSaturation(0.5, 0, true, false, false, 1)).toBe(washSaturation(0.5, 0, true, false, false, 0)); // reduceFlashing
+    expect(washSaturation(0.5, 0, false, true, false, 1)).toBe(washSaturation(0.5, 0, false, true, false, 0)); // reduceMotion
+    expect(washSaturation(0.5, 0, false, false, true, 1)).toBe(washSaturation(0.5, 0, false, false, true, 0)); // clarity
+    expect(washSaturation(0, 0, false, false, false, 1)).toBeGreaterThanOrEqual(0); // never < 0
+  });
+
   it('clamp01 + lerp basics', () => {
     expect(clamp01(-1)).toBe(0);
     expect(clamp01(2)).toBe(1);

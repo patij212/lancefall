@@ -7,13 +7,14 @@ import {
   tickCoherence,
   coherenceBeatKick,
   coherenceBeatFlash,
+  coherenceEdges,
   comboTier,
 } from './coherence';
 
 describe('coherence — the soul dial', () => {
   it('newCoherence is zero; resetCoherence returns to zero', () => {
-    expect(newCoherence()).toEqual({ value: 0, target: 0, focusPulse: 0, tier: 0, beatFlash: 0 });
-    const c = { value: 0.5, target: 0.7, focusPulse: 0.3, tier: 4, beatFlash: 0.8 };
+    expect(newCoherence()).toEqual({ value: 0, target: 0, focusPulse: 0, tier: 0, beatFlash: 0, collapseDip: 0 });
+    const c = { value: 0.5, target: 0.7, focusPulse: 0.3, tier: 4, beatFlash: 0.8, collapseDip: 0.6 };
     resetCoherence(c);
     expect(c).toEqual(newCoherence());
   });
@@ -114,6 +115,25 @@ describe('coherence — the soul dial', () => {
     const steps = Math.ceil(COHERENCE.focusPulseDecay / (1 / 60)) + 5;
     for (let i = 0; i < steps; i++) tickCoherence(c, 1 / 60);
     expect(c.focusPulse).toBe(0);
+  });
+
+  it('C2/C3: coherenceEdges fires once on the dial own-threshold crossings (edge, not level)', () => {
+    const T = COHERENCE.collapseThreshold;
+    const W = COHERENCE.windowThreshold;
+    expect(coherenceEdges(T + 0.2, T - 0.01).collapsed).toBe(true); // crossed DOWN
+    expect(coherenceEdges(T - 0.01, T - 0.02).collapsed).toBe(false); // already below — no refire
+    expect(coherenceEdges(T + 0.2, T + 0.1).collapsed).toBe(false); // didn't cross
+    expect(coherenceEdges(W - 0.1, W + 0.01).rose).toBe(true); // crossed UP
+    expect(coherenceEdges(W + 0.1, W + 0.2).rose).toBe(false); // already above
+    expect(coherenceEdges(W - 0.2, W - 0.1).rose).toBe(false); // didn't reach
+  });
+
+  it('C3: collapseDip decays to exactly 0 and never goes negative', () => {
+    const c = newCoherence();
+    c.collapseDip = 1;
+    const steps = Math.ceil(COHERENCE.collapseDipDecay / (1 / 60)) + 5;
+    for (let i = 0; i < steps; i++) tickCoherence(c, 1 / 60);
+    expect(c.collapseDip).toBe(0);
   });
 
   it('C1: coherenceBeatFlash lights the ring (perfect=1, good=beatFlashGood) and decays to 0', () => {

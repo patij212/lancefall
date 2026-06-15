@@ -56,7 +56,10 @@ export const NARRATOR = {
     75: "Lancefall blazes. The noise can't hold it.",
     100: 'The city stands whole, decrypted, and the day is yours.',
   } as Record<number, string>,
-  comboBreak: ['The signal scatters. Get it back.', 'It re-encrypts. Hold the pattern.'],
+  comboBreak: ['The city forgets a street.', 'A quarter goes dark — the grey takes it back.', 'Block by block, the lights blink out.'],
+  // C2/C3 — the dial's own-threshold transients (the FALL, and the lights returning)
+  collapse: ['The signal collapses. Lancefall dims.', 'The grey floods back in.', 'The pattern breaks; the dark closes.'],
+  rise: ['A window lights. The city remembers a little.', 'The grey gives ground again.', 'The pattern holds — the lights climb back.'],
   bossApproach: {
     warden: 'He held the walls, then turned the first key against us.',
     weaver: 'She enciphered every thread. Read her, or stay lost.',

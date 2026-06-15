@@ -61,7 +61,7 @@ import {
 } from './save';
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind } from './types';
-import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash } from './coherence';
+import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash, coherenceEdges } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder } from './replay';
@@ -872,11 +872,23 @@ export class Game {
       this.coherence.tier = comboTier(cw.combo);
       this.coherence.target = coherenceTarget(cw.combo, cw.comboTimer, cw.player.killsThisDash, cw.clutch.lastBreathActive);
     }
+    const prevCoherence = this.coherence.value;
     tickCoherence(this.coherence, realDt);
+    // C2/C3 — the dial's own-threshold transients: a dead chain FALLS (a wash lurch + the
+    // city forgetting), a rebuild lights it back. Edge-triggered, cosmetic, own narrator
+    // rng — never the seeded sim. The ambient cooldown gate keeps it restrained.
+    if (this.state === 'playing') {
+      const edges = coherenceEdges(prevCoherence, this.coherence.value);
+      if (edges.collapsed) {
+        this.coherence.collapseDip = 1;
+        this.narrate('coherence_collapse', 'toast', NARRATOR.collapse, true);
+      }
+      if (edges.rose) this.narrate('coherence_rise', 'toast', NARRATOR.rise, true);
+    }
     // THE ONE BUS — push the eased Coherence value to sight AND sound on the SAME
     // frame with the SAME value (the audio glides smooth the per-frame writes; the
     // call no-ops when music isn't running, so the title hub stays silent-safe).
-    this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse, this.coherence.beatFlash);
+    this.renderer.setCoherence(this.coherence.value, this.coherence.focusPulse, this.coherence.beatFlash, this.coherence.collapseDip);
     this.audio.setCoherence(this.coherence.value, this.coherence.tier);
 
     // narrator (cosmetic; own rng; frame-context, never the seeded sim)

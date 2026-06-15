@@ -66,6 +66,7 @@ export class Renderer {
   private coherence = 0;
   private focusPulse = 0;
   private beatFlash = 0; // C1 — localized beat-grade ring envelope (pushed by setCoherence)
+  private collapseDip = 0; // C3 — the felt-FALL wash dip (pushed by setCoherence)
   private quality = 1; // perf-adaptive (1 = full; lower under load)
   private reduceMotionR = false;
   private clarityR = false;
@@ -91,10 +92,11 @@ export class Renderer {
 
   /** THE ONE BUS (render half) — pushed each frame: the eased Coherence value +
    *  the Perfect-dash focus-snap envelope. Read by the wash, skyline, and glow. */
-  setCoherence(c: number, focus: number, beatFlash = 0): void {
+  setCoherence(c: number, focus: number, beatFlash = 0, collapseDip = 0): void {
     this.coherence = c;
     this.focusPulse = focus;
     this.beatFlash = beatFlash;
+    this.collapseDip = collapseDip;
   }
   /** Perf-adaptive quality 0.4..1 (mirrors the director's perfScale). */
   setQuality(q: number): void {
@@ -1541,6 +1543,7 @@ export class Renderer {
       this.reduceFlashingR,
       this.reduceMotionR,
       this.clarityR,
+      this.collapseDip,
     );
     // gate the wash off under DEEP perf load (quality ≤ 0.6) — it is the single
     // biggest new per-frame op on CPU-compositing hardware, and this is the only

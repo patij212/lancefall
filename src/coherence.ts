@@ -16,10 +16,12 @@ export interface CoherenceState {
   tier: number;
   /** 0..1 decaying beat-grade ring envelope (BOTH grades; localized, a11y-safe) — C1 */
   beatFlash: number;
+  /** 0..1 decaying "felt FALL" dip on a dead chain (frame-wide wash lurch; a11y-gated) — C3 */
+  collapseDip: number;
 }
 
 export function newCoherence(): CoherenceState {
-  return { value: 0, target: 0, focusPulse: 0, tier: 0, beatFlash: 0 };
+  return { value: 0, target: 0, focusPulse: 0, tier: 0, beatFlash: 0, collapseDip: 0 };
 }
 
 export function resetCoherence(c: CoherenceState): void {
@@ -28,6 +30,7 @@ export function resetCoherence(c: CoherenceState): void {
   c.focusPulse = 0;
   c.tier = 0;
   c.beatFlash = 0;
+  c.collapseDip = 0;
 }
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -57,6 +60,16 @@ export function tickCoherence(c: CoherenceState, dt: number): void {
   c.value += (c.target - c.value) * (1 - Math.exp(-rate * dt));
   c.focusPulse = Math.max(0, c.focusPulse - dt / CO.focusPulseDecay);
   c.beatFlash = Math.max(0, c.beatFlash - dt / CO.beatFlashDecay);
+  c.collapseDip = Math.max(0, c.collapseDip - dt / CO.collapseDipDecay);
+}
+
+/** C2/C3 (v6 §1) — edge detection on the dial's OWN thresholds: a chain dying drops the
+ *  value DOWN through collapseThreshold (the felt FALL); a rebuild lifts it UP through
+ *  windowThreshold (the lights coming on). ONCE per crossing (edge, not level). Pure. */
+export function coherenceEdges(prev: number, value: number): { collapsed: boolean; rose: boolean } {
+  const collapsed = prev > CO.collapseThreshold && value <= CO.collapseThreshold;
+  const rose = prev < CO.windowThreshold && value >= CO.windowThreshold;
+  return { collapsed, rose };
 }
 
 /** A graded on-beat dash kicks the bus + (perfect) lights the focus-snap. This

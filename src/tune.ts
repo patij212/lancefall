@@ -422,6 +422,11 @@ export const COHERENCE = {
   beatRingAlpha: 0.55, // peak localized ring alpha at beatFlash 1
   beatRingAlphaCap: 0.3, // max ring alpha under reduceFlashing
   beatRingRadiusLift: 10, // px the ring expands at peak; halved + frozen under reduceMotion
+  // ── C2/C3 (v6 §1) — the felt FALL: a dead chain lurches the wash down (collapseDip),
+  //    edge-triggered on the dial's OWN threshold; gated off under a11y like vignetteDeepen ──
+  collapseDipDecay: 0.6, // seconds for collapseDip 1→0 (slower than focusPulse so the FALL lingers)
+  collapseDipDrop: 0.3, // saturation subtracted at peak dip (negative analogue of focusSnapLift)
+  collapseThreshold: 0.1, // value must cross DOWN through this (≈floor+0.04) to fire the collapse
   // ── render wash ──
   satFloor: 0.12, // min saturation multiplier at coherence 0 (never fully gray — readability)
   washGain: 0.88, // saturation lift from full coherence (satFloor..satFloor+washGain)
