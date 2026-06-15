@@ -181,6 +181,9 @@ export class UI {
   private shardLine!: HTMLElement;
   private modeGrid!: HTMLElement;
   private playBtn!: HTMLButtonElement;
+  // collapsible "MORE" drawer — holds the secondary meta (palette / trail / nav)
+  private titleMore!: HTMLElement;
+  private titleMoreToggle!: HTMLButtonElement;
 
   // gameover refs
   private goScore!: HTMLElement;
@@ -345,7 +348,9 @@ export class UI {
     inspectBtn.addEventListener('click', () => this.openInspect());
     this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
     this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, inspectBtn, settingsBtn, how, codexBtn, fallBtn, creditsBtn);
+    // SETTINGS stays visible up top (always-wanted); the rest of the meta nav lives in the MORE drawer
+    const settingsRow = el('div', { class: 'title-row title-row-primary' }, settingsBtn, how);
+    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, inspectBtn, codexBtn, fallBtn, creditsBtn);
     this.dailyCaption = el('div', { class: 'daily-caption' }, '');
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
@@ -377,6 +382,21 @@ export class UI {
       '☀ SOLSTICE — the longest day · today the whole world breaks the same key',
     );
 
+    // ── MORE drawer ── declutter the title: PLAY + modes + ship lead; the secondary meta
+    // (palette / dash-trail cosmetics + the extended nav) is collapsed behind one toggle.
+    const moreInner = el('div', { class: 'title-more-inner' }, themeSection, trailSection, row);
+    this.titleMore = el(
+      'div',
+      { class: 'title-more', id: 'title-more', role: 'region', 'aria-label': 'More options' },
+      moreInner,
+    );
+    this.titleMoreToggle = el('button', {
+      class: 'btn btn-ghost title-more-toggle',
+      'aria-expanded': 'false',
+      'aria-controls': 'title-more',
+    }, '▾ MORE') as HTMLButtonElement;
+    this.titleMoreToggle.addEventListener('click', () => this.toggleTitleMore());
+
     this.title = el(
       'div',
       { class: 'screen screen-title' },
@@ -384,18 +404,27 @@ export class UI {
       subtitle,
       tagline,
       solsticeStamp,
-      play,
-      this.modeGrid,
-      row,
-      this.dailyCaption,
-      shipSection,
-      themeSection,
-      trailSection,
-      legend,
       this.titleBest,
       this.shardLine,
+      play,
+      this.modeGrid,
+      this.dailyCaption,
+      shipSection,
+      legend,
+      settingsRow,
+      this.titleMoreToggle,
+      this.titleMore,
       this.soundHint,
     );
+  }
+
+  /** Expand / collapse the title's MORE drawer (secondary palette / trail / nav meta). */
+  private toggleTitleMore(open?: boolean): void {
+    const next = open ?? !this.titleMore.classList.contains('open');
+    this.titleMore.classList.toggle('open', next);
+    this.titleMoreToggle.classList.toggle('open', next);
+    this.titleMoreToggle.setAttribute('aria-expanded', String(next));
+    this.titleMoreToggle.textContent = next ? '▴ LESS' : '▾ MORE';
   }
 
   private buildPause(): void {
@@ -1107,10 +1136,15 @@ export class UI {
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }
+    // every fresh title view starts PLAY-forward: the MORE drawer collapses back down
+    if (s === 'title') {
+      this.toggleTitleMore(false);
+    }
     // move keyboard focus to the active screen's primary action
     const active = { title: this.title, paused: this.pause, gameover: this.gameover, draft: this.draft, event: this.eventPanel, playing: null }[s];
     if (active) {
-      const btn = active.querySelector('.btn-primary, .perk-card, .btn') as HTMLElement | null;
+      // on the title, foreground PLAY explicitly (it is the dominant action)
+      const btn = (s === 'title' ? this.playBtn : (active.querySelector('.btn-primary, .perk-card, .btn') as HTMLElement | null));
       btn?.focus();
     }
   }

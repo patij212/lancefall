@@ -121,10 +121,16 @@ body {
   color: var(--cyan);
 }
 .btn-play {
-  font-size: 22px;
-  padding: 14px 56px;
-  margin-top: 6px;
+  font-size: 26px;
+  padding: 16px 72px;
+  margin-top: 12px;
+  letter-spacing: 0.14em;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(34, 211, 238, 0.4);
   animation: pulse 1.4s ease-in-out infinite;
+}
+.btn-play:hover {
+  box-shadow: 0 12px 40px rgba(168, 85, 247, 0.55);
 }
 @keyframes pulse {
   50% {
@@ -371,6 +377,50 @@ body {
   color: var(--text-muted);
   font-family: 'JetBrains Mono', monospace;
 }
+
+/* ── MORE drawer ── declutter: secondary palette / trail / nav meta starts collapsed ── */
+.title-row-primary {
+  margin-top: 14px;
+}
+.title-more-toggle {
+  margin-top: 12px;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.title-more {
+  width: 100%;
+  max-width: 760px;
+  /* collapsed by default — the 0fr→1fr grid row animates height with no fixed pixel target */
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: 0;
+  overflow: hidden;
+  transition: grid-template-rows 0.24s ease, opacity 0.2s ease, margin-top 0.24s ease;
+}
+.title-more-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-height: 0; /* let the collapsing grid row clip the inner content */
+}
+.title-more.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 16px;
+}
+/* a11y: respect reduce-motion — snap open/closed instead of sliding */
+.reduce-motion .title-more {
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-more {
+    transition: none !important;
+  }
+}
+
 .screen-title {
   justify-content: flex-start;
   padding: clamp(20px, 5vh, 70px) 16px 24px;
