@@ -306,16 +306,29 @@
     const origRAF = window.requestAnimationFrame; window.requestAnimationFrame = () => 0;
     const oR = lf.renderer.render.bind(lf.renderer), oH = lf.ui.updateHud.bind(lf.ui);
     lf.renderer.render = () => {}; lf.ui.updateHud = () => {};
+    // Don't pollute the LIVE leaderboard while probing: each headless run ends in a
+    // real gameover → submitScore POSTs to the deployed worker, which rate-limits
+    // (429) and rejects implausible bot payloads (400). Swallow leaderboard traffic
+    // (POST /score + GET /leaderboard) for the duration; everything else passes through.
+    const origFetch = window.fetch;
+    window.fetch = function (input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (/\/(score|leaderboard)(\?|$)/.test(url)) return Promise.resolve(new Response('{"entries":[]}', { status: 200, headers: { 'content-type': 'application/json' } }));
+      return origFetch.call(this, input, init);
+    };
     const rows = [];
-    for (let r = 0; r < runs; r++) {
-      bot.prevHeld = false; bot.committed = false; window.__lastWon = false;
-      lf.start(mode);
-      let t = performance.now(); lf.lastTime = t; lf.accumulator = 0; let steps = 0;
-      while (lf.state !== 'gameover' && steps < capSteps) { t += 16.667; lf.frame(t); steps++; }
-      const w = lf.world;
-      rows.push({ time: +w.time.toFixed(1), score: w.score, kills: w.killCount, combo: w.bestComboRun, won: window.__lastWon, bossKills: w.bossKills ?? 0 });
+    try {
+      for (let r = 0; r < runs; r++) {
+        bot.prevHeld = false; bot.committed = false; window.__lastWon = false;
+        lf.start(mode);
+        let t = performance.now(); lf.lastTime = t; lf.accumulator = 0; let steps = 0;
+        while (lf.state !== 'gameover' && steps < capSteps) { t += 16.667; lf.frame(t); steps++; }
+        const w = lf.world;
+        rows.push({ time: +w.time.toFixed(1), score: w.score, kills: w.killCount, combo: w.bestComboRun, won: window.__lastWon, bossKills: w.bossKills ?? 0 });
+      }
+    } finally {
+      window.requestAnimationFrame = origRAF; lf.renderer.render = oR; lf.ui.updateHud = oH; window.fetch = origFetch;
     }
-    window.requestAnimationFrame = origRAF; lf.renderer.render = oR; lf.ui.updateHud = oH;
     return rows;
   };
 
