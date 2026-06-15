@@ -1498,7 +1498,10 @@ export class Renderer {
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
     const sr = TUNE.player.spriteRadius * (p.phase === 'charging' ? 1 + 0.06 * Math.sin(p.charge * 30) : 1);
-    const invuln = p.iframe > 0 && Math.floor(p.iframe * 40) % 2 === 0;
+    // i-frame tell: a fast white blink normally, but under reduceFlashing a STEADY white
+    // outline (no 40Hz toggle) so longer protection windows — e.g. the Grid-B first-run
+    // grace — never strobe. Either way the white outline reads as "protected".
+    const invuln = p.iframe > 0 && (this.reduceFlashingR || Math.floor(p.iframe * 40) % 2 === 0);
     // hit-flash whites out the whole ship; the i-frame blink overrides the outline white.
     // Otherwise the hull + spine/bulkhead detail + cockpit glint all ride the ship accent.
     const plain = p.hitFlash <= 0 && !invuln;

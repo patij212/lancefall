@@ -21,6 +21,11 @@ export const ONBOARDING: OnboardHint[] = [
 
 export const ONBOARDING_STEPS = ONBOARDING.length;
 
+/** Grid B — the very first prompt a brand-new player sees, surfaced as the BIG center
+ *  callout (not just a toast) so the core verb can't be missed. Paired with a short
+ *  no-fail opening grace (see ONBOARD.firstRunGrace) so they can practise without dying. */
+export const FIRST_DASH_PROMPT = 'HOLD then RELEASE to DASH';
+
 /** The hint to show if `trigger` fires while at `step` (else null). */
 export function hintFor(step: number, trigger: OnboardTrigger): OnboardHint | null {
   const h = ONBOARDING[step];

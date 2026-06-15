@@ -508,6 +508,16 @@ export const COHERENCE = {
   tierCombo: [10, 20, 35, 50, 75, 100], // combo thresholds → tier 1..6
 } as const;
 
+// ONBOARDING (Grid B) — first-run teaching of the core verb (HOLD + RELEASE = DASH).
+// Cosmetic / UI only; the opening grace is a PURE TIME GATE — it tops up the player's
+// i-frames for a moment at the very first run so a new player can learn the dash before
+// dying. It NEVER touches world.rng (no spawn changes), so the Daily stays deterministic.
+export const ONBOARD = {
+  // seconds of no-fail i-frame grace at the start of a brand-new player's FIRST run.
+  // Pure wall-clock teaching window; ends early once they actually dash (verb learned).
+  firstRunGrace: 3.5,
+} as const;
+
 // THREAT RIM (v6 §7b) — render-only legibility. The global COHERENCE wash uses a
 // 'saturation' blend (it PRESERVES luminance, only pulls hue→gray), so a constant
 // thin HIGH-LUMINANCE neon rim on every enemy + bullet stays a bright readable

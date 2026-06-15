@@ -429,22 +429,24 @@ export class UI {
 
     this.comboEl = el('div', { class: 'hud-combo' }, '');
     this.comboBar = el('div', { class: 'hud-combo-fill' });
-    const comboBarWrap = el('div', { class: 'hud-combo-bar' }, this.comboBar);
+    // Grid B — cheap in-run jargon tooltips on the stable meter wrappers (label text
+    // changes per-frame; the wrapper title stays put). Keyboard-reachable, no flashing.
+    const comboBarWrap = el('div', { class: 'hud-combo-bar', title: 'COMBO — kills chained without a break. Higher combo lifts your score multiplier and decays if you stop killing.' }, this.comboBar);
     this.beatPip = el('div', { class: 'hud-beatpip' });
     const topCenter = el('div', { class: 'hud-topcenter' }, this.comboEl, comboBarWrap, this.beatPip);
 
-    this.staminaWrap = el('div', { class: 'hud-stamina' });
+    this.staminaWrap = el('div', { class: 'hud-stamina', title: 'STAMINA — each dash spends a segment. It refills over time and faster when you graze bullets.' });
     this.shieldsWrap = el('div', { class: 'hud-shields' });
-    this.grazeEl = el('div', { class: 'hud-graze' }, '');
+    this.grazeEl = el('div', { class: 'hud-graze', title: 'GRAZE — skim a bullet without being hit to refill stamina and build your run.' }, '');
     this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
     this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
-    this.cityMemWrap = el('div', { class: 'hud-citymem' }, this.cityMemFill);
+    this.cityMemWrap = el('div', { class: 'hud-citymem', title: 'COHERENCE — the City of Lancefall lights up as you chain kills and dash on the beat. Higher coherence = brighter world and fuller sound.' }, this.cityMemFill);
     const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.shieldsWrap, this.cityMemWrap, this.bestComboEl);
 
     // OVERDRIVE meter (below the stamina bar)
     this.odLabel = el('div', { class: 'hud-od-label' }, 'DAYBREAK');
     this.odFill = el('div', { class: 'hud-od-fill' });
-    this.odWrap = el('div', { class: 'hud-overdrive' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
+    this.odWrap = el('div', { class: 'hud-overdrive', title: 'DAYBREAK (OVERDRIVE) — kills and grazes charge this meter. When it reads READY, press F (or LB) for a time-slowing, screen-clearing burst of light.' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
 
     // active POWER-UP badge (hidden unless one is active)
     this.puLabel = el('div', { class: 'hud-pu-label' }, '');
@@ -515,27 +517,29 @@ export class UI {
     this.modeGrid = el('div', { class: 'mode-grid', role: 'group', 'aria-label': 'Select game mode' });
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
     settingsBtn.addEventListener('click', () => this.openSettings());
-    const upgradesBtn = el('button', { class: 'btn btn-ghost' }, 'UPGRADES');
+    const upgradesBtn = el('button', { class: 'btn btn-ghost', title: 'UPGRADES — spend shards earned from runs on a permanent meta-tree that carries between runs.' }, 'UPGRADES');
     upgradesBtn.addEventListener('click', () => this.openUpgrades());
     const statsBtn = el('button', { class: 'btn btn-ghost' }, 'STATS');
     statsBtn.addEventListener('click', () => this.openStats());
     const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
     how.addEventListener('click', () => this.showHowTo());
-    const codexBtn = el('button', { class: 'btn btn-ghost' }, '📖 CODEX');
+    // Grid B — jargon tooltips: each meta button explains its unfamiliar term at rest
+    // (native title=, keyboard-reachable on focus, screen-reader friendly, no flashing).
+    const codexBtn = el('button', { class: 'btn btn-ghost', title: 'CODEX — a bestiary of every enemy, boss, biome and relic you have met, with lore.' }, '📖 CODEX');
     codexBtn.addEventListener('click', () => this.showCodex());
-    const creditsBtn = el('button', { class: 'btn btn-ghost' }, '♪ CREDITS');
+    const creditsBtn = el('button', { class: 'btn btn-ghost', title: 'CREDITS — the music, sounds and assets behind LANCEFALL.' }, '♪ CREDITS');
     creditsBtn.addEventListener('click', () => this.showCredits());
-    const fallBtn = el('button', { class: 'btn btn-ghost' }, '◈ THE FALL');
+    const fallBtn = el('button', { class: 'btn btn-ghost', title: 'THE FALL — the story: six who let the City of Lancefall go dark, and the key to bring back the day.' }, '◈ THE FALL');
     fallBtn.addEventListener('click', () => this.showFall());
-    const heatBtn = el('button', { class: 'btn btn-ghost' }, '🔥 HEAT');
+    const heatBtn = el('button', { class: 'btn btn-ghost', title: 'HEAT — an optional difficulty ladder. Higher Heat = tougher runs and a bigger score multiplier.' }, '🔥 HEAT');
     heatBtn.addEventListener('click', () => this.openHeat());
-    const archBtn = el('button', { class: 'btn btn-ghost' }, '◈ BUILD');
+    const archBtn = el('button', { class: 'btn btn-ghost', title: 'BUILD — pick a starting archetype that biases your perk draft toward a playstyle.' }, '◈ BUILD');
     archBtn.addEventListener('click', () => this.openArchetype());
-    const leaderBtn = el('button', { class: 'btn btn-ghost' }, '🏅 RANKS');
+    const leaderBtn = el('button', { class: 'btn btn-ghost', title: 'RANKS — online leaderboards (daily, weekly and all-time) if you opt in.' }, '🏅 RANKS');
     leaderBtn.addEventListener('click', () => this.openLeaderboard());
-    const duelBtn = el('button', { class: 'btn btn-ghost' }, '⚔ DUEL');
+    const duelBtn = el('button', { class: 'btn btn-ghost', title: 'DUEL — an async 1v1: you and a friend race the same fixed seed, best score wins.' }, '⚔ DUEL');
     duelBtn.addEventListener('click', () => this.openDuel());
-    const inspectBtn = el('button', { class: 'btn btn-ghost' }, '⧬ INSPECT');
+    const inspectBtn = el('button', { class: 'btn btn-ghost', title: 'INSPECT — paste a shared BUILD DNA code to read back the exact ship, perks and Heat of a run.' }, '⧬ INSPECT');
     inspectBtn.addEventListener('click', () => this.openInspect());
     this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
     this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
@@ -546,11 +550,11 @@ export class UI {
     this.titleBest = el('div', { class: 'title-best' }, '');
     this.shardLine = el('div', { class: 'title-shards' }, '');
     this.shipRow = el('div', { class: 'ship-row' });
-    const shipSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'SHIP'), this.shipRow);
+    const shipSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label', title: 'SHIP — your hull. Each ship has a different feel: speed, stamina, dash and starting perks.' }, 'SHIP'), this.shipRow);
     this.themeRow = el('div', { class: 'theme-row' });
-    const themeSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'PALETTE'), this.themeRow);
+    const themeSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label', title: 'PALETTE — a cosmetic colour theme for the whole game. No effect on gameplay.' }, 'PALETTE'), this.themeRow);
     this.trailRow = el('div', { class: 'theme-row' });
-    const trailSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label' }, 'DASH TRAIL'), this.trailRow);
+    const trailSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label', title: 'DASH TRAIL — the cosmetic streak left behind when you dash. Unlocked through play.' }, 'DASH TRAIL'), this.trailRow);
     this.soundHint = el('div', { class: 'sound-hint' }, '♪ click PLAY to enable sound');
 
     const legend = el(

@@ -30,12 +30,12 @@ import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore, leaderboardEnabled } from './api';
-import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT } from './onboarding';
+import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE } from './tune';
+import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE, ONBOARD } from './tune';
 import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -146,6 +146,10 @@ export class Game {
   private runHeat = 0; // heat level locked in for the active run
   private onboarding = false; // first-run progressive tutorial active
   private onboardStep = 0;
+  // Grid B — no-fail opening grace, ONLY on a brand-new player's first run. A PURE
+  // wall-clock gate that tops up i-frames so the dash can be learned before dying;
+  // never touches world.rng / spawns, so the Daily stays deterministic.
+  private firstRunGrace = 0;
   private showBeatRingThisRun = false; // C5 — auto-show the beat-ring for the first few runs
   private beatHintShownThisRun = false; // C5 — one-time dash-on-beat hint per run
   private intensityTimer = 0;
@@ -428,11 +432,17 @@ export class Game {
     this.replay.start(this.canvas);
 
     // first-run progressive onboarding — hints surface as you perform each action
+    this.firstRunGrace = 0;
     if (!this.save.seenTutorial) {
       this.save.seenTutorial = true;
       saveSave(this.save);
       this.onboarding = true;
       this.onboardStep = 0;
+      // Grid B — the core verb, big and unmissable, on the very first run. A center
+      // callout + a short no-fail grace (pure time gate) so they can practise the
+      // dash without dying. The progressive 'start' toast still primes the sequence.
+      this.ui.announce(FIRST_DASH_PROMPT, '#5beaff');
+      this.firstRunGrace = ONBOARD.firstRunGrace;
       this.tryHint('start');
     } else {
       this.onboarding = false;
@@ -1033,6 +1043,15 @@ export class Game {
     updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev, this.settings.dashStyle === 'slingshot', w.sdInset);
     this.handlePlayerEvents(wasCharging);
 
+    // Grid B — first-run no-fail grace (pure time gate). Tops up i-frames AFTER the
+    // player update decrements them but BEFORE any collision check, so all existing
+    // death paths (already gated on iframe<=0) stay covered without touching collision
+    // code. Counts only sim time → never reads world.rng, so the Daily is untouched.
+    if (this.firstRunGrace > 0) {
+      this.firstRunGrace = Math.max(0, this.firstRunGrace - dt);
+      w.player.iframe = Math.max(w.player.iframe, this.firstRunGrace);
+    }
+
     // dash + afterimage hits (share one hash rebuild).
     // Resolve on the landing step too (ev.landed) so the final segment to the
     // dash endpoint is never skipped.
@@ -1145,6 +1164,9 @@ export class Game {
       w.particles.streaks(p.x, p.y, p.dashDirX, p.dashDirY, trailParticleColor(this.trail, comboColor(w.combo)));
       this.cam.zoom = Math.max(this.cam.zoom, 1.03);
       this.input.rumble(0.0, 0.3, 70);
+      // Grid B — verb learned: once they actually dash, taper the no-fail grace to a
+      // short tail (don't yank protection mid-air) and let real stakes resume.
+      if (this.firstRunGrace > 0) this.firstRunGrace = Math.min(this.firstRunGrace, 0.6);
       this.tryHint('dash');
     }
     if (this.ev.landed) {
