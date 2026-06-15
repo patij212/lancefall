@@ -55,7 +55,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
     : kind === 'mirrorblade' ? MIRRORBLADE.color
     : kind === 'hollow' ? HOLLOW.color
     : kind === 'sovereign' ? SOVEREIGN.color
-    : '#ff3b6b';
+    : WARDEN.color;
   e.baseScore = 0;
   e.timer =
     kind === 'mirrorblade' ? MIRRORBLADE.windup

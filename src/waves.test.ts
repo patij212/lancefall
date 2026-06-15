@@ -14,7 +14,7 @@ import {
   Director,
 } from './waves';
 import { createRng } from './rng';
-import { modeById } from './modes';
+import { modeById, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
 import { TUNE, ELITE } from './tune';
 
 describe('elites', () => {
@@ -213,5 +213,47 @@ describe('endless wave pacing', () => {
     // and it actually reaches the cap and holds there (no runaway 4-min waves)
     expect(w[6]).toBeCloseTo(cap, 1);
     expect(w[6] - w[5]).toBeLessThanOrEqual(ext + 1e-6);
+  });
+});
+
+// The headline "winnable" feature: ARENA (15 waves + 6 bosses) and BOSS RUSH (6
+// bosses) must actually reach a WIN. Drive a "perfect clear" — nothing ever lingers
+// (concurrent=0) and no boss survives (bossAlive=false) — so the director advances
+// through every scripted phase. Guards against a future phase-strand regression
+// silently breaking the victory path.
+describe('scripted modes reach the WIN state', () => {
+  function driveToWin(modeId: string) {
+    const d = new Director();
+    d.configure(modeById(modeId));
+    const rng = createRng(1);
+    const bosses: string[] = [];
+    let win = false;
+    let guard = 0;
+    while (!win && guard++ < 100_000) {
+      const dec = d.update(0.7, 0, false, rng);
+      if (dec.bossKind) bosses.push(dec.bossKind);
+      if (dec.win) win = true;
+    }
+    const after = d.update(0.7, 0, false, rng); // post-win: must be inert
+    return { bosses, win, bossCount: d.bossCount, after, guard };
+  }
+
+  it('ARENA spawns every scripted boss in order, wins exactly once, then goes inert', () => {
+    const expected = ARENA_SCRIPT.flatMap((w) => (w.kind === 'boss' ? [w.boss] : []));
+    const r = driveToWin('arena');
+    expect(r.win).toBe(true);
+    expect(r.bosses).toEqual(expected); // every boss requested, in script order
+    expect(r.bossCount).toBe(expected.length); // HP-scaling ordinal advanced per boss
+    expect(r.after.win).toBe(false); // win fires exactly once
+    expect(r.after.spawn.length).toBe(0); // no spawns after the gauntlet is beaten
+    expect(r.after.boss).toBe(false);
+  });
+
+  it('BOSS RUSH sequences all six bosses in order then wins', () => {
+    const r = driveToWin('bossrush');
+    expect(r.win).toBe(true);
+    expect(r.bosses).toEqual([...BOSSRUSH_SEQUENCE]);
+    expect(r.bossCount).toBe(BOSSRUSH_SEQUENCE.length);
+    expect(r.after.win).toBe(false);
   });
 });

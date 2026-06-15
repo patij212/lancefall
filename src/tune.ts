@@ -38,7 +38,7 @@ export const TUNE = {
     regenPerSec: 75,
     regenDelay: 0.35, // lockout after dashing before regen resumes
     grazeRefund: 16,
-    killRefund: 0, // base; BLOODRUSH perk adds
+    killRefund: 0, // base; the Siphon perk + Stalwart ship + LIFELINE relic add
   },
 
   combo: {
@@ -128,35 +128,42 @@ export const TUNE = {
     relicChance: 0.22, // chance a perk draft swaps a slot for a cursed relic
     shieldStartTime: 110, // shielded variants appear after this many seconds
     shieldMaxChance: 0.35,
+    // ARENA scripted-mode pacing (the finite, winnable gauntlet) — hoisted out of waves.ts
+    arenaSpawnCadence: 0.7, // s between arena spawn ticks
+    arenaConcurrentCap: 14, // max enemies on screen during an arena wave
+    arenaPerTick: 2, // enemies released per arena spawn tick
   },
 } as const;
 
 // ── Enemy archetype data tables ──
+// NOTE: per-kind movement speeds live in the named behavior consts below (DARTER,
+// ORBITER, SHADE_TUNE, …); ENEMY_DEFS holds only the shared spawn fields the World
+// reads (hp/radius/color/baseScore). A dead `speed` field used to shadow those and
+// had drifted out of sync on 3 rows — removed to keep tune.ts a true single source.
 export interface EnemyDef {
   kind: string;
   hp: number;
   radius: number;
   color: string;
   baseScore: number;
-  speed: number;
 }
 
 export const ENEMY_DEFS: Record<string, EnemyDef> = {
-  darter: { kind: 'darter', hp: 1, radius: 13, color: '#ff3b6b', baseScore: 100, speed: 120 },
-  orbiter: { kind: 'orbiter', hp: 2, radius: 12, color: '#22d3ee', baseScore: 150, speed: 170 },
-  splitter: { kind: 'splitter', hp: 1, radius: 19, color: '#a855f7', baseScore: 120, speed: 70 },
-  mini: { kind: 'mini', hp: 1, radius: 9, color: '#c9a6ff', baseScore: 60, speed: 150 },
-  bloomer: { kind: 'bloomer', hp: 3, radius: 18, color: '#fbbf24', baseScore: 250, speed: 40 },
-  lancer: { kind: 'lancer', hp: 2, radius: 14, color: '#ff8a3b', baseScore: 220, speed: 90 },
-  bomber: { kind: 'bomber', hp: 2, radius: 16, color: '#fb7185', baseScore: 200, speed: 135 },
-  wisp: { kind: 'wisp', hp: 1, radius: 8, color: '#67e8f9', baseScore: 45, speed: 210 },
-  drifter: { kind: 'drifter', hp: 2, radius: 14, color: '#10b981', baseScore: 230, speed: 80 },
-  shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240, speed: 150 },
-  brooder: { kind: 'brooder', hp: 2, radius: 17, color: '#a78bfa', baseScore: 280, speed: 45 },
-  herald: { kind: 'herald', hp: 2, radius: 16, color: '#a3e635', baseScore: 260, speed: 75 },
-  seeker: { kind: 'seeker', hp: 2, radius: 14, color: '#e879f9', baseScore: 250, speed: 80 },
-  hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300, speed: 0 },
-  sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150, speed: 0 },
+  darter: { kind: 'darter', hp: 1, radius: 13, color: '#ff3b6b', baseScore: 100 },
+  orbiter: { kind: 'orbiter', hp: 2, radius: 12, color: '#22d3ee', baseScore: 150 },
+  splitter: { kind: 'splitter', hp: 1, radius: 19, color: '#a855f7', baseScore: 120 },
+  mini: { kind: 'mini', hp: 1, radius: 9, color: '#c9a6ff', baseScore: 60 },
+  bloomer: { kind: 'bloomer', hp: 3, radius: 18, color: '#fbbf24', baseScore: 250 },
+  lancer: { kind: 'lancer', hp: 2, radius: 14, color: '#ff8a3b', baseScore: 220 },
+  bomber: { kind: 'bomber', hp: 2, radius: 16, color: '#fb7185', baseScore: 200 },
+  wisp: { kind: 'wisp', hp: 1, radius: 8, color: '#67e8f9', baseScore: 45 },
+  drifter: { kind: 'drifter', hp: 2, radius: 14, color: '#10b981', baseScore: 230 },
+  shade: { kind: 'shade', hp: 2, radius: 14, color: '#f97316', baseScore: 240 },
+  brooder: { kind: 'brooder', hp: 2, radius: 17, color: '#a78bfa', baseScore: 280 },
+  herald: { kind: 'herald', hp: 2, radius: 16, color: '#a3e635', baseScore: 260 },
+  seeker: { kind: 'seeker', hp: 2, radius: 14, color: '#e879f9', baseScore: 250 },
+  hollow_echo: { kind: 'hollow_echo', hp: 6, radius: 22, color: '#a7f3d0', baseScore: 300 },
+  sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150 },
 };
 
 export const DARTER = {
@@ -175,7 +182,8 @@ export const ORBITER = {
 
 export const SPLITTER = {
   childCount: 2,
-  childSpeed: 150,
+  childSpeed: 120, // matches the live split velocity (was 150 in the table but the
+  // sim hardcoded 120 — table reconciled to the shipped value; now consumed by splitInto)
 };
 
 // Brooder — a slow "carrier" that periodically hatches a fast mini drone (up to a
@@ -538,6 +546,7 @@ export const WARDEN = {
   baseHp: 12, // dash-hits
   hpPerInterval: 4, // +per boss appearance
   radius: 44,
+  color: '#ff3b6b', // crimson keeper — was hardcoded in boss.ts/game.ts/render.ts
   moveSpeed: 90,
   phaseDuration: 6, // seconds per phase before swap
   // Phase A: spiral

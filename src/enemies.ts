@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE } from './tune';
+import { DARTER, ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
@@ -465,12 +465,12 @@ function sovereignCore(e: Enemy, world: World, dt: number): void {
  *  so an rng draw here would desync the seeded Daily director stream. */
 export function splitInto(e: Enemy, world: World): void {
   const base = e.spawnTime * 2.7; // varies per splitter, but deterministic given the seed
-  for (let i = 0; i < 2; i++) {
-    const a = base + i * Math.PI; // the two children fly apart
+  for (let i = 0; i < SPLITTER.childCount; i++) {
+    const a = base + (i * 2 * Math.PI) / SPLITTER.childCount; // children fan out evenly
     const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false, false, a);
     if (child) {
-      child.vx = Math.cos(a) * 120;
-      child.vy = Math.sin(a) * 120;
+      child.vx = Math.cos(a) * SPLITTER.childSpeed;
+      child.vy = Math.sin(a) * SPLITTER.childSpeed;
       child.scale = 0.4;
     }
   }

@@ -43,10 +43,16 @@ export function bulletSpeedMul(I: number): number {
   return 0.9 + 0.4 * clamp(I, 0, 2);
 }
 
-export function shieldChance(t: number): number {
-  const d = TUNE.director;
-  if (t < d.shieldStartTime) return 0;
-  return Math.min(d.shieldMaxChance, ((t - d.shieldStartTime) / 90) * d.shieldMaxChance);
+/** Per-spawn shielded-variant chance: 0 until `start`, then a 90s ramp to `max`.
+ *  Parameterized so the per-mode ramp (game.ts) and the default director ramp share
+ *  ONE formula instead of an inline duplicate. */
+export function shieldChance(
+  t: number,
+  start: number = TUNE.director.shieldStartTime,
+  max: number = TUNE.director.shieldMaxChance,
+): number {
+  if (t < start) return 0;
+  return Math.min(max, ((t - start) / 90) * max);
 }
 
 /** Per-spawn chance an eligible enemy arrives as an elite Champion. */
@@ -230,9 +236,9 @@ export class Director {
       if (wave.kind === 'wave') {
         this.spawnTimer -= dt;
         if (this.spawnTimer <= 0 && this.spawnedThisWave < wave.budget) {
-          this.spawnTimer = 0.7;
-          const cap = 14;
-          const room = Math.min(cap - concurrent, wave.budget - this.spawnedThisWave, 2);
+          this.spawnTimer = TUNE.director.arenaSpawnCadence;
+          const cap = TUNE.director.arenaConcurrentCap;
+          const room = Math.min(cap - concurrent, wave.budget - this.spawnedThisWave, TUNE.director.arenaPerTick);
           for (let i = 0; i < room; i++) {
             d.spawn.push(rng.pick(wave.enemies));
             this.spawnedThisWave++;

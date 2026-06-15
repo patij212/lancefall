@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -13,7 +13,7 @@ import { AudioEngine } from './audio';
 import { Scheduler } from './scheduler';
 import { Shake } from './shake';
 import { Director } from './waves';
-import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, ELITE_KINDS } from './waves';
+import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, shieldChance, ELITE_KINDS } from './waves';
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
@@ -2002,7 +2002,7 @@ export class Game {
     const I = intensity(w.time) * cfg.intensityMul;
     const sMul = (enemySpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul;
     const bMul = (bulletSpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul;
-    const baseShield = w.time < this.mode.shieldStart ? 0 : Math.min(this.mode.shieldMax, ((w.time - this.mode.shieldStart) / 90) * this.mode.shieldMax);
+    const baseShield = shieldChance(w.time, this.mode.shieldStart, this.mode.shieldMax);
     const shield = Math.min(0.7, baseShield + this.biomeShield);
     const cap = maxConcurrent(I);
     // count current champions once so we never exceed the concurrency cap
@@ -2050,7 +2050,7 @@ export class Game {
     this.audio.bossWarn();
     this.audio.bossMusic(true, boss?.kind); // per-boss tension theme
     this.shake.add(TUNE.juice.traumaBossSpawn);
-    const col = boss?.kind === 'weaver' ? '#a855f7' : boss?.kind === 'beacon' ? '#38bdf8' : boss?.kind === 'mirrorblade' ? '#ef4444' : boss?.kind === 'hollow' ? '#6ee7b7' : boss?.kind === 'sovereign' ? '#fde047' : '#ff3b6b';
+    const col = boss?.color ?? WARDEN.color; // reuse the boss's tune-set color (no duplicate table)
     this.renderer.flash(col, 0.3);
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);

@@ -189,9 +189,10 @@ export interface RunStats {
 /** Derive the full run stat block from base TUNE + permanent meta + ship + perks.
  *  Order: base → meta → ship → perks → evolutions → postApply. Pure.
  *  `metaApply` is where the World composes permanent-meta THEN run mutators (so
- *  perks/ships layer on top); `postApply` is the final capstone where relics +
- *  heat apply (after evolutions). Canonical order:
- *  base → meta → mutator → ship → perks → evo → relics → heat. */
+ *  perks/ships layer on top); `postApply` is the final capstone (after evolutions)
+ *  that applies HEAT first, then relics + event boons, then the active power-up.
+ *  Canonical order:
+ *  base → meta → mutator → ship → perks → evo → heat → relics/boons → power-up. */
 export function deriveStats(
   stacks: PerkStacks,
   shipApply?: (s: RunStats) => void,
@@ -284,6 +285,10 @@ export function deriveStats(
   // cap the in-run shard multiplier so Windfall × Hoarder × Treasure-Hunter can't
   // compound into a degenerate farm (mode.shardMul still multiplies at bank time).
   s.shardMul = Math.min(s.shardMul, 6);
+  // cap the spear hitbox: no stack (Long Lance + OVERREACH + evo + relic + Wide
+  // Lance boon) may pile the swept radius into a screen-eraser. Generous ceiling —
+  // only the pathological multi-source stack is trimmed; mirrors the floor/cap above.
+  s.dashHitboxRadius = Math.min(s.dashHitboxRadius, 110);
 
   return s;
 }

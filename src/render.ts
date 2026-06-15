@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD } from './tune';
+import { TUNE, COMBO_COLORS, WARDEN, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD } from './tune';
 import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
@@ -957,7 +957,7 @@ export class Renderer {
 
   private drawWarden(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
     const white = e.telegraph || 0;
-    ctx.fillStyle = mix('#ff3b6b', '#ffffff', white * 0.7);
+    ctx.fillStyle = mix(WARDEN.color, '#ffffff', white * 0.7);
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
     ctx.save();
@@ -975,7 +975,7 @@ export class Renderer {
     ctx.restore();
     // hp ring
     const frac = e.hp / e.maxHp;
-    ctx.strokeStyle = '#ff3b6b';
+    ctx.strokeStyle = WARDEN.color;
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
