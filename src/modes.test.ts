@@ -77,6 +77,7 @@ describe('modeBrief', () => {
     expect(modeBrief(modeById('bossrush')).note).toBe('WINNABLE');
     expect(modeBrief(modeById('longestday')).note).toBe('CIPHER');
     expect(modeBrief(modeById('daily')).note).toBe('SEEDED');
+    expect(modeBrief(modeById('nightmare')).note).toBe('SUDDEN DEATH'); // headline rule visible on the card
     expect(modeBrief(modeById('endless')).note).toBe('');
   });
 });

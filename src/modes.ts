@@ -5,17 +5,18 @@
 import type { EnemyKind } from './types';
 
 // v6 §4 — declarative per-mode rules. Optional + additive: an absent `rules` block
-// means today's behavior EXACTLY. Each flag hangs off ONE read site (events is wired
-// here; oneLife/scoreFrame/suddenDeath/biomeLock/perkCadenceMul get their read sites
-// in the mode-identity phase). Pure data — rides the Heat/mutator clone pipeline by
-// reference (read-only; a future per-run-mutable rule must deep-clone at that point).
+// means today's behavior EXACTLY. Wired read sites: events (game.ts rollEventId),
+// scoreFrame + suddenDeath (game.ts winRun / waves.ts suddenDeathInset). oneLife /
+// biomeLock / perkCadenceMul are RESERVED for future modes — no read site yet, so
+// setting one today is a silent no-op. Pure data — rides the Heat/mutator clone
+// pipeline by reference (read-only; a future per-run-mutable rule must deep-clone).
 export interface ModeRules {
   events?: 'normal' | 'none' | 'curated';
-  oneLife?: boolean;
-  scoreFrame?: 'survival' | 'cleartime' | 'nohit';
+  scoreFrame?: 'cleartime'; // completion-quality scoring (cleartime + folded no-hit bonus)
   suddenDeath?: { afterBoss?: number; graceSeconds?: number };
-  biomeLock?: number;
-  perkCadenceMul?: number;
+  oneLife?: boolean; // reserved — not yet wired
+  biomeLock?: number; // reserved — not yet wired
+  perkCadenceMul?: number; // reserved — not yet wired
 }
 
 export interface RunConfig {
@@ -89,7 +90,15 @@ export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note:
   const d = cfg.intensityMul * (1 / cfg.spawnMul) * (1 + cfg.speedBonus);
   const tier = d >= 1.3 ? 'BRUTAL' : d >= 1.1 ? 'HARD' : 'STANDARD';
   const reward = `×${cfg.shardMul} shards`;
-  const note = cfg.arena || cfg.bossrush ? 'WINNABLE' : cfg.cipherLock ? 'CIPHER' : cfg.seedKind === 'date' ? 'SEEDED' : '';
+  const note = cfg.arena || cfg.bossrush
+    ? 'WINNABLE'
+    : cfg.rules?.suddenDeath
+      ? 'SUDDEN DEATH'
+      : cfg.cipherLock
+        ? 'CIPHER'
+        : cfg.seedKind === 'date'
+          ? 'SEEDED'
+          : '';
   return { tier, reward, note };
 }
 
