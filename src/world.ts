@@ -130,6 +130,8 @@ export class World {
   shards = 0;
   grazeCount = 0;
   killCount = 0;
+  hitsTaken = 0; // §4 M3 — every would-be-fatal hit (armor / last-breath / revive / death) for no-hit scoring
+  clearTime = 0; // §4 M3 — sim time at victory (cleartime scoring)
   maxDashChain = 0; // most kills in a single dash this run
   bossKills = 0; // bosses downed this run
   sovereignDown = false; // the Sovereign (final boss) fell this run
@@ -231,6 +233,8 @@ export class World {
     this.shards = 0;
     this.grazeCount = 0;
     this.killCount = 0;
+    this.hitsTaken = 0;
+    this.clearTime = 0;
     this.cipher = null;
     this.cipherKeyDashId = -1;
     this.cipherCycle = 0;

@@ -84,6 +84,8 @@ export interface GameOverInfo {
   pbDelta: number;
   newAchievements: string[];
   mutators: { name: string; accent: string }[];
+  clearTime?: number; // §4 M3 — set on a winnable-mode victory (cleartime scoring)
+  hitsTaken?: number; // §4 M3 — would-be-fatal hits this run (0 = flawless)
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft' | 'event';
@@ -1251,13 +1253,18 @@ export class UI {
     for (const name of info.newAchievements) {
       this.goAch.append(el('span', { class: 'ach-chip' }, `🏆 ${name}`));
     }
-    this.goStats.replaceChildren(
+    const goStats = [
       stat('best combo', `x${info.combo}`),
       stat('wave', String(info.wave)),
       stat('time', formatTime(info.time)),
       stat('◆ shards', `+${info.shardsEarned}`),
       stat(info.daily ? 'daily best' : 'high score', (info.daily ? info.dailyBest : info.highScore).toLocaleString()),
-    );
+    ];
+    if (info.won && info.clearTime !== undefined) {
+      goStats.push(stat('clear time', formatTime(info.clearTime)));
+      goStats.push(stat('flawless', info.hitsTaken === 0 ? 'YES ✦' : `${info.hitsTaken} hits`));
+    }
+    this.goStats.replaceChildren(...goStats);
     this.goBuild.replaceChildren(
       el('span', { class: 'go-ship' }, `${info.mode} · ${info.ship}`),
       el('span', { class: 'go-perks' }, info.perks ? ` · ${info.perks}` : ' · no perks taken'),

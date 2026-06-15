@@ -24,6 +24,8 @@ export interface SubmitPayload {
   combo: number;
   heat: number;
   daily?: string; // YYYY-MM-DD for daily runs (server scopes the board by day)
+  clearTime?: number; // §4 M3 — victory clear time (winnable modes); server may rank by it
+  hitsTaken?: number; // §4 M3 — would-be-fatal hits (0 = flawless); winnable modes only
 }
 
 export function leaderboardEnabled(): boolean {

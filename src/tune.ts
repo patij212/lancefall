@@ -142,6 +142,13 @@ export const TUNE = {
     arenaConcurrentCap: 14, // max enemies on screen during an arena wave
     arenaPerTick: 2, // enemies released per arena spawn tick
   },
+
+  // v6 §4 M3 — completion-quality scoring for the WINNABLE modes (rules.scoreFrame)
+  score: {
+    timeBonusBase: 30000, // cleartime speed-bonus base (× scoreMul)
+    timeBonusPerSec: 60, // score shed per second of clear time
+    noHitBonus: 25000, // flat reward for a flawless (hitsTaken===0) victory (× scoreMul)
+  },
 } as const;
 
 // ── Enemy archetype data tables ──

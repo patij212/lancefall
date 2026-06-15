@@ -19,6 +19,15 @@ export function grazeScore(combo: number): number {
   return Math.round(TUNE.graze.scorePerGraze * comboMultiplier(combo));
 }
 
+/** §4 M3 — completion bonus for a WINNABLE mode: a speed bonus that decays with clear
+ *  time, plus a flat reward for a flawless (no-hit) clear. Pure; both scale by scoreMul. */
+export function clearTimeBonus(clearTime: number, hitsTaken: number, scoreMul: number): number {
+  const s = TUNE.score;
+  const speed = Math.round(Math.max(0, s.timeBonusBase - clearTime * s.timeBonusPerSec) * scoreMul);
+  const noHit = hitsTaken === 0 ? Math.round(s.noHitBonus * scoreMul) : 0;
+  return speed + noHit;
+}
+
 export function shouldSlowmo(killsThisDash: number): boolean {
   return killsThisDash >= TUNE.juice.slowmoChainThreshold;
 }

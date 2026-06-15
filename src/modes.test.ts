@@ -17,6 +17,13 @@ describe('modes', () => {
     expect(modeById('nightmare').rules?.suddenDeath?.afterBoss).toBe(1);
     expect(modeById('endless').rules).toBeUndefined();
   });
+
+  it('ARENA and BOSS RUSH carry cleartime scoring; time-driven modes do not (M3)', () => {
+    expect(modeById('arena').rules?.scoreFrame).toBe('cleartime');
+    expect(modeById('bossrush').rules?.scoreFrame).toBe('cleartime');
+    expect(modeById('endless').rules?.scoreFrame).toBeUndefined();
+    expect(modeById('daily').rules?.scoreFrame).toBeUndefined();
+  });
 });
 
 describe('modeBrief', () => {

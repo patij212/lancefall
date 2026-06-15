@@ -7,6 +7,7 @@ import {
   tickCombo,
   registerKill,
   hitstopFor,
+  clearTimeBonus,
 } from './combat';
 import { TUNE } from './tune';
 
@@ -71,6 +72,24 @@ describe('combo decay', () => {
 
   it('no-op when there is no combo', () => {
     expect(tickCombo(0, 0, 1)).toEqual({ combo: 0, timer: 0, broke: false });
+  });
+});
+
+describe('§4 M3 clearTimeBonus', () => {
+  it('a faster clear scores higher than a slower one', () => {
+    expect(clearTimeBonus(30, 5, 1)).toBeGreaterThan(clearTimeBonus(120, 5, 1));
+  });
+  it('clamps the speed bonus to 0 for a very slow clear', () => {
+    const huge = TUNE.score.timeBonusBase / TUNE.score.timeBonusPerSec + 100;
+    expect(clearTimeBonus(huge, 5, 1)).toBe(0); // 5 hits → no no-hit bonus either
+  });
+  it('adds the flat no-hit bonus only at hitsTaken === 0', () => {
+    const withHit = clearTimeBonus(60, 1, 1);
+    const flawless = clearTimeBonus(60, 0, 1);
+    expect(flawless - withHit).toBe(TUNE.score.noHitBonus);
+  });
+  it('scales linearly with scoreMul', () => {
+    expect(clearTimeBonus(60, 0, 2)).toBe(2 * clearTimeBonus(60, 0, 1));
   });
 });
 

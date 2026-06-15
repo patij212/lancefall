@@ -21,7 +21,7 @@ import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, hollowSy
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
-import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor } from './combat';
+import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus } from './combat';
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
@@ -1784,6 +1784,7 @@ export class Game {
     const w = this.world;
     const p = w.player;
     if (!p.alive) return;
+    w.hitsTaken++; // §4 M3 — one would-be-fatal hit, however it's absorbed (the single no-hit seam)
     // ARMOR (v6 §7) — a per-run shield absorbs a lethal hit BEFORE LAST BREATH. Each
     // absorb costs tempo + shoves nearby bullets aside (an escape lane, not a clear),
     // so the bullet-hell tension survives. Order: shields → LAST BREATH → revive → death.
@@ -1975,6 +1976,8 @@ export class Game {
         combo: w.bestComboRun,
         heat: this.runHeat,
         daily: this.mode.id === 'daily' ? dateString() : undefined,
+        clearTime: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.clearTime : undefined,
+        hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
       });
       // posted under 'ANON'? nudge the player once to claim their scores with a handle
       if (leaderboardEnabled() && !this.save.handle && w.score > 0 && !this.nudgedHandle) {
@@ -2003,6 +2006,8 @@ export class Game {
       mutators: this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })),
       choicePending: !this.inChallenge && won && w.sovereignDown && this.save.stillpointChoice === 'none',
       canReplay: this.replay.hasClip(),
+      clearTime: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.clearTime : undefined,
+      hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
@@ -2171,6 +2176,11 @@ export class Game {
     this.winning = true;
     this.winTimer = 2.4; // a longer victory cinematic before the debrief
     const w = this.world;
+    // §4 M3 — completion-quality scoring for winnable modes (speed bonus + no-hit reward)
+    w.clearTime = w.time;
+    if (this.mode.rules?.scoreFrame === 'cleartime') {
+      w.score += clearTimeBonus(w.time, w.hitsTaken, w.stats.scoreMul);
+    }
     w.player.iframe = 999;
     w.bullets.clear();
     w.enemies.clear(); // clear the board for a clean victory tableau

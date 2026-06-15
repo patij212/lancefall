@@ -50,6 +50,7 @@ export const MODES: RunConfig[] = [
     id: 'arena', name: 'ARENA', desc: '15 hand-built waves + 6 bosses. Clear it to WIN.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
     shieldStart: 70, shieldMax: 0.35, shardMul: 1.1, perks: true, canFail: true, arena: true, bossrush: false,
+    rules: { scoreFrame: 'cleartime' }, // §4 M3 — speedrun/no-hit mastery scoring
   },
   {
     id: 'daily', name: 'ECHO OF THE FALL', desc: "One citizen's last memory of the fall — the same seed, the same echo, for everyone today.",
@@ -66,6 +67,7 @@ export const MODES: RunConfig[] = [
     id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0.06,
     shieldStart: 999, shieldMax: 0, shardMul: 1.3, perks: true, canFail: true, arena: false, bossrush: true,
+    rules: { scoreFrame: 'cleartime' }, // §4 M3 — speedrun/no-hit mastery scoring
   },
   {
     id: 'longestday', name: 'THE LONGEST DAY',
