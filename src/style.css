@@ -1282,6 +1282,24 @@ body {
 .seg.empty .seg-fill {
   background: var(--danger);
 }
+.hud-shields {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.shield-pip {
+  width: calc(13px * var(--hud-scale));
+  height: calc(13px * var(--hud-scale));
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: rgba(91, 234, 255, 0.1);
+}
+.shield-pip.filled {
+  background: radial-gradient(circle at 35% 30%, #aef2ff, #2a9fd6);
+  border-color: #5beaff;
+  box-shadow: 0 0 6px rgba(91, 234, 255, 0.6);
+}
+.reduce-motion .shield-pip.filled { box-shadow: none; }
 .hud-graze,
 .hud-bestcombo {
   font-family: 'JetBrains Mono', monospace;

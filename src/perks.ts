@@ -3,7 +3,7 @@
 // derived purely from a stack-count record so the result is deterministic and
 // testable.
 
-import { TUNE } from './tune';
+import { TUNE, SURVIVAL } from './tune';
 import type { Rng } from './rng';
 
 export type PerkId =
@@ -184,6 +184,7 @@ export interface RunStats {
   draftSize: number; // perk cards offered per draft (base 3)
   reviveTokens: number; // revives available per run (base 0)
   startPerks: number; // random perks granted at run start (base 0)
+  baseShields: number; // ARMOR shields granted per run (v6 §7; Heat strips via shieldsLost)
 }
 
 /** Derive the full run stat block from base TUNE + permanent meta + ship + perks.
@@ -230,6 +231,7 @@ export function deriveStats(
     draftSize: 3,
     reviveTokens: 0,
     startPerks: 0,
+    baseShields: SURVIVAL.defaultShields,
   };
 
   if (metaApply) metaApply(s); // permanent meta-progression foundation
@@ -289,6 +291,8 @@ export function deriveStats(
   // Lance boon) may pile the swept radius into a screen-eraser. Generous ceiling —
   // only the pathological multi-source stack is trimmed; mirrors the floor/cap above.
   s.dashHitboxRadius = Math.min(s.dashHitboxRadius, 110);
+  // ARMOR shields are discrete + non-negative after any Heat strip (v6 §7).
+  s.baseShields = Math.max(0, Math.floor(s.baseShields));
 
   return s;
 }

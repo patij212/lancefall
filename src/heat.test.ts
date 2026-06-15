@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { HEAT_LEVELS, MAX_HEAT, heatLevel, applyHeatStats, applyHeatConfig, heatScoreMul } from './heat';
 import { deriveStats } from './perks';
 import { modeById } from './modes';
+import { SURVIVAL } from './tune';
 
 describe('heat ladder', () => {
   it('has MAX_HEAT+1 levels, indexed 0..MAX_HEAT', () => {
@@ -27,6 +28,14 @@ describe('heat ladder', () => {
     expect(heated.scoreMul).toBeCloseTo(base.scoreMul * heatScoreMul(7));
     expect(heated.grazeRadius).toBeLessThan(base.grazeRadius);
     expect(heated.reviveTokens).toBe(0); // 3 - revivesLost(3)
+  });
+
+  it('grants ARMOR shields by default and strips them at high heat (§7)', () => {
+    expect(deriveStats({}).baseShields).toBe(SURVIVAL.defaultShields);
+    const searing = deriveStats({}, undefined, undefined, undefined, (s) => applyHeatStats(s, 5));
+    expect(searing.baseShields).toBe(SURVIVAL.defaultShields - 1); // SEARING strips 1
+    const meltdown = deriveStats({}, undefined, undefined, undefined, (s) => applyHeatStats(s, 7));
+    expect(meltdown.baseShields).toBe(0); // MELTDOWN strips all (floor 0)
   });
 
   it('reviveTokens never goes negative', () => {

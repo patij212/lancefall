@@ -60,6 +60,8 @@ export interface Player {
 
   alive: boolean;
   hitFlash: number;
+  shields: number; // ARMOR hit-buffer remaining this run (>0 absorbs a lethal hit before LAST BREATH)
+  maxShields: number; // run cap for the +1 boss-clear regen
 }
 
 export interface Enemy {

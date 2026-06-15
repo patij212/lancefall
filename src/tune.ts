@@ -330,6 +330,19 @@ export const ELITE = {
   aura: '#fde047', // gold champion aura
 };
 
+// SURVIVAL — the ARMOR hit-buffer (v6 §7). A per-run discrete shield that absorbs a
+// lethal hit BEFORE LAST BREATH; each absorb costs tempo + shoves bullets aside (an
+// escape lane, not a clear), so the bullet-hell tension survives. ON for everyone;
+// Heat strips it via shieldsLost. The run count is sourced HERE, never save.baseShields
+// (already-migrated v6 saves stored 0, so reading the save would zero out everyone).
+export const SURVIVAL = {
+  defaultShields: 2, // per-run shield buffer (Phase-0 LOCKED)
+  postHitIframe: 0.85, // grace after an ARMOR absorb (mirrors LAST BREATH)
+  bossClearRegen: 1, // +1 shield per boss clear, capped at maxShields
+  pushRadius: 250, // ARMOR bullet-shove radius
+  push: 240, // ARMOR bullet-shove magnitude
+} as const;
+
 // OVERDRIVE — a combo-charged ultimate. Fill the meter (kills + grazes), then
 // unleash a screen-clearing time-dilated nova. The power-fantasy release.
 export const OVERDRIVE = {

@@ -155,6 +155,8 @@ export class UI {
   private comboBar!: HTMLElement;
   private staminaWrap!: HTMLElement;
   private staminaSegs: HTMLElement[] = [];
+  private shieldsWrap!: HTMLElement;
+  private shieldPips: HTMLElement[] = [];
   private grazeEl!: HTMLElement;
   private bestComboEl!: HTMLElement;
   private soundHint!: HTMLElement;
@@ -246,9 +248,10 @@ export class UI {
     const topCenter = el('div', { class: 'hud-topcenter' }, this.comboEl, comboBarWrap);
 
     this.staminaWrap = el('div', { class: 'hud-stamina' });
+    this.shieldsWrap = el('div', { class: 'hud-shields' });
     this.grazeEl = el('div', { class: 'hud-graze' }, '');
     this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
-    const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.bestComboEl);
+    const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.shieldsWrap, this.bestComboEl);
 
     // OVERDRIVE meter (below the stamina bar)
     this.odLabel = el('div', { class: 'hud-od-label' }, 'DAYBREAK');
@@ -275,6 +278,16 @@ export class UI {
       const seg = el('div', { class: 'seg' }, fill);
       this.staminaSegs.push(fill);
       this.staminaWrap.append(seg);
+    }
+  }
+
+  private rebuildShields(count: number): void {
+    this.shieldsWrap.replaceChildren();
+    this.shieldPips = [];
+    for (let i = 0; i < count; i++) {
+      const pip = el('div', { class: 'shield-pip' });
+      this.shieldPips.push(pip);
+      this.shieldsWrap.append(pip);
     }
   }
 
@@ -1325,6 +1338,16 @@ export class UI {
       // Flash ALL segments red exactly when you can't afford a dash (total < one
       // segment) — a deliberate "you can't escape" warning, not per-segment state.
       fill.parentElement!.classList.toggle('empty', world.player.stamina < TUNE.stamina.dashCost);
+    }
+
+    // ARMOR shields (v6 §7) — discrete pips; the strip is hidden entirely on a shields-off run
+    const maxSh = world.player.maxShields;
+    this.shieldsWrap.style.display = maxSh > 0 ? '' : 'none';
+    if (maxSh > 0) {
+      if (maxSh !== this.shieldPips.length) this.rebuildShields(maxSh);
+      for (let i = 0; i < this.shieldPips.length; i++) {
+        this.shieldPips[i].classList.toggle('filled', i < world.player.shields);
+      }
     }
 
     this.grazeEl.textContent = world.grazeCount > 0 ? `GRAZE ${world.grazeCount}` : '';

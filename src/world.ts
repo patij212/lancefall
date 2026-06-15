@@ -104,6 +104,8 @@ function makePlayer(): Player {
     regenDelay: 0,
     alive: true,
     hitFlash: 0,
+    shields: 0,
+    maxShields: 0,
   };
 }
 

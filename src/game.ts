@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP, SURVIVAL } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -31,6 +31,7 @@ import { submitScore, leaderboardEnabled } from './api';
 import { hintFor, ONBOARDING_STEPS } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
+import { consumeShield, regenShield } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
 import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD } from './tune';
 import { RUN_EVENTS, rollEventChoices, rollEventId } from './events';
@@ -334,6 +335,9 @@ export class Game {
     // start each run with a full stamina bar sized to the chosen ship
     this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
     this.world.reviveLeft = this.world.stats.reviveTokens;
+    // ARMOR shields for the run (v6 §7) — from the derived stat (Heat strips it)
+    this.world.player.shields = this.world.stats.baseShields;
+    this.world.player.maxShields = this.world.stats.baseShields;
     this.applySettings(this.settings);
     this.director.configure(runCfg);
     this.winning = false;
@@ -1573,6 +1577,11 @@ export class Game {
     w.enemies.release(e);
     w.bossAlive = false;
     w.boss = null;
+    // ARMOR regen (v6 §7) — clearing a boss restores one shield (capped at max)
+    if (w.player.maxShields > 0 && w.player.shields < w.player.maxShields) {
+      w.player.shields = regenShield(w.player.shields, w.player.maxShields);
+      w.particles.floatText(w.player.x, w.player.y - 30, '+1 ARMOR', '#5beaff', 0.9);
+    }
     this.pendingDraft = true; // guaranteed perk after a boss
   }
 
@@ -1746,10 +1755,44 @@ export class Game {
     }
   }
 
+  /** Shove nearby bullets radially outward to open an escape lane. Positions-only,
+   *  NO rng — shared by LAST BREATH and the ARMOR absorb so both behave identically. */
+  private shoveBullets(radius: number, push: number): void {
+    const w = this.world;
+    const p = w.player;
+    const r2 = radius * radius;
+    w.bullets.forEachActive((b) => {
+      const dx = b.x - p.x;
+      const dy = b.y - p.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < r2) {
+        const d = Math.sqrt(d2) || 1;
+        b.vx += (dx / d) * push;
+        b.vy += (dy / d) * push;
+      }
+    });
+  }
+
   private playerDie(cause = 'a bullet'): void {
     const w = this.world;
     const p = w.player;
     if (!p.alive) return;
+    // ARMOR (v6 §7) — a per-run shield absorbs a lethal hit BEFORE LAST BREATH. Each
+    // absorb costs tempo + shoves nearby bullets aside (an escape lane, not a clear),
+    // so the bullet-hell tension survives. Order: shields → LAST BREATH → revive → death.
+    const arm = consumeShield(p.shields);
+    if (arm.survived) {
+      p.shields = arm.shields;
+      p.iframe = SURVIVAL.postHitIframe;
+      p.hitFlash = 0.3;
+      this.shoveBullets(SURVIVAL.pushRadius, SURVIVAL.push);
+      this.ui.announce('ARMOR', '#5beaff');
+      w.particles.ring(p.x, p.y, SURVIVAL.pushRadius, '#5beaff', 0.5);
+      this.shake.add(0.3);
+      this.audio.bossStinger();
+      this.deathCause = cause;
+      return;
+    }
     // LAST BREATH — an automatic bullet-time clutch save. It does NOT save you
     // outright: it opens a deep slow-mo window + brief grace and shoves nearby
     // bullets aside so you can dash to safety. Fail to escape and you still fall.
@@ -1758,18 +1801,8 @@ export class Game {
       p.iframe = CLUTCH.lastBreathIframe;
       p.hitFlash = 0.3;
       this.scheduler.requestDeepSlowmo(CLUTCH.lastBreathSlowmo, CLUTCH.lastBreathDuration);
-      // shove nearby bullets outward to open an escape lane
-      const r2 = CLUTCH.lastBreathPushRadius * CLUTCH.lastBreathPushRadius;
-      w.bullets.forEachActive((b) => {
-        const dx = b.x - p.x;
-        const dy = b.y - p.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < r2) {
-          const d = Math.sqrt(d2) || 1;
-          b.vx += (dx / d) * CLUTCH.lastBreathPush;
-          b.vy += (dy / d) * CLUTCH.lastBreathPush;
-        }
-      });
+      // shove nearby bullets outward to open an escape lane (shared with ARMOR)
+      this.shoveBullets(CLUTCH.lastBreathPushRadius, CLUTCH.lastBreathPush);
       this.renderer.flash('#a78bfa', 0.5);
       this.renderer.startLastBreath();
       this.shake.add(0.5);
