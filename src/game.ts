@@ -316,6 +316,7 @@ export class Game {
     this.world.eventRng = createRng((this.seed ^ 0x2545f491) >>> 0);
     this.world.metaApply = metaApplyFor(this.save.meta);
     this.world.shipApply = shipById(this.save.selectedShip).apply;
+    this.world.shipId = this.save.selectedShip; // cosmetic — drives the hull silhouette + accent
     // run mutators — the Daily picks a deterministic set from the date seed
     this.activeMutators = cfg.id === 'daily' ? pickDailyMutators(this.seed) : [];
     this.world.mutatorApply = buildMutatorApply(this.activeMutators);

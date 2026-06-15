@@ -149,6 +149,8 @@ export class World {
   relics: RelicId[] = [];
   /** ship stat profile applied before perks (set by the game from the roster) */
   shipApply: (s: RunStats) => void = () => {};
+  /** active ship id — cosmetic only (the renderer picks the hull silhouette + accent) */
+  shipId = 'lance';
   /** permanent meta-upgrade application (set by the game from the save) */
   metaApply: (s: RunStats) => void = () => {};
   /** run mutator application — applied AFTER meta, BEFORE ship (so perks layer on top) */

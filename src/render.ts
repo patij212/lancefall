@@ -12,6 +12,9 @@ import type { ThemeDef } from './themes';
 import { trailById, trailGhostColor } from './trails';
 import type { TrailDef } from './trails';
 import { themeById } from './themes';
+import { shipById } from './ships';
+import { shipModel } from './shipModels';
+import type { Pt } from './shipModels';
 import {
   washSaturation,
   cityGlowAlpha,
@@ -1283,6 +1286,9 @@ export class Renderer {
   private drawPlayer(world: World): void {
     const ctx = this.bctx;
     const p = world.player;
+    // the active ship's silhouette + signature accent (cosmetic; shape-coded for colorblind)
+    const model = shipModel(world.shipId);
+    const shipAccent = shipById(world.shipId).accent;
 
     // active POWER-UP aura — a coloured pulsing ring around the ship
     if (world.powerup.active) {
@@ -1374,11 +1380,7 @@ export class Renderer {
         ctx.translate(gx, gy);
         ctx.rotate(p.angle);
         ctx.scale(s, s);
-        ctx.beginPath();
-        ctx.moveTo(gsr, 0);
-        ctx.lineTo(-gsr * 0.7, gsr * 0.7);
-        ctx.lineTo(-gsr * 0.35, 0);
-        ctx.lineTo(-gsr * 0.7, -gsr * 0.7);
+        traceHull(ctx, model.hull, gsr);
         ctx.closePath();
         ctx.stroke();
         ctx.restore();
@@ -1443,30 +1445,38 @@ export class Renderer {
       ctx.restore();
     }
 
-    // ship glow
+    // ship glow — tinted by the ship's own signature accent (its identity colour)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const glow = this.getGlow(p.hitFlash > 0 ? '#ffffff' : this.theme.accent);
+    const glow = this.getGlow(p.hitFlash > 0 ? '#ffffff' : shipAccent);
     const gs = TUNE.player.spriteRadius * 2.6;
     ctx.globalAlpha = p.phase === 'charging' ? 0.5 + p.charge * 0.4 : 0.55;
     ctx.drawImage(glow, p.x - gs, p.y - gs, gs * 2, gs * 2);
     ctx.restore();
 
-    // ship body
+    // ship body — the active ship's silhouette, outlined in its signature accent. The
+    // distinct hull per ship is shape-coded so the roster reads without relying on colour.
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
     const sr = TUNE.player.spriteRadius * (p.phase === 'charging' ? 1 + 0.06 * Math.sin(p.charge * 30) : 1);
     const invuln = p.iframe > 0 && Math.floor(p.iframe * 40) % 2 === 0;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     ctx.fillStyle = p.hitFlash > 0 ? '#ffffff' : '#0a0b0f';
-    ctx.strokeStyle = invuln ? '#ffffff' : this.theme.accent2;
+    ctx.strokeStyle = invuln || p.hitFlash > 0 ? '#ffffff' : shipAccent;
     ctx.lineWidth = 2.5;
-    poly(ctx, [
-      [sr, 0],
-      [-sr * 0.7, sr * 0.7],
-      [-sr * 0.35, 0],
-      [-sr * 0.7, -sr * 0.7],
-    ]);
+    traceHull(ctx, model.hull, sr);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // inner accent stroke (spine / bulkhead) — a brighter detail line for character
+    if (model.detail && p.hitFlash <= 0 && !invuln) {
+      ctx.strokeStyle = mix(shipAccent, '#ffffff', 0.45);
+      ctx.lineWidth = 1.4;
+      traceHull(ctx, model.detail, sr);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -1645,6 +1655,14 @@ function poly(ctx: CanvasRenderingContext2D, pts: [number, number][]): void {
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+}
+
+/** Trace a ship-model path (points in sprite-radius units) scaled by `sr`, leaving the
+ *  path OPEN — the caller closes it for a filled hull or strokes it for a detail line. */
+function traceHull(ctx: CanvasRenderingContext2D, pts: ReadonlyArray<Pt>, sr: number): void {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0] * sr, pts[0][1] * sr);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * sr, pts[i][1] * sr);
 }
 
 function ngon(ctx: CanvasRenderingContext2D, n: number, r: number): void {
