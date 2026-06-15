@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { COHERENCE } from './tune';
+import { COHERENCE, PERF } from './tune';
 import {
   clamp01,
   lerp,
@@ -13,6 +13,9 @@ import {
   beatFlashRing,
   cityMemoryFill,
   spearNeonLift,
+  nebulaBlobCount,
+  bossEntranceBlur,
+  allowChromaticAberration,
 } from './renderMath';
 
 describe('renderMath — coherence→render mappings + a11y gates', () => {
@@ -126,5 +129,29 @@ describe('renderMath — coherence→render mappings + a11y gates', () => {
     expect(trailBrightness(0, false, false)).toBeCloseTo(COHERENCE.trailDim, 6);
     expect(trailBrightness(1, false, false)).toBeCloseTo(1, 6);
     expect(trailBrightness(0, false, true)).toBe(1); // Clarity = high-contrast constant
+  });
+});
+
+describe('renderMath — PERF fill-rate gates (look unchanged at quality 1, lighter under load)', () => {
+  it('nebulaBlobCount: full count at quality 1; thinned only below the cut', () => {
+    expect(nebulaBlobCount(1)).toBe(PERF.nebulaBlobsFull); // full quality → look unchanged
+    expect(nebulaBlobCount(PERF.nebulaCutQuality)).toBe(PERF.nebulaBlobsFull); // at the cut, still full
+    expect(nebulaBlobCount(PERF.nebulaCutQuality - 0.01)).toBe(PERF.nebulaBlobsLow); // below → thinned
+    expect(nebulaBlobCount(0.4)).toBe(PERF.nebulaBlobsLow); // deepest load
+    expect(nebulaBlobCount(0.4)).toBeLessThan(nebulaBlobCount(1)); // strictly lighter under load
+  });
+
+  it('bossEntranceBlur: authored 28×dpr at quality 1; dropped to 0 under load', () => {
+    expect(bossEntranceBlur(1, 2)).toBe(PERF.bossEntranceBlur * 2); // full quality → authored blur (scaled by dpr)
+    expect(bossEntranceBlur(1, 1)).toBe(PERF.bossEntranceBlur);
+    expect(bossEntranceBlur(PERF.blurCutQuality - 0.01, 2)).toBe(0); // under load → no shadowBlur
+    expect(bossEntranceBlur(0.4, 2)).toBe(0);
+  });
+
+  it('allowChromaticAberration: on at full quality, suppressed under load', () => {
+    expect(allowChromaticAberration(1)).toBe(true); // look unchanged at full quality
+    expect(allowChromaticAberration(PERF.caCutQuality)).toBe(true);
+    expect(allowChromaticAberration(PERF.caCutQuality - 0.01)).toBe(false); // 3× redraw shed under load
+    expect(allowChromaticAberration(0.4)).toBe(false);
   });
 });

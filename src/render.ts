@@ -25,6 +25,9 @@ import {
   trailBrightness,
   beatFlashRing,
   spearNeonLift,
+  nebulaBlobCount,
+  bossEntranceBlur,
+  allowChromaticAberration,
 } from './renderMath';
 
 export interface Camera {
@@ -333,7 +336,7 @@ export class Renderer {
     sctx.textBaseline = 'middle';
     sctx.font = `700 ${Math.round(H * 0.085)}px 'Space Grotesk', system-ui, sans-serif`;
     sctx.shadowColor = this.bossEntranceColor;
-    sctx.shadowBlur = 28 * this.dpr;
+    sctx.shadowBlur = bossEntranceBlur(this.quality, this.dpr); // 28×dpr at full quality; 0 under load
     const slide = (1 - a) * 50 * this.dpr;
     sctx.fillText(this.bossEntranceName, W / 2 + slide, H * 0.5);
     sctx.restore();
@@ -456,15 +459,18 @@ export class Renderer {
     const heat = 1 + Math.min(combo, 40) * 0.012;
     const expo = bgExposure(this.coherence, this.reduceFlashingR); // dims as the world loses coherence
 
-    // drifting nebula clouds (biome tint during a run, else the cosmetic theme)
+    // drifting nebula clouds (biome tint during a run, else the cosmetic theme).
+    // perf: each blob is a full-screen radial-gradient fill (the heaviest per-frame GPU
+    // op) — at quality 1 ALL blobs draw (look unchanged); under load the count thins.
     const nb = this.biomeTint ?? this.theme.nebula;
     const blobs: [number, number, string, number][] = [
       [0.26, 0.32, nb[0], 0.9],
       [0.72, 0.34, nb[1], 1.3],
       [0.5, 0.74, nb[2], 1.1],
     ];
+    const blobN = nebulaBlobCount(this.quality);
     const R = Math.max(this.w, this.h) * 0.42;
-    for (const [fx, fy, col, sp] of blobs) {
+    for (const [fx, fy, col, sp] of blobs.slice(0, blobN)) {
       const cx = this.w * fx + Math.sin(this.bgT * 0.07 * sp) * 40;
       const cy = this.h * fy + Math.cos(this.bgT * 0.06 * sp) * 30;
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
@@ -1522,7 +1528,9 @@ export class Renderer {
       ? 0
       : clamp(TUNE.juice.aberrationBase + opts.combo * TUNE.juice.aberrationPerCombo, 0, TUNE.juice.aberrationMax) * opts.caScale;
 
-    if (shift < 1.8) {
+    // the channel-split is a 3× full-screen redraw — at quality 1 it runs as authored;
+    // under load it is suppressed (the buffer is drawn straight) to reclaim fill-rate.
+    if (shift < 1.8 || !allowChromaticAberration(this.quality)) {
       sctx.globalCompositeOperation = 'source-over';
       sctx.globalAlpha = 1;
       sctx.drawImage(this.buf, 0, 0);

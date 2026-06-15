@@ -2,10 +2,33 @@
 // accessibility gate. render.ts applies the returned scalars to canvas ops; this
 // module owns the math so the a11y behavior is unit-tested, not just described.
 // No DOM, no ctx — imports only the COHERENCE knobs.
-import { COHERENCE as CO } from './tune';
+import { COHERENCE as CO, PERF } from './tune';
 
 export const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x);
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+// ── PERF gates (perf-only; NOT coherence/a11y). Each returns the FULL-QUALITY value
+//    at quality 1, so the look is unchanged at full quality; only the adaptive
+//    director stepping quality DOWN sheds the heaviest fill-rate ops. ──
+
+/** Number of drifting nebula gradient blobs to draw — the heaviest per-frame fill.
+ *  Full count at quality 1; thinned once the director steps quality below the cut. */
+export function nebulaBlobCount(quality: number): number {
+  return quality < PERF.nebulaCutQuality ? PERF.nebulaBlobsLow : PERF.nebulaBlobsFull;
+}
+
+/** Per-frame shadowBlur (in px, already ×dpr by the caller's `dpr` arg) for the boss-name
+ *  slam — dropped to 0 under load (shadowBlur is a costly GPU op). Identical at quality 1. */
+export function bossEntranceBlur(quality: number, dpr: number): number {
+  return quality < PERF.blurCutQuality ? 0 : PERF.bossEntranceBlur * dpr;
+}
+
+/** Whether the chromatic-aberration channel-split (a 3× full-screen redraw) is allowed
+ *  this frame. Only at/above the cut quality; suppressed under load (the buffer is drawn
+ *  straight instead). True whenever quality is full → look unchanged at quality 1. */
+export function allowChromaticAberration(quality: number): boolean {
+  return quality >= PERF.caCutQuality;
+}
 
 /** Saturation multiplier 0..1 for the global gray→neon wash (1 = full colour,
  *  satFloor ≈ gray static). A Perfect-dash focusPulse briefly snaps toward full

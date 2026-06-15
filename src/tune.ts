@@ -464,6 +464,21 @@ export const COHERENCE = {
   tierCombo: [10, 20, 35, 50, 75, 100], // combo thresholds → tier 1..6
 } as const;
 
+// ── PERF — render-only fill-rate gates keyed off the director's perfScale (quality
+//    0.4..1). EVERY value is the FULL-QUALITY default at quality 1, so the look is
+//    bit-identical at full quality; the gates only shed the heaviest GPU ops as the
+//    adaptive director steps quality DOWN under load. Render-only, determinism-safe. ──
+export const PERF = {
+  nebulaBlobsFull: 3, // drifting nebula gradient blobs at quality 1 (the heaviest per-frame fill)
+  nebulaBlobsLow: 1, // …shed to this once quality dips below `nebulaCutQuality`
+  nebulaCutQuality: 0.8, // quality at/under which the nebula thins (≥ this keeps all blobs)
+  bossEntranceBlur: 28, // boss-name shadowBlur (×dpr) at quality 1
+  blurCutQuality: 0.8, // quality under which per-frame shadowBlur is dropped to 0
+  // chromatic-aberration channel-split is a 3× full-screen redraw; raise its trigger
+  // threshold so the split only runs at full quality, and is skipped entirely under load.
+  caCutQuality: 0.8, // quality under which the chromatic-aberration split is suppressed
+} as const;
+
 // COHERENCE_AUDIO — the audio half of the one bus (drone bloom + root transpose).
 export const COHERENCE_AUDIO = {
   tierSemis: [0, 2, 3, 5, 7, 9, 12], // semitone transpose per tier 0..6 (A-minor-pentatonic-safe)
