@@ -1336,16 +1336,19 @@ export class Game {
       for (const core of cores) if (core.active) this.shatterCore(core, true);
       return;
     }
-    // a generic RING-cipher boss: open a punish window, then updateBoss re-locks it
-    if (boss) {
+    // a generic RING-cipher boss: cracking the code lands a real CHUNK (so it's a
+    // few satisfying cracks, not many) and opens a longer window for bonus dashes.
+    for (const core of cores) if (core.active) this.shatterCore(core, true); // ring reward (non-sovereign → early return)
+    if (boss && boss.active) {
       w.particles.floatText(boss.x, boss.y - boss.radius - 16, 'CIPHER BROKEN', '#fde047', 1.4);
       boss.cipherExposed = CIPHER.exposeDuration;
       this.ui.announce('EXPOSED', '#fde047');
       this.audio.bossStinger();
       this.shake.add(0.5);
+      // the crack itself bites — HP-proportional so it's ~2-3 cracks for any ring boss
+      this.damageEnemy(boss, Math.max(1, Math.round(boss.maxHp * CIPHER.crackDamageFrac)), true);
     }
-    for (const core of cores) if (core.active) this.shatterCore(core, true); // generic reward (non-sovereign → early return)
-    w.cipher = null; // re-armed when the expose window closes
+    w.cipher = null; // re-armed by updateBoss when the expose window closes
   }
 
   /** Fire an arcade announcement when the combo crosses a new milestone tier. */

@@ -607,7 +607,9 @@ export const BEACON = {
 export const CIPHER = {
   keyShake: 0.1, // trauma on a correct key
   ringCount: 3, // cores in a generic boss ring (THE LONGEST DAY)
-  exposeDuration: 3.5, // s a generic ring boss stays vulnerable after its cipher breaks
+  exposeDuration: 5.0, // s a generic ring boss stays vulnerable after its cipher breaks (longer = fewer cycles)
+  crackDamageFrac: 0.34, // chunk dealt to a ring boss the instant its code breaks, as a
+  // fraction of max HP → cracking is a real, satisfying hit (~2-3 cracks to kill, not many)
 } as const;
 
 // SIXTH & FINAL boss: THE SOVEREIGN — a crowned monarch that warps space. Its
@@ -628,7 +630,7 @@ export const SOVEREIGN = {
   coreOrbitRadius: 132,
   coreOrbitSpin: 0.78, // rad/s — a touch slower so the cipher cores are dash-able under fire
   coreWeakBonus: 4, // dash-damage chunk dealt to the crown when a core shatters
-  exposeDuration: 4.0, // s the body is vulnerable after all cores fall
+  exposeDuration: 5.5, // s the body is vulnerable after the cipher breaks (longer = fewer cycles)
   // armored phase cadence
   phaseDuration: 7,
   // PHASE 0 — CROWN BEAMS: a rotating star of diameter beams (telegraph→fire→off)
