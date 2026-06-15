@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { decideMusic, sourceFor, type MusicDirectorState } from './musicDirector';
+import { MUSIC_MIX } from './tune';
 
 const arena = (intensity = 0, coherence = 0): MusicDirectorState => ({ intensity, coherence, boss: null });
 const warden = (phase: number, hpFrac: number): MusicDirectorState => ({
@@ -55,6 +56,18 @@ describe('music director — vertical decision for a loop source', () => {
     const hi = decideMusic(arena(1, 1), 0);
     expect(hi.reactiveGain).toBeGreaterThan(lo.reactiveGain);
     expect(hi.reactiveGain).toBeLessThanOrEqual(0.8); // never overwhelms the bed
+  });
+
+  it('keeps a generous mix FLOOR so a struggling (low-coherence) player still hears a full mix', () => {
+    // the worst case: no intensity, no coherence — a player getting wrecked. The mix must
+    // stay PRESENT (dark, not silent-adjacent): the loop cutoff and reactive floor are lifted.
+    const floor = decideMusic(arena(0, 0), 0);
+    expect(floor.loopCutoff).toBe(MUSIC_MIX.loopCutoffFloor);
+    expect(floor.loopCutoff).toBeGreaterThanOrEqual(1500); // lifted from the old 800 Hz mud
+    expect(floor.reactiveGain).toBe(MUSIC_MIX.reactiveGainFloor);
+    expect(floor.reactiveGain).toBeGreaterThanOrEqual(0.34); // lifted from the old 0.25
+    // and the ceiling still resolves to the fully-open cutoff at coherence/intensity 1
+    expect(decideMusic(arena(1, 1), 0).loopCutoff).toBe(MUSIC_MIX.loopCutoffCeil);
   });
 
   it('carries the selected source bpm/key', () => {

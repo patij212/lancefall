@@ -12,6 +12,7 @@ import { InputManager } from './input';
 import { AudioEngine } from './audio';
 import { Scheduler } from './scheduler';
 import { Shake } from './shake';
+import { JuiceBudget } from './juiceBudget';
 import { Director } from './waves';
 import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, shieldChance, ELITE_KINDS, suddenDeathInset } from './waves';
 import { updatePlayer, resetEvents } from './player';
@@ -92,6 +93,8 @@ export class Game {
   private audio = new AudioEngine();
   private scheduler = new Scheduler();
   private shake = new Shake();
+  /** per-frame coordinator so a big chain's screen-wide effects read CLEAN not noisy */
+  private juice = new JuiceBudget();
   private director = new Director();
 
   private save: SaveData;
@@ -368,6 +371,7 @@ export class Game {
     // mid-slow-mo, mid-charge-tone, or auto-charging from a held key
     this.scheduler.reset();
     this.shake.reset();
+    this.juice.beginFrame(); // clear any leftover per-frame juice claims at run start
     this.audio.endCharge();
     this.input.clearHeld();
     this.cam.leanX = this.cam.leanY = 0;
@@ -780,6 +784,9 @@ export class Game {
     this.input.poll(this.world.player.x, this.world.player.y);
     this.handleMeta();
 
+    // re-arm the per-frame juice budget BEFORE the sim substeps emit their effects,
+    // so overlapping big events this frame collapse into one CLEAN read (not noise).
+    this.juice.beginFrame();
     this.shake.update(realDt);
 
     if (this.state === 'playing') {
@@ -1209,9 +1216,11 @@ export class Game {
     // trigger slow-mo once per dash on big chains
     if (!this.dashSlowmoTriggered && shouldSlowmo(p.killsThisDash)) {
       this.dashSlowmoTriggered = true;
-      this.scheduler.requestSlowmo(w.stats.timeThiefExtra);
-      this.audio.slowmoSnap();
-      this.shake.add(p.killsThisDash >= 6 ? TUNE.juice.traumaChain6 : TUNE.juice.traumaChain3);
+      this.scheduler.requestSlowmo(w.stats.timeThiefExtra); // scheduler debounces the window itself
+      // budget the per-event STING + SHAKE SPIKE so a same-frame ERUPTION can't double them
+      if (this.juice.claimSlowmoSnap()) this.audio.slowmoSnap();
+      if (this.juice.claimShakeSpike())
+        this.shake.add(p.killsThisDash >= 6 ? TUNE.juice.traumaChain6 : TUNE.juice.traumaChain3);
       this.cam.zoom = Math.max(this.cam.zoom, 1.05);
       if (w.stats.timeThiefStamina > 0) {
         const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
@@ -1550,15 +1559,21 @@ export class Game {
     // score bonus
     const bonus = Math.round(CLUTCH.eruptScore * comboMultiplier(w.combo) * w.stats.scoreMul);
     w.score += bonus;
-    // juice — reuse the screen-space nova ring (cyan) + ring/burst + slow-mo blip
+    // juice — reuse the screen-space nova ring (cyan) + ring/burst + slow-mo blip.
+    // The LOCALIZED feedback (ring/burst/float/announce/rumble) always fires; the
+    // SCREEN-WIDE channels (flash+nova, shake spike, slow-mo snap) go through the
+    // per-frame budget so a same-frame dash-chain slow-mo can't double them into
+    // a washed-out, stuttering jolt — a big chain reads as ONE clean detonation.
     w.particles.ring(p.x, p.y, CLUTCH.eruptClearRadius, '#22d3ee', 0.55);
     w.particles.burst(p.x, p.y, 60, '#a5f3fc');
     w.particles.floatText(p.x, p.y - 40, `ERUPTION +${bonus}`, '#67e8f9', 1.2);
-    this.renderer.flash('#22d3ee', 0.22);
-    this.renderer.startOverdriveNova('#22d3ee');
-    this.scheduler.requestSlowmo(CLUTCH.eruptSlowmoHold);
-    this.shake.add(0.5);
-    this.audio.comboErupt();
+    if (this.juice.claimBigFlash()) {
+      this.renderer.flash('#22d3ee', 0.22);
+      this.renderer.startOverdriveNova('#22d3ee');
+    }
+    this.scheduler.requestSlowmo(CLUTCH.eruptSlowmoHold); // scheduler debounces the window itself
+    if (this.juice.claimShakeSpike()) this.shake.add(0.5);
+    if (this.juice.claimSlowmoSnap()) this.audio.comboErupt();
     this.ui.announce(`ERUPTION ×${milestone}`, '#22d3ee');
     this.input.rumble(0.3, 0.4, 120);
   }

@@ -521,6 +521,18 @@ export const COHERENCE_AUDIO = {
   sparkleGain: 0.05,
 } as const;
 
+// MUSIC_MIX — the coherence/intensity-gated vertical mix floors (musicDirector).
+// The FLOOR is what a STRUGGLING player (low combo → low coherence → low intensity)
+// hears. We keep it deliberately fuller than silence-adjacent: a dark-but-present mix
+// reads as "the light is dim" without sounding broken/empty, so a bad run still feels
+// like the SAME song, just unlit. Purely cosmetic (no sim/rng impact).
+export const MUSIC_MIX = {
+  loopCutoffFloor: 1500, // Hz — lowpass at coherence/intensity 0 (lifted from 800: less muddy/tinny)
+  loopCutoffCeil: 18000, // Hz — fully-open lowpass at coherence/intensity 1
+  reactiveGainFloor: 0.34, // procedural punctuation floor at coherence 0 (lifted from 0.25)
+  reactiveGainSlope: 0.45, // added across coherence 0→1 (floor+slope = 0.79 ≤ the 0.8 "never overwhelm" cap)
+} as const;
+
 // MACRO_FORM — anti-fatigue song structure. A short 2-bar surface hook, but a long
 // effective horizon: A (plain) → A' (octave-up / ornamented) → B (the FALL fragment,
 // fifth-up) → A. ~28-bar / ~60s rotation so nothing exact-repeats for ~2 min.

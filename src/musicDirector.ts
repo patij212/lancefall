@@ -4,6 +4,7 @@
 // Reactive ≠ a procedural bed (Deep Dive B): authored carries the bed, procedural punctuates.
 
 import { sourceById, type MusicLayering, type MusicTrackKey } from './audioManifest';
+import { MUSIC_MIX } from './tune';
 
 // The arena picks ONE of these 4 energetic tracks per run (from the run seed → musicVariant) so the
 // player settles into a coherent VIBE, then gently TRADES OFF to the next track over a long session.
@@ -80,8 +81,10 @@ export function decideMusic(state: MusicDirectorState, absoluteBar: number): Mus
   return {
     sourceId,
     layerGains: layerGainsFor(layering, intensity, coherence),
-    loopCutoff: 800 + (18000 - 800) * clamp01(0.6 * intensity + 0.4 * coherence),
-    reactiveGain: 0.25 + 0.45 * coherence,
+    // FLOOR lifted (MUSIC_MIX): a struggling player still hears a full, if dark, mix —
+    // the song stays present at low coherence/intensity instead of muffled-to-mud.
+    loopCutoff: MUSIC_MIX.loopCutoffFloor + (MUSIC_MIX.loopCutoffCeil - MUSIC_MIX.loopCutoffFloor) * clamp01(0.6 * intensity + 0.4 * coherence),
+    reactiveGain: MUSIC_MIX.reactiveGainFloor + MUSIC_MIX.reactiveGainSlope * coherence,
     bpm: src?.bpm ?? 112,
     key: src?.key ?? 'A minor',
   };
