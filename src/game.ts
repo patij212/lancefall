@@ -23,6 +23,7 @@ import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSoverei
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, perfectThreadReady, perfectThreadScore } from './combat';
+import { crossedComboTier } from './comboTiers';
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
 import type { DraftCard, EvolutionId } from './evolutions';
@@ -73,18 +74,6 @@ import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toCha
 import type { Ghost } from './ghost';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
-
-/** Combo milestones → arcade announcements. */
-// Cut points single-sourced from COHERENCE.tierCombo (tune.ts) so the on-screen
-// milestones and the audio root-transpose tiers can never drift apart.
-const COMBO_TIERS: { at: number; name: string; color: string }[] = [
-  { at: COHERENCE.tierCombo[0], name: 'RAMPAGE', color: '#34d399' },
-  { at: COHERENCE.tierCombo[1], name: 'FRENZY', color: '#fbbf24' },
-  { at: COHERENCE.tierCombo[2], name: 'CARNAGE', color: '#fb923c' },
-  { at: COHERENCE.tierCombo[3], name: 'UNSTOPPABLE', color: '#ec4899' },
-  { at: COHERENCE.tierCombo[4], name: 'GODLIKE', color: '#a855f7' },
-  { at: COHERENCE.tierCombo[5], name: 'LEGENDARY', color: '#ef4444' },
-];
 
 export class Game {
   private renderer: Renderer;
@@ -1543,17 +1532,14 @@ export class Game {
   /** Fire an arcade announcement when the combo crosses a new milestone tier. */
   private checkComboTier(): void {
     const w = this.world;
-    for (let i = COMBO_TIERS.length - 1; i >= 0; i--) {
-      const t = COMBO_TIERS[i];
-      if (w.combo >= t.at && t.at > w.lastTierAnnounced) {
-        w.lastTierAnnounced = t.at;
-        this.ui.announce(`${t.name}  ×${w.combo}`, t.color);
-        this.narrateOne('toast', NARRATOR.comboTier[t.at]);
-        this.shake.add(0.18);
-        this.renderer.flash(t.color, 0.12);
-        this.audio.pickup(14);
-        break;
-      }
+    const t = crossedComboTier(w.combo, w.lastTierAnnounced);
+    if (t) {
+      w.lastTierAnnounced = t.at;
+      this.ui.announce(`${t.name}  ×${w.combo}`, t.color);
+      this.narrateOne('toast', NARRATOR.comboTier[t.at]);
+      this.shake.add(0.18);
+      this.renderer.flash(t.color, 0.12);
+      this.audio.pickup(14);
     }
     // COMBO ERUPTION — a big-combo milestone detonates a bullet-clearing nova
     const m = eruptMilestone(w.combo, w.clutch.lastErupt);
