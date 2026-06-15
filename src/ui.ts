@@ -231,6 +231,18 @@ export class UI {
   private displayScore = 0;
   private pauseRestartArmed = false;
 
+  // ── modal keyboard contract (a11y) ──
+  // Every overlay that opens/closes by toggling `.hidden` is a "modal panel". A single
+  // shared open/close path gives them all the same contract: Esc closes the topmost open
+  // panel, Tab/Shift+Tab trap focus inside it, and closing restores focus to the opener.
+  // openStack tracks open order so Esc always closes the most-recently-opened panel; the
+  // WeakMap remembers which element to return focus to when each panel closes.
+  private modalPanels: HTMLElement[] = [];
+  private openStack: HTMLElement[] = [];
+  private modalOpener = new WeakMap<HTMLElement, HTMLElement>();
+  // Optional extra teardown a panel needs on close (the share panel revokes its blob URL).
+  private modalOnClose = new WeakMap<HTMLElement, () => void>();
+
   constructor(root: HTMLElement, settings: Settings, cb: UICallbacks) {
     this.root = root;
     this.settings = settings;
@@ -281,7 +293,131 @@ export class UI {
       }
     }
     this.toastLayer.setAttribute('aria-live', 'polite');
+    this.registerModals();
     this.show('title');
+  }
+
+  // ── modal keyboard contract ────────────────────────────────────────────────
+  /** Collect every overlay that opens/closes via `.hidden`, tag it as a dialog for
+   *  screen readers, and install ONE capture-phase key handler that gives them all the
+   *  same keyboard contract (Esc-close + focus-trap). Capture phase so we intercept Esc
+   *  BEFORE the global game input handler latches its pause edge — and we only swallow it
+   *  when a panel is actually open, so in-run Esc = PAUSE is untouched (no panel is ever
+   *  open during gameplay; show('playing') force-hides them all). */
+  private registerModals(): void {
+    this.modalPanels = [
+      this.settingsPanel,
+      this.statsPanel,
+      this.upgradesPanel,
+      this.howtoPanel,
+      this.codexPanel,
+      this.creditsPanel,
+      this.fallPanel,
+      this.heatPanel,
+      this.archetypePanel,
+      this.leaderPanel,
+      this.duelPanel,
+      this.inspectPanel,
+      this.sharePanel,
+    ];
+    for (const scr of this.modalPanels) {
+      const panel = scr.querySelector('.panel');
+      if (panel && !panel.hasAttribute('role')) {
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'true');
+      }
+    }
+    window.addEventListener('keydown', (e) => this.onModalKeydown(e), true);
+  }
+
+  /** The visible inner `.panel` of a modal screen (the focus-trap container). */
+  private modalContent(panel: HTMLElement): HTMLElement {
+    return (panel.querySelector('.panel') as HTMLElement | null) ?? panel;
+  }
+
+  /** Focusable, visible descendants of a panel — in DOM order, for the Tab cycle. */
+  private focusables(panel: HTMLElement): HTMLElement[] {
+    const sel = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    return Array.from(this.modalContent(panel).querySelectorAll<HTMLElement>(sel)).filter(
+      (n) => n.offsetWidth > 0 || n.offsetHeight > 0 || n.getClientRects().length > 0,
+    );
+  }
+
+  /** Open a modal panel: remember the trigger for focus-restore, reveal it, and move
+   *  focus inside. Idempotent — re-opening an already-open panel just refreshes focus. */
+  private openModal(panel: HTMLElement): void {
+    if (!this.modalOpener.has(panel)) {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active !== document.body) this.modalOpener.set(panel, active);
+    }
+    panel.classList.remove('hidden');
+    if (!this.openStack.includes(panel)) this.openStack.push(panel);
+    // move focus into the panel (first focusable, else the panel itself) so the trap has
+    // somewhere to hold and screen-reader/keyboard users land inside the dialog.
+    const focusable = this.focusables(panel);
+    if (focusable.length) focusable[0].focus();
+    else {
+      this.modalContent(panel).setAttribute('tabindex', '-1');
+      this.modalContent(panel).focus();
+    }
+  }
+
+  /** Close a modal panel and restore focus to whatever opened it. */
+  private closeModal(panel: HTMLElement): void {
+    panel.classList.add('hidden');
+    const idx = this.openStack.indexOf(panel);
+    if (idx >= 0) this.openStack.splice(idx, 1);
+    this.modalOnClose.get(panel)?.(); // panel-specific teardown (e.g. revoke a blob URL)
+    const opener = this.modalOpener.get(panel);
+    this.modalOpener.delete(panel);
+    if (opener && opener.isConnected) opener.focus();
+  }
+
+  /** The topmost (most-recently-opened) panel that is still open, if any. */
+  private topModal(): HTMLElement | null {
+    for (let i = this.openStack.length - 1; i >= 0; i--) {
+      const p = this.openStack[i];
+      if (!p.classList.contains('hidden')) return p;
+      this.openStack.splice(i, 1); // prune ones closed out-of-band (e.g. via show())
+    }
+    return null;
+  }
+
+  /** Esc-close + Tab focus-trap for the topmost open title modal. Only acts while a panel
+   *  is actually open — otherwise Esc/Tab pass straight through (in-run Esc = PAUSE stays). */
+  private onModalKeydown(e: KeyboardEvent): void {
+    if (this.rebinding) return; // a key-capture is in flight — let buildSettings handle it
+    const panel = this.topModal();
+    if (!panel) return;
+    const key = e.key;
+    if (key === 'Escape') {
+      e.preventDefault();
+      e.stopImmediatePropagation(); // swallow so the global handler can't also read it as PAUSE
+      this.closeModal(panel);
+      return;
+    }
+    if (key === 'Tab') {
+      const items = this.focusables(panel);
+      if (items.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const inside = active != null && this.modalContent(panel).contains(active);
+      if (e.shiftKey) {
+        if (!inside || active === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (!inside || active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
   }
 
   private buildHud(): void {
@@ -715,7 +851,7 @@ export class UI {
     const body = el('div', { class: 'stats-body' });
     body.id = 'stats-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.statsPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.statsPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.statsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -751,7 +887,7 @@ export class UI {
       el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${unlockedCount}/${ACHIEVEMENTS.length}`),
       achWrap,
     );
-    this.statsPanel.classList.remove('hidden');
+    this.openModal(this.statsPanel);
   }
 
   private buildUpgrades(): void {
@@ -761,7 +897,7 @@ export class UI {
     const body = el('div', { class: 'upg-body' });
     body.id = 'upg-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.upgradesPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.upgradesPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, bal, body, close);
     this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -792,7 +928,7 @@ export class UI {
       );
       body.append(card);
     }
-    this.upgradesPanel.classList.remove('hidden');
+    this.openModal(this.upgradesPanel);
   }
 
   private patch(p: Partial<Settings>): void {
@@ -809,10 +945,10 @@ export class UI {
     // buildSettings() ran in the constructor before any save loaded, so the city-memory
     // checkbox was rendered against a null saveRef. Re-sync it to the live save on open.
     if (this.cityMemToggle) this.cityMemToggle.checked = this.saveRef?.cityMemoryMeter ?? true;
-    this.settingsPanel.classList.remove('hidden');
+    this.openModal(this.settingsPanel);
   }
   private closeSettings(): void {
-    this.settingsPanel.classList.add('hidden');
+    this.closeModal(this.settingsPanel);
   }
 
   private buildHowTo(): void {
@@ -820,7 +956,7 @@ export class UI {
     const body = el('div', { class: 'howto-body' });
     body.id = 'howto-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.howtoPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.howtoPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -847,13 +983,13 @@ export class UI {
       ),
     );
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.creditsPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.creditsPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.creditsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
   private showCredits(): void {
-    this.creditsPanel.classList.remove('hidden');
+    this.openModal(this.creditsPanel);
   }
 
   /** THE FALL — the premise card (the encryption story). Diegetic; sets the
@@ -869,13 +1005,13 @@ export class UI {
     ];
     for (const p of paras) body.append(el('p', { class: 'fall-para' }, p));
     const close = el('button', { class: 'btn btn-primary' }, 'DESCEND');
-    close.addEventListener('click', () => this.fallPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.fallPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.fallPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
   private showFall(): void {
-    this.fallPanel.classList.remove('hidden');
+    this.openModal(this.fallPanel);
   }
 
   private buildDuel(): void {
@@ -894,18 +1030,18 @@ export class UI {
     accept.addEventListener('click', () => {
       const code = input.value.trim();
       if (!code) return;
-      this.duelPanel.classList.add('hidden');
+      this.closeModal(this.duelPanel);
       input.value = '';
       this.cb.onAcceptChallenge(code);
     });
     const close = el('button', { class: 'btn btn-ghost' }, 'CANCEL');
-    close.addEventListener('click', () => this.duelPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.duelPanel));
     const panel = el('div', { class: 'panel' }, h, blurb, input, el('div', { class: 'go-row' }, accept, close));
     this.duelPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
   private openDuel(): void {
-    this.duelPanel.classList.remove('hidden');
+    this.openModal(this.duelPanel);
     const input = this.duelPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
     input?.focus();
   }
@@ -934,17 +1070,17 @@ export class UI {
       }
     });
     const close = el('button', { class: 'btn btn-ghost' }, 'CLOSE');
-    close.addEventListener('click', () => this.inspectPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.inspectPanel));
     const panel = el('div', { class: 'panel' }, h, blurb, input, el('div', { class: 'go-row' }, inspect, close), result);
     this.inspectPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
   private openInspect(): void {
-    this.inspectPanel.classList.remove('hidden');
     const result = this.inspectPanel.querySelector('.howto-rules');
     result?.replaceChildren(); // clear any prior inspection
     const input = this.inspectPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
     if (input) input.value = '';
+    this.openModal(this.inspectPanel);
     input?.focus();
   }
 
@@ -968,7 +1104,7 @@ export class UI {
       body.append(grid);
     }
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.codexPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.codexPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.codexPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -1013,7 +1149,7 @@ export class UI {
 
   private showCodex(): void {
     this.refreshMemories();
-    this.codexPanel.classList.remove('hidden');
+    this.openModal(this.codexPanel);
   }
 
   private showHowTo(): void {
@@ -1051,7 +1187,7 @@ export class UI {
       el('div', { class: 'stats-label' }, 'EVOLUTIONS · stack the recipe to unlock a fusion'),
       evoCards,
     );
-    this.howtoPanel.classList.remove('hidden');
+    this.openModal(this.howtoPanel);
   }
 
   private buildHeat(): void {
@@ -1060,7 +1196,7 @@ export class UI {
     const grid = el('div', { class: 'heat-grid' });
     grid.id = 'heat-grid';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.heatPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.heatPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, sub, grid, close);
     this.heatPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -1086,7 +1222,7 @@ export class UI {
       });
       grid.append(card);
     }
-    this.heatPanel.classList.remove('hidden');
+    this.openModal(this.heatPanel);
   }
 
   private buildArchetype(): void {
@@ -1095,7 +1231,7 @@ export class UI {
     const grid = el('div', { class: 'heat-grid' });
     grid.id = 'arch-grid';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.archetypePanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.archetypePanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, sub, grid, close);
     this.archetypePanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -1119,7 +1255,7 @@ export class UI {
       });
       grid.append(card);
     }
-    this.archetypePanel.classList.remove('hidden');
+    this.openModal(this.archetypePanel);
   }
 
   private buildLeaderboard(): void {
@@ -1127,7 +1263,7 @@ export class UI {
     const body = el('div', { class: 'leader-body' });
     body.id = 'leader-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.leaderPanel.classList.add('hidden'));
+    close.addEventListener('click', () => this.closeModal(this.leaderPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
@@ -1148,7 +1284,7 @@ export class UI {
 
     if (!leaderboardEnabled()) {
       body.append(el('div', { class: 'event-flavor' }, 'Online leaderboards are not configured for this build. Your scores are saved locally; set a handle so they\'re ready when boards go live.'));
-      this.leaderPanel.classList.remove('hidden');
+      this.openModal(this.leaderPanel);
       return;
     }
 
@@ -1202,7 +1338,7 @@ export class UI {
     }
     body.append(modeRow, scopeRow, listWrap);
     void load();
-    this.leaderPanel.classList.remove('hidden');
+    this.openModal(this.leaderPanel);
   }
 
   // ── screen control ──
@@ -1215,14 +1351,13 @@ export class UI {
     this.draft.classList.toggle('hidden', s !== 'draft');
     this.eventPanel.classList.toggle('hidden', s !== 'event');
     this.hud.classList.toggle('hidden', s !== 'playing');
-    // any screen transition dismisses the modals so they can't block play
-    this.settingsPanel.classList.add('hidden');
-    this.statsPanel.classList.add('hidden');
-    this.upgradesPanel.classList.add('hidden');
-    this.howtoPanel.classList.add('hidden');
-    this.heatPanel.classList.add('hidden');
-    this.archetypePanel.classList.add('hidden');
-    this.leaderPanel.classList.add('hidden');
+    // any screen transition dismisses every modal so none can block play or strand the
+    // focus-trap; clear the open-stack/opener bookkeeping to match (focus is set below).
+    for (const p of this.modalPanels) {
+      p.classList.add('hidden');
+      this.modalOpener.delete(p);
+    }
+    this.openStack.length = 0;
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
     }
@@ -1530,6 +1665,12 @@ export class UI {
     panel.setAttribute('aria-modal', 'true');
     panel.setAttribute('aria-label', 'Share your run');
     this.sharePanel = el('div', { class: 'screen screen-dim hidden' }, panel);
+    // Esc-close (or any closeModal path) must also revoke the preview blob — register the
+    // teardown so it runs identically however the panel is dismissed.
+    this.modalOnClose.set(this.sharePanel, () => {
+      this.shareBody.classList.remove('share-loading');
+      this.revokeShare();
+    });
   }
 
   /** Called the moment SHARE GIF is pressed — open the modal with a spinner. */
@@ -1539,7 +1680,7 @@ export class UI {
     this.shareActions.replaceChildren();
     this.shareBody.classList.add('share-loading');
     this.shareBody.setAttribute('data-msg', 'encoding clip…');
-    this.sharePanel.classList.remove('hidden');
+    this.openModal(this.sharePanel);
   }
 
   /** The encode finished — show the watermarked preview + share/copy/download. */
@@ -1596,9 +1737,9 @@ export class UI {
   }
 
   private closeShare(): void {
-    this.sharePanel.classList.add('hidden');
-    this.shareBody.classList.remove('share-loading');
-    this.revokeShare();
+    // teardown runs via the modalOnClose hook registered in buildShare(), so an Esc-close
+    // cleans up identically to the CLOSE button.
+    this.closeModal(this.sharePanel);
   }
 
   private revokeShare(): void {
