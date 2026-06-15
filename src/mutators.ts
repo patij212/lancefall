@@ -121,6 +121,13 @@ export function pickDailyMutators(seed: number): MutatorId[] {
   return ids.slice(0, count);
 }
 
+/** §5 U3 — a READ-ONLY preview of a seed's daily mutators for the title card. Uses
+ *  pickDailyMutators' OWN rng (never world.rng/dropRng), so previewing the Daily on the
+ *  title can't perturb the seeded run. */
+export function dailyMutatorPreview(seed: number): { name: string; accent: string }[] {
+  return pickDailyMutators(seed).map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent }));
+}
+
 /** Compose the RunStats application for a set of mutators (fed to World.mutatorApply). */
 export function buildMutatorApply(ids: MutatorId[]): (s: RunStats) => void {
   return (s) => {

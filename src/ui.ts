@@ -22,7 +22,8 @@ import { THEMES } from './themes';
 import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
-import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS } from './modes';
+import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, nextModeId } from './modes';
+import { dailyMutatorPreview } from './mutators';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
@@ -1152,23 +1153,51 @@ export class UI {
       this.trailRow.append(sw);
     }
 
-    // v6 §5 — mode-cards: every mode selectable + persisted; the one PLAY launches it.
+    // v6 §5 — mode-cards: every mode selectable + persisted; roving tabindex for kbd/pad
+    // nav; the SELECTED card shows a Heat chip + (Daily) a seed + read-only mutator preview.
     this.modeGrid.replaceChildren();
     for (const m of MODES) {
       const selected = save.selectedMode === m.id;
       const brief = modeBrief(m);
-      const card = el('button', { class: 'mode-card' + (selected ? ' selected' : ''), 'aria-pressed': String(selected) });
+      const card = el('button', {
+        class: 'mode-card' + (selected ? ' selected' : ''),
+        'aria-pressed': String(selected),
+        tabindex: selected ? '0' : '-1',
+      });
       card.append(
         el('div', { class: 'mode-card-name' }, m.name),
         el('div', { class: 'mode-card-tier' }, `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`),
         el('div', { class: 'mode-card-desc' }, m.desc),
         el('div', { class: 'mode-card-reward' }, brief.reward),
       );
+      if (selected) {
+        const foot = el('div', { class: 'mode-card-foot' });
+        const heat = el('button', { class: 'mode-card-heat' }, save.selectedHeat > 0 ? `🔥 HEAT ${save.selectedHeat}` : '🔥 HEAT');
+        heat.addEventListener('click', (e) => { e.stopPropagation(); this.openHeat(); });
+        foot.append(heat);
+        if (m.seedKind === 'date') {
+          foot.append(el('span', { class: 'mode-card-seed' }, `seed ${seedFromDate()}`));
+          for (const mut of dailyMutatorPreview(seedFromDate())) {
+            const chip = el('span', { class: 'mode-card-mut' }, mut.name);
+            chip.style.setProperty('--accent', mut.accent);
+            foot.append(chip);
+          }
+        }
+        card.append(foot);
+      }
       card.title = m.desc;
       card.addEventListener('click', () => this.cb.onSelectMode(m.id));
       this.modeGrid.append(card);
     }
     this.playBtn.title = 'Play ' + modeById(save.selectedMode).name;
+  }
+
+  /** §5 U2 — step the selected mode-card left/right (keyboard/gamepad), persist, focus it. */
+  moveModeSelection(dir: number): void {
+    const s = this.saveRef;
+    if (!s) return;
+    this.cb.onSelectMode(nextModeId(s.selectedMode, dir)); // persists → refreshTitle rebuilds the grid
+    (this.modeGrid.querySelector('.mode-card.selected') as HTMLElement | null)?.focus();
   }
 
   hideSoundHint(): void {

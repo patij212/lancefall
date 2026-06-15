@@ -6,6 +6,7 @@ import {
   applyMutatorConfig,
   mutatorElite,
   describeMutators,
+  dailyMutatorPreview,
 } from './mutators';
 import type { MutatorId } from './mutators';
 import { deriveStats } from './perks';
@@ -81,5 +82,15 @@ describe('mutators', () => {
   it('describeMutators lists names', () => {
     expect(describeMutators([])).toBe('');
     expect(describeMutators(['glassCannon', 'windfall'])).toBe('GLASS CANNON, WINDFALL');
+  });
+
+  it('§5 U3 dailyMutatorPreview is deterministic and mirrors pickDailyMutators', () => {
+    const a = dailyMutatorPreview(20260615);
+    expect(dailyMutatorPreview(20260615)).toEqual(a); // own-rng → deterministic, no world.rng
+    expect(a.length).toBe(pickDailyMutators(20260615).length);
+    for (const e of a) {
+      expect(e.name.length).toBeGreaterThan(0);
+      expect(e.accent).toBeTruthy();
+    }
   });
 });

@@ -18,6 +18,7 @@ export class InputManager {
   private pauseEdge = false;
   private overdriveEdge = false;
   private selectEdge = -1;
+  private menuEdge = 0; // §5 U2 — relative title mode-card nav (-1 left / +1 right); consumed on the title
   private anyEdge = false;
   private restartEdge = false;
   private startEdge = false;
@@ -64,6 +65,10 @@ export class InputManager {
       if (k === '2') this.selectEdge = 1;
       if (k === '3') this.selectEdge = 2;
       if (k === '4') this.selectEdge = 3;
+      if (k === '5') this.selectEdge = 4;
+      if (k === '6') this.selectEdge = 5;
+      if (k === 'arrowleft') this.menuEdge = -1; // §5 U2 — title mode-card nav (ignored mid-run)
+      if (k === 'arrowright') this.menuEdge = 1;
       if (k === 'r') this.restartEdge = true;
       if (k === ' ' || k === 'enter' || k === 'j') {
         this.startEdge = true;
@@ -217,6 +222,7 @@ export class InputManager {
     this.startEdge = false;
     this.confirmEdge = false;
     this.selectEdge = -1;
+    this.menuEdge = 0;
     this.overdriveEdge = false;
   }
 
@@ -231,6 +237,13 @@ export class InputManager {
   consumeStart(): boolean {
     const v = this.startEdge;
     this.startEdge = false;
+    return v;
+  }
+
+  /** Consume the title mode-nav edge (arrows / d-pad left-right): -1, 0, or +1. */
+  consumeMenu(): number {
+    const v = this.menuEdge;
+    this.menuEdge = 0;
     return v;
   }
 
@@ -268,9 +281,10 @@ export class InputManager {
           this.startEdge = true;
           this.confirmEdge = true;
         }
-        // d-pad left/right pick the outer perk cards (A picks the middle)
-        if (i === 14) this.selectEdge = 0;
-        if (i === 15) this.selectEdge = 2;
+        // d-pad left/right pick the outer perk cards (A picks the middle) AND step the
+        // title mode-cards (§5 U2 — consumed in different screens, so no conflict)
+        if (i === 14) { this.selectEdge = 0; this.menuEdge = -1; }
+        if (i === 15) { this.selectEdge = 2; this.menuEdge = 1; }
       }
       this.prevGpButtons[i] = pressed;
     }

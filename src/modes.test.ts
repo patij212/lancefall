@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
+import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -32,6 +32,18 @@ describe('modes', () => {
     expect(modeById('bossrush').rules?.events).toBe('none');
     expect(modeById('endless').rules?.events).toBeUndefined();
     expect(modeById('longestday').rules?.events).toBeUndefined();
+  });
+});
+
+describe('§5 U2 nextModeId nav', () => {
+  it('walks the mode list with wrap-around; junk id → the first mode', () => {
+    const ids = MODES.map((m) => m.id);
+    const n = ids.length;
+    expect(nextModeId(ids[0], 1)).toBe(ids[1]);
+    expect(nextModeId(ids[0], -1)).toBe(ids[n - 1]); // wrap left off the front
+    expect(nextModeId(ids[n - 1], 1)).toBe(ids[0]); // wrap right off the end
+    expect(nextModeId('garbage', 1)).toBe(ids[1]); // junk → first, step right
+    expect(nextModeId('garbage', -1)).toBe(ids[n - 1]);
   });
 });
 

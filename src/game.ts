@@ -905,6 +905,14 @@ export class Game {
   private handleMeta(): void {
     const inp = this.input.state;
     if (this.state === 'title') {
+      // §5 U2 — keyboard/gamepad mode-card nav: arrows/d-pad step, digits 1-6 jump, Start launches
+      const dir = this.input.consumeMenu();
+      if (dir !== 0) {
+        this.ui.moveModeSelection(dir);
+      } else {
+        const idx = inp.selectIndex;
+        if (idx >= 0 && idx < MODES.length) this.selectMode(MODES[idx].id);
+      }
       if (this.input.consumeStart()) this.start(modeById(this.save.selectedMode)); // launch the persisted mode (parity with PLAY)
     } else if (this.state === 'playing') {
       if (inp.pausePressed) this.pause();

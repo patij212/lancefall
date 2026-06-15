@@ -103,6 +103,16 @@ export function rollDailyAttempt(today: string, lastDate: string, attempts: numb
   return { attempts: used, locked: used >= MAX_DAILY_ATTEMPTS };
 }
 
+/** §5 U2 — the next mode id walking the MODES list with wrap-around (dir<0 = left,
+ *  dir>=0 = right). A junk current id falls to the first mode. Pure. */
+export function nextModeId(currentId: string, dir: number): string {
+  const i = MODES.findIndex((m) => m.id === currentId);
+  const cur = i < 0 ? 0 : i;
+  const step = dir < 0 ? -1 : 1;
+  const n = MODES.length;
+  return MODES[(cur + step + n) % n].id;
+}
+
 export type ArenaWave =
   | { kind: 'wave'; budget: number; enemies: EnemyKind[] }
   | { kind: 'boss'; boss: EnemyKind };
