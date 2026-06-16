@@ -181,7 +181,13 @@ export const ARENA_SCRIPT: ArenaWave[] = [
   { kind: 'wave', budget: 24, enemies: ['darter', 'orbiter', 'splitter', 'bloomer'] },
   { kind: 'boss', boss: 'beacon' },
   { kind: 'wave', budget: 24, enemies: ['darter', 'orbiter', 'lancer', 'bloomer'] },
-  { kind: 'wave', budget: 26, enemies: ['drifter', 'lancer', 'herald'] },
+  // WAVE 14 — the pre-mirrorblade climax. Telemetry flagged it as THE arena wall: ~60% of all
+  // deaths land here, 63% of them to HERALD walls. It was also the ONLY herald wave at 1/3
+  // density (waves 19/20 already run herald at 1/4) — an anomalous spike. Dilute herald to 1/4
+  // (a 4th, easy enemy) and trim the budget so the overlapping-wall field thins. Bot-validated:
+  // arena death rate at the wall falls 96%→80%, the wave still walls (medWave 14) so the
+  // pre-boss climax survives — it's a fairer gauntlet, not a trivialised one.
+  { kind: 'wave', budget: 22, enemies: ['drifter', 'lancer', 'herald', 'darter'] },
   { kind: 'boss', boss: 'mirrorblade' },
   { kind: 'wave', budget: 28, enemies: ['drifter', 'shade', 'orbiter', 'bomber'] },
   { kind: 'wave', budget: 30, enemies: ['shade', 'drifter', 'splitter', 'bloomer'] },
