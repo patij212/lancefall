@@ -94,10 +94,14 @@ export const MODES: RunConfig[] = [
     // §7 — CASUAL/STORY. A gentler ENDLESS so anyone can SEE the content (bosses, biomes,
     // the story). OFF the leaderboards (rules.ranked:false → no submission) and with a fat
     // ARMOR cushion. A separate mode/config — it never touches the Daily seed path.
-    id: 'casual', name: 'CASUAL', desc: 'See it all — bosses, biomes, the story. Extra ARMOR, no pressure. Off the leaderboards.',
-    seedKind: 'random', intensityMul: 0.85, spawnMul: 1.15, bossInterval: 75, speedBonus: 0,
-    shieldStart: 150, shieldMax: 0.25, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
-    rules: { ranked: false, casualShields: 4 }, // off-board + 4 extra absorbs
+    id: 'casual', name: 'CASUAL', desc: 'See it all — bosses, biomes, the story, the Sovereign. Extra ARMOR, no pressure. Off the leaderboards.',
+    // CASUAL is the accessibility mode — its whole job is to let ANYONE reach the ending (the
+    // Sovereign + THE CHOICE). Eased well below the survival curve (intensity 0.85→0.62, sparser
+    // spawns, 6 ARMOR absorbs) so the full 6-boss arc is genuinely reachable. Off-board, so the
+    // soft difficulty can't game the leaderboards.
+    seedKind: 'random', intensityMul: 0.62, spawnMul: 1.4, bossInterval: 75, speedBonus: 0,
+    shieldStart: 180, shieldMax: 0.2, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
+    rules: { ranked: false, casualShields: 6 }, // off-board + 6 extra absorbs
   },
 ];
 

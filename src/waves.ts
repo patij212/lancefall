@@ -14,7 +14,7 @@ import { MODES, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
 export function intensity(t: number): number {
   const d = TUNE.director;
   if (t <= d.rampSeconds) return t / d.rampSeconds;
-  return 1 + (t - d.rampSeconds) / 180;
+  return 1 + (t - d.rampSeconds) / d.intensityGrowthSec;
 }
 
 export function spawnInterval(I: number): number {
@@ -31,7 +31,7 @@ export function maxConcurrent(I: number): number {
   const d = TUNE.director;
   return Math.min(
     d.maxConcurrentCap,
-    Math.round(lerp(d.maxConcurrentStart, d.maxConcurrentEnd, clamp(I, 0, 1)) + Math.max(0, I - 1) * 8),
+    Math.round(lerp(d.maxConcurrentStart, d.maxConcurrentEnd, clamp(I, 0, 1)) + Math.max(0, I - 1) * d.concurrentPerIntensity),
   );
 }
 

@@ -122,8 +122,10 @@ export const TUNE = {
     spawnIntervalFloor: 0.3,
     enemiesPerSpawnMax: 3,
     maxConcurrentStart: 4,
-    maxConcurrentEnd: 26,
-    maxConcurrentCap: 40,
+    maxConcurrentEnd: 22, // peak concurrent at I=1 (eased 26→22 so the survival mid-game is reachable toward the Sovereign)
+    maxConcurrentCap: 32, // hard ceiling on the post-ramp crowd (eased 40→32 — the late game stays a survivable wall, not a drown)
+    intensityGrowthSec: 260, // post-ramp: I grows +1 every this-many seconds (eased 180→260 — a gentler late climb)
+    concurrentPerIntensity: 4, // …and the crowd grows this many per intensity unit past I=1 (eased 8→4)
     bossInterval: 70, // length of WAVE 1 — ~70s of non-boss play before the first boss (time-driven modes; biome cadence locks to this)
     milestoneInterval: 5, // ENDLESS depth: every Nth wave is a NAMED milestone with an on-screen callout (a next-goal pull). PURE fn of wave count → determinism-safe (no rng touched)
     waveExtend: 15, // each consecutive inter-boss wave is this many seconds longer than the last…
