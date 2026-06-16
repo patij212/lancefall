@@ -59,15 +59,20 @@
     const y = Math.max(0, Math.min(1, (len - 180) / 380));
     return Math.max(0, Math.min(1, 1 - Math.sqrt(1 - y)));
   };
-  // Draft smart, not card #0. For a winnable boss gauntlet the build is half the
-  // fight: more dash DAMAGE (kill bosses faster) + more STAMINA (dodge + joust more).
-  const PERK_PRIORITY = ['secondwind', 'pierce', 'longreach', 'siphon', 'grazeburn', 'timethief', 'nova', 'chain', 'slipstream', 'afterimage', 'reflect', 'shardcache'];
+  // Draft smart, not card #0 — and draft for the MODE. The boss gauntlet (Boss Rush) is
+  // about damage + stamina to out-DPS and out-dodge tanky bosses. The chaff modes (Arena,
+  // Endless, …) are about CLEAR SPEED: a wave only advances once it's empty, so AoE (Nova
+  // shockwave-on-dash, Chain detonations) thins a crowd far faster than poking one spear at
+  // a time — which is exactly what lets the bot push past the wave-11 clearing wall.
+  const BOSS_PRIORITY = ['secondwind', 'pierce', 'afterimage', 'longreach', 'siphon', 'grazeburn', 'timethief', 'nova', 'chain', 'slipstream', 'reflect', 'shardcache'];
+  const CHAFF_PRIORITY = ['nova', 'chain', 'pierce', 'secondwind', 'longreach', 'siphon', 'grazeburn', 'reflect', 'timethief', 'afterimage', 'slipstream', 'shardcache'];
   const pickPerk = () => {
     const cards = lf.draftCards || [];
     if (!cards.length) return 0;
+    const pri = lf.mode && lf.mode.bossrush ? BOSS_PRIORITY : CHAFF_PRIORITY;
     let bestIdx = 0, bestRank = 1e9;
     for (let i = 0; i < cards.length; i++) {
-      const r = PERK_PRIORITY.indexOf(cards[i].id);
+      const r = pri.indexOf(cards[i].id);
       const rank = r < 0 ? 999 : r;
       if (rank < bestRank) { bestRank = rank; bestIdx = i; }
     }
