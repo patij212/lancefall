@@ -1,7 +1,15 @@
 # LANCEFALL — game modes reference
 
-There are **8 modes**, each a data-only `RunConfig` in [`src/modes.ts`](../src/modes.ts) that the
-director + game read off (no per-mode `if` soup). They split into two families:
+> **DIRECTION (agreed, not yet implemented) — see [`SOVEREIGN_VICTORY_SPEC.md`](SOVEREIGN_VICTORY_SPEC.md).**
+> The roster is consolidating **8 → 6**: **ENDLESS** and **ECHO OF THE FALL (daily)** retire
+> (they overlap Endless/Weekly in core loop), leaving **WEEKLY SIEGE** as the one *truly endless*
+> mode. And **downing the Sovereign becomes a rewarded climax in every mode** — a DAYBREAK
+> victory beat + THE CHOICE + a first-clear unlock — which gives the survival modes a finish line
+> (Nightmare/Solstice/Casual end in victory; Weekly records the win then ASCENDS for the score
+> chase). Sections below marked _(retiring)_ document current code until the change lands.
+
+There are currently **8 modes**, each a data-only `RunConfig` in [`src/modes.ts`](../src/modes.ts)
+that the director + game read off (no per-mode `if` soup). They split into two families:
 
 - **WINNABLE (scripted)** — **ARENA** and **BOSS RUSH**. A finite script with a real **victory
   state**: clear it and the run ends in "REMEMBERED". These are the only two modes where `won`
@@ -15,9 +23,9 @@ director + game read off (no per-mode `if` soup). They split into two families:
 
 | Mode | id | Family | Seed | Difficulty\* | Shards | Ranked | Signature |
 |------|-----|--------|------|------------|--------|--------|-----------|
-| ENDLESS | `endless` | survival | random | STANDARD (1.00) | ×1.0 | ✅ | the baseline survival run |
+| ENDLESS _(retiring)_ | `endless` | survival | random | STANDARD (1.00) | ×1.0 | ✅ | the baseline survival run |
 | ARENA | `arena` | **winnable** | random | STANDARD | ×1.1 | ✅ | 15 scripted waves + 6 bosses, clear-to-advance |
-| ECHO OF THE FALL | `daily` | survival | **date** | STANDARD (1.00) | ×1.0 | ✅ daily board | one seed for everyone today, best-of-3 |
+| ECHO OF THE FALL _(retiring)_ | `daily` | survival | **date** | STANDARD (1.00) | ×1.0 | ✅ daily board | one seed for everyone today, best-of-3 |
 | WEEKLY SIEGE | `weekly` | survival | **week** | HARD (1.15) | ×1.3 | ✅ weekly board | one seed all week, spicier mutators |
 | NIGHTMARE | `nightmare` | survival | random | **BRUTAL (1.89)** | ×1.75 | ✅ | sudden-death shrinking walls, **no ARMOR** |
 | BOSS RUSH | `bossrush` | **winnable** | random | STANDARD | ×1.3 | ✅ | all 6 bosses back-to-back, **no chaff** |
@@ -119,12 +127,24 @@ pressure. Survival.
 - **NG+ (New Game Plus)** — a per-win difficulty loop (up to ×1.72 intensity at loop 8). Applies
   only to **random-seed** modes; seeded Daily/Weekly always run at base.
 
+## What happens after the final boss (the Sovereign)
+
+- **Arena / Boss Rush** — the Sovereign is the last script entry, so killing it triggers the win:
+  a victory cinematic ("REMEMBERED"), cleartime score bonus, **THE CHOICE** (catch/fall, first time
+  only), NG+ increments, score submitted.
+- **Survival modes** — killing the Sovereign sets `sovereignDown`, grants +1 ARMOR / a power-up / a
+  perk / a "SOVEREIGN DOWN" float — then **the run just continues** (the boss cycle wraps to a
+  tougher Warden). No victory, no ending, no THE CHOICE. *This anticlimax is what the Sovereign
+  Victory spec fixes.*
+
 ## How this bears on "win every mode ≥5%"
+
+The [Sovereign Victory spec](SOVEREIGN_VICTORY_SPEC.md) turns "down the Sovereign" into a real
+completion in every mode, so the goal becomes reachable:
 
 - **Boss Rush** — already there (~83-92% on base difficulty).
 - **Arena** — winnable in principle; the bot currently walls at wave 14 (~0-3%). Reaching ≥5%
   means easing the late script or improving the clearer.
-- **The other six** — *cannot* report a win as built (no victory state). Making "win every mode"
-  literally true would mean **adding a completion condition** (e.g. downing the Sovereign ends the
-  run as a victory) — a design change — *and* easing survival difficulty enough that the Sovereign
-  (the 6th boss, currently unreached by the bot ~boss 1-3) is actually attainable.
+- **Nightmare / Solstice / Casual / Weekly** — gain a Sovereign victory (per the spec), *and* need
+  the survival-difficulty pass (spec §9) so the Sovereign (6th boss, currently unreached ~boss 1-3)
+  is actually attainable. The win exists once both land.
