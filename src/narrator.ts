@@ -87,5 +87,7 @@ export const NARRATOR = {
   ],
   lastBreath: ["Not yet. The city isn't decrypted yet."],
   victory: ['The light holds. Lancefall remembers itself.', 'The crown is bare. The day is yours to keep.'],
+  // THE LONGEST DAY — the Sovereign-kill DAYBREAK beat (any mode). The summit, paid off.
+  daybreak: ['The longest day is won. The light comes back to stay.', 'The code is broken. Dawn over Lancefall.'],
   highCoherence: ['The city resolves. Hold the signal here.'],
 } as const;

@@ -22,7 +22,7 @@ import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, hollowSy
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
-import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, perfectThreadReady, perfectThreadScore } from './combat';
+import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, longestDayBonus, perfectThreadReady, perfectThreadScore } from './combat';
 import { crossedComboTier } from './comboTiers';
 import { rollDraft, applyPerk, describeStacks } from './perks';
 import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvolutions } from './evolutions';
@@ -1724,6 +1724,7 @@ export class Game {
 
   private bossDeath(e: Enemy): void {
     const w = this.world;
+    const isSovereignKill = e.kind === 'sovereign';
     const bonus = 500 * Math.max(1, e.bossWave);
     // honor scoreMul like every other score source — boss kills are the dominant
     // score in Boss Rush, so omitting it silently neutered ZEALOT/HOARDER relics,
@@ -1757,6 +1758,12 @@ export class Game {
       w.particles.floatText(w.player.x, w.player.y - 30, '+1 ARMOR', '#5beaff', 0.9);
     }
     this.pendingDraft = true; // guaranteed perk after a boss
+    // THE LONGEST DAY — in a SURVIVAL mode, downing the Sovereign IS the victory (Arena/Boss
+    // Rush win via their finite script on the next director tick, so they're excluded here).
+    // Fired last, after the boss is released + the board settled, so winRun()'s board-clear
+    // can't double-free this enemy. ASCEND ("keep going") is wired in a later slice — for now
+    // the survival run ends on the win. inChallenge runs get the beat but bank no progression.
+    if (isSovereignKill && !this.mode.arena && !this.mode.bossrush) this.winRun();
   }
 
   private updateBullets(dt: number): void {
@@ -2441,11 +2448,20 @@ export class Game {
     if (this.winning) return;
     this.winning = true;
     this.winTimer = 2.4; // a longer victory cinematic before the debrief
+    // You don't draft (or roll an event) after you've won — the Sovereign's guaranteed
+    // perk draft would otherwise pop AFTER the victory and clobber the gameover state.
+    this.pendingDraft = false;
+    this.pendingEvent = null;
     const w = this.world;
-    // §4 M3 — completion-quality scoring for winnable modes (speed bonus + no-hit reward)
     w.clearTime = w.time;
+    // Completion bonus. Scripted modes (Arena/Boss Rush) score by cleartime; a survival
+    // Sovereign kill (THE LONGEST DAY) pays the longestDayBonus — a flat feat base + the same
+    // speed/no-hit shape, lifted by the ASCEND multiplier. Both pure, no rng. (Every win in
+    // LANCEFALL coincides with the Sovereign falling, so this is always the Sovereign payoff.)
     if (this.mode.rules?.scoreFrame === 'cleartime') {
       w.score += clearTimeBonus(w.time, w.hitsTaken, w.stats.scoreMul);
+    } else if (w.sovereignDown) {
+      w.score += longestDayBonus(w.time, w.hitsTaken, w.ascension, w.stats.scoreMul);
     }
     w.player.iframe = 999;
     w.bullets.clear();
@@ -2454,8 +2470,11 @@ export class Game {
     this.renderer.flash('#fbbf24', 0.5);
     this.shake.add(0.6);
     this.cam.zoom = Math.max(this.cam.zoom, 1.12); // a punch that eases back out
-    this.ui.announce('REMEMBERED', '#fbbf24');
-    this.narrate('victory', 'toast', NARRATOR.victory);
+    // DAYBREAK — kick COHERENCE to full so the gray city blooms fully alive (the payoff the
+    // whole COHERENCE system builds toward). Cosmetic dial only — never touches world.rng.
+    coherenceBeatKick(this.coherence, true);
+    this.ui.announce('THE LONGEST DAY IS WON', '#fde047');
+    this.narrate('daybreak', 'toast', NARRATOR.daybreak);
     this.audio.bossStinger();
     this.input.rumble(0.6, 0.8, 320);
     // concentric shockwaves from the arena centre
