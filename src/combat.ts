@@ -28,6 +28,18 @@ export function clearTimeBonus(clearTime: number, hitsTaken: number, scoreMul: n
   return speed + noHit;
 }
 
+/** THE LONGEST DAY — the Sovereign-kill victory bonus (SOVEREIGN_VICTORY_SPEC §5.3). A flat
+ *  base for the feat + the completion-quality bonus (speed + no-hit, reusing clearTimeBonus),
+ *  all lifted by the ASCEND score multiplier (1 + ascension·ascendScorePerLoop) and scoreMul.
+ *  Pure — computed from run stats AFTER the kill; touches no rng. Banked to BOTH score + shards. */
+export function longestDayBonus(clearTime: number, hitsTaken: number, ascension: number, scoreMul: number): number {
+  const v = TUNE.victory;
+  const baseScaled = v.longestDayBase * scoreMul;
+  const completion = clearTimeBonus(clearTime, hitsTaken, scoreMul); // speed + no-hit, already × scoreMul
+  const ascendMul = 1 + Math.max(0, ascension) * v.ascendScorePerLoop;
+  return Math.round((baseScaled + completion) * ascendMul);
+}
+
 export function shouldSlowmo(killsThisDash: number): boolean {
   return killsThisDash >= TUNE.juice.slowmoChainThreshold;
 }

@@ -8,6 +8,7 @@ import {
   registerKill,
   hitstopFor,
   clearTimeBonus,
+  longestDayBonus,
   perfectThreadReady,
   perfectThreadScore,
 } from './combat';
@@ -92,6 +93,25 @@ describe('§4 M3 clearTimeBonus', () => {
   });
   it('scales linearly with scoreMul', () => {
     expect(clearTimeBonus(60, 0, 2)).toBe(2 * clearTimeBonus(60, 0, 1));
+  });
+});
+
+describe('THE LONGEST DAY bonus (Sovereign victory)', () => {
+  it('is at least the scaled base even on a slow, scrappy kill', () => {
+    const slow = TUNE.score.timeBonusBase / TUNE.score.timeBonusPerSec + 100; // speed bonus floored to 0
+    expect(longestDayBonus(slow, 9, 0, 1)).toBe(TUNE.victory.longestDayBase); // base only, ascension 0
+  });
+  it('rewards a faster, flawless kill more', () => {
+    expect(longestDayBonus(30, 0, 0, 1)).toBeGreaterThan(longestDayBonus(120, 5, 0, 1));
+  });
+  it('the ASCEND multiplier lifts the payout (risk pays)', () => {
+    const a0 = longestDayBonus(60, 0, 0, 1);
+    const a4 = longestDayBonus(60, 0, 4, 1);
+    expect(a4).toBeCloseTo(a0 * (1 + 4 * TUNE.victory.ascendScorePerLoop), 6);
+  });
+  it('scales with scoreMul and treats a negative ascension as 0', () => {
+    expect(longestDayBonus(60, 0, 0, 2)).toBe(2 * longestDayBonus(60, 0, 0, 1));
+    expect(longestDayBonus(60, 0, -3, 1)).toBe(longestDayBonus(60, 0, 0, 1));
   });
 });
 

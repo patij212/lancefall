@@ -160,6 +160,21 @@ export const TUNE = {
     timeBonusPerSec: 60, // score shed per second of clear time
     noHitBonus: 25000, // flat reward for a flawless (hitsTaken===0) victory (× scoreMul)
   },
+
+  // THE LONGEST DAY — the Sovereign-kill victory (SOVEREIGN_VICTORY_SPEC.md). The DAYBREAK
+  // beat timings + the ASCEND ("keep going") ramp + THE LONGEST DAY reward base. Cosmetic /
+  // pure-over-run-stats — these never feed a seeded sim draw (the determinism invariant).
+  victory: {
+    hitstop: 0.25, // s freeze on the killing blow
+    flash: 0.6, // warm light-flash strength (a11y-gated at draw time)
+    slowmo: 0.3, // slow-mo factor during the DAYBREAK hold
+    slowmoHold: 2.5, // s the slow-mo lasts (no slow-mo under reduceMotion)
+    promptTimeout: 20, // s before an ignored GREET THE DAWN / KEEP GOING prompt defaults to GREET THE DAWN
+    longestDayBase: 5000, // pre-multiplier base of THE LONGEST DAY bonus (× scoreMul, then × ascend)
+    ascendIntensityPerLoop: 0.12, // each ASCEND loop adds this much endless intensity (fixed, deterministic)
+    ascendScorePerLoop: 0.25, // …and this much score multiplier (risk pays)
+    ascendMaxLoop: 8, // soft cap on the intensity ramp (score mul may climb past it)
+  },
 } as const;
 
 // ── Enemy archetype data tables ──
