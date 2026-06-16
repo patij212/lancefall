@@ -125,11 +125,14 @@ function orbiter(e: Enemy, world: World, dt: number): void {
   if (e.timer <= 0) {
     e.timer = ORBITER.fireCadence;
     // VERB: every Nth shot is a dropped MINE — a stationary hazard parked where the
-    // orbiter stands, denying that patch of arena until it expires on the normal
-    // bullet life. subPhase counts shots → fully deterministic (no world.rng draw).
+    // orbiter stands, denying that patch of arena. It expires on its OWN short life
+    // (ORBITER.mineLife) — a parked mine that lingered the full 8s bullet life denied
+    // far too much space and was, by telemetry, the single biggest source of player
+    // hits. subPhase counts shots → fully deterministic (no world.rng draw).
     e.subPhase++;
     if (e.subPhase % ORBITER.mineEvery === 0) {
-      world.spawnBullet(e.x, e.y, 0, 0, 8, ORBITER.mineColor, false); // vx=vy=0 → a parked mine
+      const mine = world.spawnBullet(e.x, e.y, 0, 0, 8, ORBITER.mineColor, false); // vx=vy=0 → a parked mine
+      if (mine) mine.life = ORBITER.mineLife;
     } else {
       const [nx, ny] = norm(p.x - e.x, p.y - e.y);
       const sp = ORBITER.bulletSpeed * e.bulletMul;

@@ -209,7 +209,10 @@ export const ORBITER = {
   angularSpeed: 1.1,
   fireCadence: 1.6,
   bulletSpeed: 240,
-  mineEvery: 3, // every Nth shot is a dropped mine (rest are aimed bolts)
+  mineEvery: 4, // every Nth shot is a dropped mine (rest are aimed bolts)
+  mineLife: 3.5, // s a parked mine lingers before it expires (was the full 8s bullet life —
+  // that made mines the #1 source of player hits by far; a shorter linger keeps the
+  // area-denial verb readable without paving the arena in permanent hazards)
   mineColor: '#67e8f9', // a cooler cyan so a parked mine reads apart from a flying bolt
 };
 

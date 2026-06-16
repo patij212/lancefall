@@ -23,9 +23,9 @@ function freshWorld(seed = 1): World {
 }
 
 /** Drive one enemy for `seconds`, collecting a snapshot of every NEW bullet. */
-function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: number; vy: number; color: string }[] {
+function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: number; vy: number; color: string; life: number }[] {
   const seen = new Set<number>();
-  const shots: { x: number; y: number; vx: number; vy: number; color: string }[] = [];
+  const shots: { x: number; y: number; vx: number; vy: number; color: string; life: number }[] = [];
   const steps = Math.round(seconds / DT);
   for (let i = 0; i < steps; i++) {
     updateEnemy(e, w, DT);
@@ -34,7 +34,7 @@ function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: n
       const idx = w.bullets.items.indexOf(b);
       if (!seen.has(idx)) {
         seen.add(idx);
-        shots.push({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, color: b.color });
+        shots.push({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, color: b.color, life: b.life });
       }
     });
   }
@@ -57,6 +57,20 @@ describe('ORBITER verb — drops a parked mine every Nth shot', () => {
     // a parked mine never grazes (approaching-only graze needs a moving bullet) — it is
     // pure area-denial; assert it truly has no velocity
     for (const m of mines) expect(Math.hypot(m.vx, m.vy)).toBe(0);
+  });
+
+  it('a mine lingers only its OWN short life, not the full 8s bullet life (balance)', () => {
+    // Telemetry showed parked mines lingering the full bullet life paved the arena —
+    // ~40% of all player hits. A mine must expire on ORBITER.mineLife, well under 8s.
+    expect(ORBITER.mineLife).toBeLessThan(8);
+    const w = freshWorld();
+    const e = w.spawnEnemy('orbiter', 800, 360, 1, 1, false, false, 0)!;
+    const shots = run(w, e, ORBITER.fireCadence * (ORBITER.mineEvery + 1) + 0.2);
+    const mines = shots.filter((s) => s.vx === 0 && s.vy === 0);
+    expect(mines.length).toBeGreaterThanOrEqual(1);
+    // captured on its first active frame (one dt of decay at most), so life ≈ mineLife
+    for (const m of mines) expect(m.life).toBeLessThanOrEqual(ORBITER.mineLife);
+    for (const m of mines) expect(m.life).toBeGreaterThan(ORBITER.mineLife - DT - 1e-6);
   });
 });
 
