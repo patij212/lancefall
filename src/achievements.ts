@@ -50,6 +50,9 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'crucible', name: 'The Crucible', desc: 'Reach wave 5+ at Heat 7 (maximum heat).', check: (c) => c.heat >= 7 && (c.won || c.wave >= 5) },
   { id: 'regicide', name: 'Regicide', desc: 'Bring down the Sovereign.', check: (c) => c.sovereignDown },
   { id: 'coronation', name: 'Long Live the Lance', desc: 'Defeat the Sovereign at Heat 3 or above.', check: (c) => c.sovereignDown && c.heat >= 3 },
+  // THE LONGEST DAY — per-mode Sovereign flexes (SOVEREIGN_VICTORY_SPEC §5.3). The hardest feats.
+  { id: 'daybreakdark', name: 'Daybreak in the Dark', desc: 'Down the Sovereign in Nightmare — no ARMOR, walls closing in.', check: (c) => c.sovereignDown && c.modeId === 'nightmare' },
+  { id: 'codebroken', name: 'The Code Is Broken', desc: 'Decode and down the Sovereign in Solstice Protocol.', check: (c) => c.sovereignDown && c.modeId === 'longestday' },
   { id: 'unleashed', name: 'Unleashed', desc: 'Fire DAYBREAK.', check: (c) => c.overdriveUses >= 1 },
   { id: 'overcharged', name: 'Overcharged', desc: 'Fire DAYBREAK 4 times in a single run.', check: (c) => c.overdriveUses >= 4 },
   // require actually SURVIVING the save (reached a later wave or won) — not merely triggering

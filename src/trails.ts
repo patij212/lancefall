@@ -22,6 +22,9 @@ export const TRAILS: TrailDef[] = [
   { id: 'acid', name: 'ACID', unlockShards: 1200, base: '#a3e635', bright: '#ecfccb' },
   // CROWN — the prestige trail: a reward for felling the final boss (THE SOVEREIGN)
   { id: 'crown', name: 'CROWN', unlockShards: 0, unlockAch: 'regicide', base: '#fde047', bright: '#ffffff' },
+  // DAYBREAK — the TOP prestige trail: down the Sovereign in Nightmare (no ARMOR, walls closing
+  // in). A warm dawn streak — the longest day, won the hard way.
+  { id: 'daybreak', name: 'DAYBREAK', unlockShards: 0, unlockAch: 'daybreakdark', base: '#fb923c', bright: '#fef3c7' },
 ];
 
 export function trailById(id: string): TrailDef {

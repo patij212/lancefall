@@ -82,6 +82,13 @@ describe('achievements', () => {
     expect(evaluate([], { ...base, sovereignDown: true, heat: 2 }).map((a) => a.id)).not.toContain('coronation');
   });
 
+  it('THE LONGEST DAY per-mode Sovereign flexes need the kill in the right mode', () => {
+    expect(evaluate([], { ...base, sovereignDown: true, modeId: 'nightmare' }).map((a) => a.id)).toContain('daybreakdark');
+    expect(evaluate([], { ...base, sovereignDown: true, modeId: 'casual' }).map((a) => a.id)).not.toContain('daybreakdark');
+    expect(evaluate([], { ...base, sovereignDown: true, modeId: 'longestday' }).map((a) => a.id)).toContain('codebroken');
+    expect(evaluate([], { ...base, sovereignDown: false, modeId: 'nightmare' }).map((a) => a.id)).not.toContain('daybreakdark');
+  });
+
   it('v4 mechanic achievements track OVERDRIVE / Last Breath / power-ups', () => {
     expect(evaluate([], { ...base, overdriveUses: 1 }).map((a) => a.id)).toContain('unleashed');
     expect(evaluate([], { ...base, overdriveUses: 3 }).map((a) => a.id)).not.toContain('overcharged');
