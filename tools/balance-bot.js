@@ -113,12 +113,22 @@
           d = Math.hypot(lx - (b.x + b.vx * 0.42), ly - (b.y + b.vy * 0.42)); if (d < 36) sc -= (36 - d) * 1.5;
         }
         let kills = 0, nearestE = 1e9;
+        const segLen2 = (lx - p.x) * (lx - p.x) + (ly - p.y) * (ly - p.y) || 1;
         for (let ei = 0; ei < enemies.length; ei++) {
           const e = enemies[ei]; if (!e.active) continue;
           const dl = Math.hypot(lx - e.x, ly - e.y);
           if (!e.isBoss) {
             if (mode === 0 && e.kind !== 'sovereign_core' && dl < nearestE) nearestE = dl; // only ESCAPE flees chaff
-            if (segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) kills++; // spear chaff / cores
+            if (segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) {
+              // ARMORED chaff (shielded darter/orbiter) clangs a head-on spear: the shield tracks
+              // you, so you only land by SKEWERING THROUGH to the far side. Approximate that: count
+              // the kill only when the enemy sits in the dash's INTERIOR (t<0.85) so we pass it and
+              // land beyond — a poke that stops short (t≈1) would just bounce off the armor.
+              if (e.shielded) {
+                const t = ((e.x - p.x) * (lx - p.x) + (e.y - p.y) * (ly - p.y)) / segLen2;
+                if (t < 0.85) kills++; // a true through-skewer flanks it
+              } else kills++; // spear chaff / cores
+            }
           } else if (dl < e.radius + R + 16) {
             sc -= 60; // never LAND on the boss body
           }
