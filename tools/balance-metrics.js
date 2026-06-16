@@ -77,7 +77,8 @@
       hits: {},               // cause -> { total, fatal, shield, clutch, waves:{} }
       hitByCollKind: {},      // enemy kind that body-checked us -> count
       hitByBullet: { chaff: 0, boss: 0, homing: 0 },
-      hitByBulletSrc: {},     // firing enemy (by bullet colour) -> count
+      hitByBulletSrc: {},     // firing enemy (by bullet colour) -> count (ALL hits incl. absorbed)
+      fatalBulletSrc: {},     // firing enemy -> count of FATAL hits only (what actually kills)
       deaths: {},             // "cause @wN" -> count
       dmgDealt: { boss: 0, chaff: 0, core: 0 },
     };
@@ -124,19 +125,23 @@
         if (best) T.hitByCollKind[best.kind] = (T.hitByCollKind[best.kind] || 0) + 1;
       } else if (cause === 'a bullet') { T.hitByBullet.chaff++; }
       else if (cause === 'a boss bullet') { T.hitByBullet.boss++; }
+      let bulletSrc = null;
       if (cause.includes('bullet')) {
         // find the overlapping bullet and attribute it to its firing enemy via colour
         let hit = null, hd = 1e9;
         for (const b of w.bullets.items) { if (!b.active) continue; const d = Math.hypot(b.x - p.x, b.y - p.y) - b.radius; if (d < hd) { hd = d; hit = b; } }
         if (hit) {
           if (hit.homing > 0) T.hitByBullet.homing++;
-          const src = hit.fromBoss ? 'boss' : (BULLET_SRC[hit.color] || `chaff(${hit.color})`);
-          T.hitByBulletSrc[src] = (T.hitByBulletSrc[src] || 0) + 1;
+          bulletSrc = hit.fromBoss ? 'boss' : (BULLET_SRC[hit.color] || `chaff(${hit.color})`);
+          T.hitByBulletSrc[bulletSrc] = (T.hitByBulletSrc[bulletSrc] || 0) + 1;
         }
       }
       o.playerDie(cause);
       const h = H(cause); h.total++; h.waves[wave] = (h.waves[wave] || 0) + 1;
-      if (!p.alive) { h.fatal++; T.deaths[`${cause} @w${wave}`] = (T.deaths[`${cause} @w${wave}`] || 0) + 1; }
+      if (!p.alive) {
+        h.fatal++; T.deaths[`${cause} @w${wave}`] = (T.deaths[`${cause} @w${wave}`] || 0) + 1;
+        if (bulletSrc) T.fatalBulletSrc[bulletSrc] = (T.fatalBulletSrc[bulletSrc] || 0) + 1;
+      }
       else if (p.shields < preShields) h.shield++;
       else h.clutch++;
     };
@@ -208,6 +213,9 @@
     // who SHOOTS us (chaff bullets attributed to the firing enemy by colour)
     const bulletSrcTot = sum(Object.values(T.hitByBulletSrc)) || 1;
     const bulletSources = Object.entries(T.hitByBulletSrc).sort((a, b) => b[1] - a[1]).map(([src, n]) => ({ source: src, bulletHits: n, pct: pct(n, bulletSrcTot) }));
+    // what bullet source actually KILLS (fatal only — separates real lethality from absorbed chip)
+    const fatalSrcTot = sum(Object.values(T.fatalBulletSrc)) || 1;
+    const fatalBulletSources = Object.entries(T.fatalBulletSrc).sort((a, b) => b[1] - a[1]).map(([src, n]) => ({ source: src, fatalHits: n, pct: pct(n, fatalSrcTot) }));
 
     // DEATH HOTSPOTS — cause @ wave
     const deaths = Object.entries(T.deaths).sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ deathSpot: k, count: n }));
@@ -227,7 +235,8 @@
       textTable('ENEMIES (kills by kind)', ['kind', 'killed', '/run', '%dash', '%elite', '%ofKills'], enemies.map((e) => [e.kind, e.killed, e.perRun, e.pctDash, e.pctElite, e.shareOfKills])),
       textTable('BOSSES (the gauntlet)', ['boss', 'reached', 'killed', 'kill%', 'avgTTKs', 'avgHP', 'deathsHere'], bosses.map((b) => [b.kind, b.reached, b.killed, b.killRate, b.avgTTKs, b.avgHP, b.deathsHere])),
       textTable('DAMAGE TAKEN (by source)', ['cause', 'total', '%hits', 'fatal', 'shield', 'clutch', 'worstWave'], dmgTaken.map((d) => [d.cause, d.total, d.pctOfHits, d.fatal, d.shieldAbsorbed, d.clutchAbsorbed, d.worstWave])),
-      textTable('WHO SHOOTS YOU (chaff bullets by firing enemy)', ['source', 'hits', '%'], bulletSources.map((b) => [b.source, b.bulletHits, b.pct])),
+      textTable('WHO SHOOTS YOU (all bullet hits by firing enemy)', ['source', 'hits', '%'], bulletSources.map((b) => [b.source, b.bulletHits, b.pct])),
+      textTable('WHAT ACTUALLY KILLS YOU (FATAL bullet hits only)', ['source', 'fatal', '%'], fatalBulletSources.map((b) => [b.source, b.fatalHits, b.pct])),
       textTable('WHO BODY-CHECKS YOU (collisions)', ['kind', 'bodyHits'], collisions.map((c) => [c.kind, c.bodyHits])),
       textTable('DEATH HOTSPOTS', ['cause @ wave', 'deaths'], deaths.map((d) => [d.deathSpot, d.count])),
     ].join('\n');
@@ -239,7 +248,7 @@
     console.log('%cDAMAGE TAKEN', 'font-weight:bold'); console.table(dmgTaken);
     console.log('%cDEATH HOTSPOTS', 'font-weight:bold'); console.table(deaths);
 
-    return { summary, enemies, bosses, dmgTaken, bulletSources, collisions, deaths, economy, text };
+    return { summary, enemies, bosses, dmgTaken, bulletSources, fatalBulletSources, collisions, deaths, economy, text };
   }
 
   window.__metrics = (modeId = 'arena', runs = 40, opts = {}) => runMetrics(modeId, runs, opts);
