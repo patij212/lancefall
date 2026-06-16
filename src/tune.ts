@@ -282,11 +282,16 @@ export const DRIFTER_TUNE = {
 export const HERALD = {
   range: 330, // preferred standoff distance
   repositionTime: 1.5, // strafe/reposition window between walls
-  lockTime: 0.85, // telegraph; aim + gap are frozen at lock start (the read window)
+  lockTime: 1.0, // telegraph; aim + gap are frozen at lock start (the read window). Up from
+  // 0.85: at wave 14+ several heralds overlap walls whose gaps don't align, and a dash-less
+  // human needs a beat more to READ which lane to thread (the bot dashes through, so this is
+  // a pure human-readability buff — telemetry shows the herald is already fair 1-on-1).
   strafeSpeed: 75,
   wallHalf: 200, // half-width of the bullet wall (px)
   spacing: 24, // px between wall bullets
-  gapHalf: 44, // half-width of the safe lane — dash/walk through it
+  gapHalf: 52, // half-width of the safe lane (up from 44) — a touch more forgiving to thread
+  // when multiple walls overlap. Determinism-safe: the gap-offset rng.range draw count is
+  // unchanged (only its range narrows by wallHalf-gapHalf), so a seeded Daily stays valid.
   bulletSpeed: 150,
 } as const;
 
