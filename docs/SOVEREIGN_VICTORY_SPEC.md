@@ -1,170 +1,270 @@
-# SPEC — THE LONGEST DAY: a satisfying Sovereign victory in every mode
+# SPEC — THE LONGEST DAY: the Sovereign victory & the living endless mode
 
-**Status:** design / agreed direction. Not yet implemented.
-**Author intent:** *"I want killing the Sovereign to be really satisfying. It's really hard, so it has to be rewarded."*
+**Status:** approved, in implementation.
+**Intent:** *"Killing the Sovereign must be really satisfying. It's really hard, so it has to be rewarded."*
+**Themes it serves:** the solstice/longest-day arc, the Turing codebreaking ode, the COHERENCE
+"dead city → full neon" bloom, and "win every mode ≥5%".
 
-## 1. The problem
+---
 
-The Sovereign is the hardest thing in the game — the gravity-warping final boss behind a
-cipher lock. Yet **only Arena and Boss Rush pay it off**. In the survival modes, downing the
-Sovereign currently does almost nothing:
+## 1. Vision
 
-> `bossDeath()` sets `sovereignDown = true`, drops +1 ARMOR / a power-up / a perk, prints a
-> "SOVEREIGN DOWN" float — and the run **just continues**, the boss cycle wrapping back to a
-> tougher Warden. No victory, no ending, no payoff, no THE CHOICE.
+The Sovereign is the summit of LANCEFALL. Beating it should feel like **the light coming back** —
+a held, screen-filling DAYBREAK — and it should *pay out*: a recorded victory, a fat reward, a
+permanent unlock, and a real choice about whether to bask in the won day (**GREET THE DAWN**) or
+push on as night falls (**KEEP GOING**). Today only Arena & Boss Rush honour it; this spec makes it
+the climax of **every** mode and turns the survival roster into six distinct, goal-driven modes —
+with **Weekly Siege** as the one *living, truly-endless* mode that absorbs the retiring Daily's
+retention loop and story.
 
-So the climactic kill is anticlimactic in 6 of 8 modes, and those modes have no completion
-state at all. This spec fixes both: it makes the Sovereign kill a **rewarded climax everywhere**
-and gives every mode a finish line.
+## 2. Design goals & engagement principles
 
-## 2. Design goals
+| Principle | How this spec applies it |
+|-----------|--------------------------|
+| **A summit worth climbing** | the Sovereign kill is the game's defined "you won", in every mode, with a unique cinematic. |
+| **Reward proportional to difficulty** | THE LONGEST DAY bonus scales with speed/no-hit/depth; a first-clear cosmetic + achievement; per-mode records. |
+| **Meaningful choice** | THE CHOICE (catch/fall) for everyone; GREET THE DAWN vs KEEP GOING after every win. |
+| **Mastery curve / "one more run"** | KEEP GOING → ASCEND loops with escalating difficulty *and* score multiplier. |
+| **Daily habit** | Weekly's date-derived daily sub-goal + daily streak → a reason to log in every day. |
+| **Story & identity** | Echo of the Fall vignette rides the daily goal; THE CHOICE is a permanent identity mark. |
+| **Recognition / social** | weekly ranked board ("how far past the Sovereign did you climb"), per-mode best-kill records, ghost races. |
+| **No dead ends** | the win is *banked first*, so dying after never costs the achievement; KEEP GOING is pure upside. |
 
-1. Downing the Sovereign is a **screen-filling, audible, emotional payoff** in *every* mode.
-2. It is **rewarded** — a record, currency, and a first-clear unlock proportional to the feat.
-3. It gives the survival modes a **victory** (which also unlocks "win every mode ≥5%").
-4. It preserves a **truly-endless** score chase for the players who want it.
-5. **Reuse existing systems** (DAYBREAK bloom, THE CHOICE, the win cinematic) — no new engines.
-6. **Determinism + a11y safe**: cosmetic bloom only (no `world.rng`), respects reduce-flashing/motion.
+## 3. The gap today
 
-## 3. The moment — "DAYBREAK" on the Sovereign kill
+`bossDeath()` on the Sovereign sets `sovereignDown = true`, drops +1 ARMOR / a power-up / a perk /
+a "SOVEREIGN DOWN" float — and in survival modes **the run just continues**, the boss cycle wrapping
+to a tougher Warden. No victory, no cinematic, no THE CHOICE, no reward, no completion state. The
+hardest feat in the game is, in 6 of 8 modes, a shrug.
 
-On `sovereignDown` in ANY mode, fire the existing **DAYBREAK** climax (today only the OVERDRIVE
-burst triggers it — `game.ts` ~L609): full-screen neon nova, deep slow-mo, COHERENCE kicked to
-**full** (`coherenceBeatKick(perfect)` — the gray→neon city blooms fully alive), the choir/loud
-master swell, a hard light flash, camera punch, sustained rumble. Layer on top:
+## 4. Player-experience walkthrough (the moment)
 
-- A unique, reverent narration line — e.g. **"THE LONGEST DAY IS WON"** / **"THE LIGHT RETURNS"**
-  (Solstice gets a cipher-flavoured variant: *"THE CODE IS BROKEN. DAYBREAK."*).
-- The City-of-Lancefall wash holds at full neon for the cinematic (the "dead world fully alive"
-  read the whole COHERENCE system is built for — this is its ultimate payoff).
-- a11y: the bloom/flash routes through the existing `reduceFlashing`/`reduceMotion`/`clarity`
-  gating (the wash and DAYBREAK already respect it) — under those settings it's a calm cross-fade,
-  no strobe.
+1. The Sovereign's last core shatters; the crown's HP hits 0.
+2. **Hitstop** (~0.25s) — the world freezes on the kill.
+3. **DAYBREAK**: a full-screen warm nova, **COHERENCE snaps to full** (the gray city blooms to full
+   neon — the payoff the whole COHERENCE system is built toward), deep slow-mo (~0.3× for ~2.5s),
+   choir/master swell + a bespoke daybreak sting, camera punch, sustained rumble.
+4. **Narration**, reverent, mode-flavoured: *"THE LONGEST DAY IS WON."* (Solstice: *"THE CODE IS
+   BROKEN — DAYBREAK."*)
+5. The win is **banked** (recorded immediately).
+6. **THE CHOICE** (first Sovereign kill ever, any mode): catch the falling Sovereign, or let it fall.
+   A once-ever permanent branch.
+7. **Resolution prompt**: **GREET THE DAWN** (end on the victory → debrief) · **KEEP GOING** (ASCEND
+   into a harder loop for score). Scripted modes (Arena/Boss Rush) skip the prompt — they simply end.
+8. Debrief shows the victory, THE LONGEST DAY bonus, any first-clear unlock, the new record.
 
-This is the same juice quality as the OVERDRIVE/victory cinematics, aimed at the Sovereign kill.
+All flashing/slow-mo routes through the existing `reduceFlashing`/`reduceMotion`/`clarity` gates
+(§10): under them it's a calm cross-fade with no strobe and no time-warp.
 
-## 4. THE CHOICE — for everyone
+## 5. Systems in detail
 
-Extend the catch-or-fall narrative branch (`stillpoint.ts` `choiceEnding`) to **any** Sovereign
-kill, not just `won` runs. Today: `choicePending = !inChallenge && won && sovereignDown && choice==='none'`.
-Change the gate to `!inChallenge && sovereignDown && choice==='none'`. First Sovereign kill in
-*any* mode now offers THE CHOICE (the emotional core: catch the falling Sovereign, or let it
-fall). It's a once-ever permanent branch, so it fires on the first kill regardless of mode.
+### 5.1 The DAYBREAK victory sequence
 
-## 5. The reward stack (it's hard → reward it)
+Reuse the existing DAYBREAK climax (today only OVERDRIVE fires it — `game.ts` ~L609:
+`coherenceBeatKick(perfect)` + nova + slow-mo + "DAYBREAK" announce). Factor it into a reusable
+`daybreakBeat(opts)` and call it from the new `sovereignVictory()`.
 
-On the first-ever Sovereign kill, and on every kill thereafter (scaled):
+Beat sheet (tunable in `TUNE.victory`):
 
-| Reward | Detail |
-|--------|--------|
-| **Victory recorded** | the run is marked a **completion** (`won`-equivalent) — counts toward stats, the debrief reads "REMEMBERED", and it satisfies "win every mode". |
-| **THE LONGEST DAY bonus** | a fat one-time score + shard payout, scaled by mode `shardMul` and how *deep/fast/clean* the run was (fold in the existing `clearTimeBonus` shape — speed + no-hit). The hardest feat pays the most. |
-| **First-clear unlock** | a signature **"DAYBREAK" dash-trail** cosmetic + an achievement ("Bring Back the Longest Day"). Per-mode first-clears can grant a badge (e.g. "Sovereign down — NIGHTMARE"). |
-| **Persistent record** | best Sovereign-kill time / depth per mode, shown on the title + debrief. |
+| t (s) | Event | a11y-reduced variant |
+|------|-------|----------------------|
+| 0.00 | HP→0, **hitstop** `victory.hitstop` (0.25) | same (hitstop is not flashing) |
+| 0.05 | nova ring + warm **light flash** `victory.flash` (0.6), camera zoom punch, rumble | no flash; gentle bloom only |
+| 0.05 | `coherenceBeatKick(perfect)` → COHERENCE eases to **1.0** (full city) | eased cross-fade (already a11y-safe in `washSaturation`) |
+| 0.05 | **slow-mo** `victory.slowmo` (0.3) for `victory.slowmoHold` (2.5s) | **no slow-mo** under reduceMotion |
+| 0.10 | audio: `bossMusic(false)`, `daybreakStinger()` (new), master swell | same (audio honours mute, not motion) |
+| 0.50 | narration `NARRATOR.daybreak[mode-flavour]` | same |
+| ~2.5 | slow-mo eases out → THE CHOICE (if first ever) → resolution prompt | same |
 
-All currency/unlock writes go through the existing save + achievements pipeline; none touch a
-seeded run's `world.rng`.
+### 5.2 THE CHOICE — for everyone
 
-## 6. Run resolution — REMEMBER or KEEP GOING (offered everywhere)
+`stillpoint.ts` `choiceEnding(catch|fall)` already exists. Today `choicePending` is gated
+`!inChallenge && won && sovereignDown && choice==='none'`. **Change the gate to drop `won`**:
+`!inChallenge && sovereignDown && choice==='none'`. The first Sovereign kill in *any* mode now
+offers the permanent catch/fall branch. (Unchanged: it's once-ever; subsequent kills skip it.)
 
-After the DAYBREAK beat + THE CHOICE, the **win is banked immediately** (so it always counts —
-toward stats, the leaderboard, and "win every mode" — even if the player then dies). Then every
-survival mode **offers a choice**:
+### 5.3 The reward stack
 
-- **REMEMBER** — end the run on the victory. A clean "you beat it" debrief.
-- **KEEP GOING (ASCEND)** — the run continues into a harder loop (an in-run difficulty step, like a
-  soft NG+) for the score chase. "The day is won — but the night still comes." The recorded victory
-  stands; everything past it is bonus depth/score.
+On `sovereignVictory()`:
 
-This offer is **universal** — Nightmare, Solstice, Casual *and* Weekly all let you bank or push on.
-The modes still differ by **how they play** (sudden-death walls / cipher bosses / gentle+cushion /
-week-seeded-ranked), not by whether you *can* continue.
+| Reward | Detail / formula |
+|--------|------------------|
+| **Recorded victory** | set a `won`-equivalent completion flag; debrief reads the victory; counts for stats + "win every mode". Banked before the resolution prompt so death after never revokes it. |
+| **THE LONGEST DAY bonus** | `longestDayBonus = base × speedFactor × noHitFactor × modeShardMul × ascendMul`, reusing the `clearTimeBonus` curve shape (faster + fewer hits = more). Paid to score **and** shards. |
+| **First-clear unlock** | a signature **DAYBREAK dash-trail** (new `trails.ts` entry) + achievement **"Bring Back the Longest Day"**. |
+| **Per-mode badge** | first Sovereign kill *per mode* grants a small badge/achievement (e.g. "Daybreak — NIGHTMARE"). |
+| **Records (save)** | `sovereignBest[modeId] = { time, ascensions, hitsTaken, date }` — best per mode, shown on title + debrief. |
 
-- **Arena / Boss Rush** (scripted): unchanged — the Sovereign is the last entry, the run ends in
-  victory (they gain the upgraded DAYBREAK juice; no ascend — the script is finite by design).
-- **Weekly Siege** leans hardest into ASCEND — its ranked weekly board *is* the "how far did you
-  climb past the Sovereign" race — and it's the mode that carries the living-daily layer (§6a).
+All writes go through the existing save/achievements pipeline; **none touch `world.rng`** (rewards
+are computed from run stats after the kill, not during seeded simulation).
 
-Ascension on a **seeded** week (or a recorded daily sub-goal) must stay deterministic — a fixed
-difficulty ramp, no new rng stream — so the weekly board stays fair for everyone.
+### 5.4 Resolution — GREET THE DAWN vs KEEP GOING
 
-## 6a. Weekly's living-daily layer (Echo of the Fall, reborn)
+After the beat (+ THE CHOICE if first), survival modes show a two-option prompt (reuse the
+event/choice modal UI; keyboard + d-pad + 64px touch targets, like the title):
 
-Retiring the standalone Daily would drop the strongest retention hook *and* the "Echo of the Fall"
-story. Both move **into Weekly** so nothing is lost:
+- **GREET THE DAWN** *(end — solstice phrasing, replaces "REMEMBER")* — close the run on the
+  victory; go to the win debrief. The warm, "you brought the day back, rest in it" option.
+- **KEEP GOING** *(ASCEND)* — continue into a harder loop (§5.5). The win already stands; this is
+  the score chase. Flavour: *"The day is won — but the night still comes."*
 
-- **Daily sub-goal.** On top of the week-stable siege seed, Weekly surfaces a small **daily
-  objective** — a date-derived target the same for everyone that day, refreshing at UTC midnight
-  (e.g. *"today: down the Beacon"*, *"today: a 40-combo"*, *"today: clear wave 8 no-hit"*). It's a
-  pure function of the date over read-only run stats — it never alters the weekly world seed, so the
-  siege stays bit-identical for all. Clearing it feeds a **daily streak** + a shard/cosmetic nibble:
-  a reason to log in every day, on the one endless mode.
-- **Echo of the Fall.** The Daily's narrative vignette — *one citizen's last memory of the fall* —
-  rides the daily sub-goal: each day surfaces its own echo line / citizen memory (the existing pure
-  `echoVignette`/`echoLine`, keyed off the **date** so the cadence stays daily). The story the Daily
-  carried lives on as Weekly's daily flavour, shown on the title + the run intro.
+Scripted modes (Arena, Boss Rush) **skip the prompt** — their script is finite, so the Sovereign
+ends the run (DAYBREAK juice still plays). Default if the player ignores the prompt for
+`victory.promptTimeout` (e.g. 20s): **GREET THE DAWN** (bank + end — never strand a won run).
 
-Net: Weekly becomes the *living* endless mode — a week-long ranked siege you ascend past the
-Sovereign, refreshed daily by a goal and a citizen's memory. It absorbs everything the Daily was for.
+### 5.5 ASCEND — the endless tail
 
-## 7. The roster (proposed consolidation — see §9 for the recommendation)
+KEEP GOING enters **ascension**: an in-run difficulty loop layered on the existing endless director.
 
-Retire **ENDLESS** and **ECHO OF THE FALL (daily)**; **Weekly Siege** becomes the single
-endless/competitive survival mode. The resulting **6 modes**, each now distinct *and* paying off
-the Sovereign:
+- `world.ascension` counter, starts 0, **+1 each Sovereign kill** taken while continuing (you can
+  re-climb the full boss cycle and beat the Sovereign again, each time bumping it).
+- **Difficulty**: multiply the endless intensity by `1 + ascension × VICTORY.ascendIntensityPerLoop`
+  (≈0.12), composing with the run's existing curve. Bosses keep their `bossCount` HP scaling. No new
+  rng draws — a **fixed deterministic ramp** (critical for seeded Weekly: the board stays fair).
+- **Reward**: a score multiplier `1 + ascension × VICTORY.ascendScorePerLoop` (≈0.25) — risk pays.
+  An "ASCENSION ×N" HUD pip + a per-ascension narration escalation ("the night deepens…").
+- **NG+ interaction**: ascension is *in-run*; it never advances `save.ngPlusLevel` on a **seeded**
+  Weekly (seeded modes keep NG+ off). On random survival modes, banking the win advances NG+ for the
+  *next* run exactly as Arena/Boss Rush do today.
+- **Soft cap**: difficulty ramp caps at `VICTORY.ascendMaxLoop` (≈8, mirroring NG+) so it stays
+  playable; the score multiplier may keep climbing past the cap (pure upside for leaderboard chase).
 
-| Mode | Identity | Sovereign kill = |
-|------|----------|-----------------|
+### 5.6 Weekly's living-daily layer (Echo of the Fall, reborn)
+
+Weekly = a **week-stable siege seed** + a **daily overlay** so the Daily's retention + story survive.
+
+**Daily sub-goal** (`dailyGoal.ts`, new — pure):
+- A date-derived objective the same for everyone that day, refreshing at UTC midnight. Pure hash of
+  the date → pick `{ type, param }` from a pool; **never alters the week seed** (read-only over run
+  stats), so the siege stays bit-identical for all.
+- **Pool** (initial): `downBoss(kind)` · `reachWave(n)` · `combo(n)` · `noHitWave` · `graze(n)` ·
+  `dashChain(n)` · `sovereignUnder(seconds)`. Difficulty of the param scales mildly with weekday.
+- **Tracking**: evaluated against the live run; on completion → a toast + reward. Locked at run
+  start (a run spanning midnight keeps the goal it began under).
+- **Streak**: `save.dailyGoalStreak` (+ `lastGoalDate`); consecutive days completing the goal.
+  Milestones (3/7/14/30) → shard bundles + cosmetic nibbles. Missing a day resets to 0 (gentle: a
+  one-day "grace token" earned every 7 days is a future nicety, not v1).
+- **Reward**: a per-completion shard bonus (`×dailyGoal.shardReward`) + the streak milestones.
+
+**Echo of the Fall** (story): the existing pure `echoVignette(seed)`/`echoLine(seed)` (one citizen's
+last memory) keyed off the **date** (not the week seed) so the *daily* narrative cadence survives.
+Shown on the Weekly title card and the run-intro. Weekly's title card surfaces: the week seed, the
+weekly board rank, **today's sub-goal**, the **streak**, and **today's echo line**.
+
+## 6. The roster (8 → 6)
+
+| Mode | Identity | After the Sovereign |
+|------|----------|---------------------|
 | **Arena** | scripted waves + bosses | scripted victory (DAYBREAK juice) |
 | **Boss Rush** | bosses only, no chaff | scripted victory (DAYBREAK juice) |
-| **Nightmare** | sudden-death, no ARMOR | **win** + offer KEEP GOING — the ultimate flex |
-| **Solstice Protocol** | every boss a cipher | **win** + offer KEEP GOING — the Turing payoff |
-| **Casual** | gentle, off-board | **win** + offer KEEP GOING — accessible clear |
-| **Weekly Siege** | one seed/week, ranked, **+ daily sub-goal & Echo of the Fall story** | **win → ASCEND** (the living, truly-endless mode) |
+| **Nightmare** | sudden-death, no ARMOR | **win** + GREET THE DAWN / KEEP GOING — the ultimate flex |
+| **Solstice Protocol** | every boss a cipher | **win** + … — the Turing payoff |
+| **Casual** | gentle, off-board | **win** + … — accessible, see-it-all clear |
+| **Weekly Siege** | one seed/week, ranked, **+ daily sub-goal & Echo of the Fall** | **win → ASCEND** — the living, truly-endless mode |
 
-Every mode now has a clear identity and a Sovereign climax; the old Endless/Daily/Weekly overlap
-is gone.
+**Retired:** ENDLESS (least-signature; freeplay → Casual, competitive → Weekly) and ECHO OF THE FALL
+/ Daily (its retention + story fold into Weekly §5.6).
 
-## 8. Implementation outline
+## 7. Reachability — the survival-difficulty pass (required co-ship)
 
-- **Trigger:** generalise the victory path so `sovereignDown` drives it in survival modes. Cleanest:
-  in `bossDeath()` for the Sovereign, branch — Arena/Boss Rush keep the director's `d.win`; survival
-  modes call a new `sovereignVictory()` that fires DAYBREAK + sets the win + resolves END/ASCEND.
-- **DAYBREAK reuse:** factor the OVERDRIVE-burst climax (nova + slow-mo + `coherenceBeatKick(perfect)`
-  + announce) into a reusable beat; call it from `sovereignVictory()` with the victory narration.
-- **THE CHOICE:** drop the `won` gate (use `sovereignDown`) in the `choicePending` computation.
-- **ASCEND (Weekly):** a post-victory state that bumps an in-run difficulty multiplier and resumes
-  the boss cycle; deterministic (fixed ramp, no new rng) so the seeded weekly stays bit-identical.
-- **Rewards:** new "DAYBREAK" trail + "Bring Back the Longest Day" achievement; THE LONGEST DAY
-  score/shard bonus (reuse `clearTimeBonus` shape); per-mode best-kill record in save.
-- **Roster removal:** delete ENDLESS + daily configs; update the worker MODES allow-list
-  (`worker/src/validate.ts`), the modes test (`MODES.length`), the title mode-cards, default
-  `selectedMode`, and the Daily-only save fields (`dailySeed/dailyBest/dailyAttempts/dailyAttemptDate`)
-  via a SAVE_VERSION migration. Determinism suite + `workerValidate` test must stay green.
-- **a11y/determinism guards:** the bloom is cosmetic and a11y-gated; no `world.rng` is touched on
-  any kill-timed path (the determinism invariant the whole codebase guards).
+A victory the player can't *reach* is worthless. Today even a strong survival run dies ~boss 1–3 in
+the dense escalation; the Sovereign (6th boss) is rarely seen. Ship this spec **with** a measured
+easing of the survival mid-game (the wave-9–14 density the telemetry already flagged) so reaching
+boss 6 is a real, earned outcome — validated at base difficulty with `tools/balance-metrics.js`
+(target: the bot kills the Sovereign **≥5%** per mode; a skilled human notably more). Track per
+mode; tune `intensityMul`/`spawnMul`/the late spawn curve, **not** by gutting the bosses.
 
-## 9. Reaching the Sovereign (the other half of "win every mode ≥5%")
+## 8. Engagement loops (why this retains)
 
-A victory the player can't *reach* isn't a victory. Today even a strong survival run dies around
-boss 1–3 in the dense escalation — the Sovereign (6th boss) is rarely seen. So this spec must ship
-**with** a survival-difficulty pass so the Sovereign is attainable: ease the mid-game escalation
-(the wave-9–14 density that the telemetry already flagged) enough that reaching boss 6 is a real,
-earned outcome — validated with the bot/telemetry rig at base difficulty. Without that, the new
-victory exists but stays at 0%.
+- **Session loop:** dodge → combo → boss → … → Sovereign → DAYBREAK + CHOICE + reward → KEEP GOING
+  (ascend, score multiplier climbs) → death → debrief with a new record. A clean "one more run".
+- **Daily loop (Weekly):** new sub-goal + new echo line every UTC midnight → streak pressure →
+  log-in habit. Mild FOMO (streak resets) without punishment spirals.
+- **Weekly loop:** a fresh global siege seed every Monday → ranked board reset → "climb past the
+  Sovereign farther than last week / than your rivals". Ghost races on the shared seed.
+- **Meta loop:** per-mode first-clears, the DAYBREAK trail, NG+ on random modes, the permanent CHOICE
+  → long-tail mastery + identity.
 
-## 10. Decisions & remaining questions
+## 9. Implementation plan
 
-**Decided:**
-- **Daily retention** — the standalone Daily retires; its retention loop *and* the Echo of the Fall
-  story move into Weekly as a **daily sub-goal + daily echo vignette** (§6a).
-- **ASCEND scope** — "keep going" is **offered in every survival mode** after the Sovereign win
-  (not Weekly-only); the win is banked first either way. Weekly leans into it via its ranked board.
+Sequenced so each step is independently shippable behind the per-commit gate
+(`tsc --noEmit` + `vitest run` + `vite build`), determinism + a11y green.
 
-**Still open:**
-- **NG+ vs ASCEND:** NG+ already loops difficulty per *win*; ASCEND is an *in-run* continuation.
-  On a seeded Weekly, a Sovereign kill must **not** advance NG+ (seeded modes keep NG+ off) — so
-  ASCEND there is a fixed in-run ramp only. For random survival modes, decide whether banking the
-  win *also* ticks NG+ for the next run (probably yes, like Arena/Boss Rush do today).
-- **Daily sub-goal pool:** the set of date-derived objectives (boss kill / combo / no-hit wave /
-  depth) and their streak/reward economy — to be designed when §6a is built.
+**Phase 1 — the Sovereign victory mechanic** (no roster change yet)
+1. `TUNE.victory` constants (beat timings, ascend/score factors, prompt timeout). `NARRATOR.daybreak`.
+2. `daybreakBeat()` refactor of the OVERDRIVE climax → reusable; unit-cover the pure bits.
+3. `sovereignVictory()` in `game.ts`: fire on `sovereignDown` in survival modes — DAYBREAK + bank
+   win + reward stack; Arena/Boss Rush keep the director `d.win` path but call `daybreakBeat()`.
+4. THE CHOICE gate: drop `won` (use `sovereignDown`).
+5. Reward: `save.sovereignBest`, THE LONGEST DAY bonus (combat.ts helper, unit-tested), DAYBREAK
+   trail (`trails.ts`), "Bring Back the Longest Day" achievement (`achievements.ts`).
+6. Resolution prompt UI (`ui.ts`, reuse the event modal): GREET THE DAWN / KEEP GOING; timeout default.
+
+**Phase 2 — ASCEND**
+7. `world.ascension`, the deterministic intensity ramp + score multiplier (`waves.ts`/`game.ts`),
+   HUD pip, escalating narration. Determinism test: ascension adds no `world.rng` draw.
+
+**Phase 3 — reachability pass** (§7) — tune + validate to ≥5% bot Sovereign-kill per survival mode.
+
+**Phase 4 — Weekly living-daily layer**
+8. `dailyGoal.ts` (pure pool + date hash + evaluator) + tests; streak in save; title/HUD surfacing;
+   Echo of the Fall (date-keyed `echoVignette`) on Weekly title + intro.
+
+**Phase 5 — roster consolidation**
+9. Remove ENDLESS + Daily from `MODES`; default `selectedMode` → weekly/arena; update the title
+   mode-cards + `nextModeId` coverage. Worker `MODES` allow-list (`worker/src/validate.ts`) + the
+   `workerValidate` test. **SAVE_VERSION bump + migration**: drop `dailySeed/dailyBest/dailyAttempts/
+   dailyAttemptDate`; add `sovereignBest`, `ascension` records, `dailyGoalStreak`/`lastGoalDate`.
+   `modes.test.ts` `MODES.length` → 6; the daily-attempt logic retargets to the Weekly daily-goal.
+
+Each phase commits independently; Phase 5 (the destructive roster change) lands last, after the new
+value is proven.
+
+## 10. Determinism & a11y guardrails (non-negotiable)
+
+- **Determinism:** the victory/DAYBREAK/coherence bloom, ascension ramp, daily sub-goal and Echo are
+  all **cosmetic or pure-over-run-stats** — they draw **zero `world.rng`**. ASCEND is a fixed ramp.
+  The daily goal/echo key off the **date**, never the seed. `determinism.test.ts` must stay green;
+  add a case asserting a Sovereign kill + ascension adds no `world.rng` draw on the seeded path.
+- **a11y:** the nova/flash/slow-mo all honour `reduceFlashing`/`reduceMotion`/`clarity` (calm
+  cross-fade, no strobe, no time-warp); the prompt is keyboard/d-pad reachable with 64px targets and
+  a non-colour-only state. Audio honours mute. (LANCEFALL's standing a11y invariant.)
+
+## 11. Edge cases
+
+- **Multiple Sovereign kills in one ascending run:** first kill fires THE CHOICE + first-clear
+  unlock; subsequent kills bump ascension + score + record only (no repeat CHOICE/cinematic-spam —
+  a shorter DAYBREAK re-beat).
+- **Duel/challenge runs (`inChallenge`):** no progression (already gated) — DAYBREAK plays, but no
+  records/unlocks/board/NG+ (bragging-rights only, unchanged invariant).
+- **Casual is off-board:** the victory + records + unlocks count **locally**; nothing submits
+  (`rules.ranked:false`), so the cushion can't game the boards.
+- **Death during the resolution prompt / mid-ascend:** the win is already banked → never lost.
+- **Run spanning UTC midnight:** the daily sub-goal + echo lock at run start.
+- **reduceMotion:** the whole sequence still resolves (no slow-mo); the prompt still appears.
+
+## 12. Validation & telemetry
+
+- Extend `tools/balance-metrics.js`: report **sovereign-kill rate** + **ascension reached** per mode;
+  confirm the Phase-3 easing lifts each survival mode to ≥5% Sovereign-kill at NG+0.
+- Manual: watch the DAYBREAK beat under each a11y setting; verify the prompt + timeout; verify the
+  daily goal/echo refresh at the date boundary; verify the seeded Weekly stays bit-identical across
+  two clients (the determinism test + a shared-seed spot check).
+- Gate every commit (tsc + vitest + build); never ship a red determinism or worker-validate test.
+
+## 13. Tunable constants (initial — all in `tune.ts`)
+
+```
+VICTORY = {
+  hitstop: 0.25, flash: 0.6, slowmo: 0.3, slowmoHold: 2.5, promptTimeout: 20,
+  ascendIntensityPerLoop: 0.12, ascendScorePerLoop: 0.25, ascendMaxLoop: 8,
+  longestDayBase: 5000, // pre-multiplier base of THE LONGEST DAY bonus
+}
+DAILY_GOAL = { shardReward: 250, streakMilestones: [3,7,14,30] }
+```
+
+## 14. Open decisions (small, deferred to build)
+
+- Exact daily-goal pool params + weekday difficulty curve (§5.6) — design while building Phase 4.
+- Whether random-mode banked wins tick NG+ (lean yes — parity with Arena/Boss Rush).
+- DAYBREAK trail visual + the per-mode badge art/names.
