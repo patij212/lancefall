@@ -214,9 +214,6 @@ export class UI {
   private shardLine!: HTMLElement;
   private modeGrid!: HTMLElement;
   private playBtn!: HTMLButtonElement;
-  // collapsible "MORE" drawer — holds the secondary meta (palette / trail / nav)
-  private titleMore!: HTMLElement;
-  private titleMoreToggle!: HTMLButtonElement;
 
   // gameover refs
   private goScore!: HTMLElement;
@@ -577,21 +574,6 @@ export class UI {
       '☀ SOLSTICE — the longest day · today the whole world breaks the same key',
     );
 
-    // ── MORE drawer ── declutter the title: PLAY + modes + ship lead; the secondary meta
-    // (palette / dash-trail cosmetics + the extended nav) is collapsed behind one toggle.
-    const moreInner = el('div', { class: 'title-more-inner' }, themeSection, trailSection, row);
-    this.titleMore = el(
-      'div',
-      { class: 'title-more', id: 'title-more', role: 'region', 'aria-label': 'More options' },
-      moreInner,
-    );
-    this.titleMoreToggle = el('button', {
-      class: 'btn btn-ghost title-more-toggle',
-      'aria-expanded': 'false',
-      'aria-controls': 'title-more',
-    }, '▾ MORE') as HTMLButtonElement;
-    this.titleMoreToggle.addEventListener('click', () => this.toggleTitleMore());
-
     this.title = el(
       'div',
       { class: 'screen screen-title' },
@@ -605,21 +587,13 @@ export class UI {
       this.modeGrid,
       this.dailyCaption,
       shipSection,
+      themeSection,
+      trailSection,
       legend,
       settingsRow,
-      this.titleMoreToggle,
-      this.titleMore,
+      row,
       this.soundHint,
     );
-  }
-
-  /** Expand / collapse the title's MORE drawer (secondary palette / trail / nav meta). */
-  private toggleTitleMore(open?: boolean): void {
-    const next = open ?? !this.titleMore.classList.contains('open');
-    this.titleMore.classList.toggle('open', next);
-    this.titleMoreToggle.classList.toggle('open', next);
-    this.titleMoreToggle.setAttribute('aria-expanded', String(next));
-    this.titleMoreToggle.textContent = next ? '▴ LESS' : '▾ MORE';
   }
 
   private buildPause(): void {
@@ -1374,10 +1348,6 @@ export class UI {
     this.openStack.length = 0;
     if (s !== 'paused') {
       this.pauseRestartArmed = false;
-    }
-    // every fresh title view starts PLAY-forward: the MORE drawer collapses back down
-    if (s === 'title') {
-      this.toggleTitleMore(false);
     }
     // move keyboard focus to the active screen's primary action
     const active = { title: this.title, paused: this.pause, gameover: this.gameover, draft: this.draft, event: this.eventPanel, playing: null }[s];
