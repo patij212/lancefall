@@ -1,12 +1,13 @@
 # LANCEFALL — game modes reference
 
 > **DIRECTION (agreed, not yet implemented) — see [`SOVEREIGN_VICTORY_SPEC.md`](SOVEREIGN_VICTORY_SPEC.md).**
-> The roster is consolidating **8 → 6**: **ENDLESS** and **ECHO OF THE FALL (daily)** retire
-> (they overlap Endless/Weekly in core loop), leaving **WEEKLY SIEGE** as the one *truly endless*
-> mode. And **downing the Sovereign becomes a rewarded climax in every mode** — a DAYBREAK
-> victory beat + THE CHOICE + a first-clear unlock — which gives the survival modes a finish line
-> (Nightmare/Solstice/Casual end in victory; Weekly records the win then ASCENDS for the score
-> chase). Sections below marked _(retiring)_ document current code until the change lands.
+> The roster consolidates **8 → 6**: **ENDLESS** and **ECHO OF THE FALL (daily)** retire (they
+> overlap Endless/Weekly in core loop). **WEEKLY SIEGE** becomes the one *living, truly-endless*
+> mode — it absorbs the Daily's retention loop + story as a **daily sub-goal** and a daily **Echo
+> of the Fall** vignette on top of its week seed. And **downing the Sovereign becomes a rewarded
+> climax in every mode** — a DAYBREAK victory beat + THE CHOICE + a first-clear unlock — which
+> banks a real victory and then **offers KEEP GOING (ASCEND)** in every survival mode for the score
+> chase. Sections below marked _(retiring)_ document current code until the change lands.
 
 There are currently **8 modes**, each a data-only `RunConfig` in [`src/modes.ts`](../src/modes.ts)
 that the director + game read off (no per-mode `if` soup). They split into two families:

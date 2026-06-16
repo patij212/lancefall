@@ -65,22 +65,47 @@ On the first-ever Sovereign kill, and on every kill thereafter (scaled):
 All currency/unlock writes go through the existing save + achievements pipeline; none touch a
 seeded run's `world.rng`.
 
-## 6. Run resolution — END or ASCEND (this is where the modes differentiate)
+## 6. Run resolution — REMEMBER or KEEP GOING (offered everywhere)
 
-After the DAYBREAK beat + THE CHOICE, the run resolves **by mode identity**:
+After the DAYBREAK beat + THE CHOICE, the **win is banked immediately** (so it always counts —
+toward stats, the leaderboard, and "win every mode" — even if the player then dies). Then every
+survival mode **offers a choice**:
+
+- **REMEMBER** — end the run on the victory. A clean "you beat it" debrief.
+- **KEEP GOING (ASCEND)** — the run continues into a harder loop (an in-run difficulty step, like a
+  soft NG+) for the score chase. "The day is won — but the night still comes." The recorded victory
+  stands; everything past it is bonus depth/score.
+
+This offer is **universal** — Nightmare, Solstice, Casual *and* Weekly all let you bank or push on.
+The modes still differ by **how they play** (sudden-death walls / cipher bosses / gentle+cushion /
+week-seeded-ranked), not by whether you *can* continue.
 
 - **Arena / Boss Rush** (scripted): unchanged — the Sovereign is the last entry, the run ends in
-  victory. (They simply gain the upgraded DAYBREAK juice.)
-- **Nightmare / Solstice Protocol / Casual** (survival → *gauntlet with a finish line*): the
-  Sovereign kill **ends the run in victory**. These become "survive the gauntlet, beat the
-  Sovereign, you've won" — each with its own flavour (no-ARMOR flex / cipher payoff / accessible
-  clear). This gives them a goal and a clean completion.
-- **Weekly Siege** (*the one truly endless mode*): the Sovereign kill is a **milestone victory**
-  (recorded, rewarded, THE CHOICE), and then the run **ASCENDS** — continues into a harder loop
-  (an in-run difficulty step, like a soft NG+) for the score chase. "The day is won — but the
-  night still comes." This is Weekly's signature: beat the Sovereign, then see how far you climb.
-  (Ascension on a *seeded* week must stay deterministic — it's a fixed difficulty ramp, no new
-  rng stream, so the weekly board stays fair for all.)
+  victory (they gain the upgraded DAYBREAK juice; no ascend — the script is finite by design).
+- **Weekly Siege** leans hardest into ASCEND — its ranked weekly board *is* the "how far did you
+  climb past the Sovereign" race — and it's the mode that carries the living-daily layer (§6a).
+
+Ascension on a **seeded** week (or a recorded daily sub-goal) must stay deterministic — a fixed
+difficulty ramp, no new rng stream — so the weekly board stays fair for everyone.
+
+## 6a. Weekly's living-daily layer (Echo of the Fall, reborn)
+
+Retiring the standalone Daily would drop the strongest retention hook *and* the "Echo of the Fall"
+story. Both move **into Weekly** so nothing is lost:
+
+- **Daily sub-goal.** On top of the week-stable siege seed, Weekly surfaces a small **daily
+  objective** — a date-derived target the same for everyone that day, refreshing at UTC midnight
+  (e.g. *"today: down the Beacon"*, *"today: a 40-combo"*, *"today: clear wave 8 no-hit"*). It's a
+  pure function of the date over read-only run stats — it never alters the weekly world seed, so the
+  siege stays bit-identical for all. Clearing it feeds a **daily streak** + a shard/cosmetic nibble:
+  a reason to log in every day, on the one endless mode.
+- **Echo of the Fall.** The Daily's narrative vignette — *one citizen's last memory of the fall* —
+  rides the daily sub-goal: each day surfaces its own echo line / citizen memory (the existing pure
+  `echoVignette`/`echoLine`, keyed off the **date** so the cadence stays daily). The story the Daily
+  carried lives on as Weekly's daily flavour, shown on the title + the run intro.
+
+Net: Weekly becomes the *living* endless mode — a week-long ranked siege you ascend past the
+Sovereign, refreshed daily by a goal and a citizen's memory. It absorbs everything the Daily was for.
 
 ## 7. The roster (proposed consolidation — see §9 for the recommendation)
 
@@ -88,14 +113,14 @@ Retire **ENDLESS** and **ECHO OF THE FALL (daily)**; **Weekly Siege** becomes th
 endless/competitive survival mode. The resulting **6 modes**, each now distinct *and* paying off
 the Sovereign:
 
-| Mode | Identity | Sovereign kill =|
+| Mode | Identity | Sovereign kill = |
 |------|----------|-----------------|
 | **Arena** | scripted waves + bosses | scripted victory (DAYBREAK juice) |
 | **Boss Rush** | bosses only, no chaff | scripted victory (DAYBREAK juice) |
-| **Nightmare** | sudden-death, no ARMOR | **win** — the ultimate flex |
-| **Solstice Protocol** | every boss a cipher | **win** — the Turing payoff |
-| **Casual** | gentle, off-board | **win** — accessible, see-it-all clear |
-| **Weekly Siege** | one seed/week, ranked | **milestone win → ASCEND** (truly endless) |
+| **Nightmare** | sudden-death, no ARMOR | **win** + offer KEEP GOING — the ultimate flex |
+| **Solstice Protocol** | every boss a cipher | **win** + offer KEEP GOING — the Turing payoff |
+| **Casual** | gentle, off-board | **win** + offer KEEP GOING — accessible clear |
+| **Weekly Siege** | one seed/week, ranked, **+ daily sub-goal & Echo of the Fall story** | **win → ASCEND** (the living, truly-endless mode) |
 
 Every mode now has a clear identity and a Sovereign climax; the old Endless/Daily/Weekly overlap
 is gone.
@@ -128,12 +153,18 @@ boss 1–3 in the dense escalation — the Sovereign (6th boss) is rarely seen. 
 earned outcome — validated with the bot/telemetry rig at base difficulty. Without that, the new
 victory exists but stays at 0%.
 
-## 10. Open questions
+## 10. Decisions & remaining questions
 
-- **Daily retention:** removing the Daily drops the strongest come-back-every-day hook (Weekly only
-  refreshes weekly). If retention matters, consider a daily touch on Weekly (a daily sub-goal) or
-  keep a lightweight daily. See §9 of the recommendation in chat.
-- **ASCEND scope:** does ascension also apply to Nightmare/Solstice/Casual as an *optional* "keep
-  going" after the win, or is it Weekly-only? (Spec assumes Weekly-only for a clean identity.)
-- **NG+ vs ASCEND:** NG+ already loops difficulty per win; ASCEND is an *in-run* continuation.
-  Decide whether a Weekly Sovereign-kill also advances NG+ (it shouldn't on a seeded mode).
+**Decided:**
+- **Daily retention** — the standalone Daily retires; its retention loop *and* the Echo of the Fall
+  story move into Weekly as a **daily sub-goal + daily echo vignette** (§6a).
+- **ASCEND scope** — "keep going" is **offered in every survival mode** after the Sovereign win
+  (not Weekly-only); the win is banked first either way. Weekly leans into it via its ranked board.
+
+**Still open:**
+- **NG+ vs ASCEND:** NG+ already loops difficulty per *win*; ASCEND is an *in-run* continuation.
+  On a seeded Weekly, a Sovereign kill must **not** advance NG+ (seeded modes keep NG+ off) — so
+  ASCEND there is a fixed in-run ramp only. For random survival modes, decide whether banking the
+  win *also* ticks NG+ for the next run (probably yes, like Arena/Boss Rush do today).
+- **Daily sub-goal pool:** the set of date-derived objectives (boss kill / combo / no-hit wave /
+  depth) and their streak/reward economy — to be designed when §6a is built.
