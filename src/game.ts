@@ -73,7 +73,7 @@ import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode } from './ghost';
 import type { Ghost } from './ghost';
 
-type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'gameover';
+type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
 export class Game {
   private renderer: Renderer;
@@ -97,6 +97,7 @@ export class Game {
   private seed = 1;
   private winning = false;
   private winTimer = 0;
+  private victoryBanked = false; // THE LONGEST DAY — the Sovereign fell this run; the win is banked even if you then die ASCENDing
   private biomeIndex = -1;
   private milestoneWave = 0; // last wave we fired an ENDLESS milestone callout for (edge guard)
   private biomeSpeedMul = 1;
@@ -383,6 +384,7 @@ export class Game {
     this.applySettings(this.settings);
     this.director.configure(runCfg);
     this.winning = false;
+    this.victoryBanked = false;
     this.biomeIndex = -1;
     this.milestoneWave = 0; // re-arm the ENDLESS milestone callout edge for the new run
     this.setBiome(0, false); // first biome, no banner at run start
@@ -620,6 +622,7 @@ export class Game {
   }
 
   private pickEvent(i: number): void {
+    if (this.state === 'victory') { this.pickVictory(i); return; } // the victory choice reuses the event modal
     if (this.state !== 'event') return;
     const choice = this.eventChoices[i];
     if (!choice) return;
@@ -891,7 +894,8 @@ export class Game {
 
       if (this.dying) {
         this.dyingTimer -= realDt;
-        if (this.dyingTimer <= 0) this.finishGameOver(false);
+        // a death AFTER banking the Sovereign victory (dying while ASCENDing) still counts as a win
+        if (this.dyingTimer <= 0) this.finishGameOver(this.victoryBanked);
       }
       if (this.winning) {
         this.winTimer -= realDt;
@@ -986,7 +990,9 @@ export class Game {
 
     // FIRST LIGHT — the daybreak wash ramps up smoothly over ~0.8s once a run is WON, then
     // holds for the victory cinematic (a cross-fade, so it's reduce-motion/flashing-safe).
-    const flT = this.winning ? Math.min(1, (2.4 - this.winTimer) / 0.8) : 0;
+    // FIRST LIGHT day-wash: ramps over the Arena/Boss-Rush win cinematic, and holds FULL while the
+    // survival victory choice (GREET THE DAWN / KEEP GOING) is up — the city stays bright behind it.
+    const flT = this.winning ? Math.min(1, (2.4 - this.winTimer) / 0.8) : this.state === 'victory' ? 1 : 0;
     this.renderer.render(this.world, this.cam, {
       reduceFlashing: this.settings.reduceFlashing,
       colorblind: this.settings.colorblind,
@@ -1028,6 +1034,10 @@ export class Game {
     } else if (this.state === 'event') {
       if (inp.selectIndex >= 0) this.pickEvent(inp.selectIndex);
       else if (this.input.consumeConfirm()) this.pickEvent(0);
+    } else if (this.state === 'victory') {
+      // GREET THE DAWN (0) / KEEP GOING (1) — confirm defaults to GREET THE DAWN (never strand a won run)
+      if (inp.selectIndex >= 0) this.pickVictory(inp.selectIndex);
+      else if (this.input.consumeConfirm()) this.pickVictory(0);
     } else if (this.state === 'gameover') {
       if (this.input.consumeRestart() || this.input.consumeConfirm()) this.start(this.mode);
     }
@@ -1760,10 +1770,76 @@ export class Game {
     this.pendingDraft = true; // guaranteed perk after a boss
     // THE LONGEST DAY — in a SURVIVAL mode, downing the Sovereign IS the victory (Arena/Boss
     // Rush win via their finite script on the next director tick, so they're excluded here).
-    // Fired last, after the boss is released + the board settled, so winRun()'s board-clear
-    // can't double-free this enemy. ASCEND ("keep going") is wired in a later slice — for now
-    // the survival run ends on the win. inChallenge runs get the beat but bank no progression.
-    if (isSovereignKill && !this.mode.arena && !this.mode.bossrush) this.winRun();
+    // Fired last, after the boss is released + the board settled. Banks the win, then offers
+    // GREET THE DAWN (end) vs KEEP GOING (ASCEND). inChallenge runs get the beat but no progression.
+    if (isSovereignKill && !this.mode.arena && !this.mode.bossrush) this.sovereignVictory();
+  }
+
+  /** THE LONGEST DAY (survival) — the Sovereign fell: bank the win, play the DAYBREAK beat +
+   *  pay THE LONGEST DAY bonus, then PAUSE on the GREET THE DAWN / KEEP GOING choice. The win is
+   *  banked up front, so it counts even if the player later dies ASCENDing. (Arena/Boss Rush keep
+   *  their finite-script winRun path.) Cosmetic juice only — no world.rng touched. */
+  private sovereignVictory(): void {
+    if (this.winning || this.state === 'victory') return;
+    const w = this.world;
+    this.victoryBanked = true;
+    // first kill of the run sets the clear time (used by the bonus + records)
+    if (w.ascension === 0) w.clearTime = w.time;
+    w.score += longestDayBonus(w.clearTime, w.hitsTaken, w.ascension, w.stats.scoreMul);
+    // DAYBREAK beat — the city blooms fully alive (the FIRST LIGHT day-wash is driven separately
+    // by the win cinematic; here we pop COHERENCE + the screen juice + the reverent callout).
+    this.pendingDraft = false;
+    this.pendingEvent = null;
+    w.player.iframe = 999;
+    w.bullets.clear();
+    w.enemies.clear();
+    coherenceBeatKick(this.coherence, true);
+    this.scheduler.requestSlowmo(TUNE.victory.slowmo);
+    this.renderer.flash('#fde047', TUNE.victory.flash);
+    this.shake.add(0.7);
+    this.cam.zoom = Math.max(this.cam.zoom, 1.12);
+    this.audio.bossStinger();
+    this.input.rumble(0.6, 0.8, 320);
+    const cx = w.width / 2, cy = w.height / 2, big = Math.max(w.width, w.height);
+    w.particles.ring(cx, cy, big * 0.6, '#fde047', 0.9);
+    w.particles.ring(cx, cy, big * 0.4, '#ffffff', 0.6);
+    this.ui.announce('THE LONGEST DAY IS WON', '#fde047');
+    this.narrate('daybreak', 'toast', NARRATOR.daybreak);
+    this.openVictoryChoice();
+  }
+
+  /** Pause on the post-victory choice. Reuses the EVENT modal (pickEvent routes here while the
+   *  game state is 'victory'). GREET THE DAWN ends the run; KEEP GOING ascends. */
+  private openVictoryChoice(): void {
+    this.state = 'victory';
+    const asc = this.world.ascension;
+    const greet = { id: 'greet', name: 'GREET THE DAWN', desc: 'Rest in the light — end the run on this victory.', accent: '#fde047', risk: 'none' as const, resolve: () => {} };
+    const keep = { id: 'keep', name: 'KEEP GOING', desc: `The day is won — but the night still comes. Ascend (×${(asc + 1)}) for the score.`, accent: '#a78bfa', risk: 'high' as const, resolve: () => {} };
+    this.ui.showEvent('THE LONGEST DAY IS WON', 'The crown is bare and the city is bright. Stay in the dawn, or press on into the dark?', '#fde047', [greet, keep]);
+    this.audio.duckMusic(true);
+  }
+
+  /** Resolve the GREET THE DAWN / KEEP GOING choice. i===1 (KEEP GOING) ascends; else ends. */
+  private pickVictory(i: number): void {
+    if (this.state !== 'victory') return;
+    this.audio.duckMusic(false);
+    if (i === 1) this.ascend();
+    else this.finishGameOver(true); // GREET THE DAWN — bank the victory + debrief
+  }
+
+  /** KEEP GOING — continue the run into a harder loop. A fixed, deterministic difficulty ramp +
+   *  escalating score multiplier; the boss cycle resumes (the Sovereign reforms harder). The
+   *  banked win stands. No world.rng touched (the ramp is a pure multiplier on the spawn bound). */
+  private ascend(): void {
+    const w = this.world;
+    const v = TUNE.victory;
+    w.ascension = Math.min(v.ascendMaxLoop * 4, w.ascension + 1); // record loops (cap far above the intensity cap)
+    this.director.ascensionMul = 1 + Math.min(w.ascension, v.ascendMaxLoop) * v.ascendIntensityPerLoop;
+    w.stats.scoreMul *= 1 + v.ascendScorePerLoop; // risk pays — escalating score
+    w.player.iframe = 1.2; // a breath of grace as play resumes (the victory pause set it to 999)
+    this.state = 'playing';
+    this.ui.show('playing');
+    this.ui.announce(`ASCENSION ×${w.ascension}`, '#a78bfa');
   }
 
   private updateBullets(dt: number): void {

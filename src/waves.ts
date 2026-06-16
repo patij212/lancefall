@@ -171,6 +171,9 @@ export class Director {
   private nextPerkAt: number = TUNE.director.perkFirst;
   private nextEventAt: number = TUNE.director.eventFirst;
   bossCount = 0;
+  /** THE LONGEST DAY — in-run ASCEND difficulty multiplier on the endless intensity (1 = none).
+   *  A fixed deterministic ramp set by the game on each "keep going" past a Sovereign kill. */
+  ascensionMul = 1;
   /** displayed wave number (1-based) */
   wave = 1;
   /** active biome enemy-mix bias (multiplicative weights) */
@@ -196,6 +199,7 @@ export class Director {
     this.bossTimer = this.cfg.bossInterval;
     this.prevBossAlive = false;
     this.lullUntil = 0;
+    this.ascensionMul = 1;
     this.nextPerkAt = TUNE.director.perkFirst;
     this.nextEventAt = TUNE.director.eventFirst;
     this.waveIndex = 0;
@@ -215,7 +219,7 @@ export class Director {
   }
 
   private updateEndless(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, d: DirectorDecision): DirectorDecision {
-    const I = intensity(this.t) * this.cfg.intensityMul;
+    const I = intensity(this.t) * this.cfg.intensityMul * this.ascensionMul;
     this.wave = Math.floor(this.t / 30) + 1;
 
     // D3: detect the boss death edge → open a short payoff breath so the gem/power-up/
