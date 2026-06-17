@@ -13,9 +13,9 @@ import { makeCipher, cipherSeed, ciphertext, dashCipherCore } from './cipher';
 
 const DT = 1 / 60;
 
-function driveDirector(seed: number) {
+function driveDirector(seed: number, modeId = 'daily') {
   const d = new Director();
-  d.configure(modeById('daily'));
+  d.configure(modeById(modeId));
   const rng = createRng(seed);
   const spawns: string[] = [];
   let bossAlive = false;
@@ -50,6 +50,16 @@ describe('full-run determinism — a Daily seed reproduces exactly', () => {
     const a = driveDirector(1);
     const b = driveDirector(2);
     expect(a.tail).not.toEqual(b.tail);
+  });
+
+  it('WEEKLY SIEGE is as deterministic as the Daily — same seed → identical run', () => {
+    // The weekly board promises "one seed for the whole world, all week"; it runs the same
+    // Director under a different ModeRules config, so reproducibility must hold there too.
+    const a = driveDirector(20260615, 'weekly');
+    const b = driveDirector(20260615, 'weekly');
+    expect(a.spawns).toEqual(b.spawns);
+    expect(a.tail).toEqual(b.tail);
+    expect(a.spawns.length).toBeGreaterThan(50);
   });
 });
 

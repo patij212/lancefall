@@ -8,7 +8,6 @@ import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
 import { PERKS } from './perks';
 import type { PerkDef } from './perks';
-import { icon } from './icons';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
 import { RELICS } from './relics';
 import { decodeBuildDna } from './buildDna';
@@ -551,6 +550,10 @@ export class UI {
       [this.pause, 'Paused'],
       [this.gameover, 'Game over'],
       [this.draft, 'Choose a perk'],
+      // mid-run event: labeled as a dialog for screen readers, but deliberately NOT in
+      // the Esc-close registry below — it's a forced choice, so Esc-dismissing it could
+      // strand the paused run. The player resolves it by picking a card (click / 1-3).
+      [this.eventPanel, 'Mid-run event'],
       [this.settingsPanel, 'Settings'],
     ];
     for (const [scr, label] of dialogs) {
@@ -574,28 +577,36 @@ export class UI {
    *  when a panel is actually open, so in-run Esc = PAUSE is untouched (no panel is ever
    *  open during gameplay; show('playing') force-hides them all). */
   private registerModals(): void {
-    this.modalPanels = [
-      this.settingsPanel,
-      this.statsPanel,
-      this.upgradesPanel,
-      this.howtoPanel,
-      this.codexPanel,
-      this.skinsPanel,
-      this.creditsPanel,
-      this.fallPanel,
-      this.heatPanel,
-      this.archetypePanel,
-      this.leaderPanel,
-      this.duelPanel,
-      this.inspectPanel,
-      this.sharePanel,
+    // [panel, accessible name] — every Esc-close + focus-trapped modal. The label is the
+    // dialog's accessible NAME: a role=dialog with no name is announced as just "dialog",
+    // so each gets an aria-label (settings already got one from the dialogs[] pass above —
+    // the hasAttribute guard leaves it). Driving modalPanels from this list keeps the
+    // registry and the labels in one place.
+    const labeled: [HTMLElement, string][] = [
+      [this.settingsPanel, 'Settings'],
+      [this.statsPanel, 'Lifetime stats'],
+      [this.upgradesPanel, 'Upgrades'],
+      [this.howtoPanel, 'How to play'],
+      [this.codexPanel, 'Bestiary codex'],
+      [this.skinsPanel, 'Bestiary skins'],
+      [this.creditsPanel, 'Credits'],
+      [this.fallPanel, 'The fall'],
+      [this.heatPanel, 'Heat ascension'],
+      [this.archetypePanel, 'Build archetype'],
+      [this.leaderPanel, 'Leaderboard'],
+      [this.duelPanel, 'Seed duel'],
+      [this.inspectPanel, 'Inspect a build'],
+      [this.sharePanel, 'Share your run'],
     ];
-    for (const scr of this.modalPanels) {
+    this.modalPanels = labeled.map(([scr]) => scr);
+    for (const [scr, label] of labeled) {
       const panel = scr.querySelector('.panel');
-      if (panel && !panel.hasAttribute('role')) {
+      if (!panel) continue;
+      if (!panel.hasAttribute('role')) {
         panel.setAttribute('role', 'dialog');
         panel.setAttribute('aria-modal', 'true');
       }
+      if (!panel.hasAttribute('aria-label')) panel.setAttribute('aria-label', label);
     }
     window.addEventListener('keydown', (e) => this.onModalKeydown(e), true);
   }
@@ -1409,12 +1420,8 @@ export class UI {
     this.eventPanel = el('div', { class: 'screen screen-dim' }, panel);
   }
 
-  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[], headGlyph?: string): void {
-    // playtest: events need icons. The header gets the event's inline-SVG glyph (currentColor →
-    // tinted by the event accent set just below); name follows as a plain text node.
-    this.eventHead.replaceChildren();
-    if (headGlyph) this.eventHead.append(iconEl('event-glyph', headGlyph));
-    this.eventHead.append(document.createTextNode(name));
+  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[]): void {
+    this.eventHead.textContent = name;
     this.eventHead.style.color = accent;
     this.eventFlavor.textContent = flavor;
     const wrap = this.eventPanel.querySelector('#event-cards')!;
@@ -2710,15 +2717,11 @@ export class UI {
       const cls = evo ? 'perk-card perk-card-evo' : relic ? 'perk-card perk-card-relic' : 'perk-card';
       const card = el('button', { class: cls });
       card.style.setProperty('--accent', c.accent);
-      // perks/evolutions now render an inline-SVG cockpit glyph (currentColor → --accent tints
-      // it); relics keep their deliberate "cursed" emoji. SVG goes via innerHTML, emoji as text.
-      const glyphDiv = el('div', { class: 'perk-glyph' });
-      if (relic) glyphDiv.textContent = (c as { glyph: string }).glyph;
-      else glyphDiv.innerHTML = perkGlyph((c as PerkDef).glyph);
+      const glyph = relic ? (c as { glyph: string }).glyph : perkGlyph((c as PerkDef).glyph);
       card.append(
         ...(evo ? [el('div', { class: 'perk-tag' }, 'EVOLUTION')] : []),
         ...(relic ? [el('div', { class: 'perk-tag' }, 'CURSED RELIC')] : []),
-        glyphDiv,
+        el('div', { class: 'perk-glyph' }, glyph),
         el('div', { class: 'perk-name' }, c.name),
         el('div', { class: 'perk-desc' }, c.desc),
         ...(evo ? [el('div', { class: 'perk-from' }, (c as EvolutionDef).from)] : []),
@@ -3211,8 +3214,27 @@ function formatTime(t: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Inline-SVG glyph for a perk/evolution card (playtest: "all perks need icons"). Returns the
- *  cockpit icon markup — set via innerHTML; currentColor lets the card's --accent tint it. */
 function perkGlyph(g: PerkDef['glyph']): string {
-  return icon(g);
+  const map: Record<PerkDef['glyph'], string> = {
+    lance: '➤',
+    cell: '▰▰',
+    graze: '✶',
+    burst: '✺',
+    ghost: '◈',
+    clock: '◷',
+    pierce: '⫸',
+    siphon: '♺',
+    window: '⧗',
+    nova: '✸',
+    reflect: '⊛',
+    gem: '◆',
+    impaler: '⤞',
+    supernova: '❂',
+    perpetual: '∞',
+    wraith: '⟁',
+    inferno: '🔥',
+    juggernaut: '⬢',
+    aegis: '❖',
+  };
+  return map[g];
 }
