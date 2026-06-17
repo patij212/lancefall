@@ -92,6 +92,12 @@ describe('save migration', () => {
       lancer: 'lancer-default',
       seeker: 'seeker-default',
       warden: 'warden-default',
+      // Phase 2a — the 5 remaining bosses are now ported kinds too
+      weaver: 'weaver-default',
+      beacon: 'beacon-default',
+      mirrorblade: 'mirrorblade-default',
+      hollow: 'hollow-default',
+      sovereign: 'sovereign-default',
     });
   });
 
@@ -129,8 +135,10 @@ describe('save migration', () => {
       { version: 6, selectedSkins: { darter: 'darter-default', bomber: 'whatever', junk: 123 } },
       defaultSave(),
     );
-    // only the 5 ported kinds survive; bomber/junk are never added
-    expect(Object.keys(out.selectedSkins).sort()).toEqual(['darter', 'lancer', 'orbiter', 'seeker', 'warden']);
+    // only the ported kinds survive; bomber/junk are never added
+    expect(Object.keys(out.selectedSkins).sort()).toEqual(
+      ['beacon', 'darter', 'hollow', 'lancer', 'mirrorblade', 'orbiter', 'seeker', 'sovereign', 'warden', 'weaver'],
+    );
     expect((out.selectedSkins as Record<string, unknown>).bomber).toBeUndefined();
     // a non-record blob → every kind defaults
     const out2 = migrateSave({ version: 6, selectedSkins: 'corrupt' }, defaultSave());
@@ -146,6 +154,13 @@ describe('save migration', () => {
       lancer: 'lancer-rare',
       seeker: 'seeker-default',
       warden: 'warden-legendary',
+      // Phase 2a boss kinds are ported too — keep their defaults so the round-trip
+      // is over the full ported set (migrate default-fills any missing kind).
+      weaver: 'weaver-default',
+      beacon: 'beacon-default',
+      mirrorblade: 'mirrorblade-default',
+      hollow: 'hollow-default',
+      sovereign: 'sovereign-default',
     };
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);
   });

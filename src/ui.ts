@@ -1814,6 +1814,12 @@ export class UI {
     lancer: '#ff8a3b',
     seeker: '#e879f9',
     warden: '#ff3b6b',
+    // Phase 2a — the 5 remaining bosses (archetype colours from the bestiary)
+    weaver: '#a855f7',
+    beacon: '#38bdf8',
+    mirrorblade: '#ef4444',
+    hollow: '#6ee7b7',
+    sovereign: '#fde047',
   };
 
   private static readonly KIND_LABEL: Record<string, string> = {
@@ -1822,7 +1828,19 @@ export class UI {
     lancer: 'LANCER',
     seeker: 'SEEKER',
     warden: 'THE WARDEN',
+    // Phase 2a — the 5 remaining bosses
+    weaver: 'THE WEAVER',
+    beacon: 'THE BEACON',
+    mirrorblade: 'THE MIRRORBLADE',
+    hollow: 'THE HOLLOW',
+    sovereign: 'THE SOVEREIGN',
   };
+
+  /** Boss kinds whose gallery art is authored at a large native radius — preview
+   *  them at a smaller size (like THE WARDEN) so the card frames the whole body. */
+  private static readonly BIG_PREVIEW_KINDS = new Set<string>([
+    'warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign',
+  ]);
 
   /** Rebuild the picker grid from the live save: one row per ported kind, four
    *  take-cards each (locked = greyed + requirement, unlocked = selectable; the
@@ -1902,7 +1920,7 @@ export class UI {
     ctx.strokeStyle = rimColor;
     ctx.fillStyle = darken(color, 0.18);
     ctx.lineWidth = 2;
-    const r = skin.kind === 'warden' ? 16 : 22; // warden is huge natively → preview smaller
+    const r = UI.BIG_PREVIEW_KINDS.has(skin.kind) ? 16 : 22; // big-native bosses → preview smaller
     ctx.save();
     try {
       skin.draw(ctx, stub, r, {

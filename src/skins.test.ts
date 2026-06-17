@@ -19,8 +19,13 @@ const RARITY_ACH: Record<SkinRarity, string | null> = {
 };
 
 describe('skins registry', () => {
-  it('ports exactly the 5 hero kinds, each with 4 rarities', () => {
-    expect(PORTED_KINDS).toEqual(['darter', 'orbiter', 'lancer', 'seeker', 'warden']);
+  it('ports the 5 heroes + the 5 remaining bosses, each with 4 rarities', () => {
+    // Phase 1 heroes + Phase 2a bosses (the Champion/elite is an overlay flag, not
+    // an EnemyKind, so it is intentionally not in this per-kind dispatch/save list).
+    expect(PORTED_KINDS).toEqual([
+      'darter', 'orbiter', 'lancer', 'seeker', 'warden',
+      'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign',
+    ]);
     expect(ALL_SKINS).toHaveLength(PORTED_KINDS.length * 4);
     for (const kind of PORTED_KINDS) {
       const takes = skinsForKind(kind);
