@@ -411,6 +411,52 @@ describe('mid-run event calm-gating', () => {
 // (concurrent=0) and no boss survives (bossAlive=false) — so the director advances
 // through every scripted phase. Guards against a future phase-strand regression
 // silently breaking the victory path.
+// Playtest (Nick): "boss pre-warning" — telegraph an incoming boss a few seconds early. The
+// Director emits a deterministic bossWarn signal: a precise ~bossWarnLead lead in the
+// time-driven modes (off the boss timer) and an "imminent" flag during the pre-boss clear in
+// the scripted modes. Pure (no rng) → Daily-safe; the game fires an anticipatory cue on its edge.
+describe('boss pre-warning signal', () => {
+  const DT = 1 / 60;
+  it('endless: bossWarn rises ~bossWarnLead before the boss spawns', () => {
+    const d = new Director();
+    d.configure(modeById('endless'));
+    const rng = createRng(1);
+    let warnAt: number | null = null;
+    let bossAt: number | null = null;
+    let t = 0;
+    for (let i = 0; i < 6000 && bossAt === null; i++) {
+      const dec = d.update(DT, 0, false, rng);
+      t += DT;
+      if (dec.bossWarn && warnAt === null) warnAt = t;
+      if (dec.boss) bossAt = t;
+    }
+    expect(warnAt).not.toBeNull();
+    expect(bossAt).not.toBeNull();
+    expect(bossAt! - warnAt!).toBeGreaterThanOrEqual(TUNE.director.bossWarnLead - 0.1);
+    expect(bossAt! - warnAt!).toBeLessThanOrEqual(TUNE.director.bossWarnLead + 0.1);
+  });
+  it('endless: no premature warning far from the boss', () => {
+    const d = new Director();
+    d.configure(modeById('endless'));
+    const dec = d.update(10, 0, false, createRng(1)); // t=10, far from the ~70s boss
+    expect(dec.bossWarn).toBe(false);
+  });
+  it('scripted (arena): bossWarn fires on/before the first scripted boss', () => {
+    const d = new Director();
+    d.configure(modeById('arena'));
+    const rng = createRng(1);
+    let warned = false;
+    let firstBoss = false;
+    for (let i = 0; i < 100000 && !firstBoss; i++) {
+      const dec = d.update(0.7, 0, false, rng);
+      if (dec.bossWarn) warned = true;
+      if (dec.boss) firstBoss = true;
+    }
+    expect(firstBoss).toBe(true);
+    expect(warned).toBe(true);
+  });
+});
+
 describe('scripted modes reach the WIN state', () => {
   function driveToWin(modeId: string) {
     const d = new Director();

@@ -167,6 +167,7 @@ export interface DirectorDecision {
   win: boolean; // run beaten (scripted modes only)
   event: boolean; // a mid-run event is due — the game rolls the id off world.eventRng
   // (NOT world.rng) so event timing/choices never fork the seeded wave stream
+  bossWarn: boolean; // a boss is imminent — telegraph it (precise lead in time-driven modes; "imminent" during the pre-boss clear in scripted modes). Pure/deterministic — no rng.
 }
 
 type ArenaPhase = 'entering' | 'spawning' | 'clearing' | 'bossfight' | 'done';
@@ -225,7 +226,7 @@ export class Director {
   // and pre-boss-swell gates still apply); the game threads the real live bullet count in.
   update(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, bulletCount = 0): DirectorDecision {
     this.t += dt;
-    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false, event: false };
+    const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false, event: false, bossWarn: false };
     if (this.cfg.arena) return this.updateArena(dt, concurrent, bossAlive, rng, decision);
     if (this.cfg.bossrush) return this.updateBossRush(concurrent, bossAlive, decision);
     return this.updateEndless(dt, concurrent, bossAlive, rng, bulletCount, decision);
@@ -255,6 +256,10 @@ export class Director {
         this.bossTimer = Math.min(len, TUNE.director.waveLenMax);
       }
     }
+    // Playtest (Nick): telegraph the boss a few seconds early. Pure fn of the boss timer (no
+    // rng) → deterministic. False on the spawn frame (timer just reset large) + while a boss
+    // is alive. The game fires an anticipatory cue on the rising edge.
+    d.bossWarn = !bossAlive && !d.boss && this.bossTimer > 0 && this.bossTimer <= TUNE.director.bossWarnLead;
     if (this.cfg.perks && this.t >= this.nextPerkAt) {
       d.perk = true;
       this.nextPerkAt += TUNE.director.perkInterval;
@@ -320,6 +325,9 @@ export class Director {
         if (this.spawnedThisWave >= wave.budget) this.phase = 'clearing';
       }
     } else if (this.phase === 'clearing') {
+      // scripted boss is imminent if the next scripted wave is a boss (player-paced clear →
+      // the warning lasts as long as the clear-out, telegraphing the boss that follows)
+      if (ARENA_SCRIPT[this.waveIndex + 1]?.kind === 'boss') d.bossWarn = true;
       if (concurrent === 0) this.advanceArena(d);
     } else if (this.phase === 'bossfight') {
       if (this.bossSpawned && !bossAlive && concurrent === 0) this.advanceArena(d);
@@ -381,6 +389,7 @@ export class Director {
       } else {
         if (this.cfg.perks) d.perk = true; // draft between bosses; boss spawns next update
         this.pendingBoss = true;
+        d.bossWarn = true; // telegraph the next scripted boss as the prior one is cleared
       }
     }
     return d;

@@ -154,6 +154,7 @@ export class Game {
   private dying = false;
   private dyingTimer = 0;
   private pendingDraft = false;
+  private bossWarned = false; // edge-tracks the director's imminent-boss signal so the pre-warning cue fires once per window
   private draftCards: DraftCard[] = [];
   private pendingEvent: RunEventId | null = null;
   private eventChoices: EventChoice[] = [];
@@ -634,6 +635,7 @@ export class Game {
     this.accumulator = 0;
     this.dying = false;
     this.pendingDraft = false;
+    this.bossWarned = false;
     this.pendingEvent = null;
     this.dashSlowmoTriggered = false;
     this.announcedEvos.clear();
@@ -1406,6 +1408,15 @@ export class Game {
       const dec = this.director.update(dt, liveEnemies, w.bossAlive, w.rng, w.bullets.activeCount);
       this.applyDirector(dec.spawn);
       if (dec.boss) this.spawnWarden(dec.bossKind);
+      // Playtest (Nick): "boss pre-warning" — fire the anticipatory cue on the RISING edge of
+      // the director's imminent-boss signal so a boss never ambushes the player. Cosmetic; the
+      // signal is deterministic but the SFX draws no rng, so the Daily stays bit-identical.
+      if (dec.bossWarn && !this.bossWarned) {
+        this.audio.bossWarn();
+        this.bossWarned = true;
+      } else if (!dec.bossWarn) {
+        this.bossWarned = false;
+      }
       if (dec.perk) this.pendingDraft = true;
       if (dec.event && this.mode.rules?.events !== 'none') {
         // §4 M5 — curated modes (NIGHTMARE/Daily) draw from the high-risk pool; ANY pool

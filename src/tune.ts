@@ -154,6 +154,7 @@ export const TUNE = {
     eventCalmEnemyMax: 3, // ≤ this many live (non-boss) enemies counts as calm
     eventCalmBulletMax: 28, // ≤ this many active bullets counts as calm
     eventDeferMax: 12, // s a due event may wait for calm before force-firing
+    bossWarnLead: 3.5, // s before a boss the pre-warning cue fires (playtest: "boss pre-warning") — telegraphs an incoming boss so it never ambushes the player
     relicChance: 0.22, // chance a perk draft swaps a slot for a cursed relic
     shieldStartTime: 110, // shielded variants appear after this many seconds
     shieldMaxChance: 0.35,
