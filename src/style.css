@@ -2893,3 +2893,535 @@ body {
   .btn-play.ck-descend:hover,
   .btn-play.ck-descend:focus-visible { letter-spacing: 0.22em; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   COCKPIT MODAL RE-SKIN (v6 mock-v6 panel pass) — every title-screen modal panel
+   (SETTINGS · RANKS · STATS · CODEX · THE FALL · DUEL · UPGRADES · HEAT · BUILD ·
+   CHANGE-SHIP · CUSTOMIZE · HOW TO PLAY · CREDITS · INSPECT · SHARE) lifted to the
+   cockpit's bar. Pure visual/layout re-skin: behaviour, markup contract, the shared
+   openModal/closeModal a11y machinery and EVERY callback are untouched. Scoped under
+   .screen-modal (a marker class on the 13 modal screen wrappers) so the in-run HUD and
+   the gameplay panels (pause / gameover / draft / event) keep their existing look.
+
+   Translates the mock's panel primitives into the cockpit's REAL token/font vocabulary
+   (Space Grotesk / JetBrains Mono / Inter + var(--cyan/--amber/--green/...)), reusing
+   the cockpit card framing (the .ck-main shadow + L-corner accents + accent top-edge).
+   --ma / --ma-rgb is the panel accent — cyan, the city's resting identity (the modals
+   are not mode-scoped, unlike the title's per-mode hero). Per-card --accent (set inline
+   by HEAT / BUILD / CODEX / EVENT) still wins inside individual cards.
+══════════════════════════════════════════════════════════════════════════════ */
+.screen-modal {
+  --ma: var(--cyan);
+  --ma-rgb: 34, 211, 238;
+  /* darken + blur the backdrop to the cockpit's near-black, so the lit card pops */
+  background: radial-gradient(ellipse at center, rgba(2, 5, 12, 0.72), rgba(2, 5, 12, 0.9));
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+/* ── the modal CARD: cockpit framing (gradient face, accent top-edge, L-corners) ── */
+.screen-modal .panel {
+  position: relative;
+  align-items: stretch; /* let grids/lists fill the card width (was center-stacked) */
+  gap: 0;
+  padding: 0;
+  background: linear-gradient(180deg, rgba(9, 13, 28, 0.985), rgba(6, 9, 20, 0.985));
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.72),
+    0 0 60px rgba(34, 211, 238, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  max-height: 90vh;
+  max-width: min(94vw, 1000px);
+}
+.clarity .screen-modal .panel { border-color: rgba(34, 211, 238, 0.4); }
+/* accent top-edge (the mock's .modal-card::before) */
+.screen-modal .panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 4;
+  background: linear-gradient(90deg, transparent, rgba(var(--ma-rgb), 0.85) 50%, transparent);
+}
+/* L-shaped corner accents (the cockpit's .ck-corner, drawn with the card's own corners) */
+.screen-modal .panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  border-radius: 14px;
+  background:
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) top left / 13px 1px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) top left / 1px 13px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) top right / 13px 1px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) top right / 1px 13px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) bottom left / 13px 1px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) bottom left / 1px 13px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) bottom right / 13px 1px no-repeat,
+    linear-gradient(rgba(34, 211, 238, 0.32), rgba(34, 211, 238, 0.32)) bottom right / 1px 13px no-repeat;
+}
+.screen-modal .panel-wide { min-width: min(900px, 92vw); }
+/* a gentle rise-in on open (the mock's mRise), gated by both reduce-motion paths below */
+.screen-modal .panel { animation: ckModalRise 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes ckModalRise {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── HEADER: title h2 sits in a bordered head bar; the close DONE/CLOSE button and the
+   body scroll region are split out of the flat flex-column so the head/footer pin and
+   only the body scrolls (the mock's .modal-head / .modal-scroll). The first h2 child is
+   the header; the LAST .btn child(ren) are the footer; everything between scrolls. ── */
+.screen-modal .panel > h2 {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 16px 22px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.08em;
+  color: #eaf2ff;
+  background: rgba(255, 255, 255, 0.012);
+}
+/* everything that is NOT the h2 header or a trailing primary action lives in a padded,
+   scrollable body region. We can't wrap in the DOM (markup is frozen), so make the panel
+   itself the scroll container below the pinned head + footer via padding + overflow. */
+.screen-modal .panel {
+  /* the panel becomes: pinned h2, scrollable middle, pinned footer button(s). */
+  display: flex;
+  flex-direction: column;
+}
+/* the scrollable middle: every direct child between the h2 and the final button block.
+   Implemented by giving the panel a scroll area through a content wrapper substitute —
+   since the DOM is flat, we pad the panel and let it scroll, pinning only the h2. */
+.screen-modal .panel > :not(h2) {
+  flex-shrink: 0;
+}
+/* Body padding + scroll: the panel scrolls as one region under the pinned header.
+   The header is sticky to stay visible while the long bodies (CODEX / STATS / UPGRADES)
+   scroll. */
+.screen-modal .panel > h2 {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.screen-modal .panel {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.3) transparent;
+  padding-bottom: 0;
+}
+.screen-modal .panel::-webkit-scrollbar { width: 9px; }
+.screen-modal .panel::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.25); border-radius: 5px; }
+/* The PANEL is the single scroll container (pinned head + footer, scrolling middle), so
+   neutralise the inner bodies' own max-height/scroll — otherwise STATS/UPGRADES/CODEX/
+   LEADER would nest a second scrollbar inside the first. They keep their layout (grids,
+   flex columns), just no longer cap height or scroll independently. */
+.screen-modal .stats-body,
+.screen-modal .upg-body,
+.screen-modal .codex-body,
+.screen-modal .leader-body {
+  max-height: none;
+  overflow: visible;
+}
+/* give the body content breathing room: pad every non-header child block. */
+.screen-modal .panel > :not(h2):not(.go-row):not(.btn) {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+.screen-modal .panel > :not(h2):not(.go-row):not(.btn):first-of-type { margin-top: 18px; }
+/* the footer action row(s) / lone DONE button — pin to a bordered footer bar. */
+.screen-modal .panel > .btn:last-child,
+.screen-modal .panel > .go-row:last-child {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 14px 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(0deg, rgba(6, 9, 20, 0.985), rgba(6, 9, 20, 0.9));
+  align-self: stretch;
+}
+.screen-modal .panel > .go-row:last-child { justify-content: flex-end; }
+.screen-modal .panel > .btn:last-child { align-self: flex-end; margin-left: auto; }
+
+/* ── section labels (.stats-label) → cockpit eyebrow / row-group title ── */
+.screen-modal .stats-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ma);
+  opacity: 0.9;
+  margin: 18px 0 8px;
+}
+
+/* ── prose / flavour leads (.event-flavor / fall-prose) ── */
+.screen-modal .event-flavor {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8aa0bd;
+  margin: 4px 0 14px;
+  font-style: normal;
+  text-align: left;
+}
+.clarity .screen-modal .event-flavor { color: var(--text-muted); }
+.screen-modal .leader-note { color: #93a4c4; }
+
+/* ══ STATS / CODEX / HOW-TO grids ══ */
+/* lifetime stat cells → the mock's seamless 1px-gap cell wall */
+.screen-modal .stats-grid {
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.screen-modal .stats-grid .go-stat {
+  background: rgba(8, 12, 24, 0.6);
+  border: none;
+  border-radius: 0;
+  padding: 14px 12px;
+}
+.screen-modal .go-stat-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  color: #eaf2ff;
+}
+.screen-modal .go-stat-l {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: #6d89ab;
+}
+.clarity .screen-modal .go-stat-l { color: var(--text-muted); }
+
+/* achievement cards → the mock's .achv row (icon chip + name + desc) */
+.screen-modal .ach {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 9px;
+  padding: 11px 12px;
+  opacity: 1; /* lock state now reads via colour, not a blanket dim (a11y) */
+}
+.screen-modal .ach:not(.got) { background: rgba(255, 255, 255, 0.012); }
+.screen-modal .ach.got {
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(251, 191, 36, 0.045);
+}
+.screen-modal .ach-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #cdd9ec;
+}
+.screen-modal .ach:not(.got) .ach-name { color: #7d8da0; }
+.screen-modal .ach.got .ach-name { color: var(--amber); }
+.screen-modal .ach-desc { font-size: 10px; color: #7a93b2; line-height: 1.45; }
+.clarity .screen-modal .ach-desc { color: var(--text-muted); }
+
+/* CODEX bestiary + memory cards, HOW-TO evolution cards → unified mock .p-card look */
+.screen-modal .codex-entry,
+.screen-modal .howto-evo {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 11px 13px;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
+}
+.screen-modal .codex-entry:hover,
+.screen-modal .howto-evo:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, rgba(255, 255, 255, 0.018));
+}
+.reduce-motion .screen-modal .codex-entry,
+.reduce-motion .screen-modal .howto-evo { transition: none; }
+.screen-modal .codex-name,
+.screen-modal .howto-evo-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.screen-modal .codex-blurb,
+.screen-modal .howto-evo-desc { font-size: 10.5px; color: #8aa0bd; line-height: 1.5; }
+.clarity .screen-modal .codex-blurb,
+.clarity .screen-modal .howto-evo-desc { color: var(--text-muted); }
+.screen-modal .codex-forgotten { opacity: 0.85; }
+.screen-modal .codex-frag { color: var(--amber); }
+
+/* HOW-TO rule rows (also reused by INSPECT result rows) → the mock's .p-row */
+.screen-modal .howto-rule {
+  padding: 9px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  font-size: 12.5px;
+}
+.screen-modal .howto-rule b {
+  color: #7dd3fc;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.screen-modal .howto-rule span { color: #8aa0bd; }
+.clarity .screen-modal .howto-rule span { color: var(--text-muted); }
+.screen-modal .credit-line { color: #cdd9ec; }
+.screen-modal .credit-foot { color: #7a93b2; }
+.clarity .screen-modal .credit-foot { color: var(--text-muted); }
+
+/* THE FALL prose → wider, calmer measure */
+.screen-modal .fall-para { color: #c2d2e8; font-size: 13px; line-height: 1.75; }
+.screen-modal .fall-para:last-of-type { color: var(--amber); }
+
+/* ══ UPGRADES (meta shop) ══ — node card lift + the green balance pill ══ */
+.screen-modal .upg-balance {
+  align-self: flex-start;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  padding: 6px 13px;
+  border-radius: 8px;
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.22);
+}
+.screen-modal .upg-node {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 12px 14px;
+  transition: border-color 0.14s ease;
+}
+.screen-modal .upg-node.maxed { border-color: rgba(74, 222, 128, 0.3); }
+.screen-modal .upg-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: #dbe6f7;
+}
+.screen-modal .upg-desc { font-size: 10.5px; color: #8aa0bd; }
+.clarity .screen-modal .upg-desc { color: var(--text-muted); }
+.screen-modal .upg-pips .pip {
+  width: 9px;
+  height: 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
+}
+.screen-modal .upg-pips .pip.on {
+  background: var(--green);
+  border-color: rgba(74, 222, 128, 0.5);
+  box-shadow: 0 0 5px rgba(74, 222, 128, 0.4);
+}
+.reduce-motion .screen-modal .upg-pips .pip.on { box-shadow: none; }
+
+/* ══ HEAT + BUILD ARCHETYPE cards ══ — top-accent card with hover lift, selected glow ══ */
+.screen-modal .heat-card {
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 10px;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.screen-modal .heat-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, rgba(255, 255, 255, 0.018));
+}
+.screen-modal .heat-card.selected {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 12%, transparent), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 24px -8px var(--accent);
+}
+.reduce-motion .screen-modal .heat-card { transition: none; }
+.screen-modal .heat-num {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+}
+.screen-modal .heat-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+.screen-modal .heat-desc { font-size: 10.5px; color: #8aa0bd; }
+.clarity .screen-modal .heat-desc { color: var(--text-muted); }
+.screen-modal .heat-mul {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #cdd9ec;
+}
+
+/* ══ LEADERBOARD (RANKS) ══ — handle field, scope/mode tabs, ranked rows ══ */
+.screen-modal .leader-body { min-width: 0; max-width: none; gap: 12px; }
+.screen-modal .leader-name { justify-content: flex-start; }
+.screen-modal .leader-name label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6d89ab;
+}
+.screen-modal .leader-name input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  color: #dbe6f7;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+}
+.screen-modal .leader-name input:focus {
+  outline: none;
+  border-color: rgba(34, 211, 238, 0.5);
+}
+/* mode + scope rows reuse .leader-modes; restyle the .btn-sm pills inside them as tabs */
+.screen-modal .leader-modes { justify-content: flex-start; gap: 4px; }
+.screen-modal .leader-modes .btn-sm {
+  margin: 0;
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7a93b2;
+}
+.screen-modal .leader-modes .btn-sm:hover {
+  transform: none;
+  color: #9fc7e8;
+  background: rgba(255, 255, 255, 0.04);
+}
+.screen-modal .leader-modes .btn-sm.btn-primary {
+  background: rgba(var(--ma-rgb), 0.1);
+  border-color: rgba(var(--ma-rgb), 0.32);
+  color: var(--ma);
+  box-shadow: none;
+}
+.screen-modal .leader-row {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 7px;
+  padding: 8px 12px;
+}
+.screen-modal .leader-row:first-child .leader-rank { color: #ffd884; }
+.screen-modal .leader-rank { font-family: 'JetBrains Mono', monospace; color: var(--ma); }
+.screen-modal .leader-handle { font-family: 'Space Grotesk', sans-serif; color: #cdd9ec; }
+.screen-modal .leader-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  color: #eaf2ff;
+}
+.screen-modal .leader-meta { color: #7a93b2; }
+.clarity .screen-modal .leader-meta { color: var(--text-muted); }
+
+/* ══ DUEL + INSPECT text inputs ══ */
+.screen-modal .duel-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #dbe6f7;
+  font-family: 'JetBrains Mono', monospace;
+}
+.screen-modal .duel-input:focus {
+  outline: none;
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+/* ══ SETTINGS ══ — sliders, native checkboxes, key-rebind caps, section dividers ══ */
+.screen-modal .settings-body { margin: 4px 0 12px; gap: 8px 28px; }
+.screen-modal .setting { font-size: 13px; color: #cdd9ec; padding: 4px 0; }
+.clarity .screen-modal .setting { color: var(--text); }
+.screen-modal .setting input[type='range'] { accent-color: var(--ma); }
+.screen-modal .setting input[type='checkbox'] { accent-color: var(--ma); }
+.screen-modal .setting.setting-section {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ma);
+  opacity: 0.9;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+/* the small segmented .btn-sm controls (density / soundtrack) + rebind keycaps */
+.screen-modal .setting .btn-sm {
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #cdd9ec;
+}
+.screen-modal .setting .btn-sm:hover {
+  transform: none;
+  border-color: rgba(34, 211, 238, 0.4);
+  color: var(--cyan);
+}
+.screen-modal .setting .btn-sm.active {
+  border-color: rgba(var(--ma-rgb), 0.5);
+  background: rgba(var(--ma-rgb), 0.14);
+  color: var(--ma);
+}
+/* a rebind button mid-capture (textContent 'press a key…') uses .active → make it read
+   as the mock's listening keycap (pulse is color-only; gated under reduce-motion). */
+.screen-modal .setting .btn-sm.active { box-shadow: 0 0 0 1px rgba(var(--ma-rgb), 0.4); }
+
+/* ══ SHARE ══ — preview frame ══ */
+.screen-modal .share-body {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.4);
+}
+.screen-modal .share-actions { justify-content: center; padding-top: 4px; }
+
+/* ── footer action buttons inside modals: tighten the cockpit button look ── */
+.screen-modal .panel .btn-primary {
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+}
+
+/* ══ reduce-motion: hold the modals still (no rise-in, no card lift/shimmer) ══ */
+.reduce-motion .screen-modal .panel,
+.reduce-motion .screen-modal .heat-card,
+.reduce-motion .screen-modal .codex-entry,
+.reduce-motion .screen-modal .howto-evo,
+.reduce-motion .screen-modal .upg-node {
+  animation: none !important;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-modal .panel,
+  .screen-modal .heat-card,
+  .screen-modal .codex-entry,
+  .screen-modal .howto-evo,
+  .screen-modal .upg-node {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── responsive: phones get a near-fullscreen sheet ── */
+@media (max-width: 640px) {
+  .screen-modal .panel { max-width: 96vw; max-height: 94vh; }
+  .screen-modal .panel-wide { min-width: 0; width: 96vw; }
+  .screen-modal .panel > :not(h2):not(.go-row):not(.btn) { margin-left: 14px; margin-right: 14px; }
+}

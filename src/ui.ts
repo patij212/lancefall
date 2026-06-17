@@ -1160,7 +1160,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeSettings());
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.settingsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.settingsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private buildStats(): void {
@@ -1170,7 +1170,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.statsPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.statsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.statsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private openStats(): void {
@@ -1216,7 +1216,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.upgradesPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, bal, body, close);
-    this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   openUpgrades(): void {
@@ -1275,7 +1275,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.howtoPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   /** CREDITS — the player-facing audio attribution surface (CC BY 3.0 requires visible credit). */
@@ -1302,7 +1302,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.creditsPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.creditsPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.creditsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private showCredits(): void {
@@ -1324,7 +1324,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DESCEND');
     close.addEventListener('click', () => this.closeModal(this.fallPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.fallPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.fallPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private showFall(): void {
@@ -1374,7 +1374,7 @@ export class UI {
       devBlurb,
       el('div', { class: 'go-row' }, dev),
     );
-    this.duelPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.duelPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private openDuel(): void {
@@ -1422,7 +1422,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-ghost' }, 'CLOSE');
     close.addEventListener('click', () => this.closeModal(this.inspectPanel));
     const panel = el('div', { class: 'panel' }, h, blurb, input, el('div', { class: 'go-row' }, inspect, close), result);
-    this.inspectPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.inspectPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private openInspect(): void {
@@ -1456,7 +1456,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.codexPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.codexPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   /** Render THE FALL · MEMORIES (fragment balance + lore unlocks). Public so the
@@ -1548,7 +1548,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.heatPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, sub, grid, close);
-    this.heatPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.heatPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   openHeat(): void {
@@ -1583,7 +1583,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.archetypePanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, sub, grid, close);
-    this.archetypePanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.archetypePanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   openArchetype(): void {
@@ -1615,7 +1615,7 @@ export class UI {
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.leaderPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
+    this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   openLeaderboard(): void {
@@ -2187,7 +2187,7 @@ export class UI {
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal', 'true');
     panel.setAttribute('aria-label', 'Share your run');
-    this.sharePanel = el('div', { class: 'screen screen-dim hidden' }, panel);
+    this.sharePanel = el('div', { class: 'screen screen-dim screen-modal hidden' }, panel);
     // Esc-close (or any closeModal path) must also revoke the preview blob — register the
     // teardown so it runs identically however the panel is dismissed.
     this.modalOnClose.set(this.sharePanel, () => {
