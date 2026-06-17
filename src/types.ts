@@ -102,6 +102,11 @@ export interface Enemy {
   facing?: number; // WARDEN: bounded-turn heading toward the player; its REAR arc is the weak-point
 }
 
+/** Per-shot visual tag (playtest: bullets need identity per enemy + shot type, not colour
+ *  alone). Optional + defaults to 'orb' at spawn so every existing call is unchanged. Homing
+ *  (SEEKER) and boss fire derive their look from existing fields, so they need no tag. */
+export type BulletStyle = 'orb' | 'dart' | 'mine';
+
 export interface Bullet {
   active: boolean;
   x: number;
@@ -116,6 +121,8 @@ export interface Bullet {
   /** seconds of homing budget left: while >0 the bullet curves toward the player
    *  at a bounded turn rate (the SEEKER's bolt), then flies straight. 0 = ballistic. */
   homing: number;
+  /** visual archetype the renderer draws (orb/dart/mine); set at spawn, defaults to 'orb'. */
+  shot?: BulletStyle;
 }
 
 export type ParticleKind = 'spark' | 'trail' | 'debris' | 'ring' | 'streak';

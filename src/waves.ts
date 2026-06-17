@@ -52,6 +52,16 @@ export function preBossSilent(remaining: number): boolean {
   return remaining < TUNE.director.preBossCalm;
 }
 
+/** Playtest (Nick): mid-run events must not pop during high-intensity moments. A due event
+ *  holds until the arena is CALM — at most eventCalmEnemyMax live (non-boss) enemies, at most
+ *  eventCalmBulletMax active bullets, and clear of the pre-boss swell (bossTimer beyond the
+ *  swell window, which also implies it is past the pre-boss silence). Pure fn of deterministic
+ *  sim state, so two players on the same seed gate identically and the Daily never forks. */
+export function eventCalm(concurrent: number, bulletCount: number, bossTimer: number): boolean {
+  const d = TUNE.director;
+  return concurrent <= d.eventCalmEnemyMax && bulletCount <= d.eventCalmBulletMax && bossTimer > d.stretchWindow;
+}
+
 /** §4 M2 sudden death — how far the arena walls have closed in (a FRACTION per side,
  *  0..suddenDeathInsetMax) given the boss count. Pure fn of SIM STATE (bossCount) —
  *  reads no pixels/DPR — so it shrinks identically for every player. 0 without a
@@ -210,15 +220,18 @@ export class Director {
     this.pendingBoss = true; // bossrush spawns its first boss on the first update
   }
 
-  update(dt: number, concurrent: number, bossAlive: boolean, rng: Rng): DirectorDecision {
+  // bulletCount feeds the event calm-gate (playtest: no events during high-intensity).
+  // Optional + defaults to 0 so callers that don't track it keep working (the enemy-count
+  // and pre-boss-swell gates still apply); the game threads the real live bullet count in.
+  update(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, bulletCount = 0): DirectorDecision {
     this.t += dt;
     const decision: DirectorDecision = { spawn: [], boss: false, perk: false, win: false, event: false };
     if (this.cfg.arena) return this.updateArena(dt, concurrent, bossAlive, rng, decision);
     if (this.cfg.bossrush) return this.updateBossRush(concurrent, bossAlive, decision);
-    return this.updateEndless(dt, concurrent, bossAlive, rng, decision);
+    return this.updateEndless(dt, concurrent, bossAlive, rng, bulletCount, decision);
   }
 
-  private updateEndless(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, d: DirectorDecision): DirectorDecision {
+  private updateEndless(dt: number, concurrent: number, bossAlive: boolean, rng: Rng, bulletCount: number, d: DirectorDecision): DirectorDecision {
     const I = intensity(this.t) * this.cfg.intensityMul * this.ascensionMul;
     this.wave = Math.floor(this.t / 30) + 1;
 
@@ -252,8 +265,17 @@ export class Director {
       this.nextEventAt = this.t + TUNE.director.bossBreather;
     }
     if (this.t >= this.nextEventAt && !bossAlive && !d.boss && !d.perk) {
-      d.event = true; // the game rolls the id off world.eventRng (off the seeded stream)
-      this.nextEventAt = this.t + TUNE.director.eventInterval;
+      // Playtest (Nick): don't pop a due event into a high-intensity moment. Hold it until
+      // the arena is CALM (few enemies/bullets, clear of the pre-boss swell); leave
+      // nextEventAt untouched so it stays due and is re-checked each frame. The deferMax
+      // hard cap force-fires it so a relentless run can never starve the event. eventCalm
+      // reads only deterministic sim state → the single eventRng draw still fires exactly
+      // once (only later), so the Daily wave stream stays bit-identical for everyone.
+      const overdue = this.t - this.nextEventAt;
+      if (eventCalm(concurrent, bulletCount, this.bossTimer) || overdue >= TUNE.director.eventDeferMax) {
+        d.event = true; // the game rolls the id off world.eventRng (off the seeded stream)
+        this.nextEventAt = this.t + TUNE.director.eventInterval;
+      }
     }
     // D2/D3: the spawn branch is gated by the post-boss lull + the pre-boss calm, and
     // its cadence/density SWELL to a crescendo as the boss nears (never speed). Both the

@@ -46,6 +46,23 @@ export function capsOk(score: number, wave: number, combo: number, heat: number)
   return score <= plausibleMax;
 }
 
+/** Edge-cache TTL (seconds) for GET /leaderboard. Repeated board reads serve from the
+ *  Cloudflare edge instead of re-running the GROUP BY scan over D1 — D1's free-tier
+ *  rows-read budget is the first ceiling, so this is the single biggest cheap win for
+ *  surviving a launch spike. Short enough that a new high score shows within a minute. */
+export const BOARD_CACHE_TTL = 45;
+
+/** Origin-agnostic edge-cache key for a /leaderboard request. Depends ONLY on the params
+ *  that change the result — mode, scope (weekly vs all-time), daily date — normalized and
+ *  ordered, so every player shares ONE cached board and a stray/extra query param can't
+ *  fragment (or poison) the cache. CORS is re-attached per request and never cached. */
+export function boardCacheKey(url: URL): string {
+  const mode = url.searchParams.get('mode') ?? '';
+  const scope = url.searchParams.get('scope') === 'weekly' ? 'weekly' : '';
+  const daily = url.searchParams.get('daily') ?? '';
+  return `${url.origin}/leaderboard?mode=${encodeURIComponent(mode)}&scope=${scope}&daily=${encodeURIComponent(daily)}`;
+}
+
 /** CORS headers scoped to the LANCEFALL origins (prod + preview deploys + local dev),
  *  reflecting an allowed Origin and otherwise defaulting to the prod site so the game
  *  keeps working while other sites can't submit on a visitor's behalf. */

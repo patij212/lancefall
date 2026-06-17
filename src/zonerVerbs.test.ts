@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
-import { updateEnemy } from './enemies';
-import { ORBITER, LANCER } from './tune';
+import { updateEnemy, applyEdgePull } from './enemies';
+import { ORBITER, LANCER, ZONER } from './tune';
 import type { Enemy } from './types';
 
 // Two overlapping ZONER enemies gain a DISTINCT mechanical verb beyond "fire a bolt":
@@ -90,6 +90,40 @@ describe('LANCER verb — double-tap (a second bolt on the same aim line)', () =
     // both are real moving bolts (not mines)
     expect(Math.hypot(a.vx, a.vy)).toBeGreaterThan(0);
     expect(Math.hypot(b.vx, b.vy)).toBeGreaterThan(0);
+  });
+});
+
+// Playtest (Nick): standoff zoners (esp. the LANCER sniper) hug the arena perimeter when
+// the player holds center — their steering has no arena-bounds term. applyEdgePull blends a
+// soft nudge toward center once a zoner strays within an edge margin, so it drifts back into
+// playable space. Pure fn of positions + arena size (no rng) → the Daily stays bit-identical.
+describe('zoner edge-pull keeps standoff zoners off the walls', () => {
+  it('is a no-op in open space (mid-arena)', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('lancer', 640, 360, 1, 1, false, false, 0)!;
+    e.vx = 12;
+    e.vy = -5;
+    applyEdgePull(e, w);
+    expect(e.vx).toBe(12);
+    expect(e.vy).toBe(-5);
+  });
+  it('nudges a wall-hugging zoner back toward center', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('lancer', 8, 360, 1, 1, false, false, 0)!; // hard against the left wall
+    e.vx = 0;
+    e.vy = 0;
+    applyEdgePull(e, w);
+    expect(e.vx).toBeGreaterThan(0); // pushed rightward, into the arena
+  });
+  it('pulls harder the deeper into the edge margin', () => {
+    const w = freshWorld();
+    const near = w.spawnEnemy('lancer', ZONER.edgeMargin - 2, 360, 1, 1, false, false, 0)!;
+    near.vx = 0;
+    applyEdgePull(near, w);
+    const deep = w.spawnEnemy('lancer', 4, 360, 1, 1, false, false, 0)!;
+    deep.vx = 0;
+    applyEdgePull(deep, w);
+    expect(deep.vx).toBeGreaterThan(near.vx);
   });
 });
 

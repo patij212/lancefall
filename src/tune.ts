@@ -147,6 +147,13 @@ export const TUNE = {
     perkInterval: 30, // then every 30s
     eventFirst: 50, // first mid-run event at t=50s
     eventInterval: 75, // then roughly every 75s
+    // Playtest (Nick): a due event must NOT pop during a high-intensity moment. It holds
+    // until the arena is CALM — at most this many live enemies + active bullets, and clear
+    // of the pre-boss swell — then fires; if it can't get calm within eventDeferMax seconds
+    // it fires anyway so it never starves. All deterministic sim state → Daily stays identical.
+    eventCalmEnemyMax: 3, // ≤ this many live (non-boss) enemies counts as calm
+    eventCalmBulletMax: 28, // ≤ this many active bullets counts as calm
+    eventDeferMax: 12, // s a due event may wait for calm before force-firing
     relicChance: 0.22, // chance a perk draft swaps a slot for a cursed relic
     shieldStartTime: 110, // shielded variants appear after this many seconds
     shieldMaxChance: 0.35,
@@ -261,8 +268,17 @@ export const BLOOMER = {
 // bolt it fires a quick second shot on the same frozen aim line `doubleTapDelay`
 // later (you must keep moving off the line, not just sidestep once). Scheduled via
 // e.subPhase / e.fireTimer → cadence-timed, fully deterministic, no rng.
+// Playtest (Nick): standoff zoners (lancer/drifter/herald/seeker) hugged the arena walls —
+// their steering had no arena-bounds term, so a centered player left them parked on the
+// perimeter. A soft inward center-pull peels them off once they stray within edgeMargin of a
+// wall. Pure (positions + arena size, no rng) → the seeded Daily stays bit-identical.
+export const ZONER = {
+  edgeMargin: 130, // px from any wall where the inward pull begins to ramp in
+  edgePull: 95, // px/s max inward nudge (at the wall), blended into the strafe velocity
+} as const;
+
 export const LANCER = {
-  range: 380, // preferred standoff distance
+  range: 310, // preferred standoff distance — v6 playtest (Nick): pulled 380→310 so the sniper engages closer (paired with the ZONER edge-pull)
   repositionTime: 1.1,
   lockTime: 0.85, // telegraph; aim is frozen at lock start (the dodge window)
   bulletSpeed: 410,
@@ -351,7 +367,11 @@ export const BIOME_RULES = {
 // or back, outside this cone — to land. arcHalf MUST equal the rendered arc half-
 // width (render.ts) so the glowing arc you read is exactly the arc that blocks.
 export const SHIELD = {
-  arcHalf: 1.05, // radians (±) — a ~120° frontal block cone
+  // v6 playtest (Nick): the old ±1.05 (~120°) cone + per-frame re-aim made a head-on
+  // dash almost always clang — "armoured enemies too hard". Narrowed to ±0.8 (~92°) so
+  // there's a real landing arc on the flanks while the shield still rewards a side/back
+  // approach. arcHalf MUST equal the rendered arc half-width (render.ts:1011).
+  arcHalf: 0.8, // radians (±) — a ~92° frontal block cone
 } as const;
 
 // THE HOLLOW — 5th boss. An intangible phantom: NEVER contact-lethal. It seeds
@@ -388,7 +408,7 @@ export const ELITE = {
   maxChance: 0.14,
   rampSeconds: 240, // chance ramps to max over this window after startTime
   maxConcurrent: 2, // never more than this on screen — keeps them special
-  hpMul: 3, // tanky but not a dash-grind slog on a fresh build
+  hpMul: 2.5, // v6 playtest (Nick): 3× was a dash-grind slog on a fresh build (dashDamage 1) — softened to 2.5× (still tanky)
   sizeMul: 1.45,
   speedMul: 0.92, // a touch heavier/slower than its base kind
   scoreMul: 5,

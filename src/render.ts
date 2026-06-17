@@ -7,6 +7,7 @@ import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
 import type { World } from './world';
+import { bulletVisual } from './bulletStyle';
 import type { Enemy, Bullet, EnemyKind } from './types';
 import type { ThemeDef } from './themes';
 import { trailById, trailGhostColor } from './trails';
@@ -689,25 +690,81 @@ export class Renderer {
   }
 
   private drawBullets(world: World): void {
+    // Playtest (Nick): bullets need identity per enemy + shot type, not colour alone. The
+    // additive glow + THREAT RIM (§7b, a11y-legible through bloom) + bright core stay the base
+    // for EVERY style; on top, the SILHOUETTE varies — velocity-aligned darts (fast aimed
+    // bolts), a tailed comet (the homing SEEKER bolt, which must never read as ballistic), a
+    // parked diamond + warning ring (orbiter mine), and a heavier double-ring for boss fire.
     const ctx = this.bctx;
     ctx.save();
     world.bullets.forEachActive((b: Bullet) => {
       const glow = this.getGlow(b.color);
       const r = b.radius;
+      const vis = bulletVisual(b);
+      const aligned = vis === 'dart' || vis === 'comet';
+      const ang = aligned ? Math.atan2(b.vy, b.vx) : 0;
+      // ── additive bloom (its shape depends on the style) ──
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.85;
-      ctx.drawImage(glow, b.x - r * 2.4, b.y - r * 2.4, r * 4.8, r * 4.8);
-      // THREAT RIM (§7b) — a constant thin bright-neon ring at the bullet edge. The
-      // wash is luminance-preserving, so this stays a legible outline at low combo
-      // while the body glow rides the desaturation. Steady (no envelope) → a11y-safe.
+      if (aligned) {
+        const lead = vis === 'comet' ? 3.6 : 2.6; // the comet's bloom trails further back
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(ang);
+        ctx.drawImage(glow, -r * lead, -r * 2.2, r * (lead + 2.2), r * 4.4);
+        ctx.restore();
+      } else {
+        const s = vis === 'bossHeavy' ? 3.0 : 2.4; // boss fire blooms bigger/heavier than chaff
+        ctx.drawImage(glow, b.x - r * s, b.y - r * s, r * 2 * s, r * 2 * s);
+      }
+      // ── threat-rim silhouette (source-over → a legible outline through the bloom) ──
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = THREAT_RIM.bulletAlpha;
       ctx.strokeStyle = threatRim(b.color, THREAT_RIM.bulletLift);
       ctx.lineWidth = THREAT_RIM.bulletWidth;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
-      ctx.stroke();
-      // bright high-contrast core so bullets stay readable through bloom
+      if (aligned) {
+        // a forward-pointing kite/teardrop along the heading (comet has a longer tail)
+        const nose = vis === 'comet' ? r * 2.2 : r * 1.9;
+        const tail = vis === 'comet' ? r * 1.7 : r * 0.9;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(ang);
+        ctx.beginPath();
+        ctx.moveTo(nose, 0);
+        ctx.lineTo(0, -r * 0.85);
+        ctx.lineTo(-tail, 0);
+        ctx.lineTo(0, r * 0.85);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      } else if (vis === 'mine') {
+        // a parked diamond + a wider warning ring → "area-denial, give it space"
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.beginPath();
+        ctx.moveTo(0, -r);
+        ctx.lineTo(r, 0);
+        ctx.lineTo(0, r);
+        ctx.lineTo(-r, 0);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.globalAlpha = THREAT_RIM.bulletAlpha * 0.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 1.7, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        if (vis === 'bossHeavy') {
+          ctx.globalAlpha = THREAT_RIM.bulletAlpha * 0.55; // a second outer ring → reads heavier than chaff
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r * 1.7, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      // ── bright high-contrast core (every style) so bullets stay readable through bloom ──
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#ffffff';

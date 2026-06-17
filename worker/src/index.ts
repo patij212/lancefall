@@ -8,7 +8,7 @@
 // can't be cryptographically trusted on a zero-friction casual board. We apply pragmatic
 // sanity + plausibility caps (validate.ts) and per-handle best-only aggregation rather than
 // full replay verification (which is infeasible — the ghost is a position trace, not inputs).
-import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders } from './validate';
+import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, boardCacheKey, BOARD_CACHE_TTL } from './validate';
 
 export interface Env {
   DB: D1Database;
@@ -43,7 +43,7 @@ interface ScoreRow {
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     const ip = req.headers.get('CF-Connecting-IP') || 'anon';
     const cors = corsHeaders(req.headers.get('Origin') || '');
@@ -83,11 +83,27 @@ export default {
 
     // ── read a board (best score per handle, top 100) ──
     if (req.method === 'GET' && url.pathname === '/leaderboard') {
-      if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429, cors);
       const mode = url.searchParams.get('mode') ?? '';
       if (!MODES.has(mode)) return json({ error: 'bad mode' }, 400, cors);
       const daily = url.searchParams.get('daily');
       if (daily !== null && !DATE_RE.test(daily)) return json({ error: 'bad daily date' }, 400, cors);
+
+      // Edge cache: serve a recent board straight from the Cloudflare edge so repeated reads
+      // don't re-run the GROUP BY scan over D1 (the free-tier rows-read ceiling — the first
+      // thing a launch spike exhausts). Keyed only on result-affecting params; CORS is
+      // re-attached per request and never cached. A cache HIT skips BOTH the D1 query and the
+      // KV rate-limit write, so the cheap path stays cheap.
+      const cache = caches.default;
+      const cacheKey = new Request(boardCacheKey(url), { method: 'GET' });
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return new Response(cached.body, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'x-cache': 'HIT', ...cors },
+        });
+      }
+
+      if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429, cors);
       // SQLite bare-column rule: with MAX(score), the other columns come from that row.
       // scope=weekly restricts a non-daily board to the current calendar week.
       const scope = url.searchParams.get('scope');
@@ -110,7 +126,18 @@ export default {
         combo: r.combo,
         heat: r.heat,
       }));
-      return json({ entries }, 200, cors);
+      const body = JSON.stringify({ entries });
+      // store WITHOUT CORS (origin-agnostic) + a short s-maxage; CORS is re-attached below
+      // and on every future HIT, so the shared cached board serves any allowed origin.
+      const cacheable = new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'Cache-Control': `public, s-maxage=${BOARD_CACHE_TTL}` },
+      });
+      ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
+      return new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'x-cache': 'MISS', ...cors },
+      });
     }
 
     // ── shared daily seed (days-since-epoch) ──

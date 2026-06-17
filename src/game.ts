@@ -1399,7 +1399,9 @@ export class Game {
     // director
     if (!this.dying && !this.winning && w.player.alive) {
       const liveEnemies = w.enemies.activeCount - (w.bossAlive ? 1 : 0);
-      const dec = this.director.update(dt, liveEnemies, w.bossAlive, w.rng);
+      // pass the live bullet count so the event calm-gate (playtest: no events during high-
+      // intensity) can defer a popup when the screen is dense with fire, not just crowded.
+      const dec = this.director.update(dt, liveEnemies, w.bossAlive, w.rng, w.bullets.activeCount);
       this.applyDirector(dec.spawn);
       if (dec.boss) this.spawnWarden(dec.bossKind);
       if (dec.perk) this.pendingDraft = true;

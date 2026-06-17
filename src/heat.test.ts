@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HEAT_LEVELS, MAX_HEAT, heatLevel, applyHeatStats, applyHeatConfig, heatScoreMul } from './heat';
+import { HEAT_LEVELS, MAX_HEAT, heatLevel, applyHeatStats, applyHeatConfig, heatScoreMul, heatShardMul } from './heat';
 import { deriveStats } from './perks';
 import { modeById } from './modes';
 import { SURVIVAL } from './tune';
@@ -14,6 +14,27 @@ describe('heat ladder', () => {
     for (let i = 1; i <= MAX_HEAT; i++) {
       expect(HEAT_LEVELS[i].scoreMul).toBeGreaterThan(HEAT_LEVELS[i - 1].scoreMul);
     }
+  });
+
+  it('shard multiplier rises gently with heat and stays flatter than score', () => {
+    for (let i = 1; i <= MAX_HEAT; i++) {
+      expect(HEAT_LEVELS[i].shardMul).toBeGreaterThan(HEAT_LEVELS[i - 1].shardMul);
+    }
+    // gentle: the Heat-7 shard bonus is smaller than its score bonus — protects meta pacing
+    expect(HEAT_LEVELS[MAX_HEAT].shardMul).toBeLessThan(HEAT_LEVELS[MAX_HEAT].scoreMul);
+  });
+
+  it('scales shard gains with heat (playtest: "Heat should scale shards too")', () => {
+    const base = deriveStats({});
+    const heated = deriveStats({}, undefined, undefined, undefined, (s) => applyHeatStats(s, 7));
+    expect(heated.shardMul).toBeCloseTo(base.shardMul * heatShardMul(7));
+    expect(heated.shardMul).toBeGreaterThan(base.shardMul);
+  });
+
+  it('the Heat shard bonus rides UNDER the in-run ×6 farm cap', () => {
+    // a degenerate in-run shardMul × Heat 7 must still clamp at 6 (postApply runs before the cap)
+    const s = deriveStats({}, undefined, (st) => { st.shardMul = 10; }, undefined, (st) => applyHeatStats(st, 7));
+    expect(s.shardMul).toBe(6);
   });
 
   it('level 0 is a true no-op on stats', () => {

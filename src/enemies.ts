@@ -1,10 +1,33 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE } from './tune';
+import { DARTER, ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
-import type { Enemy } from './types';
+import type { Enemy, EnemyKind } from './types';
+
+// Standoff zoners hold a preferred range from the player. Playtest (Nick): with no arena-
+// bounds term in their steering they pin to the perimeter when the player holds center.
+const STANDOFF_KINDS = new Set<EnemyKind>(['lancer', 'drifter', 'herald', 'seeker']);
+
+/** Blend a soft nudge toward arena center into a zoner's velocity once it strays within an
+ *  edge margin (strength ramps with margin depth), so standoff enemies drift back into
+ *  playable space instead of hugging the wall. PURE — positions + arena size only, no rng —
+ *  so the seeded spawn stream is untouched and the Daily stays bit-identical. Exported for
+ *  the unit test (mirrors heraldWall/homingSteer). */
+export function applyEdgePull(e: Enemy, world: World): void {
+  const m = ZONER.edgeMargin;
+  const depthX = Math.max(0, (m - e.x) / m, (e.x - (world.width - m)) / m);
+  const depthY = Math.max(0, (m - e.y) / m, (e.y - (world.height - m)) / m);
+  const depth = Math.min(1, Math.max(depthX, depthY));
+  if (depth <= 0) return;
+  const toCx = world.width / 2 - e.x;
+  const toCy = world.height / 2 - e.y;
+  const len = Math.hypot(toCx, toCy) || 1;
+  const k = ZONER.edgePull * depth * e.speedMul;
+  e.vx += (toCx / len) * k;
+  e.vy += (toCy / len) * k;
+}
 
 export function updateEnemy(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
@@ -64,6 +87,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
   if (e.shielded) {
     e.shieldAngle = Math.atan2(p.y - e.y, p.x - e.x);
   }
+
+  // keep standoff zoners off the walls (playtest: edge-hugging sniper); phase 0 = mobile state
+  if (e.phase === 0 && STANDOFF_KINDS.has(e.kind)) applyEdgePull(e, world);
 
   // integrate
   e.x += e.vx * dt;
@@ -131,7 +157,7 @@ function orbiter(e: Enemy, world: World, dt: number): void {
     // hits. subPhase counts shots → fully deterministic (no world.rng draw).
     e.subPhase++;
     if (e.subPhase % ORBITER.mineEvery === 0) {
-      const mine = world.spawnBullet(e.x, e.y, 0, 0, 8, ORBITER.mineColor, false); // vx=vy=0 → a parked mine
+      const mine = world.spawnBullet(e.x, e.y, 0, 0, 8, ORBITER.mineColor, false, 'mine'); // vx=vy=0 → a parked mine (diamond + warning ring)
       if (mine) mine.life = ORBITER.mineLife;
     } else {
       const [nx, ny] = norm(p.x - e.x, p.y - e.y);
@@ -255,7 +281,7 @@ function herald(e: Enemy, world: World, dt: number): void {
     if (e.timer <= 0) {
       const base = HERALD.bulletSpeed * e.bulletMul;
       const shots = heraldWall(e.x, e.y, e.angle, e.subPhase, base);
-      for (const s of shots) world.spawnBullet(s.x, s.y, s.vx, s.vy, 6, '#bef264', false);
+      for (const s of shots) world.spawnBullet(s.x, s.y, s.vx, s.vy, 6, '#bef264', false, 'dart');
       e.phase = 0;
       e.timer = HERALD.repositionTime;
       e.telegraph = 0;
@@ -351,7 +377,7 @@ function lancer(e: Enemy, world: World, dt: number): void {
     e.telegraph = clamp(1 - e.timer / LANCER.lockTime, 0, 1);
     if (e.timer <= 0) {
       const bs = LANCER.bulletSpeed * e.bulletMul;
-      world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false);
+      world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false, 'dart');
       // VERB: DOUBLE-TAP — schedule a quick second bolt on the SAME frozen aim line.
       // phase 2 counts down fireTimer, then fires once and resets. All cadence-timed
       // off sim dt → fully deterministic, no world.rng draw.
@@ -366,7 +392,7 @@ function lancer(e: Enemy, world: World, dt: number): void {
     e.fireTimer -= dt;
     if (e.fireTimer <= 0) {
       const bs = LANCER.bulletSpeed * e.bulletMul;
-      world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false);
+      world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false, 'dart');
       e.phase = 0;
       e.timer = LANCER.repositionTime;
     }

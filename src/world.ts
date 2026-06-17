@@ -16,7 +16,7 @@ import type { EvolutionId } from './evolutions';
 import type { RelicId } from './relics';
 import { createRng } from './rng';
 import type { Rng } from './rng';
-import type { Player, Enemy, Bullet, Gem, EnemyKind } from './types';
+import type { Player, Enemy, Bullet, Gem, EnemyKind, BulletStyle } from './types';
 import type { CipherState } from './cipher';
 
 function makeEnemy(): Enemy {
@@ -352,7 +352,7 @@ export class World {
     return e;
   }
 
-  spawnBullet(x: number, y: number, vx: number, vy: number, radius: number, color: string, fromBoss: boolean): Bullet | null {
+  spawnBullet(x: number, y: number, vx: number, vy: number, radius: number, color: string, fromBoss: boolean, shot: BulletStyle = 'orb'): Bullet | null {
     const b = this.bullets.obtain();
     if (!b) return null;
     b.x = x;
@@ -365,6 +365,7 @@ export class World {
     b.fromBoss = fromBoss;
     b.grazeCd = 0;
     b.homing = 0; // CRITICAL: reset on pool reuse, or a recycled SEEKER bolt keeps homing
+    b.shot = shot; // visual archetype; always set so a recycled bullet never keeps a stale style
     return b;
   }
 

@@ -15,6 +15,7 @@ import {
   stretchSwell,
   preBossSilent,
   suddenDeathInset,
+  eventCalm,
 } from './waves';
 import { createRng } from './rng';
 import { modeById, ARENA_SCRIPT, BOSSRUSH_SEQUENCE } from './modes';
@@ -341,6 +342,67 @@ describe('D2/D3 determinism — swell/lull are pure, never fork the seeded strea
   });
   it('different seeds produce different streams (the rng actually drives variety)', () => {
     expect(spawnStream(1)).not.toEqual(spawnStream(2));
+  });
+});
+
+// Playtest (Nick): "Events must not pop up during high-intensity moments." A due mid-run
+// event now waits for a CALM window — few enemies, few bullets, and clear of the pre-boss
+// swell — before it fires, bounded by eventDeferMax so it can never starve. The gate reads
+// only deterministic sim state, so the single eventRng draw still happens exactly once
+// (only later) and the Daily stays bit-identical for everyone.
+describe('mid-run event calm-gating', () => {
+  const D = TUNE.director;
+
+  describe('eventCalm predicate', () => {
+    it('is calm with few enemies, few bullets, and clear of the pre-boss swell', () => {
+      expect(eventCalm(0, 0, D.bossInterval)).toBe(true);
+      expect(eventCalm(D.eventCalmEnemyMax, D.eventCalmBulletMax, D.stretchWindow + 1)).toBe(true);
+    });
+    it('is NOT calm when too many enemies are alive', () => {
+      expect(eventCalm(D.eventCalmEnemyMax + 1, 0, D.bossInterval)).toBe(false);
+    });
+    it('is NOT calm when the screen is dense with bullets', () => {
+      expect(eventCalm(0, D.eventCalmBulletMax + 1, D.bossInterval)).toBe(false);
+    });
+    it('is NOT calm inside the pre-boss swell (a boss is imminent)', () => {
+      expect(eventCalm(0, 0, D.stretchWindow)).toBe(false);
+      expect(eventCalm(0, 0, 0.5)).toBe(false);
+    });
+  });
+
+  describe('the Director defers events out of high-intensity windows', () => {
+    const DT = 1 / 60;
+    // Hold endless mode at a fixed arena load (no boss) and report the first event time.
+    function firstEventTime(concurrent: number, bulletCount: number, maxT: number): number | null {
+      const d = new Director();
+      d.configure(modeById('endless'));
+      const rng = createRng(1);
+      let t = 0;
+      for (let i = 0; t < maxT; i++) {
+        const dec = d.update(DT, concurrent, false, rng, bulletCount);
+        t += DT;
+        if (dec.event) return t;
+      }
+      return null;
+    }
+
+    it('fires the first event promptly when the arena is calm', () => {
+      const t = firstEventTime(0, 0, 60);
+      expect(t).not.toBeNull();
+      expect(t!).toBeGreaterThanOrEqual(D.eventFirst - 0.1);
+      expect(t!).toBeLessThan(D.eventFirst + 2); // before the pre-boss swell closes the window
+    });
+
+    it('does NOT fire while the arena is packed (defers within the deferMax window)', () => {
+      const t = firstEventTime(99, 999, D.eventFirst + D.eventDeferMax - 1);
+      expect(t).toBeNull();
+    });
+
+    it('force-fires after eventDeferMax even if it never calms (never starves)', () => {
+      const t = firstEventTime(99, 999, D.eventFirst + D.eventDeferMax + 5);
+      expect(t).not.toBeNull();
+      expect(t!).toBeGreaterThanOrEqual(D.eventFirst + D.eventDeferMax - 0.3);
+    });
   });
 });
 

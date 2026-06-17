@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES } from '../worker/src/validate';
+import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES, boardCacheKey, BOARD_CACHE_TTL } from '../worker/src/validate';
 
 // The leaderboard worker's security-relevant logic was previously untested. These cover the
 // pure validators it relies on, so the only network-facing component has a regression net.
@@ -55,6 +55,31 @@ describe('worker — capsOk plausibility (raises the floor, never rejects a real
     expect(capsOk(120_000, 1, 8, 0)).toBe(true); // a short skilled run
     expect(capsOk(5_000_000, 12, 80, 3)).toBe(true); // a deep heated run
     expect(capsOk(40_000_000, 60, 300, 7)).toBe(true); // a monster legit run, under the cap
+  });
+});
+
+// Edge-caching GET /leaderboard collapses repeated board reads so the GROUP BY query
+// stops re-scanning D1 (the free-tier rows-read ceiling). The key must depend ONLY on the
+// params that change the result, so every player shares one cached board and a stray query
+// param can't fragment (or poison) the cache.
+describe('worker — boardCacheKey edge-cache key', () => {
+  const K = (q: string) => boardCacheKey(new URL(`https://lf.dev/leaderboard${q}`));
+  it('ignores extra/unknown query params (no cache fragmentation)', () => {
+    expect(K('?mode=arena&utm=x&_=123')).toBe(K('?mode=arena'));
+  });
+  it('keys distinctly per mode', () => {
+    expect(K('?mode=arena')).not.toBe(K('?mode=endless'));
+  });
+  it('normalizes scope — only weekly matters; a junk scope keys as all-time', () => {
+    expect(K('?mode=arena&scope=weekly')).not.toBe(K('?mode=arena'));
+    expect(K('?mode=arena&scope=garbage')).toBe(K('?mode=arena'));
+  });
+  it('keys distinctly per daily date', () => {
+    expect(K('?mode=daily&daily=2026-06-17')).not.toBe(K('?mode=daily&daily=2026-06-18'));
+  });
+  it('TTL is a sane positive, sub-2-minute window', () => {
+    expect(BOARD_CACHE_TTL).toBeGreaterThan(0);
+    expect(BOARD_CACHE_TTL).toBeLessThanOrEqual(120);
   });
 });
 
