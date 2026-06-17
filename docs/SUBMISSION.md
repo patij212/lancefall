@@ -15,6 +15,10 @@
   into light. The final choice is the one cipher no machine can solve, only choose.
 - **Controls:** keyboard+mouse / gamepad / touch (twin sticks). Rebindable. Casual mode for run 1.
 - **Price:** pay-what-you-want.
+- **Assets (in `../press/`):** `og-card.png` (1200×630 social/OG card) · `firstlight-winframe.png` (the
+  hero / itch cover) · `gameplay-cipher.png` (READ THE KEY mid-decode) · `the-choice.png` ·
+  `title-cockpit.png` · `skins-gallery.png` · `how-to.png`. All captured from the live build; the
+  three gameplay shots came from the pre-submit QA sweep.
 
 ---
 
@@ -169,8 +173,9 @@ Feedback very welcome — especially on the cipher-locks and difficulty.
 - [ ] Final deploy is live and matches the submitted build (`npm run build` → `npm run deploy`).
 - [ ] Hard-refresh `lancefall.pages.dev` in a clean profile: title loads, a full run plays, a boss
       cipher solves, FIRST LIGHT fires, THE CHOICE resolves, no console errors.
-- [ ] Capture screenshots: title cockpit · mid-run combat · a boss cipher-lock (HUD legend visible)
-      · FIRST LIGHT · the skin gallery. (FIRST LIGHT = the hero image.)
+- [x] Screenshots captured to `../press/` (title cockpit · cipher-lock · FIRST LIGHT · THE CHOICE ·
+      skins · how-to) + a branded `og-card.png`. FIRST LIGHT = the hero image. (Optionally grab a
+      fresh mid-combat action shot live — the rest are done.)
 - [ ] Record / assemble the ~90 s trailer (or use the auto-captured FIRST LIGHT GIF as the lead).
 - [ ] Confirm the in-game **credits** screen lists the CC-BY audio (see `docs/audio/CREDITS.md`).
 - [ ] Leaderboard: either the Worker is deployed (boards live) or the page text reads "unverified /

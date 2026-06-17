@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- Branded OG / social share card for LANCEFALL — 1200×630 (the OG + Twitter summary_large_image size).
+     Rendered to og-card.png via Playwright. Neon-night identity (the game's primary palette). -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  .card {
+    position: relative; width: 1200px; height: 630px;
+    background:
+      radial-gradient(120% 90% at 50% 12%, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0) 55%),
+      radial-gradient(140% 120% at 50% 120%, rgba(99, 102, 241, 0.18), rgba(10, 12, 22, 0) 60%),
+      radial-gradient(100% 100% at 50% 50%, #0c1020 0%, #070910 100%);
+    font-family: 'Space Grotesk', system-ui, sans-serif; color: #eaf2ff;
+    overflow: hidden;
+  }
+  /* perspective floor grid — the cockpit/hangar motif */
+  .grid {
+    position: absolute; left: -20%; right: -20%; bottom: -40px; height: 300px;
+    background-image:
+      linear-gradient(rgba(34, 211, 238, 0.34) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, 0.26) 1px, transparent 1px);
+    background-size: 46px 46px;
+    transform: perspective(360px) rotateX(66deg); transform-origin: bottom center;
+    -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 88%);
+    mask-image: linear-gradient(to top, #000 0%, transparent 88%);
+    opacity: 0.5;
+  }
+  /* the dash spear — a diagonal momentum streak cutting across the frame */
+  .lance {
+    position: absolute; top: 52%; left: -8%; width: 116%; height: 3px;
+    transform: rotate(-13deg);
+    background: linear-gradient(90deg, transparent 0%, rgba(34, 211, 238, 0) 12%, #67e8f9 50%, #ffffff 68%, rgba(255, 255, 255, 0) 100%);
+    box-shadow: 0 0 24px 3px rgba(34, 211, 238, 0.55);
+  }
+  .lance::after {
+    content: ''; position: absolute; right: 28%; top: 50%; width: 0; height: 0;
+    transform: translateY(-50%);
+    border-left: 26px solid #ffffff; border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+    filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.9));
+  }
+  .frame {
+    position: absolute; inset: 26px; border: 1px solid rgba(120, 160, 220, 0.16); border-radius: 16px;
+    pointer-events: none;
+  }
+  .content { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 78px; }
+  .kicker {
+    font-family: 'JetBrains Mono', monospace; font-size: 17px; letter-spacing: 0.42em; font-weight: 500;
+    color: #8fb3d9; text-transform: uppercase; margin-bottom: 22px;
+  }
+  .keytag {
+    display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 0.3em;
+    color: #fde047; border: 1px solid rgba(253, 224, 71, 0.5); border-radius: 999px; padding: 5px 14px;
+    margin-bottom: 18px; text-shadow: 0 0 12px rgba(253, 224, 71, 0.5);
+  }
+  .wordmark {
+    font-weight: 700; font-size: 138px; line-height: 0.92; letter-spacing: -0.01em;
+    background: linear-gradient(180deg, #ffffff 0%, #a7ecff 58%, #22d3ee 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 40px rgba(34, 211, 238, 0.55));
+  }
+  .tagline { font-size: 31px; font-weight: 500; color: #dbe7f7; margin-top: 24px; max-width: 920px; line-height: 1.28; }
+  .tagline b { color: #67e8f9; font-weight: 700; }
+  .genre {
+    font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 0.26em; color: #7e93b5;
+    text-transform: uppercase; margin-top: 26px;
+  }
+  .url {
+    position: absolute; right: 78px; bottom: 60px; font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    font-size: 22px; color: #22d3ee; text-shadow: 0 0 16px rgba(34, 211, 238, 0.6); letter-spacing: 0.02em;
+  }
+  .url::before { content: '▶ '; color: #fde047; }
+  .vignette { position: absolute; inset: 0; box-shadow: inset 0 0 200px 30px rgba(0, 0, 0, 0.6); pointer-events: none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="grid"></div>
+    <div class="lance"></div>
+    <div class="vignette"></div>
+    <div class="content">
+      <div class="kicker">June Solstice Jam · an ode to Alan Turing</div>
+      <div class="keytag">◆ THE LAST KEY</div>
+      <div class="wordmark">LANCEFALL</div>
+      <div class="tagline">You don't <b>shoot</b>. You <b>dash</b> — and the city you're saving is a <b>code</b> you have to break.</div>
+      <div class="genre">Neon dash-combat bullet-hell · roguelite · plays in a browser</div>
+    </div>
+    <div class="url">lancefall.pages.dev</div>
+    <div class="frame"></div>
+  </div>
+</body>
+</html>
