@@ -47,7 +47,7 @@ const GLYPHS: Record<IconKey, string> = {
 };
 
 const WRAP =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
 
 /** Full inline-SVG markup for a glyph key. Unknown keys fall back to the spear so a card never
  *  renders blank/crashes. Tint via CSS `color` / the --accent var (the svg uses currentColor). */

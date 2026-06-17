@@ -11,11 +11,13 @@ export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const MODES = new Set(['endless', 'arena', 'daily', 'weekly', 'nightmare', 'bossrush', 'longestday']);
 
 export function sanitizeName(n: unknown): string {
+  // trim BEFORE the 16-cap (mirrors the client's sanitizeHandle) so leading/trailing spaces
+  // can't eat real characters; blank/all-junk → 'ANON' (the worker's display name for blanks).
   return (
     String(n ?? '')
       .replace(/[^\w \-]/g, '')
-      .slice(0, 16)
-      .trim() || 'ANON'
+      .trim()
+      .slice(0, 16) || 'ANON'
   );
 }
 

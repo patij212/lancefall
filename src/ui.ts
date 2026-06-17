@@ -4,9 +4,11 @@
 
 import type { World } from './world';
 import type { Settings, SaveData } from './save';
+import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
 import { PERKS } from './perks';
 import type { PerkDef } from './perks';
+import { icon } from './icons';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
 import { RELICS } from './relics';
 import { decodeBuildDna } from './buildDna';
@@ -1407,8 +1409,12 @@ export class UI {
     this.eventPanel = el('div', { class: 'screen screen-dim' }, panel);
   }
 
-  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[]): void {
-    this.eventHead.textContent = name;
+  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[], headGlyph?: string): void {
+    // playtest: events need icons. The header gets the event's inline-SVG glyph (currentColor →
+    // tinted by the event accent set just below); name follows as a plain text node.
+    this.eventHead.replaceChildren();
+    if (headGlyph) this.eventHead.append(iconEl('event-glyph', headGlyph));
+    this.eventHead.append(document.createTextNode(name));
     this.eventHead.style.color = accent;
     this.eventFlavor.textContent = flavor;
     const wrap = this.eventPanel.querySelector('#event-cards')!;
@@ -2199,19 +2205,32 @@ export class UI {
     this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
-  openLeaderboard(): void {
+  openLeaderboard(prompt = false): void {
     const s = this.saveRef;
     if (!s) return;
     const body = this.leaderPanel.querySelector('#leader-body')!;
     body.replaceChildren();
 
-    // handle field — always available (used for online submission)
+    // playtest (Nick): a "name your run" framing when opened right after a run with no handle
+    if (prompt) body.append(el('div', { class: 'leader-prompt' }, '★ Name your run — your scores post as ANON until you set a handle.'));
+
+    // handle field — always available (names ghost replays + online submissions). Live preview
+    // + char counter so you see exactly what will save (and that blank → ANON) AS YOU TYPE,
+    // not only on blur. Both listeners route through the shared sanitizeHandle.
     const nameWrap = el('div', { class: 'leader-name' });
     const label = el('label', {}, 'Your handle');
     const input = el('input', { type: 'text', maxlength: '16', value: s.handle, placeholder: 'ACE' }) as HTMLInputElement;
-    input.addEventListener('change', () => this.cb.onSetHandle(input.value));
-    nameWrap.append(label, input);
+    const hint = el('div', { class: 'leader-hint' });
+    const refreshHint = () => {
+      const clean = sanitizeHandle(input.value);
+      hint.textContent = clean ? `Saves as “${clean}” · ${clean.length}/16` : 'Leave blank to post as ANON';
+    };
+    refreshHint();
+    input.addEventListener('input', refreshHint); // live feedback as you type
+    input.addEventListener('change', () => { this.cb.onSetHandle(input.value); refreshHint(); }); // commit on blur/Enter
+    nameWrap.append(label, input, hint);
     body.append(nameWrap);
+    if (prompt) requestAnimationFrame(() => input.focus());
 
     if (!leaderboardEnabled()) {
       body.append(el('div', { class: 'event-flavor' }, 'Online leaderboards are not configured for this build. Your scores are saved locally; set a handle so they\'re ready when boards go live.'));
@@ -2691,11 +2710,15 @@ export class UI {
       const cls = evo ? 'perk-card perk-card-evo' : relic ? 'perk-card perk-card-relic' : 'perk-card';
       const card = el('button', { class: cls });
       card.style.setProperty('--accent', c.accent);
-      const glyph = relic ? (c as { glyph: string }).glyph : perkGlyph((c as PerkDef).glyph);
+      // perks/evolutions now render an inline-SVG cockpit glyph (currentColor → --accent tints
+      // it); relics keep their deliberate "cursed" emoji. SVG goes via innerHTML, emoji as text.
+      const glyphDiv = el('div', { class: 'perk-glyph' });
+      if (relic) glyphDiv.textContent = (c as { glyph: string }).glyph;
+      else glyphDiv.innerHTML = perkGlyph((c as PerkDef).glyph);
       card.append(
         ...(evo ? [el('div', { class: 'perk-tag' }, 'EVOLUTION')] : []),
         ...(relic ? [el('div', { class: 'perk-tag' }, 'CURSED RELIC')] : []),
-        el('div', { class: 'perk-glyph' }, glyph),
+        glyphDiv,
         el('div', { class: 'perk-name' }, c.name),
         el('div', { class: 'perk-desc' }, c.desc),
         ...(evo ? [el('div', { class: 'perk-from' }, (c as EvolutionDef).from)] : []),
@@ -3188,27 +3211,8 @@ function formatTime(t: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/** Inline-SVG glyph for a perk/evolution card (playtest: "all perks need icons"). Returns the
+ *  cockpit icon markup — set via innerHTML; currentColor lets the card's --accent tint it. */
 function perkGlyph(g: PerkDef['glyph']): string {
-  const map: Record<PerkDef['glyph'], string> = {
-    lance: '➤',
-    cell: '▰▰',
-    graze: '✶',
-    burst: '✺',
-    ghost: '◈',
-    clock: '◷',
-    pierce: '⫸',
-    siphon: '♺',
-    window: '⧗',
-    nova: '✸',
-    reflect: '⊛',
-    gem: '◆',
-    impaler: '⤞',
-    supernova: '❂',
-    perpetual: '∞',
-    wraith: '⟁',
-    inferno: '🔥',
-    juggernaut: '⬢',
-    aegis: '❖',
-  };
-  return map[g];
+  return icon(g);
 }

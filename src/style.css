@@ -798,6 +798,8 @@ body {
   text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .perk-card-relic .perk-glyph { font-size: 40px; }
+/* inline-SVG cockpit glyph: sized by the .perk-glyph font-size (1em), tinted via currentColor */
+.perk-glyph svg { display: block; }
 
 /* ── How to play ── */
 .howto-body {
@@ -1025,6 +1027,13 @@ body {
   letter-spacing: 1px;
   text-align: center;
 }
+/* the event's inline-SVG header glyph, tinted by the event accent (currentColor) */
+.event-glyph { display: inline-block; vertical-align: -0.12em; margin-right: 0.42em; }
+.event-glyph svg { display: inline-block; }
+
+/* handle entry (RANKS) — the post-run "name your run" note + live save-preview hint */
+.leader-prompt { text-align: center; color: var(--accent, #67e8f9); font-weight: 600; margin: 2px 0 12px; }
+.leader-hint { font-size: 12px; color: #94a3b8; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
 .event-flavor {
   text-align: center;
   color: var(--text-muted);

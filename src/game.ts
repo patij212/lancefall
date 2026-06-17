@@ -29,7 +29,7 @@ import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvol
 import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
-import { submitScore, leaderboardEnabled } from './api';
+import { submitScore } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
@@ -63,11 +63,13 @@ import {
   particleDensityValue,
   buildShareString,
   nextStreak,
+  sanitizeHandle,
 } from './save';
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind, Bullet } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash, coherenceEdges } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
+import { icon } from './icons';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder, type ShareMeta } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
@@ -853,7 +855,7 @@ export class Game {
     const def = RUN_EVENTS[id];
     this.eventChoices = rollEventChoices(id, this.world.eventRng, this.world);
     this.state = 'event';
-    this.ui.showEvent(def.name, def.flavor, def.accent, this.eventChoices);
+    this.ui.showEvent(def.name, def.flavor, def.accent, this.eventChoices, icon(def.id));
     this.audio.duckMusic(true);
     this.renderer.flash(def.accent, 0.14);
   }
@@ -1024,7 +1026,7 @@ export class Game {
   }
 
   private setHandle(name: string): void {
-    this.save.handle = name.replace(/[^\w \-]/g, '').slice(0, 16).trim();
+    this.save.handle = sanitizeHandle(name); // shared sanitizer: trims BEFORE the 16-cap (playtest fix)
     saveSave(this.save);
   }
 
@@ -2602,11 +2604,6 @@ export class Game {
         clearTime: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.clearTime : undefined,
         hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
       });
-      // posted under 'ANON'? nudge the player once to claim their scores with a handle
-      if (leaderboardEnabled() && !this.save.handle && w.score > 0 && !this.nudgedHandle) {
-        this.nudgedHandle = true;
-        this.ui.toast('Posted as ANON — set a handle in ⊞ RANKS to claim your scores');
-      }
     }
     const info: GameOverInfo = {
       score: w.score,
@@ -2636,6 +2633,14 @@ export class Game {
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
+    // playtest (Nick): "work on the anon player name" — surface name entry after a scoring run
+    // with no handle (once per session). The handle also labels ghost replays, so prompt even
+    // when online boards are off; skip while THE CHOICE is pending (that screen takes priority).
+    // Fired AFTER showGameOver so the RANKS field overlays the gameover screen (no modal race).
+    if (!this.save.handle && w.score > 0 && !this.nudgedHandle && !info.choicePending) {
+      this.nudgedHandle = true;
+      this.ui.openLeaderboard(true);
+    }
   }
 
   /** THE CHOICE — the player decides the kingdom's fate after felling the

@@ -1,9 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeSettings, defaultSettings } from './save';
+import { sanitizeSettings, defaultSettings, sanitizeHandle } from './save';
 
 // loadSettings previously did an untyped shallow spread of parsed JSON — a corrupted or
 // hand-edited blob could inject wrong-typed / out-of-range values straight into the live
 // game. sanitizeSettings now coerces field-by-field; these lock that down.
+
+// Playtest (Nick): "work on the anon player name." The handle sanitizer is shared by the
+// in-game setter + the live RANKS preview (and mirrored by the worker), and must trim BEFORE
+// the 16-char cap so leading spaces can't eat real characters. '' = anonymous (not 'ANON').
+describe('sanitizeHandle', () => {
+  it('keeps word chars, spaces, hyphens; caps at 16', () => {
+    expect(sanitizeHandle('Lance_99 X')).toBe('Lance_99 X');
+    expect(sanitizeHandle('a'.repeat(30)).length).toBe(16);
+  });
+  it('strips disallowed characters', () => {
+    expect(sanitizeHandle('<script>')).toBe('script');
+    expect(sanitizeHandle('hi!@#$%^&*()')).toBe('hi');
+  });
+  it('trims BEFORE the cap so leading spaces never eat real characters', () => {
+    expect(sanitizeHandle('   abcdefghijklmnop')).toBe('abcdefghijklmnop'); // 16 real chars survive
+  });
+  it('blank or all-junk → empty (the not-set / anonymous sentinel, NOT "ANON")', () => {
+    expect(sanitizeHandle('')).toBe('');
+    expect(sanitizeHandle('   ')).toBe('');
+    expect(sanitizeHandle('!!!')).toBe('');
+  });
+});
 
 describe('sanitizeSettings', () => {
   it('non-objects fall back to defaults', () => {

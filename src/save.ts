@@ -143,6 +143,15 @@ export function defaultSelectedSkins(): Record<string, string> {
   return out;
 }
 
+/** Canonical player-handle sanitizer — shared by the in-game setter (game.setHandle) and the
+ *  live RANKS preview, and mirrored by the worker's sanitizeName. Allows word chars, space and
+ *  hyphen; TRIMS BEFORE the 16-char cap so leading/trailing spaces can't eat real characters
+ *  (playtest: "work on the anon player name"). Returns '' for blank/all-junk — the not-set /
+ *  anonymous sentinel that drives the post-run name prompt (the worker substitutes 'ANON'). */
+export function sanitizeHandle(raw: string): string {
+  return raw.replace(/[^\w \-]/g, '').trim().slice(0, 16);
+}
+
 export function defaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
