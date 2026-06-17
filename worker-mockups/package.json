@@ -1,0 +1,11 @@
+{
+  "name": "worker-mockups",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260617.1",
+    "wrangler": "^3.0.0"
+  }
+}
