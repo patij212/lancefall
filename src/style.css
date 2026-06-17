@@ -1786,11 +1786,38 @@ body {
    COCKPIT TITLE (mock-v6) — a 3-region front door. Everything is scoped under
    .screen-cockpit so the in-game HUD + every modal panel are untouched. Reuses the
    project palette (var(--cyan/--amber/...)); per-mode accent rides --accent on .ck-main.
+
+   SOUL LAYER (the polish pass): one --coh dial (the city remembering) drives the
+   hero saturation + neon glow + the header city-icon, RISING on load — decoupled
+   from the mode --accent so the Daily's amber never washes the cyan/indigo city
+   identity warm. A shared ~120bpm heartbeat (--ck-bar / --ck-phrase) keeps the idle
+   life in time. Every motion below is gated by BOTH .reduce-motion (the game's own
+   flag) AND @media (prefers-reduced-motion: reduce) — see "STILL CITY" at the end.
 ══════════════════════════════════════════════════════════════════════════════ */
+/* --coh is animatable so the whole hero can "remember" on load. */
+@property --coh {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.62;
+}
 .screen-cockpit {
   justify-content: flex-start;
   padding: clamp(12px, 3vh, 36px) 16px 24px;
   overflow-y: auto;
+  /* COHERENCE dial (0..1): authored at the 62% mid-bloom resting state; the
+     .boot-in trigger lifts it from near-dark on title show. */
+  --coh: 0.62;
+  /* one shared heartbeat: ~120bpm — 0.5s beat · 2s bar · 4s phrase. */
+  --ck-bar: 2s;
+  --ck-phrase: 4s;
+}
+/* the city wakes on title show: gray-but-for-a-moment → its 62% resting bloom. */
+.screen-cockpit.boot-in {
+  animation: ckCohRise 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+}
+@keyframes ckCohRise {
+  from { --coh: 0.06; }
+  to { --coh: 0.62; }
 }
 .ck-frame {
   --accent: var(--cyan);
@@ -1801,6 +1828,40 @@ body {
   flex-direction: column;
   gap: 10px;
   margin: auto;
+}
+
+/* ── LOAD REVEAL: the cockpit powers up; the eye resolves on DESCEND last ──
+   Driven by a .boot-in class added on title show (and removed/re-added so re-entry
+   re-triggers). Each region staggers in; DESCEND fades in LAST (the arrived-at goal). */
+@keyframes ckBootIn {
+  from { opacity: 0; transform: translateY(8px); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes ckBootFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.screen-cockpit.boot-in .ck-header { animation: ckBootIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both; }
+.screen-cockpit.boot-in .ck-main { animation: ckBootIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
+.screen-cockpit.boot-in .ck-nav { animation: ckBootIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both; }
+.screen-cockpit.boot-in .ck-rail .ck-mi { animation: ckBootIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(1) { animation-delay: 0.26s; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(2) { animation-delay: 0.3s; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(3) { animation-delay: 0.34s; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(4) { animation-delay: 0.38s; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(5) { animation-delay: 0.42s; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(6) { animation-delay: 0.46s; }
+.screen-cockpit.boot-in .ck-rail .ck-mi:nth-child(7) { animation-delay: 0.5s; }
+/* DESCEND reveals last — the only element that waits for the eye to arrive. */
+.screen-cockpit.boot-in .ck-descend-wrap { animation: ckBootFade 0.6s ease 0.56s both; }
+
+/* a confirmation pulse over the whole panel when a mode is COMMITTED (click/Enter),
+   reserved for commit so rapid arrow-nav can't strobe the panel. Retriggered in JS. */
+.ck-main.pulse { animation: ckPanelPulse 0.5s ease-out; }
+@keyframes ckPanelPulse {
+  0% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.025), 0 28px 90px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.035); }
+  35% { box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 34, 211, 238), 0.22), 0 28px 90px rgba(0, 0, 0, 0.75), 0 0 38px rgba(var(--accent-rgb, 34, 211, 238), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.035); }
+  100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.025), 0 28px 90px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.035); }
 }
 
 /* ── HEADER ── */
@@ -1827,7 +1888,7 @@ body {
 .ck-logo svg {
   width: 54px;
   height: 54px;
-  animation: ckPulse 4s ease-in-out infinite;
+  animation: ckPulse var(--ck-phrase) ease-in-out infinite;
 }
 @keyframes ckPulse {
   0%, 100% { opacity: 0.65; }
@@ -1878,9 +1939,12 @@ body {
   gap: 8px;
   margin-bottom: 6px;
 }
+/* the silhouette lights up in sync with the dial — the city remembering, in miniature.
+   DECOUPLED from the mode accent: always cyan, never the Daily's amber. */
 .ck-coh-icon svg rect {
   fill: #22d3ee;
-  opacity: 0.55;
+  opacity: calc(0.16 + var(--coh) * 0.62);
+  transition: opacity 0.4s ease;
 }
 .ck-coh-lbl {
   flex: 1;
@@ -1901,15 +1965,58 @@ body {
   height: 6px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.45);
+}
+/* narrative thresholds etched into the track: THE LIGHT DIMS · REMEMBER · FIRST LIGHT —
+   so 62% reads as a JOURNEY, not a number. Static; no motion. */
+.ck-coh-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(28% - 0.5px), rgba(255, 255, 255, 0.14) 28%, transparent calc(28% + 0.5px)),
+    linear-gradient(90deg, transparent calc(55% - 0.5px), rgba(255, 255, 255, 0.14) 55%, transparent calc(55% + 0.5px)),
+    linear-gradient(90deg, transparent calc(85% - 0.5px), rgba(255, 210, 140, 0.2) 85%, transparent calc(85% + 0.5px));
 }
 .ck-coh-fill {
   height: 100%;
   width: 62%;
   border-radius: 3px;
+  position: absolute;
+  left: 0;
+  top: 0;
   background: linear-gradient(90deg, rgba(34, 211, 238, 0.35) 0%, #22d3ee 55%, #f472b6 100%);
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
+}
+/* the fill grows on load, in step with the dial rising. */
+.screen-cockpit.boot-in .ck-coh-fill {
+  animation: ckCohFill 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+@keyframes ckCohFill {
+  from { width: 0; }
+  to { width: 62%; }
+}
+/* breathing leading-edge bloom riding the fill tip — the city quietly remembering.
+   The hero-tier soul element; cyan, decoupled from the mode accent. */
+.ck-coh-fill::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #cdf6ff 0%, #22d3ee 45%, transparent 75%);
+  box-shadow: 0 0 14px 2px rgba(34, 211, 238, 0.7);
+  animation: ckCohBloom var(--ck-phrase) ease-in-out infinite;
+}
+@keyframes ckCohBloom {
+  0%, 100% { transform: translate(-1px, -50%) scale(0.9); opacity: 0.78; }
+  50% { transform: translate(1px, -50%) scale(1.18); opacity: 1; }
 }
 .ck-coh-sub {
   margin-top: 5px;
@@ -2047,17 +2154,24 @@ body {
   border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.32);
   box-shadow: 0 0 22px rgba(var(--accent-rgb, 34, 211, 238), 0.08);
 }
-.ck-mi.selected::before {
+/* the accent bar springs to full height when a mode is chosen — the rail's whole
+   point (accent flowing to the selected mode) finally has motion. The bar lives on
+   EVERY card (height 0) so the selected one can grow with an overshoot spring. */
+.ck-mi::before {
   content: '';
   position: absolute;
   left: -1px;
-  top: 10%;
-  height: 80%;
+  top: 50%;
+  height: 0;
   width: 4px;
+  transform: translateY(-50%);
   border-radius: 0 2px 2px 0;
   background: var(--accent);
   box-shadow: 0 0 10px rgba(var(--accent-rgb, 34, 211, 238), 0.6);
+  pointer-events: none;
+  transition: height 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.ck-mi.selected::before { height: 80%; }
 .ck-mi.locked {
   opacity: 0.5;
   cursor: not-allowed;
@@ -2157,16 +2271,78 @@ body {
   inset: 0;
   background: linear-gradient(180deg, #010409 0%, #040d1f 45%, #020a16 100%);
 }
+/* Neon horizon glow — the city's cyan/indigo identity is ALWAYS present and grows
+   with --coh; the selected mode only tints the spire base (a small central kiss),
+   so the Daily's amber never washes the whole City of Lancefall warm. */
 .ck-hero-glow {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 100% 42% at 50% 100%, rgba(var(--accent-rgb, 34, 211, 238), 0.18) 0%, transparent 66%),
-    radial-gradient(ellipse 60% 30% at 50% 110%, rgba(var(--accent-rgb, 34, 211, 238), 0.1) 0%, transparent 60%);
+    radial-gradient(ellipse 100% 42% at 50% 100%, rgba(34, 211, 238, calc(0.06 + var(--coh) * 0.22)) 0%, transparent 66%),
+    radial-gradient(ellipse 58% 24% at 24% 100%, rgba(129, 140, 248, calc(0.04 + var(--coh) * 0.1)) 0%, transparent 60%),
+    radial-gradient(ellipse 58% 24% at 76% 100%, rgba(129, 140, 248, calc(0.03 + var(--coh) * 0.08)) 0%, transparent 60%),
+    radial-gradient(ellipse 34% 22% at 50% 100%, rgba(var(--accent-rgb, 34, 211, 238), calc(0.05 + var(--coh) * 0.12)) 0%, transparent 55%);
+  transition: background 0.4s ease;
+}
+/* a faint dash-trail ghost streaks the hero — teaches the verb + "the city remembers
+   your runs too". Sits behind the hero content. */
+.ck-hero-streak {
+  position: absolute;
+  left: -22%;
+  top: 38%;
+  z-index: 0;
+  pointer-events: none;
+  width: 22%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0) 10%, rgba(34, 211, 238, 0.5) 70%, #bdf3ff 100%);
+  filter: blur(0.4px);
+  opacity: 0;
+  animation: ckDashStreak 9s cubic-bezier(0.3, 0, 0.2, 1) infinite 3s;
+}
+@keyframes ckDashStreak {
+  0% { transform: translateX(0) scaleX(0.7); opacity: 0; }
+  6% { opacity: 0.5; }
+  16% { transform: translateX(560%) scaleX(1.25); opacity: 0.62; }
+  22% { transform: translateX(620%) scaleX(0.6); opacity: 0; }
+  100% { transform: translateX(620%); opacity: 0; }
+}
+/* FIRST LIGHT win-frame preview — a warm white-gold dawn that blooms on idle. */
+.ck-hero-firstlight {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 130% 90% at 50% 78%, rgba(255, 228, 168, 0.5) 0%, rgba(255, 184, 96, 0.16) 46%, transparent 76%),
+    linear-gradient(180deg, rgba(255, 242, 214, 0.06), rgba(255, 206, 142, 0.12));
+  mix-blend-mode: screen;
+  transition: opacity 1.8s ease;
+}
+.ck-hero.first-light .ck-hero-firstlight { opacity: 1; }
+/* CRT scanlines — static texture, no motion. */
+.ck-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, transparent 0px, transparent 3px, rgba(0, 0, 0, 0.055) 3px, rgba(0, 0, 0, 0.055) 4px);
+  border-radius: inherit;
 }
 .ck-hero-content {
   position: relative;
-  z-index: 1;
+  z-index: 3;
+}
+/* heroSwap — a light lift/fade when a new mode is picked (the center column easing
+   to the new identity). Retriggered by toggling .swap in JS. */
+.ck-hero-content.swap {
+  animation: ckHeroSwap 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ckHeroSwap {
+  0% { opacity: 0.25; transform: translateY(4px) scale(0.99); filter: blur(1px); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
 .ck-hero-seed {
   display: flex;
@@ -2299,19 +2475,72 @@ body {
   font-size: clamp(16px, 2.4vw, 20px);
   letter-spacing: 0.22em;
   padding: 15px 20px;
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, rgba(var(--accent-rgb, 34, 211, 238), 0.16) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.06) 50%, rgba(var(--accent-rgb, 34, 211, 238), 0.13) 100%);
   border: 2px solid var(--accent);
   color: var(--accent);
   box-shadow: 0 0 32px rgba(var(--accent-rgb, 34, 211, 238), 0.2);
   animation: ckDescendBreath 2.4s ease-in-out infinite;
+  transition: letter-spacing 0.18s cubic-bezier(0.22, 1, 0.36, 1), transform 0.12s ease;
 }
-.btn-play.ck-descend:hover {
+/* the word opens up / draws breath as you commit — the one kinetic-type moment. */
+.btn-play.ck-descend:hover,
+.btn-play.ck-descend:focus-visible {
   letter-spacing: 0.3em;
   box-shadow: 0 0 42px rgba(var(--accent-rgb, 34, 211, 238), 0.36);
 }
 @keyframes ckDescendBreath {
   0%, 100% { box-shadow: 0 0 28px rgba(var(--accent-rgb, 34, 211, 238), 0.18); }
   50% { box-shadow: 0 0 44px rgba(var(--accent-rgb, 34, 211, 238), 0.34); }
+}
+/* a clean glint that sweeps the button on a beat boundary, then rests. */
+.btn-play.ck-descend::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb, 34, 211, 238), 0.18) 40%, rgba(255, 255, 255, 0.1) 50%, rgba(var(--accent-rgb, 34, 211, 238), 0.18) 60%, transparent);
+  animation: ckScanShimmer var(--ck-phrase) ease-out infinite 1.2s;
+}
+@keyframes ckScanShimmer {
+  0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  6% { opacity: 0.95; }
+  24% { transform: translateX(340%) skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(340%) skewX(-18deg); opacity: 0; }
+}
+/* DESCEND cock-and-fire — a subtle charge dip, then a release kick, on press. */
+.btn-play.ck-descend.charging {
+  animation: ckDescendCharge 0.26s cubic-bezier(0.3, 0, 0.1, 1);
+}
+@keyframes ckDescendCharge {
+  0% { transform: scale(1); }
+  45% { transform: scale(0.968); box-shadow: 0 0 12px rgba(var(--accent-rgb, 34, 211, 238), 0.12); }
+  100% { transform: scale(1.012); box-shadow: 0 0 56px rgba(var(--accent-rgb, 34, 211, 238), 0.42); }
+}
+/* the DESCEND release performs the core verb — a light-lance streaks the frame. */
+.ck-light-lance {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  z-index: 3050;
+  pointer-events: none;
+  width: 40%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb, 34, 211, 238), 0.85) 60%, #fff 100%);
+  box-shadow: 0 0 18px 3px rgba(var(--accent-rgb, 34, 211, 238), 0.6);
+  opacity: 0;
+  filter: blur(0.5px);
+}
+.ck-light-lance.fire { animation: ckLightLance 0.22s cubic-bezier(0.3, 0, 0.1, 1) forwards; }
+@keyframes ckLightLance {
+  0% { transform: translate(-45%, -50%) scaleX(0.5); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(170%, -50%) scaleX(1.3); opacity: 0; }
 }
 .ck-descend-sub {
   margin-top: 8px;
@@ -2548,6 +2777,19 @@ body {
   text-align: center;
 }
 
+/* ── COCKPIT focus rings ── double-ring (white outline + accent halo) on every
+   interactive control, keyboard-only via :focus-visible so the mouse stays clean. */
+.btn-play.ck-descend:focus-visible,
+.ck-change-ship:focus-visible,
+.ck-customize:focus-visible,
+.ck-step:focus-visible,
+.ck-nav-btn:focus-visible,
+.ck-streak:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 34, 211, 238), 0.9);
+}
+
 /* ── COCKPIT responsive ── */
 @media (max-width: 1040px) {
   .ck-main {
@@ -2571,18 +2813,73 @@ body {
   .ck-nav-btn { flex: 1 0 26%; }
 }
 
-/* ── COCKPIT reduce-motion ── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   COCKPIT reduce-motion — "STILL CITY": a held, RESOLVED frame (not a degraded
+   fallback). The city is pinned at its 62% remembered bloom; nothing breathes,
+   springs, boots-in, shimmers or strobes; every label stays fully legible.
+   Gated by BOTH the game's own .reduce-motion flag AND the OS media query.
+══════════════════════════════════════════════════════════════════════════════ */
+.reduce-motion .screen-cockpit,
+.reduce-motion .screen-cockpit.boot-in,
+.reduce-motion .screen-cockpit.boot-in .ck-header,
+.reduce-motion .screen-cockpit.boot-in .ck-main,
+.reduce-motion .screen-cockpit.boot-in .ck-nav,
+.reduce-motion .screen-cockpit.boot-in .ck-rail .ck-mi,
+.reduce-motion .screen-cockpit.boot-in .ck-descend-wrap,
+.reduce-motion .screen-cockpit.boot-in .ck-coh-fill,
 .reduce-motion .ck-logo svg,
 .reduce-motion .ck-ship-art,
 .reduce-motion .btn-play.ck-descend,
-.reduce-motion .ck-mi {
+.reduce-motion .btn-play.ck-descend::before,
+.reduce-motion .btn-play.ck-descend.charging,
+.reduce-motion .ck-mi,
+.reduce-motion .ck-coh-fill,
+.reduce-motion .ck-coh-fill::after,
+.reduce-motion .ck-coh-icon svg rect,
+.reduce-motion .ck-hero-glow,
+.reduce-motion .ck-hero-streak,
+.reduce-motion .ck-hero-content.swap,
+.reduce-motion .ck-main.pulse,
+.reduce-motion .ck-light-lance {
   animation: none !important;
   transition: none !important;
 }
+/* held remembered state; the city stays half-bloomed and legible */
+.reduce-motion .screen-cockpit { --coh: 0.62; }
+.reduce-motion .ck-coh-fill { width: 62%; }
+.reduce-motion .ck-mi::before { transition: none !important; }
+.reduce-motion .btn-play.ck-descend:hover,
+.reduce-motion .btn-play.ck-descend:focus-visible { letter-spacing: 0.22em; } /* no kinetic tracking */
+
 @media (prefers-reduced-motion: reduce) {
+  .screen-cockpit,
+  .screen-cockpit.boot-in,
+  .screen-cockpit.boot-in .ck-header,
+  .screen-cockpit.boot-in .ck-main,
+  .screen-cockpit.boot-in .ck-nav,
+  .screen-cockpit.boot-in .ck-rail .ck-mi,
+  .screen-cockpit.boot-in .ck-descend-wrap,
+  .screen-cockpit.boot-in .ck-coh-fill,
   .ck-logo svg,
   .ck-ship-art,
-  .btn-play.ck-descend {
+  .btn-play.ck-descend,
+  .btn-play.ck-descend::before,
+  .btn-play.ck-descend.charging,
+  .ck-mi,
+  .ck-coh-fill,
+  .ck-coh-fill::after,
+  .ck-coh-icon svg rect,
+  .ck-hero-glow,
+  .ck-hero-streak,
+  .ck-hero-content.swap,
+  .ck-main.pulse,
+  .ck-light-lance {
     animation: none !important;
+    transition: none !important;
   }
+  .screen-cockpit { --coh: 0.62; }
+  .ck-coh-fill { width: 62%; }
+  .ck-mi::before { transition: none !important; }
+  .btn-play.ck-descend:hover,
+  .btn-play.ck-descend:focus-visible { letter-spacing: 0.22em; }
 }

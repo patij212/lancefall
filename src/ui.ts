@@ -330,6 +330,11 @@ export class UI {
   private shipPicker!: HTMLElement; // wraps this.shipRow; toggled by CHANGE SHIP
   private cosmPicker!: HTMLElement; // wraps palette + trail rows; toggled by CUSTOMIZE
   private mainPanel!: HTMLElement; // .cockpit-main — carries the mode accent for re-skin
+  private heroEl!: HTMLElement; // .ck-hero — toggles .first-light during the idle teaser
+  private heroContent!: HTMLElement; // .ck-hero-content — toggles .swap on re-skin
+  private lightLance!: HTMLElement; // fixed light-lance that streaks on DESCEND (the verb)
+  private prevSelectedMode: string | null = null; // last painted selection (gate the swap motion)
+  private firstLightTimer: ReturnType<typeof setTimeout> | null = null; // idle teaser scheduler
   private coercingMode = false; // guard so the invalid-mode coercion can't loop
 
   // gameover refs
@@ -685,28 +690,35 @@ export class UI {
     this.heroTitle = el('div', { class: 'ck-hero-title' }, 'LANCEFALL');
     this.heroTags = el('div', { class: 'ck-hero-tags' }, '');
     this.heroDesc = el('div', { class: 'ck-hero-desc' }, '');
+    // hero-content is captured so a mode re-skin can replay the .swap micro-animation.
+    this.heroContent = el(
+      'div',
+      { class: 'ck-hero-content' },
+      this.heroSeedRow,
+      this.heroTitle,
+      this.heroTags,
+      this.heroDesc,
+      el(
+        'div',
+        { class: 'ck-hero-verb' },
+        el('b', {}, 'HOLD'),
+        el('span', {}, ' TO CHARGE · '),
+        el('b', {}, 'RELEASE'),
+        el('span', {}, ' TO SPEAR'),
+      ),
+    );
+    // ck-hero-streak (idle ghost dash) + ck-hero-firstlight (idle dawn teaser) — pure
+    // decoration, aria-hidden; both fully gated under reduce-motion (see STILL CITY css).
     const hero = el(
       'div',
       { class: 'ck-hero' },
       el('div', { class: 'ck-hero-bg' }),
       el('div', { class: 'ck-hero-glow' }),
-      el(
-        'div',
-        { class: 'ck-hero-content' },
-        this.heroSeedRow,
-        this.heroTitle,
-        this.heroTags,
-        this.heroDesc,
-        el(
-          'div',
-          { class: 'ck-hero-verb' },
-          el('b', {}, 'HOLD'),
-          el('span', {}, ' TO CHARGE · '),
-          el('b', {}, 'RELEASE'),
-          el('span', {}, ' TO SPEAR'),
-        ),
-      ),
+      el('div', { class: 'ck-hero-streak', 'aria-hidden': 'true' }),
+      el('div', { class: 'ck-hero-firstlight', 'aria-hidden': 'true' }),
+      this.heroContent,
     );
+    this.heroEl = hero;
     this.infoBar = el('div', { class: 'ck-infobar' });
     this.rewardRow = el('div', { class: 'ck-rewards' });
 
@@ -714,6 +726,9 @@ export class UI {
     const play = el('button', { class: 'btn btn-primary btn-play ck-descend', 'aria-label': 'Descend — start the selected run' }, 'DESCEND');
     this.playBtn = play;
     play.addEventListener('click', () => {
+      // DESCEND cock-and-fire — a charge dip then a light-lance "dash into the run"
+      // feel, gated under reduce-motion. The actual launch is unchanged.
+      this.fireDescend();
       const s = this.saveRef;
       this.cb.onStart(modeById(s ? s.selectedMode : 'endless'));
     });
@@ -835,11 +850,65 @@ export class UI {
     this.dailyCaption = el('div', { class: 'daily-caption hidden' }, '');
     this.soundHint = el('div', { class: 'sound-hint ck-sound-hint' }, '♪ press DESCEND to enable sound');
 
+    // the light-lance that streaks the frame on DESCEND release (the core verb made
+    // visible). position:fixed, pointer-events:none; lives inside the title screen.
+    this.lightLance = el('div', { class: 'ck-light-lance', 'aria-hidden': 'true' });
+
     this.title = el(
       'div',
       { class: 'screen screen-title screen-cockpit' },
       el('div', { class: 'ck-frame' }, header, this.cockpitSolstice, this.mainPanel, bottomNav, this.soundHint, this.dailyCaption),
+      this.lightLance,
     );
+  }
+
+  /** Replay a CSS animation by removing its class, forcing reflow, and re-adding it.
+   *  Used by the boot-in reveal, the mode-swap micro-motion, the panel-commit pulse,
+   *  the DESCEND charge and the light-lance — so each re-triggers cleanly on re-entry. */
+  private replayAnim(elm: HTMLElement | null | undefined, cls: string): void {
+    if (!elm) return;
+    elm.classList.remove(cls);
+    void elm.offsetWidth; // reflow so the animation restarts
+    elm.classList.add(cls);
+  }
+
+  /** Is decorative motion suppressed right now? Honours BOTH the game's own
+   *  reduce-motion setting AND the OS prefers-reduced-motion query (matching the
+   *  cockpit CSS gating, so JS never fires a motion the CSS has frozen). */
+  private motionOff(): boolean {
+    return this.settings.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /** DESCEND cock-and-fire: a brief charge dip on the button + a light-lance streak.
+   *  No-op under reduce-motion (the launch itself still proceeds via the caller). */
+  private fireDescend(): void {
+    if (this.motionOff()) return;
+    this.replayAnim(this.playBtn, 'charging');
+    this.replayAnim(this.lightLance, 'fire');
+  }
+
+  /** FIRST LIGHT idle teaser: after ~8s of stillness on the title the hero blooms a
+   *  warm dawn (the win-frame preview), holds a beat, then dissolves back. A single
+   *  recurring scheduler; fully suppressed under reduce-motion. */
+  private startFirstLightIdle(): void {
+    this.stopFirstLightIdle();
+    if (this.motionOff() || !this.heroEl) return;
+    const tick = () => {
+      this.heroEl.classList.add('first-light');
+      // hold the dawn, then let it fall back to night and schedule the next cycle.
+      this.firstLightTimer = setTimeout(() => {
+        this.heroEl.classList.remove('first-light');
+        this.firstLightTimer = setTimeout(tick, 8000);
+      }, 3400);
+    };
+    this.firstLightTimer = setTimeout(tick, 8000);
+  }
+
+  private stopFirstLightIdle(): void {
+    if (this.firstLightTimer !== null) {
+      clearTimeout(this.firstLightTimer);
+      this.firstLightTimer = null;
+    }
   }
 
   /** Heat stepper (loadout) — clamp to 0..MAX_HEAT and route through onHeatChange. */
@@ -1628,6 +1697,18 @@ export class UI {
   show(s: ScreenId): void {
     this.current = s;
     this.title.classList.toggle('hidden', s !== 'title');
+    // ── cockpit soul: orchestrate the bootIn reveal + the FIRST LIGHT idle teaser ──
+    if (s === 'title') {
+      // re-trigger the staggered bootIn each time we land on the title (replayAnim
+      // forces the reflow); under reduce-motion the class is inert (STILL CITY css).
+      this.replayAnim(this.title, 'boot-in');
+      this.prevSelectedMode = null; // the reveal subsumes the first swap; don't double up
+      this.startFirstLightIdle();
+    } else {
+      this.title.classList.remove('boot-in');
+      this.stopFirstLightIdle();
+      this.heroEl?.classList.remove('first-light');
+    }
     this.pause.classList.toggle('hidden', s !== 'paused');
     this.gameover.classList.toggle('hidden', s !== 'gameover');
     this.draft.classList.toggle('hidden', s !== 'draft');
@@ -1881,6 +1962,16 @@ export class UI {
     const parts = [m.name, ship.name, save.selectedHeat > 0 ? `Heat ${save.selectedHeat}` : 'Heat 0'];
     if (muts.length) parts.push(muts.map((x) => x.name).join(' + '));
     this.descendSub.textContent = parts.join('  ·  ');
+
+    // ── selection-accent spring: when the picked mode CHANGES, ease the center column
+    //    to the new identity (a light hero swap) and pulse the whole panel once. Gated
+    //    under reduce-motion. The first paint after a title show is skipped (prev=null)
+    //    so the bootIn reveal owns the entrance, not a swap on top of it. ──
+    if (this.prevSelectedMode !== null && this.prevSelectedMode !== m.id && !this.motionOff()) {
+      this.replayAnim(this.heroContent, 'swap');
+      this.replayAnim(this.mainPanel, 'pulse');
+    }
+    this.prevSelectedMode = m.id;
   }
 
   /** Paint a ship's big silhouette into its hover-preview canvas (nose-up, in its accent).
