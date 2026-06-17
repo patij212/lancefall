@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId } from './modes';
+import { MODES, modeById, modeBrief, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_MODE_IDS } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -129,5 +129,43 @@ describe('modeBrief', () => {
     expect(modeBrief(modeById('weekly')).note).toBe('WEEKLY');
     expect(modeBrief(modeById('nightmare')).note).toBe('SUDDEN DEATH'); // headline rule visible on the card
     expect(modeBrief(modeById('endless')).note).toBe('');
+  });
+});
+
+describe('§1.1 progressive disclosure (rail unlock gates)', () => {
+  it('NIGHTMARE + SOLSTICE PROTOCOL are wave-gated; the rest are always unlocked', () => {
+    expect(modeById('nightmare').unlockedAtWave).toBe(5);
+    expect(modeById('longestday').unlockedAtWave).toBe(8);
+    for (const id of ['casual', 'endless', 'arena', 'bossrush', 'daily']) {
+      expect(modeById(id).unlockedAtWave ?? 0).toBe(0);
+    }
+  });
+
+  it('modeUnlocked gates purely on deepestWave (absent unlockedAtWave = always unlocked)', () => {
+    expect(modeUnlocked(modeById('nightmare'), 4)).toBe(false);
+    expect(modeUnlocked(modeById('nightmare'), 5)).toBe(true);
+    expect(modeUnlocked(modeById('longestday'), 7)).toBe(false);
+    expect(modeUnlocked(modeById('longestday'), 8)).toBe(true);
+    expect(modeUnlocked(modeById('endless'), 0)).toBe(true); // never gated
+  });
+
+  it('the RAIL is the 7 curated cards (Weekly stays data-only, folded into the Daily/Echo card)', () => {
+    expect([...RAIL_MODE_IDS]).toEqual(['casual', 'endless', 'arena', 'bossrush', 'daily', 'nightmare', 'longestday']);
+    expect(RAIL_MODE_IDS).not.toContain('weekly');
+    for (const id of RAIL_MODE_IDS) expect(modeById(id).id).toBe(id); // every rail id resolves to a real mode
+  });
+
+  it('nextRailMode walks the rail, wraps, and SKIPS locked modes', () => {
+    // a brand-new player (deepestWave 0): nightmare + longestday are locked and skipped
+    expect(nextRailMode('casual', 1, 0)).toBe('endless');
+    expect(nextRailMode('daily', 1, 0)).toBe('casual'); // skips locked nightmare+longestday, wraps to casual
+    expect(nextRailMode('casual', -1, 0)).toBe('daily'); // left wraps back past the locked tail to daily
+    // a veteran (deepestWave 99): everything unlocked, plain wrap-around
+    expect(nextRailMode('daily', 1, 99)).toBe('nightmare');
+    expect(nextRailMode('longestday', 1, 99)).toBe('casual');
+  });
+
+  it('nextRailMode returns the current id when nothing else is reachable', () => {
+    expect(nextRailMode('casual', 1, -1)).toBe('casual'); // deepestWave -1 locks even wave-0 modes → stays put
   });
 });

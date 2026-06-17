@@ -39,6 +39,11 @@ export interface RunConfig {
   bossrush: boolean; // the bosses back-to-back
   cipherLock?: boolean; // ring-cipher bosses (Warden/Weaver/Beacon) armored until decoded — SOLSTICE PROTOCOL
   rules?: ModeRules; // v6 §4: optional declarative mode rules; absent = today's behavior
+  /** Title-rail progressive disclosure: this mode is LOCKED until the player's best-ever
+   *  wave (save.deepestWave) reaches this value. Absent/0 = always unlocked. A pure DISPLAY
+   *  gate — it never touches the sim, the seed, or scoring; a locked mode is simply not
+   *  selectable in the rail. (Reserved alongside oneLife/biomeLock — no schema bump.) */
+  unlockedAtWave?: number;
 }
 
 const ENDLESS: RunConfig = {
@@ -76,6 +81,7 @@ export const MODES: RunConfig[] = [
     seedKind: 'random', intensityMul: 1.35, spawnMul: 0.8, bossInterval: 55, speedBonus: 0.12,
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
     rules: { suddenDeath: { afterBoss: 1 }, events: 'curated' },
+    unlockedAtWave: 5, // §1.1 progressive disclosure — earn NIGHTMARE by reaching wave 5
   },
   {
     id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',
@@ -89,6 +95,7 @@ export const MODES: RunConfig[] = [
     seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 38, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
+    unlockedAtWave: 8, // §1.1 progressive disclosure — earn SOLSTICE PROTOCOL by reaching wave 8
   },
   {
     // §7 — CASUAL/STORY. A gentler ENDLESS so anyone can SEE the content (bosses, biomes,
@@ -163,6 +170,32 @@ export function nextModeId(currentId: string, dir: number): string {
   const step = dir < 0 ? -1 : 1;
   const n = MODES.length;
   return MODES[(cur + step + n) % n].id;
+}
+
+/** §1.1 — the curated title-screen mode RAIL (the consolidation + ENDLESS), in display order.
+ *  WEEKLY SIEGE stays as data (reachable as the Daily/Echo card's weekly variant) but is not
+ *  its own rail card. The rail is a UI concern; MODES stays the full data set. */
+export const RAIL_MODE_IDS: readonly string[] = ['casual', 'endless', 'arena', 'bossrush', 'daily', 'nightmare', 'longestday'];
+
+/** §1.1 progressive disclosure — is this mode unlocked at the player's best-ever wave? A pure
+ *  display gate (absent unlockedAtWave = always unlocked). Never touches sim/seed/scoring. */
+export function modeUnlocked(cfg: RunConfig, deepestWave: number): boolean {
+  return (cfg.unlockedAtWave ?? 0) <= deepestWave;
+}
+
+/** §1.1 — step the selected mode along the RAIL (dir<0 left / dir>=0 right), wrapping and
+ *  SKIPPING locked modes so keyboard/d-pad nav never lands on an unplayable card. Falls back
+ *  to the current id if nothing else is unlocked. Pure. */
+export function nextRailMode(currentId: string, dir: number, deepestWave: number): string {
+  const ids = RAIL_MODE_IDS;
+  const n = ids.length;
+  const start = Math.max(0, ids.indexOf(currentId));
+  const step = dir < 0 ? -1 : 1;
+  for (let k = 1; k <= n; k++) {
+    const id = ids[(((start + step * k) % n) + n) % n];
+    if (modeUnlocked(modeById(id), deepestWave)) return id;
+  }
+  return currentId;
 }
 
 export type ArenaWave =

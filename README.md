@@ -51,7 +51,7 @@ You don't shoot. You **dash**.
 - ◈ **Build archetypes + ☠ cursed relics + ⧬ build DNA** — pick a build path that biases your draft; grab double-edged relics for high-risk power; copy your whole build as a shareable code.
 - 🌍 **Evolving biomes** — a run cycles through THE COURT → THE EMBERWALL → THE VAULTS → THE BLOOMGARDENS → THE WARRENS → THE NULL, each retinting the world, shifting the enemy mix, and twisting the rules.
 - ⬆️ **Permanent meta-progression** — a 12-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**) bought with banked shards. The "one more run" engine.
-- 🚀 **5-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge). Each a genuinely different playstyle.
+- 🚀 **6-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge), and **Reaver** (bloodthirsty — dash-kills refund stamina, weak graze: live by the chain). Each a genuinely different playstyle; all but Lance are shard-unlocks.
 - 🃏 **In-run perk draft + fusion evolutions** — 3-of-**11** stacking upgrades that compound into wild builds (offensive *and* defensive — Riposte shatters bullets on the dash), plus **7 evolutions** (IMPALER, SUPERNOVA, PERPETUAL, WRAITH, INFERNO, JUGGERNAUT, AEGIS): stack the right recipe and a build-defining fusion capstone unlocks as a guaranteed glowing draft slot.
 - 🏅 **Optional online leaderboards** — per-mode global boards + a shared daily, served by a tiny deploy-ready Cloudflare Worker (`worker/`). Offline-first: the game is identical without it; set `VITE_LEADERBOARD_URL` to light up the RANKS screen.
 - 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
@@ -117,17 +117,17 @@ npm run audio:validate   # 48 kHz, integer-bar loops, ≤ 8 MB, + the provenance
 ```bash
 npm install
 npm run dev      # http://localhost:5197
-npm run build    # production bundle (~22 KB gzipped)
+npm run build    # production bundle (~105 KB gzipped, excl. fonts)
 npm run preview
 ```
 
 ## Test
 
 ```bash
-npm test         # 450+ unit tests — the pure simulation + the authored-audio engine/pipeline
+npm test         # 700+ unit tests — the pure simulation + the authored-audio engine/pipeline
 ```
 
-Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 11-perk draft (stacking + max-stack exclusion), the 7 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 5 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
+Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 11-perk draft (stacking + max-stack exclusion), the 7 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 6 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
 
 ## Monetization
 

@@ -13,18 +13,28 @@ import { decodeBuildDna } from './buildDna';
 import type { BuildDna } from './buildDna';
 import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
-import { HEAT_LEVELS } from './heat';
+import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchLeaderboard } from './api';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
-import { SHIPS } from './ships';
+import { SHIPS, shipById } from './ships';
 import { drawShipSilhouette } from './shipModels';
 import { THEMES } from './themes';
 import { TRAILS } from './trails';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
-import { MODES, modeById, modeBrief, MAX_DAILY_ATTEMPTS, nextModeId } from './modes';
+import {
+  modeById,
+  modeBrief,
+  modeRanked,
+  modeSeeded,
+  modeUnlocked,
+  nextRailMode,
+  rollDailyAttempt,
+  RAIL_MODE_IDS,
+  MAX_DAILY_ATTEMPTS,
+} from './modes';
 import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill } from './renderMath';
 import { POWERUPS } from './powerups';
@@ -118,6 +128,83 @@ function el<K extends keyof HTMLElementTagNameMap>(
   }
   for (const c of children) node.append(typeof c === 'string' ? document.createTextNode(c) : c);
   return node;
+}
+
+/** Build an element from a raw inline-SVG (or any) markup string. Used for the cockpit's
+ *  decorative mode/nav icons (lifted verbatim from the mock) so we don't re-author every
+ *  path by hand. The markup is author-controlled (never user input), so innerHTML is safe. */
+function iconEl(cls: string, markup: string): HTMLElement {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.innerHTML = markup;
+  return span;
+}
+
+// ── Cockpit static art (verbatim from mock-v6) ─────────────────────────────────
+// All `currentColor` so each rail icon picks up its card's accent for free.
+const LOGO_SVG = `<svg viewBox="0 0 58 58" fill="none" aria-hidden="true">
+  <circle cx="29" cy="29" r="27" stroke="#22d3ee" stroke-width="1.2" opacity="0.55"/>
+  <circle cx="29" cy="29" r="20" stroke="#818cf8" stroke-width="0.7" opacity="0.35"/>
+  <line x1="29" y1="5" x2="29" y2="53" stroke="#22d3ee" stroke-width="0.8" opacity="0.3"/>
+  <line x1="5" y1="29" x2="53" y2="29" stroke="#22d3ee" stroke-width="0.8" opacity="0.3"/>
+  <circle cx="29" cy="29" r="4.5" fill="none" stroke="#22d3ee" stroke-width="1.4"/>
+  <path d="M29 7 L32.5 23 L29 25.5 L25.5 23 Z" fill="#22d3ee" opacity="0.92"/>
+  <path d="M29 51 L26.5 37 L29 34.5 L31.5 37 Z" fill="#818cf8" opacity="0.45"/>
+  <circle cx="29" cy="29" r="2.5" fill="#22d3ee"/>
+</svg>`;
+
+const COH_CITY_SVG = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+  <rect x="2" y="10" width="4" height="7"/><rect x="7" y="6" width="4" height="11"/><rect x="12" y="8" width="4" height="9"/>
+</svg>`;
+
+// Rail-mode icons, keyed by RunConfig id. currentColor → inherits the card accent.
+const MODE_ICONS: Record<string, string> = {
+  casual: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="8.2" stroke="currentColor" stroke-width="1.1" fill="currentColor" fill-opacity="0.07"/><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="0.8" fill="none" opacity="0.5"/><path d="M10 2L11.4 8.5H8.6Z" fill="currentColor"/><path d="M10 18L8.6 11.5H11.4Z" fill="currentColor" opacity="0.45"/><path d="M18 10L11.5 8.6V11.4Z" fill="currentColor" opacity="0.65"/><path d="M2 10L8.5 11.4V8.6Z" fill="currentColor" opacity="0.65"/><circle cx="10" cy="10" r="1.4" fill="currentColor"/></svg>`,
+  endless: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6.5 7.5a3 3 0 100 5c1.4 0 2.2-1 3.5-2.5C11.3 8.5 12.1 7.5 13.5 7.5a3 3 0 110 5c-1.4 0-2.2-1-3.5-2.5C8.7 11.5 7.9 12.5 6.5 12.5Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  arena: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><line x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.5" y1="8.5" x2="8.5" y2="4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="3" cy="3" r="1.6" fill="currentColor"/><line x1="16" y1="4" x2="4" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15.5" y1="8.5" x2="11.5" y2="4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="17" cy="3" r="1.6" fill="currentColor"/></svg>`,
+  bossrush: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3.5 10L3.5 7.5L6.5 10L8.5 4L10 7.5L11.5 4L13.5 10L16.5 7.5L16.5 10Z" fill="currentColor" fill-opacity="0.22" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/><path d="M3.5 10C3.5 15 5.8 18 10 18C14.2 18 16.5 15 16.5 10Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7.5" cy="13" r="1.8" fill="currentColor" opacity="0.85"/><circle cx="12.5" cy="13" r="1.8" fill="currentColor" opacity="0.85"/></svg>`,
+  daily: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2L3 5V11C3 15 6.2 18.2 10 19C13.8 18.2 17 15 17 11V5Z" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 10.5V8.5A2.5 2.5 0 0112.5 8.5V10.5" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/><rect x="6.5" y="10.5" width="7" height="5" rx="1" fill="currentColor" fill-opacity="0.45" stroke="currentColor" stroke-width="1.2"/><circle cx="10" cy="12.8" r="1" fill="currentColor" opacity="0.9"/></svg>`,
+  nightmare: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2C6.2 2 3.5 5 3.5 8.5C3.5 11.2 5 13.5 7.5 14.5V17H12.5V14.5C15 13.5 16.5 11.2 16.5 8.5C16.5 5 13.8 2 10 2Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7.5" cy="9" r="1.8" fill="currentColor" opacity="0.88"/><circle cx="12.5" cy="9" r="1.8" fill="currentColor" opacity="0.88"/><line x1="8.5" y1="17" x2="8.5" y2="14.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/><line x1="11.5" y1="17" x2="11.5" y2="14.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity="0.6"/></svg>`,
+  longestday: `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="3.2" fill="currentColor" fill-opacity="0.22" stroke="currentColor" stroke-width="1.3"/><circle cx="10" cy="10" r="1.4" fill="currentColor"/><path d="M10 1.5L11.4 7.5H8.6Z" fill="currentColor"/><path d="M10 18.5L8.6 12.5H11.4Z" fill="currentColor"/><path d="M1.5 10L7.5 8.6V11.4Z" fill="currentColor"/><path d="M18.5 10L12.5 11.4V8.6Z" fill="currentColor"/><path d="M4 4L7.4 7.5L6.2 8.8Z" fill="currentColor" opacity="0.7"/><path d="M16 4L12.6 7.5L13.8 8.8Z" fill="currentColor" opacity="0.7"/><path d="M4 16L7.4 12.5L6.2 11.2Z" fill="currentColor" opacity="0.7"/><path d="M16 16L12.6 12.5L13.8 11.2Z" fill="currentColor" opacity="0.7"/></svg>`,
+};
+
+// Bottom-nav icons (verbatim from mock-v6). currentColor inherits the nav text colour.
+const NAV_ICONS: Record<string, string> = {
+  upgrades: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M4 6l4-4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 14h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.4"/></svg>`,
+  ranks: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.5"/></svg>`,
+  stats: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="9" width="3" height="5" rx="0.5" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="6" width="3" height="8" rx="0.5" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="3" width="3" height="11" rx="0.5" stroke="currentColor" stroke-width="1.2"/></svg>`,
+  codex: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 9h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  fall: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2c0 0-5 3-5 7a5 5 0 0010 0C13 5 8 2 8 2z" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 9l2 2 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/></svg>`,
+  duel: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 7a5 5 0 0110 0v6.5L11 12l-3 2-3-2-2 1.5Z" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>`,
+  settings: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.2 3.2l1 1M11.8 11.8l1 1M11.8 3.2l-1 1M4.2 11.8l-1 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`,
+  build: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l1.7 4H14l-3.4 2.6L12 13 8 10.6 4 13l1.4-4.9L2 5.5h4.3Z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/></svg>`,
+  inspect: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  credits: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5.5 11.5V4l7-1.2v7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="11.5" r="1.8" stroke="currentColor" stroke-width="1.3"/><circle cx="11" cy="9.8" r="1.8" stroke="currentColor" stroke-width="1.3"/></svg>`,
+  howto: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 6.2a1.8 1.8 0 113.1 1.3c-.6.5-1.3.8-1.3 1.7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><circle cx="8" cy="11.5" r="0.8" fill="currentColor"/></svg>`,
+};
+
+// Per-rail-mode accent (mock-v6). Drives the card icon/highlight + the center hero re-skin.
+const RAIL_ACCENTS: Record<string, string> = {
+  casual: '#34d399',
+  endless: '#22d3ee',
+  arena: '#22d3ee',
+  bossrush: '#fb923c',
+  daily: '#fbbf24',
+  nightmare: '#f87171',
+  longestday: '#c084fc',
+};
+function railAccent(id: string): string {
+  return RAIL_ACCENTS[id] ?? '#22d3ee';
+}
+
+/** "#rrggbb" → "r, g, b" for the rgba() accent vars the cockpit CSS reads. */
+function hexToRgb(hex: string): string {
+  const h = hex.replace('#', '');
+  const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const r = parseInt(n.slice(0, 2), 16) || 0;
+  const g = parseInt(n.slice(2, 4), 16) || 0;
+  const b = parseInt(n.slice(4, 6), 16) || 0;
+  return `${r}, ${g}, ${b}`;
 }
 
 /** Human-readable label for a bound key list (e.SPACE / J / ESC). */
@@ -214,6 +301,27 @@ export class UI {
   private shardLine!: HTMLElement;
   private modeGrid!: HTMLElement;
   private playBtn!: HTMLButtonElement;
+  // cockpit (v6 mock-v6) refs — header stats, center SELECTED-RUN hero, loadout
+  private hsBest!: HTMLElement;
+  private hsCombo!: HTMLElement;
+  private hsShards!: HTMLElement;
+  private cockpitSolstice!: HTMLElement;
+  private heroSeedRow!: HTMLElement;
+  private heroTitle!: HTMLElement;
+  private heroTags!: HTMLElement;
+  private heroDesc!: HTMLElement;
+  private centerSec!: HTMLElement; // "SELECTED RUN" section label (carries mode accent)
+  private infoBar!: HTMLElement;
+  private rewardRow!: HTMLElement;
+  private descendSub!: HTMLElement;
+  private shipArt!: HTMLCanvasElement;
+  private shipArtName!: HTMLElement;
+  private shipArtDesc!: HTMLElement;
+  private heatPipsWrap!: HTMLElement;
+  private shipPicker!: HTMLElement; // wraps this.shipRow; toggled by CHANGE SHIP
+  private cosmPicker!: HTMLElement; // wraps palette + trail rows; toggled by CUSTOMIZE
+  private mainPanel!: HTMLElement; // .cockpit-main — carries the mode accent for re-skin
+  private coercingMode = false; // guard so the invalid-mode coercion can't loop
 
   // gameover refs
   private goScore!: HTMLElement;
@@ -499,101 +607,242 @@ export class UI {
     }
   }
 
+  // ── COCKPIT title (mock-v6) ────────────────────────────────────────────────
+  // A 3-region cockpit: HEADER (brand + decorative CITY COHERENCE bar + header stats),
+  // MAIN PANEL (left MODE RAIL · center SELECTED RUN hero · right LOADOUT), and a
+  // BOTTOM NAV of icon buttons wired to the existing modal openers. Every legacy ref
+  // field is preserved (some repurposed, a few kept hidden so old read-sites stay valid).
   private buildTitle(): void {
-    const wordmark = el('h1', { class: 'title-word' }, 'LANCEFALL');
-    const subtitle = el('p', { class: 'title-sub' }, 'THE LAST KEY');
-    const tagline = el('p', { class: 'title-tag' }, 'break the code. bring back the day.');
-    const play = el('button', { class: 'btn btn-primary btn-play' }, 'PLAY');
-    this.playBtn = play;
-    play.addEventListener('click', () => {
-      const s = this.saveRef;
-      this.cb.onStart(modeById(s ? s.selectedMode : 'endless'));
-    });
-    // mode grid: every mode is a selectable card; the one PLAY launches the persisted
-    // choice. Populated in refreshTitle (needs save.selectedMode for the .selected highlight).
-    this.modeGrid = el('div', { class: 'mode-grid', role: 'group', 'aria-label': 'Select game mode' });
-    const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
-    settingsBtn.addEventListener('click', () => this.openSettings());
-    const upgradesBtn = el('button', { class: 'btn btn-ghost', title: 'UPGRADES — spend shards earned from runs on a permanent meta-tree that carries between runs.' }, 'UPGRADES');
-    upgradesBtn.addEventListener('click', () => this.openUpgrades());
-    const statsBtn = el('button', { class: 'btn btn-ghost' }, 'STATS');
-    statsBtn.addEventListener('click', () => this.openStats());
-    const how = el('button', { class: 'btn btn-ghost' }, 'HOW TO PLAY');
-    how.addEventListener('click', () => this.showHowTo());
-    // Grid B — jargon tooltips: each meta button explains its unfamiliar term at rest
-    // (native title=, keyboard-reachable on focus, screen-reader friendly, no flashing).
-    const codexBtn = el('button', { class: 'btn btn-ghost', title: 'CODEX — a bestiary of every enemy, boss, biome and relic you have met, with lore.' }, '📖 CODEX');
-    codexBtn.addEventListener('click', () => this.showCodex());
-    const creditsBtn = el('button', { class: 'btn btn-ghost', title: 'CREDITS — the music, sounds and assets behind LANCEFALL.' }, '♪ CREDITS');
-    creditsBtn.addEventListener('click', () => this.showCredits());
-    const fallBtn = el('button', { class: 'btn btn-ghost', title: 'THE FALL — the story: six who let the City of Lancefall go dark, and the key to bring back the day.' }, '◈ THE FALL');
-    fallBtn.addEventListener('click', () => this.showFall());
-    const heatBtn = el('button', { class: 'btn btn-ghost', title: 'HEAT — an optional difficulty ladder. Higher Heat = tougher runs and a bigger score multiplier.' }, '🔥 HEAT');
-    heatBtn.addEventListener('click', () => this.openHeat());
-    const archBtn = el('button', { class: 'btn btn-ghost', title: 'BUILD — pick a starting archetype that biases your perk draft toward a playstyle.' }, '◈ BUILD');
-    archBtn.addEventListener('click', () => this.openArchetype());
-    const leaderBtn = el('button', { class: 'btn btn-ghost', title: 'RANKS — online leaderboards (daily, weekly and all-time) if you opt in.' }, '🏅 RANKS');
-    leaderBtn.addEventListener('click', () => this.openLeaderboard());
-    const duelBtn = el('button', { class: 'btn btn-ghost', title: 'DUEL — an async 1v1: you and a friend race the same fixed seed, best score wins.' }, '⚔ DUEL');
-    duelBtn.addEventListener('click', () => this.openDuel());
-    const inspectBtn = el('button', { class: 'btn btn-ghost', title: 'INSPECT — paste a shared BUILD DNA code to read back the exact ship, perks and Heat of a run.' }, '⧬ INSPECT');
-    inspectBtn.addEventListener('click', () => this.openInspect());
-    this.ngBtn = el('button', { class: 'btn btn-ghost hidden' }, 'NG+') as HTMLButtonElement;
-    this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
-    // SETTINGS stays visible up top (always-wanted); the rest of the meta nav lives in the MORE drawer
-    const settingsRow = el('div', { class: 'title-row title-row-primary' }, settingsBtn, how);
-    const row = el('div', { class: 'title-row' }, upgradesBtn, statsBtn, heatBtn, archBtn, this.ngBtn, leaderBtn, duelBtn, inspectBtn, codexBtn, fallBtn, creditsBtn);
-    this.dailyCaption = el('div', { class: 'daily-caption' }, '');
-    this.titleBest = el('div', { class: 'title-best' }, '');
-    this.shardLine = el('div', { class: 'title-shards' }, '');
-    this.shipRow = el('div', { class: 'ship-row' });
-    const shipSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label', title: 'SHIP — your hull. Each ship has a different feel: speed, stamina, dash and starting perks.' }, 'SHIP'), this.shipRow);
-    this.themeRow = el('div', { class: 'theme-row' });
-    const themeSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label', title: 'PALETTE — a cosmetic colour theme for the whole game. No effect on gameplay.' }, 'PALETTE'), this.themeRow);
-    this.trailRow = el('div', { class: 'theme-row' });
-    const trailSection = el('div', { class: 'ship-section' }, el('div', { class: 'ship-label', title: 'DASH TRAIL — the cosmetic streak left behind when you dash. Unlocked through play.' }, 'DASH TRAIL'), this.trailRow);
-    this.soundHint = el('div', { class: 'sound-hint' }, '♪ click PLAY to enable sound');
-
-    const legend = el(
+    // ── HEADER: brand mark + wordmark + sub + tagline ──
+    const brand = el(
       'div',
-      { class: 'title-legend' },
-      el('span', {}, 'move'),
-      el('b', {}, 'WASD / arrows / stick'),
-      el('span', {}, 'dash'),
-      el('b', {}, 'hold + release  ·  mouse / Space / RT'),
-      el('span', {}, 'daybreak'),
-      el('b', {}, 'F / LB'),
+      { class: 'ck-brand' },
+      el('div', { class: 'ck-wordmark' }, 'LANCEFALL'),
+      el('div', { class: 'ck-wordmark-sub' }, 'THE LAST LANCE'),
+      el('div', { class: 'ck-tagline' }, 'A CITY REMEMBERED. A FALL REVERSED.'),
+    );
+    const hdrLeft = el('div', { class: 'ck-hdr-left' }, iconEl('ck-logo', LOGO_SVG), brand);
+
+    // decorative CITY COHERENCE bar — flavour ONLY (no gameplay state); a static 62%.
+    const coherence = el(
+      'div',
+      { class: 'ck-coh' },
+      el(
+        'div',
+        { class: 'ck-coh-row' },
+        iconEl('ck-coh-icon', COH_CITY_SVG),
+        el('div', { class: 'ck-coh-lbl' }, 'CITY COHERENCE'),
+        el('div', { class: 'ck-coh-pct' }, '62%'),
+      ),
+      el('div', { class: 'ck-coh-track' }, el('div', { class: 'ck-coh-fill' })),
+      el('div', { class: 'ck-coh-sub' }, 'NEON BLOOMS AS THE CITY REMEMBERS'),
     );
 
-    // literal solstice hook during the judging window — the longest day, on the longest day
+    // header stats — repurpose titleBest (BEST RUN) + shardLine (SHARDS); add BEST COMBO.
+    this.titleBest = el('div', { class: 'ck-hstat-val' }, '—');
+    this.hsBest = this.titleBest;
+    this.hsCombo = el('div', { class: 'ck-hstat-val' }, '—');
+    this.shardLine = el('div', { class: 'ck-hstat-val' }, '—');
+    this.hsShards = this.shardLine;
+    const hdrRight = el(
+      'div',
+      { class: 'ck-hdr-right' },
+      el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'BEST RUN'), this.hsBest),
+      el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'BEST COMBO'), this.hsCombo),
+      el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'SHARDS'), this.hsShards),
+    );
+    const header = el('div', { class: 'ck-header' }, hdrLeft, coherence, hdrRight);
+
+    // solstice stamp (kept) — the judging-window hook, sits under the header.
     const today = dateString();
     const isSolstice = today.endsWith('-06-20') || today.endsWith('-06-21');
-    const solsticeStamp = el(
+    this.cockpitSolstice = el(
       'div',
       { class: 'title-solstice' + (isSolstice ? ' on' : '') },
       '☀ SOLSTICE — the longest day · today the whole world breaks the same key',
     );
 
+    // ── LEFT: MODE RAIL (this.modeGrid, vertical) ──
+    this.modeGrid = el('div', { class: 'mode-grid ck-rail', role: 'group', 'aria-label': 'Select game mode' });
+    const railCol = el('div', { class: 'ck-col ck-col-left' }, el('div', { class: 'ck-sec' }, 'SELECT MODE'), this.modeGrid);
+
+    // ── CENTER: SELECTED RUN hero ──
+    this.centerSec = el('div', { class: 'ck-sec' }, 'SELECTED RUN');
+    this.heroSeedRow = el('div', { class: 'ck-hero-seed' });
+    this.heroTitle = el('div', { class: 'ck-hero-title' }, 'LANCEFALL');
+    this.heroTags = el('div', { class: 'ck-hero-tags' }, '');
+    this.heroDesc = el('div', { class: 'ck-hero-desc' }, '');
+    const hero = el(
+      'div',
+      { class: 'ck-hero' },
+      el('div', { class: 'ck-hero-bg' }),
+      el('div', { class: 'ck-hero-glow' }),
+      el(
+        'div',
+        { class: 'ck-hero-content' },
+        this.heroSeedRow,
+        this.heroTitle,
+        this.heroTags,
+        this.heroDesc,
+        el(
+          'div',
+          { class: 'ck-hero-verb' },
+          el('b', {}, 'HOLD'),
+          el('span', {}, ' TO CHARGE · '),
+          el('b', {}, 'RELEASE'),
+          el('span', {}, ' TO SPEAR'),
+        ),
+      ),
+    );
+    this.infoBar = el('div', { class: 'ck-infobar' });
+    this.rewardRow = el('div', { class: 'ck-rewards' });
+
+    // DESCEND = the renamed/restyled PLAY button. REUSE this.playBtn + its existing handler.
+    const play = el('button', { class: 'btn btn-primary btn-play ck-descend', 'aria-label': 'Descend — start the selected run' }, 'DESCEND');
+    this.playBtn = play;
+    play.addEventListener('click', () => {
+      const s = this.saveRef;
+      this.cb.onStart(modeById(s ? s.selectedMode : 'endless'));
+    });
+    this.descendSub = el('div', { class: 'ck-descend-sub' }, '');
+    const centerCol = el(
+      'div',
+      { class: 'ck-col ck-col-center' },
+      this.centerSec,
+      hero,
+      this.infoBar,
+      this.rewardRow,
+      el('div', { class: 'ck-descend-wrap' }, play),
+      this.descendSub,
+    );
+
+    // ── RIGHT: LOADOUT ──
+    this.shipArt = el('canvas', { class: 'ck-ship-art', 'aria-hidden': 'true' }) as HTMLCanvasElement;
+    this.shipArtName = el('div', { class: 'ck-ship-name' }, '—');
+    this.shipArtDesc = el('div', { class: 'ck-ship-desc' }, '');
+    const changeShip = el('button', { class: 'ck-change-ship', type: 'button' }, 'CHANGE SHIP');
+    const shipDisplay = el(
+      'div',
+      { class: 'ck-ship-display' },
+      el('div', { class: 'ck-ship-ring' }, this.shipArt),
+      this.shipArtName,
+      this.shipArtDesc,
+      changeShip,
+    );
+
+    // HEAT stepper (− / pips / +) bound to onHeatChange, clamped 0..MAX_HEAT.
+    this.heatPipsWrap = el('div', { class: 'ck-heat-pips' });
+    const heatMinus = el('button', { class: 'ck-step', type: 'button', 'aria-label': 'Lower Heat' }, '−');
+    const heatPlus = el('button', { class: 'ck-step', type: 'button', 'aria-label': 'Raise Heat' }, '+');
+    heatMinus.addEventListener('click', () => this.stepHeat(-1));
+    heatPlus.addEventListener('click', () => this.stepHeat(1));
+    const heatRow = el(
+      'div',
+      { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Higher Heat = tougher run, bigger score multiplier.' },
+      el('div', { class: 'ck-lo-key' }, 'HEAT'),
+      el('div', { class: 'ck-lo-right' }, heatMinus, this.heatPipsWrap, heatPlus),
+    );
+
+    // ship picker (reuse this.shipRow), hidden until CHANGE SHIP.
+    this.shipRow = el('div', { class: 'ship-row ck-ship-row' });
+    this.shipPicker = el('div', { class: 'ck-picker hidden' }, this.shipRow);
+    changeShip.addEventListener('click', () => {
+      const open = this.shipPicker.classList.toggle('hidden');
+      changeShip.setAttribute('aria-expanded', String(!open));
+    });
+
+    // cosmetics: PALETTE (this.themeRow) + DASH TRAIL (this.trailRow), revealed by CUSTOMIZE.
+    this.themeRow = el('div', { class: 'theme-row ck-cosm-grid' });
+    this.trailRow = el('div', { class: 'theme-row ck-cosm-grid' });
+    const customize = el('button', { class: 'ck-customize', type: 'button' }, 'CUSTOMIZE');
+    this.cosmPicker = el(
+      'div',
+      { class: 'ck-picker hidden' },
+      el('div', { class: 'ck-cosm-lbl', title: 'PALETTE — a cosmetic colour theme for the whole game. No effect on gameplay.' }, 'PALETTE'),
+      this.themeRow,
+      el('div', { class: 'ck-cosm-lbl', title: 'DASH TRAIL — the cosmetic streak left behind when you dash. Unlocked through play.' }, 'DASH TRAIL'),
+      this.trailRow,
+    );
+    customize.addEventListener('click', () => {
+      const open = this.cosmPicker.classList.toggle('hidden');
+      customize.setAttribute('aria-expanded', String(!open));
+    });
+    const loadoutCol = el(
+      'div',
+      { class: 'ck-col ck-col-right' },
+      el('div', { class: 'ck-sec' }, 'LOADOUT'),
+      shipDisplay,
+      this.shipPicker,
+      heatRow,
+      el('div', { class: 'ck-cosm-title' }, 'COSMETICS'),
+      customize,
+      this.cosmPicker,
+    );
+
+    this.mainPanel = el(
+      'div',
+      { class: 'ck-main' },
+      el('div', { class: 'ck-corner tl' }),
+      el('div', { class: 'ck-corner tr' }),
+      el('div', { class: 'ck-corner bl' }),
+      el('div', { class: 'ck-corner br' }),
+      railCol,
+      centerCol,
+      loadoutCol,
+    );
+
+    // ── BOTTOM NAV ── icon buttons → existing modal openers. Every entry point kept.
+    this.ngBtn = el('button', { class: 'ck-nav-btn ck-nav-ng hidden', type: 'button' }, 'NG+') as HTMLButtonElement;
+    this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
+    const navBtn = (icon: string, label: string, on: () => void, title: string) => {
+      const b = el('button', { class: 'ck-nav-btn', type: 'button', title }, iconEl('ck-nav-ico', NAV_ICONS[icon]), el('span', {}, label));
+      b.addEventListener('click', on);
+      return b;
+    };
+    const bottomNav = el(
+      'div',
+      { class: 'ck-nav', role: 'group', 'aria-label': 'Menus' },
+      navBtn('upgrades', 'UPGRADES', () => this.openUpgrades(), 'UPGRADES — spend shards on a permanent meta-tree that carries between runs.'),
+      navBtn('ranks', 'RANKS', () => this.openLeaderboard(), 'RANKS — online leaderboards (daily, weekly and all-time) if you opt in.'),
+      navBtn('stats', 'STATS', () => this.openStats(), 'STATS — your lifetime numbers and achievements.'),
+      el('div', { class: 'ck-nav-div' }),
+      navBtn('build', 'BUILD', () => this.openArchetype(), 'BUILD — pick a starting archetype that biases your perk draft.'),
+      navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — a bestiary of every enemy, boss, biome and relic, with lore.'),
+      navBtn('fall', 'THE FALL', () => this.showFall(), 'THE FALL — the story: six who let the City of Lancefall go dark.'),
+      navBtn('duel', 'DUEL', () => this.openDuel(), 'DUEL — async 1v1: you and a friend race the same fixed seed.'),
+      el('div', { class: 'ck-nav-div' }),
+      navBtn('inspect', 'INSPECT', () => this.openInspect(), 'INSPECT — paste a BUILD DNA code to read back a run.'),
+      navBtn('credits', 'CREDITS', () => this.showCredits(), 'CREDITS — the music, sounds and assets behind LANCEFALL.'),
+      navBtn('howto', 'HOW TO', () => this.showHowTo(), 'HOW TO PLAY — the controls and the core loop.'),
+      navBtn('settings', 'SETTINGS', () => this.openSettings(), 'SETTINGS — audio, accessibility, key bindings.'),
+      this.ngBtn,
+    );
+
+    // legacy refs kept alive (old read-sites still reference them) but unused in the cockpit.
+    this.dailyCaption = el('div', { class: 'daily-caption hidden' }, '');
+    this.soundHint = el('div', { class: 'sound-hint ck-sound-hint' }, '♪ press DESCEND to enable sound');
+
     this.title = el(
       'div',
-      { class: 'screen screen-title' },
-      wordmark,
-      subtitle,
-      tagline,
-      solsticeStamp,
-      this.titleBest,
-      this.shardLine,
-      play,
-      this.modeGrid,
-      this.dailyCaption,
-      shipSection,
-      themeSection,
-      trailSection,
-      legend,
-      settingsRow,
-      row,
-      this.soundHint,
+      { class: 'screen screen-title screen-cockpit' },
+      el('div', { class: 'ck-frame' }, header, this.cockpitSolstice, this.mainPanel, bottomNav, this.soundHint, this.dailyCaption),
     );
+  }
+
+  /** Heat stepper (loadout) — clamp to 0..MAX_HEAT and route through onHeatChange. */
+  private stepHeat(delta: number): void {
+    const s = this.saveRef;
+    if (!s) return;
+    const next = Math.max(0, Math.min(MAX_HEAT, s.selectedHeat + delta));
+    if (next !== s.selectedHeat) this.cb.onHeatChange(next); // persists → refreshTitle re-paints pips
+  }
+
+  /** Paint the loadout HEAT pips (one per level 1..MAX_HEAT; first `level` lit). */
+  private paintHeatPips(level: number): void {
+    this.heatPipsWrap.replaceChildren();
+    for (let i = 1; i <= MAX_HEAT; i++) {
+      this.heatPipsWrap.append(el('div', { class: 'ck-heat-pip' + (i <= level ? ' on' : '') }));
+    }
   }
 
   private buildPause(): void {
@@ -1360,19 +1609,35 @@ export class UI {
 
   refreshTitle(save: SaveData): void {
     this.saveRef = save;
-    this.titleBest.textContent =
-      save.highScore > 0
-        ? `BEST ${save.highScore.toLocaleString()}  ·  x${save.bestCombo} combo`
-        : 'no runs yet — go make a mess';
-    const arch = save.selectedArchetype && save.selectedArchetype !== 'none' ? `  ·  ◈ ${archetypeById(save.selectedArchetype).name}` : '';
-    this.shardLine.textContent = `◆ ${save.shards.toLocaleString()} shards${save.selectedHeat > 0 ? `  ·  🔥 HEAT ${save.selectedHeat}` : ''}${arch}`;
+
+    // ── coerce an invalid/locked selection ONCE so the rail always has a valid card ──
+    // (e.g. a Nightmare/Solstice selection from before it was earned, or a non-rail mode
+    // like Weekly that has no rail card). Guarded so the re-entrant refreshTitle can't loop.
+    if (!this.coercingMode) {
+      const sel = modeById(save.selectedMode);
+      const onRail = RAIL_MODE_IDS.includes(sel.id) && modeUnlocked(sel, save.deepestWave);
+      if (!onRail) {
+        const firstUnlocked = RAIL_MODE_IDS.find((id) => modeUnlocked(modeById(id), save.deepestWave)) ?? 'endless';
+        this.coercingMode = true;
+        this.cb.onSelectMode(firstUnlocked); // persists → re-enters refreshTitle (guarded)
+        this.coercingMode = false;
+        return; // the re-entrant call painted everything with the corrected selection
+      }
+    }
+
+    // ── HEADER stats ──
+    this.hsBest.textContent = save.highScore > 0 ? save.highScore.toLocaleString() : '—';
+    this.hsCombo.textContent = save.bestCombo > 0 ? `×${save.bestCombo}` : '—';
+    this.hsShards.textContent = `◆ ${save.shards.toLocaleString()}`;
+
     // NG+ toggle — appears only once the Sovereign has been felled
     const ngUnlocked = save.ngPlusLevel >= 1;
     this.ngBtn.classList.toggle('hidden', !ngUnlocked);
-    this.ngBtn.classList.toggle('btn-primary', save.ngPlusActive);
-    this.ngBtn.textContent = save.ngPlusActive ? `★ NG+${save.ngPlusLevel}` : `NG+${save.ngPlusLevel} off`;
+    this.ngBtn.classList.toggle('active', save.ngPlusActive);
+    this.ngBtn.textContent = save.ngPlusActive ? `★ NG+${save.ngPlusLevel}` : `NG+${save.ngPlusLevel}`;
+    this.ngBtn.title = save.ngPlusActive ? `New Game+ ${save.ngPlusLevel} active — tap to turn off` : 'New Game+ — tap to turn on';
 
-    // daily challenge caption — today's seed + your best + best-of-3 attempts
+    // legacy daily caption (kept hidden) — preserves the old read-site contract.
     let daily = `Echo of the Fall · ${dateString()}`;
     if (save.dailySeed === seedFromDate() && save.dailyBest > 0) {
       daily += ` · your best ${save.dailyBest.toLocaleString()}`;
@@ -1380,6 +1645,15 @@ export class UI {
     const dUsed = save.dailyAttemptDate === dateString() ? save.dailyAttempts : 0;
     daily += dUsed >= MAX_DAILY_ATTEMPTS ? ` · ${MAX_DAILY_ATTEMPTS}/${MAX_DAILY_ATTEMPTS} done today` : ` · Attempt ${dUsed + 1}/${MAX_DAILY_ATTEMPTS}`;
     this.dailyCaption.textContent = daily;
+
+    // ── LOADOUT: ship art + name/desc + HEAT pips ──
+    const ship = shipById(save.selectedShip);
+    this.paintShipGlyph(this.shipArt, ship.id, ship.accent);
+    this.shipArt.style.filter = `drop-shadow(0 0 12px ${ship.accent})`;
+    this.shipArtName.textContent = ship.name;
+    this.shipArtName.style.color = ship.accent;
+    this.shipArtDesc.textContent = ship.desc;
+    this.paintHeatPips(save.selectedHeat);
 
     this.shipRow.replaceChildren();
     for (const ship of SHIPS) {
@@ -1440,47 +1714,120 @@ export class UI {
       this.trailRow.append(sw);
     }
 
-    // v6 §5 — mode-cards: every mode selectable + persisted; roving tabindex for kbd/pad
-    // nav; the SELECTED card shows a Heat chip + (Daily) a seed + read-only mutator preview.
+    // ── LEFT: MODE RAIL (RAIL_MODE_IDS order; roving tabindex; locked = dimmed, not pickable) ──
     this.modeGrid.replaceChildren();
-    for (const m of MODES) {
+    for (const id of RAIL_MODE_IDS) {
+      const m = modeById(id);
       const selected = save.selectedMode === m.id;
+      const unlocked = modeUnlocked(m, save.deepestWave);
       const brief = modeBrief(m);
       const card = el('button', {
-        class: 'mode-card' + (selected ? ' selected' : ''),
+        class: 'mode-card ck-mi' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked'),
         'aria-pressed': String(selected),
+        'aria-disabled': unlocked ? 'false' : 'true',
         tabindex: selected ? '0' : '-1',
       });
-      card.append(
-        el('div', { class: 'mode-card-name' }, m.name),
-        el('div', { class: 'mode-card-tier' }, `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`),
-        el('div', { class: 'mode-card-desc' }, m.desc),
-        el('div', { class: 'mode-card-reward' }, brief.reward),
+      card.style.setProperty('--accent', railAccent(m.id));
+      card.style.setProperty('--accent-rgb', hexToRgb(railAccent(m.id)));
+      const text = el(
+        'div',
+        { class: 'ck-mi-text' },
+        el('div', { class: 'ck-mi-name' }, m.name),
+        el('div', { class: 'ck-mi-sub' }, `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`),
       );
+      // PB line on the selected card (and a "new? start here" nudge on Casual for fresh saves).
       if (selected) {
-        const foot = el('div', { class: 'mode-card-foot' });
-        const heat = el('button', { class: 'mode-card-heat' }, save.selectedHeat > 0 ? `🔥 HEAT ${save.selectedHeat}` : '🔥 HEAT');
-        heat.addEventListener('click', (e) => { e.stopPropagation(); this.openHeat(); });
-        foot.append(heat);
-        // Daily AND Weekly are seeded → preview the seed + the run's deterministic mutators
-        // (each from its OWN rng stream, so previewing never perturbs the seeded wave stream).
-        if (m.seedKind === 'date' || m.seedKind === 'week') {
-          const seed = m.seedKind === 'week' ? seedFromWeek() : seedFromDate();
-          const muts = m.seedKind === 'week' ? weeklyMutatorPreview(seed) : dailyMutatorPreview(seed);
-          foot.append(el('span', { class: 'mode-card-seed' }, `seed ${seed}`));
-          for (const mut of muts) {
-            const chip = el('span', { class: 'mode-card-mut' }, mut.name);
-            chip.style.setProperty('--accent', mut.accent);
-            foot.append(chip);
-          }
-        }
-        card.append(foot);
+        const pb = m.seedKind === 'date'
+          ? (save.dailyBest > 0 ? save.dailyBest.toLocaleString() : '—')
+          : (save.highScore > 0 ? save.highScore.toLocaleString() : '—');
+        text.append(el('div', { class: 'ck-mi-pb' }, `PB ${pb}`));
       }
-      card.title = m.desc;
-      card.addEventListener('click', () => this.cb.onSelectMode(m.id));
+      card.append(iconEl('ck-mi-icon', MODE_ICONS[m.id] ?? ''), text);
+      if (!unlocked) {
+        card.append(el('div', { class: 'ck-mi-badge locked' }, `LOCKED · reach wave ${m.unlockedAtWave}`));
+      } else if (m.id === 'casual' && save.totalRuns === 0) {
+        card.append(el('div', { class: 'ck-mi-badge start' }, 'START HERE'));
+      } else if (m.seedKind === 'date') {
+        card.append(el('div', { class: 'ck-mi-badge daily' }, 'DAILY'));
+      }
+      card.title = unlocked ? m.desc : `Locked — reach wave ${m.unlockedAtWave} to unlock ${m.name}.`;
+      card.addEventListener('click', () => {
+        if (unlocked) this.cb.onSelectMode(m.id);
+      });
       this.modeGrid.append(card);
     }
-    this.playBtn.title = 'Play ' + modeById(save.selectedMode).name;
+
+    // ── CENTER: SELECTED RUN ──
+    this.refreshSelectedRun(save);
+    this.playBtn.title = 'Descend — play ' + modeById(save.selectedMode).name;
+  }
+
+  /** Paint the center SELECTED-RUN hero panel from the selected mode (purity-safe mutator
+   *  preview only). Also drives the mode accent across the cockpit + the DESCEND sub-line. */
+  private refreshSelectedRun(save: SaveData): void {
+    const m = modeById(save.selectedMode);
+    const accent = railAccent(m.id);
+    const rgb = hexToRgb(accent);
+    this.mainPanel.style.setProperty('--accent', accent);
+    this.mainPanel.style.setProperty('--accent-rgb', rgb);
+    this.centerSec.style.setProperty('--accent', accent);
+
+    const brief = modeBrief(m);
+    const seeded = modeSeeded(m);
+    const seed = m.seedKind === 'week' ? seedFromWeek() : m.seedKind === 'date' ? seedFromDate() : 0;
+    // PURITY-CRITICAL: preview mutators only via the dedicated preview fns (own rng stream).
+    const muts = m.seedKind === 'week' ? weeklyMutatorPreview(seed) : m.seedKind === 'date' ? dailyMutatorPreview(seed) : [];
+
+    // hero seed rule (only for seeded modes), title, tags, desc
+    this.heroSeedRow.replaceChildren();
+    if (seeded) {
+      this.heroSeedRow.append(
+        el('span', { class: 'ck-seed-rule' }),
+        el('span', { class: 'ck-seed-txt' }, `◇ ${seed} ◇`),
+        el('span', { class: 'ck-seed-rule r' }),
+      );
+    }
+    this.heroSeedRow.classList.toggle('hidden', !seeded);
+    this.heroTitle.textContent = m.name;
+    this.heroTags.textContent = [brief.tier, brief.note].filter(Boolean).join(' · ');
+    this.heroDesc.textContent = m.desc;
+
+    // info bar: (Daily) ATTEMPT x/3 · SEED · MUTATOR chips
+    this.infoBar.replaceChildren();
+    const ii = (label: string, ...val: (Node | string)[]) =>
+      el('div', { class: 'ck-ii' }, el('div', { class: 'ck-ii-lbl' }, label), el('div', { class: 'ck-ii-val' }, ...val));
+    const sep = () => el('div', { class: 'ck-ii-sep' });
+    if (m.seedKind === 'date') {
+      const roll = rollDailyAttempt(dateString(), save.dailyAttemptDate, save.dailyAttempts);
+      this.infoBar.append(ii('ATTEMPT', `${Math.min(roll.attempts + 1, MAX_DAILY_ATTEMPTS)} / ${MAX_DAILY_ATTEMPTS}`), sep());
+    }
+    if (seeded) {
+      this.infoBar.append(ii('SEED', String(seed)), sep());
+      const mutWrap = el('div', { class: 'ck-mut-chips' });
+      if (muts.length === 0) mutWrap.append(el('span', { class: 'ck-mut-none' }, 'NONE'));
+      for (const mut of muts) {
+        const chip = el('span', { class: 'ck-mut-chip' }, mut.name);
+        chip.style.setProperty('--accent', mut.accent);
+        mutWrap.append(chip);
+      }
+      this.infoBar.append(el('div', { class: 'ck-ii' }, el('div', { class: 'ck-ii-lbl' }, 'MUTATOR'), mutWrap), sep());
+    }
+    this.infoBar.append(ii('HEAT', save.selectedHeat > 0 ? `H${save.selectedHeat}` : 'OFF'));
+    this.infoBar.classList.toggle('hidden', this.infoBar.childElementCount === 0);
+
+    // reward chips: shard reward + leaderboard status
+    this.rewardRow.replaceChildren();
+    const rewardChip = (cls: string, lbl: string, val: string) =>
+      el('div', { class: `ck-rc ${cls}` }, el('div', { class: 'ck-rc-dot' }), el('div', { class: 'ck-rc-text' }, el('div', { class: 'ck-rc-lbl' }, lbl), el('div', { class: 'ck-rc-val' }, val)));
+    this.rewardRow.append(rewardChip('shards', 'REWARD', brief.reward));
+    const board = !modeRanked(m) ? 'OFF-BOARD' : m.seedKind === 'date' ? 'DAILY RANKED' : m.seedKind === 'week' ? 'WEEKLY RANKED' : 'RANKED';
+    this.rewardRow.append(rewardChip('board' + (modeRanked(m) ? '' : ' off'), 'LEADERBOARD', board));
+
+    // DESCEND sub-line: mode · ship · Heat N (+ mutator on seeded)
+    const ship = shipById(save.selectedShip);
+    const parts = [m.name, ship.name, save.selectedHeat > 0 ? `Heat ${save.selectedHeat}` : 'Heat 0'];
+    if (muts.length) parts.push(muts.map((x) => x.name).join(' + '));
+    this.descendSub.textContent = parts.join('  ·  ');
   }
 
   /** Paint a ship's big silhouette into its hover-preview canvas (nose-up, in its accent).
@@ -1514,11 +1861,12 @@ export class UI {
     });
   }
 
-  /** §5 U2 — step the selected mode-card left/right (keyboard/gamepad), persist, focus it. */
+  /** §5 U2 — step the selected mode along the RAIL (keyboard/gamepad), skipping locked
+   *  modes, persist, and re-focus the now-selected card. */
   moveModeSelection(dir: number): void {
     const s = this.saveRef;
     if (!s) return;
-    this.cb.onSelectMode(nextModeId(s.selectedMode, dir)); // persists → refreshTitle rebuilds the grid
+    this.cb.onSelectMode(nextRailMode(s.selectedMode, dir, s.deepestWave)); // persists → refreshTitle rebuilds the rail
     (this.modeGrid.querySelector('.mode-card.selected') as HTMLElement | null)?.focus();
   }
 
