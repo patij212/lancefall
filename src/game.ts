@@ -61,6 +61,7 @@ import {
   saveSettings,
   particleDensityValue,
   buildShareString,
+  nextStreak,
 } from './save';
 import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind, Bullet } from './types';
@@ -70,10 +71,21 @@ import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder, type ShareMeta } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
 import { fragmentBalance, loreById } from './lore';
-import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode } from './ghost';
+import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
 
 type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
+
+// ── 4.1 CHALLENGE THE DEV — a pinned fixed-seed run that races an author ghost. ──
+// The seed is a constant so the dev's "official" challenge run is identical for everyone.
+// Endless on this seed (off any date/week cadence), so it stays deterministic forever.
+const DEV_CHALLENGE_SEED = 0x1ace_fa11; // "LACEFALL" — a fixed, memorable pinned seed
+// The author's recorded run, as a duel/challenge code (the byte-identical string COPY-DUEL
+// produces). Paste a real recorded run here later to race the dev's ghost; until then it's
+// empty and the challenge launches the pinned seed with NO ghost (mechanism only — no fake).
+// TODO(author-ghost): play DEV_CHALLENGE_SEED, hit ⚔ DUEL on the game-over screen, and paste
+// the copied duel code (the part the URL wraps after `#duel=`) between these quotes.
+const DEV_CHALLENGE_GHOST = '';
 
 export class Game {
   private renderer: Renderer;
@@ -122,6 +134,7 @@ export class Game {
   private ghostRace: Ghost | null = null; // the ghost being raced (daily PB / a challenge)
   private lastRunGhost: Ghost | null = null; // the finished run's ghost (for "challenge a friend")
   private pendingChallenge: Ghost | null = null; // a decoded challenge to start on the next run
+  private pendingSeed: number | null = null; // 4.1 — a pinned fixed seed (CHALLENGE THE DEV) with no ghost
   private inChallenge = false;
   private challengeTarget = 0;
   private challengeName = '';
@@ -186,6 +199,7 @@ export class Game {
       onToggleNgPlus: () => this.toggleNgPlus(),
       onCreateChallenge: () => this.createChallenge(),
       onAcceptChallenge: (code) => this.acceptChallenge(code),
+      onChallengeDev: () => this.challengeTheDev(),
       onSettingsChange: (s) => this.applySettings(s),
       onSelectShip: (id) => this.selectShip(id),
       onUnlockShip: (id) => this.unlockShip(id),
@@ -241,8 +255,38 @@ export class Game {
   }
 
   boot(): void {
+    this.routeDuelLink(); // 4.4 — a friend opened a `#duel=<code>` link → route it in
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /** 4.4 — On boot, detect a `#duel=<code>` (also `?duel=`) in the URL, strip it from the
+   *  address bar (so a refresh can't re-trigger), and route the code into the EXISTING
+   *  accept-challenge flow by pre-filling the DUEL panel. Determinism is preserved: the code
+   *  is the byte-identical challenge string, fed to the same acceptChallenge() path on ACCEPT. */
+  private routeDuelLink(): void {
+    let code = '';
+    try {
+      code = extractDuelCode(location.hash) || extractDuelCode(location.search);
+    } catch {
+      return; // no usable location (e.g. a non-browser test env) → nothing to route
+    }
+    if (!code) return;
+    // strip the duel payload from the address bar so a refresh can't re-trigger it.
+    // Drop a `#duel=...` hash entirely; remove a `?duel=...` query param while keeping
+    // any other params intact. Falls back gracefully if history/URL APIs are missing.
+    try {
+      const clean = location.pathname + stripDuelQuery(location.search);
+      history.replaceState(null, '', clean);
+    } catch {
+      /* replaceState unavailable — harmless; we already have the code */
+    }
+    // validate before surfacing — a mangled link shouldn't pop an empty duel panel
+    if (!fromChallengeCode(code)) {
+      this.ui.toast('That duel link looks corrupted — ask your friend to resend it.');
+      return;
+    }
+    this.ui.openDuelWithCode(code); // pre-filled; ACCEPT runs the same acceptChallenge() flow
   }
 
   private resize(): void {
@@ -300,6 +344,8 @@ export class Game {
     this.mode = cfg;
     const challenge = this.pendingChallenge;
     this.pendingChallenge = null;
+    const pinnedSeed = this.pendingSeed; // 4.1 — CHALLENGE THE DEV: a fixed seed, no ghost
+    this.pendingSeed = null;
     // §4 M4 — Daily best-of-3: once today's 3 attempts are used, lock the Daily and run
     // Endless instead (a duel is exempt; it never counts toward the attempt budget).
     if (cfg.id === 'daily' && !challenge) {
@@ -312,11 +358,13 @@ export class Game {
     }
     this.seed = challenge
       ? challenge.seed
-      : cfg.seedKind === 'date'
-        ? seedFromDate()
-        : cfg.seedKind === 'week'
-          ? seedFromWeek() // WEEKLY CHALLENGE — one week-stable seed for everyone, all week
-          : (Date.now() & 0x7fffffff) || 1;
+      : pinnedSeed != null
+        ? pinnedSeed // 4.1 — the pinned DEV_CHALLENGE_SEED (deterministic, no ghost yet)
+        : cfg.seedKind === 'date'
+          ? seedFromDate()
+          : cfg.seedKind === 'week'
+            ? seedFromWeek() // WEEKLY CHALLENGE — one week-stable seed for everyone, all week
+            : (Date.now() & 0x7fffffff) || 1;
     this.audio.setMusicVariant(this.seed); // one coherent arena track per run (reads the seed, no rng draw)
     this.world.rng = createRng(this.seed);
     this.world.seed = this.seed; // read-only source for the cipher-lock (no rng draw)
@@ -2223,6 +2271,12 @@ export class Game {
         this.save.ngPlusActive = true; // queued for the next run; toggle off on the title
       }
       this.save.totalRuns++;
+      // 4.2 DAILY STREAK — pure calendar math (consecutive day → +1, same day →
+      // unchanged, gap/first play → 1). Runs on every genuine finish, before the
+      // single saveSave below; never touches the sim/seed/scoring.
+      const playedDay = dateString();
+      this.save.playStreak = nextStreak(playedDay, this.save.lastPlayedDate, this.save.playStreak);
+      this.save.lastPlayedDate = playedDay;
       // C5 — count early runs so the beat-teaching retires after a few descents
       if (this.save.firstRunsBeatHint < COHERENCE.firstRunsBeatHintRuns) this.save.firstRunsBeatHint++;
       // MEMORY FRAGMENTS — carry one out of every descent + earn milestone fragments
@@ -2383,19 +2437,39 @@ export class Game {
     }
   }
 
-  /** Copy a shareable duel code for the just-finished run (seed + score + ghost path). */
+  /** 4.4 — Share a duel for the just-finished run as a shareable LINK (seed + score +
+   *  ghost path, baked into the URL fragment). The acceptor opens the link and is routed
+   *  straight into the SAME accept-challenge flow on boot. The raw code is still produced
+   *  (it's the fragment payload) so the manual paste-a-code path keeps working. */
   private createChallenge(): void {
     if (!this.lastRunGhost) return;
     // bake the run-defining modifiers into the duel code so the acceptor reproduces
-    // the CHALLENGER's fight (same seed AND same Heat/NG+), not their own settings
+    // the CHALLENGER's fight (same seed AND same Heat/NG+), not their own settings.
+    // NOTE: byte-identical to the old code path — we only WRAP it in a URL; the seed +
+    // ghost are untouched, so the duel stays bit-reproducible for both players.
     this.lastRunGhost.heat = this.runHeat;
     this.lastRunGhost.ngPlus = this.runNgPlus;
     const code = toChallengeCode(this.lastRunGhost);
+    const url = buildDuelUrl(code, `${location.origin}${location.pathname}`);
+    // Prefer the native share sheet (mobile) → falls back to clipboard copy of the link.
+    const nav = navigator as Navigator & { share?: (d: { url?: string; text?: string; title?: string }) => Promise<void> };
+    if (typeof nav.share === 'function') {
+      void nav
+        .share({ title: 'THE LAST LANCE — duel', text: 'Race my run on the same seed:', url })
+        .then(() => this.ui.toast('⚔ Duel link shared — they fall through your exact seed.'))
+        .catch(() => this.copyDuelUrl(url)); // user dismissed the sheet → copy instead
+    } else {
+      this.copyDuelUrl(url);
+    }
+  }
+
+  /** Copy the duel LINK to the clipboard with a friendly toast (falls back to showing the link). */
+  private copyDuelUrl(url: string): void {
     try {
-      void navigator.clipboard?.writeText(code);
-      this.ui.toast('⚔ Duel code copied — send it to a friend to race your run!');
+      void navigator.clipboard?.writeText(url);
+      this.ui.toast('⚔ Duel link copied — send it to a friend.');
     } catch {
-      this.ui.toast(code);
+      this.ui.toast(url);
     }
   }
 
@@ -2408,6 +2482,23 @@ export class Game {
     }
     this.pendingChallenge = g;
     this.start(MODES.find((m) => m.id === g.mode) ?? MODES[0]);
+  }
+
+  /** 4.1 — CHALLENGE THE DEV: launch the pinned DEV_CHALLENGE_SEED. If an author ghost is
+   *  bundled, race it via the EXISTING ghost-race/challenge path (acceptChallenge); otherwise
+   *  launch the pinned seed in Endless with no ghost (mechanism only — never a fabricated ghost). */
+  private challengeTheDev(): void {
+    const author = DEV_CHALLENGE_GHOST ? fromChallengeCode(DEV_CHALLENGE_GHOST) : null;
+    if (author) {
+      // a real recorded run exists → reproduce the dev's fight (seed + ghost + modifiers)
+      this.acceptChallenge(DEV_CHALLENGE_GHOST);
+      return;
+    }
+    // no ghost yet → pinned seed, no ghost. A normal (non-challenge) endless run so it plays
+    // like any other run; the fixed seed keeps the wave/perk sequence identical for everyone.
+    this.pendingSeed = DEV_CHALLENGE_SEED;
+    this.ui.toast('⚑ CHALLENGE THE DEV — the pinned seed. Beat it, then ⚔ DUEL the dev your run.');
+    this.start(modeById('endless'));
   }
 
   private applyDirector(spawn: EnemyKind[]): void {

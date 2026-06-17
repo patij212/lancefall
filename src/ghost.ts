@@ -134,3 +134,42 @@ export function fromChallengeCode(code: string): Ghost | null {
   const g = deserializeGhost(code.trim());
   return g && g.xs.length > 0 ? g : null;
 }
+
+// ── 4.4 DUEL-AS-LINK: wrap/extract a duel CODE in a shareable URL ──────────────
+// The duel CODE is the byte-identical challenge string above; the URL only TRANSPORTS
+// it (in a `#duel=` fragment, url-encoded), so a duel stays bit-reproducible — the
+// seed + ghost are never touched, only carried. extractDuelCode reverses the wrap and
+// also tolerates a bare code (back-compat with the paste-a-code path).
+const DUEL_PARAM = 'duel';
+
+/** Build a shareable duel link from a duel code, given the page origin+path.
+ *  Caller passes `${location.origin}${location.pathname}` so this stays pure/testable. */
+export function buildDuelUrl(code: string, base = ''): string {
+  return `${base}#${DUEL_PARAM}=${encodeURIComponent(code)}`;
+}
+
+/** Pull a duel code out of a URL (or a raw `#duel=`/`?duel=` fragment, or a bare code).
+ *  Returns the decoded code string, or '' if there's no duel payload. Pure + total. */
+export function extractDuelCode(input: string): string {
+  if (!input) return '';
+  // find a `duel=` occurrence in either the hash or the query, take everything to the
+  // next param separator. Works whether given a full URL, just the hash, or just a query.
+  const m = /[#&?]duel=([^&]*)/.exec(input);
+  if (m) {
+    try {
+      return decodeURIComponent(m[1]).trim();
+    } catch {
+      return m[1].trim(); // malformed %-escape → use the raw value rather than throw
+    }
+  }
+  return '';
+}
+
+/** Remove a `duel=...` param from a query string (location.search), preserving any others
+ *  and a leading '?'. Returns '' when nothing meaningful remains. Pure + total. */
+export function stripDuelQuery(search: string): string {
+  if (!search || !search.includes('duel=')) return search;
+  const q = search.replace(/^\?/, '');
+  const kept = q.split('&').filter((p) => p && !/^duel=/.test(p));
+  return kept.length ? '?' + kept.join('&') : '';
+}

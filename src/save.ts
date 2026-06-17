@@ -86,6 +86,12 @@ export interface SaveData {
   cityMemoryMeter: boolean;
   /** count of early runs that still get the dash-on-the-beat hint */
   firstRunsBeatHint: number;
+  // ── 4.2 DAILY STREAK — a cheap retention hook. Pure date math on run end; never
+  //    touches sim/seed/scoring. lastPlayedDate is a YYYY-MM-DD dateString() ('' = never). ──
+  /** YYYY-MM-DD of the last run played (local time); '' = never played */
+  lastPlayedDate: string;
+  /** consecutive-day play streak (1 on first play; +1 each next calendar day; reset on a gap) */
+  playStreak: number;
 }
 
 export interface Settings {
@@ -156,6 +162,8 @@ export function defaultSave(): SaveData {
     baseShields: TUNE.player.baseShields,
     cityMemoryMeter: true,
     firstRunsBeatHint: 0,
+    lastPlayedDate: '',
+    playStreak: 0,
   };
 }
 
@@ -270,6 +278,26 @@ export function saveSettings(s: Settings): void {
 
 export function particleDensityValue(d: Settings['particleDensity']): number {
   return d === 'low' ? 0.4 : d === 'med' ? 0.7 : 1;
+}
+
+// ── 4.2 DAILY STREAK transition (pure) ─────────────────────────────────────────
+/** Day BEFORE a YYYY-MM-DD date string, as a YYYY-MM-DD string (local-time math,
+ *  mirroring dateString()). Parses the canonical 'YYYY-MM-DD' shape; on anything
+ *  unparseable returns '' (so it can never accidentally equal a real lastPlayedDate). */
+function dayBefore(today: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  if (!m) return '';
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1);
+  return dateString(d);
+}
+
+/** Next play-streak value given the stored streak + last-played date and TODAY's
+ *  date string. Rules: same day → unchanged; exactly yesterday → +1; any other gap
+ *  (or first-ever play) → reset to 1. Pure; never touches the sim/seed/scoring. */
+export function nextStreak(today: string, lastPlayedDate: string, playStreak: number): number {
+  if (lastPlayedDate === today) return Math.max(1, playStreak); // already counted today
+  if (lastPlayedDate && lastPlayedDate === dayBefore(today)) return Math.max(1, playStreak) + 1;
+  return 1; // a gap (or never played) restarts the streak
 }
 
 export function buildShareString(

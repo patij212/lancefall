@@ -28,8 +28,11 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          deepestWave). Purely additive → default-filled by the spread; no
   //          explicit transform needed.
   // v5 → v6: reserved the v6-pass fields (selectedMode, dailyAttempts,
-  //          dailyAttemptDate, baseShields, cityMemoryMeter, firstRunsBeatHint).
-  //          Purely additive → default-filled by the spread; no explicit transform.
+  //          dailyAttemptDate, baseShields, cityMemoryMeter, firstRunsBeatHint,
+  //          and the 4.2 daily-streak pair lastPlayedDate/playStreak). Purely
+  //          additive → default-filled by the spread; the per-field validation loop
+  //          below resets a hand-edited lastPlayedDate ('' default) / playStreak (≥0
+  //          number) to its default. No explicit transform / no version bump needed.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
   const out: SaveData = { ...base, ...data, version: SAVE_VERSION };
@@ -64,6 +67,9 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // selectedMode must be a REAL mode id (not just any string), or the title highlight
   // desyncs from the launch target (no card lit while PLAY falls back to endless).
   if (!MODES.some((m) => m.id === o.selectedMode)) o.selectedMode = b.selectedMode;
+  // 4.2 — playStreak is a count: clamp a hand-edited negative/fractional value to a
+  // safe non-negative integer (the generic loop above only checks it's a finite number).
+  if (typeof o.playStreak === 'number') o.playStreak = Math.max(0, Math.floor(o.playStreak));
   return out;
 }
 

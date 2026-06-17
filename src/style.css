@@ -1903,6 +1903,24 @@ body {
   line-height: 1;
   color: var(--text);
 }
+/* 4.2 — daily-streak retention chip (header). Lives left of the stat columns. */
+.ck-streak {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: center;
+  margin-right: 14px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 146, 60, 0.5);
+  background: rgba(251, 146, 60, 0.12);
+  color: #fdba74;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.ck-streak.hidden { display: none; }
 
 /* ── MAIN PANEL: 3 columns ── */
 .ck-main {

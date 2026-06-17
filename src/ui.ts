@@ -78,6 +78,8 @@ export interface UICallbacks {
   onToggleNgPlus: () => void;
   onCreateChallenge: () => void;
   onAcceptChallenge: (code: string) => void;
+  /** 4.1 — launch the pinned CHALLENGE-THE-DEV seed (races the author ghost if one is bundled) */
+  onChallengeDev: () => void;
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
   onSelectMode: (id: string) => void;
@@ -305,6 +307,7 @@ export class UI {
   private hsBest!: HTMLElement;
   private hsCombo!: HTMLElement;
   private hsShards!: HTMLElement;
+  private hsStreak!: HTMLElement; // 4.2 — "🔥 N day streak" header chip (hidden below 2)
   private cockpitSolstice!: HTMLElement;
   private heroSeedRow!: HTMLElement;
   private heroTitle!: HTMLElement;
@@ -644,9 +647,12 @@ export class UI {
     this.hsCombo = el('div', { class: 'ck-hstat-val' }, '—');
     this.shardLine = el('div', { class: 'ck-hstat-val' }, '—');
     this.hsShards = this.shardLine;
+    // 4.2 — daily-streak retention chip; hidden until the player has a 2+ day streak.
+    this.hsStreak = el('div', { class: 'ck-streak hidden', title: 'Consecutive days played — keep it alive!' }, '');
     const hdrRight = el(
       'div',
       { class: 'ck-hdr-right' },
+      this.hsStreak,
       el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'BEST RUN'), this.hsBest),
       el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'BEST COMBO'), this.hsCombo),
       el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'SHARDS'), this.hsShards),
@@ -1271,7 +1277,27 @@ export class UI {
     });
     const close = el('button', { class: 'btn btn-ghost' }, 'CANCEL');
     close.addEventListener('click', () => this.closeModal(this.duelPanel));
-    const panel = el('div', { class: 'panel' }, h, blurb, input, el('div', { class: 'go-row' }, accept, close));
+    // 4.1 — CHALLENGE THE DEV: a pinned fixed-seed run (races the author ghost if bundled).
+    const devBlurb = el(
+      'div',
+      { class: 'event-flavor' },
+      'Or take the dev\'s gauntlet: a pinned fixed seed everyone shares. Beat it, then ⚔ DUEL your run back.',
+    );
+    const dev = el('button', { class: 'btn btn-ghost' }, '⚑ CHALLENGE THE DEV');
+    dev.addEventListener('click', () => {
+      this.closeModal(this.duelPanel);
+      this.cb.onChallengeDev();
+    });
+    const panel = el(
+      'div',
+      { class: 'panel' },
+      h,
+      blurb,
+      input,
+      el('div', { class: 'go-row' }, accept, close),
+      devBlurb,
+      el('div', { class: 'go-row' }, dev),
+    );
     this.duelPanel = el('div', { class: 'screen screen-dim screen-settings hidden' }, panel);
   }
 
@@ -1279,6 +1305,19 @@ export class UI {
     this.openModal(this.duelPanel);
     const input = this.duelPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
     input?.focus();
+  }
+
+  /** 4.4 — open the DUEL panel pre-filled with a code arriving from a shared `#duel=` link.
+   *  The player reads the blurb + the challenger's context, then hits ACCEPT (same flow as a
+   *  manual paste). Public so the boot URL-router can call it; additive (no UICallbacks change). */
+  openDuelWithCode(code: string): void {
+    this.openModal(this.duelPanel);
+    const input = this.duelPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
+    if (input) {
+      input.value = code;
+      input.focus();
+      input.select();
+    }
   }
 
   // INSPECT A BUILD — paste a Build DNA code (someone hit COPY BUILD) and read back
@@ -1629,6 +1668,10 @@ export class UI {
     this.hsBest.textContent = save.highScore > 0 ? save.highScore.toLocaleString() : '—';
     this.hsCombo.textContent = save.bestCombo > 0 ? `×${save.bestCombo}` : '—';
     this.hsShards.textContent = `◆ ${save.shards.toLocaleString()}`;
+    // 4.2 — show the streak chip only once a 2+ day streak is alive
+    const streaking = save.playStreak >= 2;
+    this.hsStreak.classList.toggle('hidden', !streaking);
+    if (streaking) this.hsStreak.textContent = `🔥 ${save.playStreak} day streak`;
 
     // NG+ toggle — appears only once the Sovereign has been felled
     const ngUnlocked = save.ngPlusLevel >= 1;
