@@ -3425,3 +3425,603 @@ body {
   .screen-modal .panel-wide { min-width: 0; width: 96vw; }
   .screen-modal .panel > :not(h2):not(.go-row):not(.btn) { margin-left: 14px; margin-right: 14px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   FIRST LIGHT RUN-END (mock-choice-v2) — the run-end / THE CHOICE screen. A warm
+   dawn that is the tonal inverse of the cockpit's neon night. ONE screen, THREE
+   faces (won-with-CHOICE · won · lost), all scoped under `.go-screen` so nothing
+   else is touched. Ported from the approved mock into the game's REAL token/font
+   vocabulary: Orbitron→Space Grotesk, Rajdhani→JetBrains Mono, Inter→Inter; the
+   project palette (var(--cyan/--amber/...)) plus a small dawn-gold sub-palette.
+
+   --go-coh  : the city-coherence dial (1 on a win, dimmed on a loss).
+   --go-lean : the live "which ending am I weighing" dial — set by THE CHOICE
+               hover/focus (+1 CATCH = full dawn, −1 FALL = violet dusk), locked
+               on commit. Read here as --lean on `.go-frame` (set in ui.ts).
+
+   EVERY motion (dawn rise, lean transitions, resolve wash, motes, CTA breath,
+   shimmer) is gated by BOTH the game's `.reduce-motion` flag AND the OS
+   `prefers-reduced-motion` query — see "STILL DAWN" at the end. The lean/resolve
+   still WORK under reduce-motion, but as instant state changes (no transition).
+══════════════════════════════════════════════════════════════════════════════ */
+@property --go-coh { syntax: '<number>'; inherits: true; initial-value: 1; }
+@property --lean { syntax: '<number>'; inherits: true; initial-value: 0; }
+
+.go-screen {
+  /* a warm dawn sub-palette local to this screen */
+  --go-gold: #ffd884;
+  --go-gold-hi: #fff3d6;
+  --go-gold-rgb: 255, 216, 132;
+  --go-violet: #b39bff;
+  --go-violet-rgb: 179, 155, 255;
+  --go-label-1: #bca588;
+  --go-label-2: #cfb795;
+  --go-label-3: #e0cda9;
+  --go-ink: #f6efe0;
+  /* a darker, restrained dawn for a death — the gold pulls back to ash */
+  align-items: stretch;
+  justify-content: center;
+  padding: clamp(10px, 3vh, 28px) 14px;
+  overflow-y: auto;
+}
+/* the warm dawn bloom rising from the horizon — leans warm/cool with the choice */
+.go-frame.go-won::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  --lw: calc(0.5 + var(--lean, 0) * 0.5); /* 1 at CATCH, 0 at FALL */
+  background:
+    radial-gradient(ellipse 130% 75% at 50% 120%, rgba(255, 198, 116, calc((0.06 + var(--go-coh) * 0.16) * (0.5 + var(--lw) * 0.9))) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 128%, rgba(150, 120, 255, calc(0.14 * (1 - var(--lw)))) 0%, transparent 58%);
+  transition: opacity 0.55s ease;
+}
+.reduce-motion .go-frame.go-won::before { transition: none; }
+
+/* the screen frame — overrides the centred .panel chrome with a full composition */
+.go-frame {
+  --lean: 0;
+  --go-coh: 1;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* unset the .panel look so the run-end owns its own framing */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  min-width: 0;
+  box-shadow: none;
+  align-items: stretch;
+}
+.reduce-motion .go-frame,
+.go-frame { will-change: auto; }
+
+/* ── HEADER ── */
+.go-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 0 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.go-hdr-left { display: flex; align-items: center; gap: 16px; }
+.go-sigil { width: 46px; height: 46px; flex-shrink: 0; display: block; }
+.go-sigil svg { width: 46px; height: 46px; display: block; animation: goPulseSoft 4.2s ease-in-out infinite; }
+.go-lost .go-sigil svg { filter: grayscale(0.7) brightness(0.7); opacity: 0.7; }
+@keyframes goPulseSoft { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+.go-brand { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.go-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.32em;
+  font-weight: 700;
+  color: var(--go-gold);
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(var(--go-gold-rgb), 0.4);
+}
+.go-lost .go-eyebrow { color: var(--pink); text-shadow: none; }
+.go-head {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--go-gold-hi);
+  margin: 0;
+}
+.go-sub {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--go-label-2);
+  text-transform: uppercase;
+  margin: 0;
+}
+.go-lost .go-sub { color: var(--text-muted); text-transform: none; letter-spacing: 0.06em; font-size: 11px; }
+
+/* COHERENCE bar */
+.go-coh-wrap { flex: 1; max-width: 360px; margin: 0 24px; min-width: 200px; }
+.go-coh-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.go-coh-lbl { font-size: 8px; letter-spacing: 0.2em; color: var(--go-label-1); font-weight: 700; text-transform: uppercase; }
+.go-coh-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--go-gold);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(var(--go-gold-rgb), 0.45);
+}
+.go-lost .go-coh-pct { color: var(--text-muted); text-shadow: none; }
+.go-coh-track { height: 6px; background: rgba(255, 255, 255, 0.06); border-radius: 3px; position: relative; box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.45); }
+.go-coh-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+  width: calc(var(--go-coh) * 100%);
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.5) 0%, #818cf8 38%, var(--go-gold) 100%);
+  box-shadow: 0 0 8px rgba(var(--go-gold-rgb), 0.5);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.go-lost .go-coh-fill { background: linear-gradient(90deg, rgba(148, 163, 184, 0.4), rgba(120, 130, 150, 0.5)); box-shadow: none; }
+.go-coh-foot { margin-top: 5px; font-size: 8px; color: var(--go-label-3); letter-spacing: 0.1em; text-align: center; }
+.go-lost .go-coh-foot { color: var(--text-muted); }
+
+.go-hdr-right { display: flex; align-items: stretch; }
+.go-hstat { padding: 4px 16px; border-left: 1px solid rgba(255, 255, 255, 0.06); text-align: center; }
+.go-hstat-lbl { font-size: 8px; letter-spacing: 0.12em; color: var(--go-label-1); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+.go-hstat-val { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 21px; font-weight: 700; line-height: 1; }
+
+/* ── MAIN PANEL ── */
+.go-main {
+  position: relative;
+  background: rgba(10, 9, 16, 0.92);
+  border: 1px solid rgba(var(--go-gold-rgb), 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.025), 0 28px 90px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.go-lost .go-main { border-color: rgba(255, 255, 255, 0.07); }
+.go-corner { position: absolute; width: 12px; height: 12px; border-color: rgba(var(--go-gold-rgb), 0.3); border-style: solid; pointer-events: none; z-index: 10; }
+.go-lost .go-corner { border-color: rgba(255, 255, 255, 0.18); }
+.go-c-tl { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+.go-c-tr { top: -1px; right: -1px; border-width: 1px 1px 0 0; }
+.go-c-bl { bottom: -1px; left: -1px; border-width: 0 0 1px 1px; }
+.go-c-br { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+
+/* ── FIRST LIGHT tableau (the hero; reacts to --lean) ── */
+.go-tableau {
+  position: relative;
+  height: 184px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-bottom: 1px solid rgba(var(--go-gold-rgb), 0.08);
+}
+/* the loss face dims the whole hero to ash — NOT the warm dawn */
+.go-lost .go-tableau { filter: grayscale(0.82) brightness(0.5); border-bottom-color: rgba(255, 255, 255, 0.06); }
+.go-tab-sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #0a1030 0%, #241a36 42%, #5a3a44 70%, #8a5640 100%);
+  filter: brightness(calc(0.74 + var(--go-coh) * 0.32 + var(--lean) * 0.14)) saturate(calc(0.85 + var(--lean) * 0.2));
+  transition: filter 0.55s ease;
+}
+.go-tab-dusk {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: calc((1 - (0.5 + var(--lean) * 0.5)) * 0.9);
+  background: linear-gradient(180deg, rgba(40, 28, 70, 0.5) 0%, rgba(60, 40, 96, 0.34) 50%, rgba(28, 20, 52, 0.62) 100%);
+  mix-blend-mode: multiply;
+  transition: opacity 0.55s ease;
+}
+.go-tab-city {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 130px;
+  z-index: 1;
+  display: block;
+  filter: saturate(calc(0.55 + var(--go-coh) * 0.5 + var(--lean) * 0.25)) brightness(calc(0.68 + var(--go-coh) * 0.5 + var(--lean) * 0.18));
+  transition: filter 0.55s ease;
+}
+.go-tab-city svg { display: block; width: 100%; height: 100%; }
+.go-tab-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 150px;
+  z-index: 1;
+  --lw: calc(0.5 + var(--lean) * 0.5);
+  background:
+    radial-gradient(ellipse 100% 50% at 50% 100%, rgba(255, 210, 130, calc((0.1 + var(--go-coh) * 0.4) * (0.45 + var(--lw) * 0.85))) 0%, transparent 66%),
+    radial-gradient(ellipse 36% 30% at 50% 100%, rgba(255, 246, 224, calc((0.05 + var(--go-coh) * 0.35) * (0.4 + var(--lw)))) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 42% at 50% 100%, rgba(150, 120, 255, calc(0.3 * (1 - var(--lw)))) 0%, transparent 62%);
+  transition: opacity 0.55s ease;
+}
+.go-tab-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(6, 8, 16, 0.6) 0%, rgba(6, 8, 16, 0.08) 38%, rgba(6, 8, 16, 0.06) 60%, rgba(10, 7, 14, 0.68) 100%);
+}
+.go-tab-motes { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.go-mote {
+  position: absolute;
+  bottom: 14px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 236, 190, 0.85);
+  animation: goMoteRise ease-out infinite;
+}
+@keyframes goMoteRise {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  14% { opacity: 0.85; }
+  100% { transform: translateY(-104px) scale(0.35); opacity: 0; }
+}
+.go-tab-content { position: relative; z-index: 4; padding: 0 16px; }
+.go-tab-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  font-weight: 700;
+  color: var(--go-gold);
+  text-transform: uppercase;
+  margin-bottom: 9px;
+  text-shadow: 0 0 18px rgba(255, 210, 130, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.go-rule { width: 42px; height: 1px; background: linear-gradient(90deg, transparent, rgba(var(--go-gold-rgb), 0.5)); }
+.go-rule.r { background: linear-gradient(270deg, transparent, rgba(var(--go-gold-rgb), 0.5)); }
+.go-tab-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: #fff8ea;
+  text-shadow: 0 0 32px rgba(255, 214, 140, 0.72), 0 0 86px rgba(255, 180, 90, 0.32);
+}
+.go-lost .go-tab-title { color: #d6d2cc; text-shadow: none; }
+.go-tab-line { margin-top: 12px; font-size: 12px; font-style: italic; color: #ecdcc0; letter-spacing: 0.02em; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.go-lost .go-tab-line { color: var(--text-muted); }
+
+/* ── THE CHOICE ── */
+.go-choice-zone { padding: 22px 22px 18px; position: relative; }
+.go-choice-prompt { text-align: center; margin-bottom: 16px; }
+.go-choice-kicker { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.3em; color: var(--go-label-1); font-weight: 700; text-transform: uppercase; }
+.go-choice-q { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; color: #f2e6cf; margin-top: 8px; }
+.go-choice-turing {
+  margin-top: 9px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--go-label-3);
+  letter-spacing: 0.03em;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.55;
+}
+.go-choice-turing b { color: var(--go-gold); font-style: normal; font-weight: 600; }
+.go-choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.go-choice {
+  --ac: var(--go-gold);
+  --ac-rgb: var(--go-gold-rgb);
+  position: relative;
+  padding: 22px 20px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(var(--ac-rgb), 0.07) 0%, rgba(10, 9, 16, 0.5) 55%);
+  border: 1px solid rgba(var(--ac-rgb), 0.28);
+  box-shadow: inset 0 1px 0 rgba(var(--ac-rgb), 0.1);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s, box-shadow 0.2s, opacity 0.3s, filter 0.3s;
+}
+.go-choice-fall { --ac: var(--go-violet); --ac-rgb: var(--go-violet-rgb); }
+.go-choice::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(var(--ac-rgb), 0.9), transparent);
+  opacity: 0.7;
+}
+.go-choice:hover { transform: translateY(-4px); border-color: rgba(var(--ac-rgb), 0.6); box-shadow: 0 18px 44px -22px rgba(var(--ac-rgb), 0.65), inset 0 1px 0 rgba(var(--ac-rgb), 0.2); }
+.go-choice:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(var(--ac-rgb), 0.9); }
+.go-choice-glyph { display: block; width: 54px; height: 54px; margin: 0 auto 12px; color: var(--ac); filter: drop-shadow(0 0 12px rgba(var(--ac-rgb), 0.6)); transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.go-choice-glyph svg { width: 54px; height: 54px; display: block; }
+.go-choice:hover .go-choice-glyph { transform: translateY(-2px) scale(1.06); }
+.go-choice-act { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.12em; text-align: center; color: var(--ac); text-shadow: 0 0 22px rgba(var(--ac-rgb), 0.45); }
+.go-choice-head { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.22em; font-weight: 700; text-transform: uppercase; color: rgba(var(--ac-rgb), 0.88); text-align: center; margin-top: 8px; }
+.go-choice-line { font-size: 11.5px; line-height: 1.6; color: #ddcfb6; text-align: center; max-width: 290px; margin: 9px auto 0; }
+.go-choice-tag { margin-top: 14px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 8.5px; letter-spacing: 0.16em; color: var(--go-label-2); text-transform: uppercase; }
+.go-choice-tag b { color: rgba(var(--ac-rgb), 0.95); font-weight: 700; }
+.go-choice.chosen { border-color: var(--ac); box-shadow: 0 0 46px -8px rgba(var(--ac-rgb), 0.65), inset 0 0 34px rgba(var(--ac-rgb), 0.1); transform: translateY(-2px); }
+.go-choice.dimmed { opacity: 0.28; filter: saturate(0.45) blur(0.4px); transform: none; }
+/* once resolved, the cards lock (no more hover lift) */
+.go-frame.resolved .go-choice { cursor: default; }
+.go-frame.resolved .go-choice:hover { transform: translateY(-2px); }
+.go-frame.resolved .go-choice.dimmed:hover { transform: none; }
+
+/* ── DEBRIEF + SHARE ── */
+.go-lower { display: grid; grid-template-columns: 1fr 322px; gap: 16px; padding: 0 22px 20px; align-items: stretch; }
+.go-stat-panel { display: flex; flex-direction: column; }
+.go-panel-lbl { font-size: 8px; letter-spacing: 0.18em; color: var(--go-label-1); font-weight: 700; text-transform: uppercase; margin-bottom: 12px; }
+.go-screen .go-badge { display: block; color: var(--go-gold); letter-spacing: 0.2em; font-size: 13px; margin: 0 0 6px; font-family: 'Space Grotesk', sans-serif; }
+.go-screen .go-delta { font-family: 'JetBrains Mono', monospace; font-size: 12px; margin: 0 0 8px; }
+.go-screen .go-delta:empty { display: none; }
+/* the debrief stat grid (re-uses the shared stat() markup — restyled inside .go-screen) */
+.go-screen .go-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0;
+}
+.go-screen .go-stat { background: rgba(10, 9, 16, 0.6); padding: 12px; text-align: center; align-items: center; }
+.go-screen .go-stat-l { font-size: 8px; letter-spacing: 0.12em; color: var(--go-label-1); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; order: 2; }
+.go-screen .go-stat-v { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 700; line-height: 1; color: #f4ecdc; order: 1; }
+.go-screen .go-ach { margin: 10px 0 0; max-width: none; justify-content: flex-start; }
+.go-grade-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 11px 14px; background: rgba(var(--go-gold-rgb), 0.05); border: 1px solid rgba(var(--go-gold-rgb), 0.18); border-radius: 10px; }
+.go-lost .go-grade-row { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); }
+.go-grade-badge { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: var(--go-gold); text-shadow: 0 0 18px rgba(var(--go-gold-rgb), 0.5); line-height: 1; flex-shrink: 0; }
+.go-lost .go-grade-badge { color: var(--text-muted); text-shadow: none; }
+.go-grade-text { display: flex; flex-direction: column; gap: 3px; }
+.go-grade-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--go-gold-hi); }
+.go-lost .go-grade-title { color: var(--text); }
+.go-grade-note { font-size: 10px; color: var(--go-label-3); line-height: 1.5; }
+.go-lost .go-grade-note { color: var(--text-muted); }
+.go-screen .go-build { margin: 12px 0 0; max-width: none; text-align: left; font-size: 12px; }
+
+.go-share-panel { display: flex; flex-direction: column; }
+.go-gif { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid rgba(var(--go-gold-rgb), 0.18); aspect-ratio: 16 / 10; background: #0a0d18; display: block; }
+.go-gif-sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0a1030 0%, #3a2438 55%, #7a4a3c 100%); }
+.go-gif-glow { position: absolute; bottom: 0; left: 0; right: 0; height: 72%; background: radial-gradient(ellipse 90% 60% at 50% 100%, rgba(255, 210, 130, 0.52), transparent 70%); }
+.go-gif-shimmer { position: absolute; top: 0; left: 0; width: 55%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.13) 50%, transparent); animation: goScanShimmer 3.6s ease-out infinite 1s; }
+.go-gif-badge { position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 0.14em; font-weight: 700; color: #efe2cc; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; padding: 3px 8px; }
+.go-gif-dot { width: 5px; height: 5px; border-radius: 50%; background: #ff5d6c; box-shadow: 0 0 6px #ff5d6c; animation: goPulseSoft 1.6s ease-in-out infinite; }
+@keyframes goScanShimmer {
+  0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  6% { opacity: 0.95; }
+  24% { transform: translateX(340%) skewX(-18deg); opacity: 0; }
+  100% { transform: translateX(340%) skewX(-18deg); opacity: 0; }
+}
+.go-share-btns { display: flex; gap: 8px; margin-top: 10px; }
+.go-sbtn {
+  flex: 1;
+  padding: 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.go-sbtn.primary { background: rgba(var(--go-gold-rgb), 0.12); border: 1px solid rgba(var(--go-gold-rgb), 0.4); color: var(--go-gold-hi); }
+.go-sbtn.primary:hover { background: rgba(var(--go-gold-rgb), 0.2); border-color: var(--go-gold); }
+.go-sbtn.ghost { background: transparent; border: 1px solid rgba(255, 255, 255, 0.12); color: var(--go-label-3); }
+.go-sbtn.ghost:hover { border-color: rgba(34, 211, 238, 0.4); color: #7dd3fc; }
+.go-sbtn:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+.go-share-note { margin-top: 9px; font-size: 8.5px; letter-spacing: 0.06em; color: var(--go-label-2); text-align: center; font-style: italic; }
+
+/* ── FOOTER ── */
+.go-footer { display: flex; align-items: center; gap: 14px; padding: 6px 2px 2px; }
+.go-descend {
+  flex: 1;
+  padding: 15px 20px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(var(--go-gold-rgb), 0.14) 0%, rgba(var(--go-gold-rgb), 0.05) 50%, rgba(var(--go-gold-rgb), 0.11) 100%);
+  border: 2px solid var(--go-gold);
+  color: var(--go-gold-hi);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+  clip-path: polygon(14px 0%, calc(100% - 14px) 0%, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0% 50%);
+  box-shadow: 0 0 32px rgba(var(--go-gold-rgb), 0.18), inset 0 1px 0 rgba(var(--go-gold-rgb), 0.14);
+  animation: goCtaBreath 2.6s ease-in-out infinite;
+  transition: letter-spacing 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* a loss tones the primary CTA down — ash, not gold */
+.go-lost .go-descend {
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.12), rgba(148, 163, 184, 0.05));
+  border-color: rgba(148, 163, 184, 0.55);
+  color: var(--text);
+  box-shadow: none;
+  animation: none;
+}
+.go-descend:hover { letter-spacing: 0.28em; }
+.go-descend:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.go-descend::before { content: ''; position: absolute; top: 0; left: 0; width: 55%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 246, 224, 0.18) 50%, transparent); animation: goScanShimmer 4.2s ease-out infinite 1.4s; }
+.go-lost .go-descend::before { display: none; }
+@keyframes goCtaBreath {
+  0%, 100% { box-shadow: 0 0 28px rgba(var(--go-gold-rgb), 0.16), inset 0 1px 0 rgba(var(--go-gold-rgb), 0.12); }
+  50% { box-shadow: 0 0 46px rgba(var(--go-gold-rgb), 0.34), inset 0 1px 0 rgba(var(--go-gold-rgb), 0.18); }
+}
+.go-foot-secondary { display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; min-width: 200px; }
+.go-fbtn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--go-label-2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: border-color 0.12s, color 0.12s;
+}
+.go-fbtn:hover { border-color: rgba(var(--go-violet-rgb), 0.4); color: #d3c5ff; }
+.go-fbtn:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+.go-fbtn.go-ascend.active { border-color: rgba(var(--go-gold-rgb), 0.55); color: var(--go-gold-hi); }
+.go-k { font-size: 8px; opacity: 0.6; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 3px; padding: 1px 5px; }
+
+/* ── the COMMITTED resolve: a full-screen wash in the chosen ending's colour ── */
+.go-resolve {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: none;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 24px;
+  background: radial-gradient(ellipse 90% 80% at 50% 50%, rgba(var(--go-rc, var(--go-gold-rgb)), 0.14), rgba(5, 6, 14, 0.86) 72%);
+  backdrop-filter: blur(2px);
+}
+.go-resolve.show { animation: goResolveSeq 3.2s ease forwards; }
+@keyframes goResolveSeq { 0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.go-resolve-head { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.16em; }
+.go-resolve-line { font-size: 13px; color: #ecdcc0; max-width: 480px; line-height: 1.65; font-style: italic; }
+
+/* ── load-in reveal (won; staggered) — gated under STILL DAWN ── */
+.go-frame.go-won .go-header { animation: goBootIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both; }
+.go-frame.go-won .go-main { animation: goBootIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
+.go-frame.go-won .go-footer { animation: goBootFade 0.7s ease 0.5s both; }
+.go-frame.go-won.go-pending { animation: goDawnRise 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+@keyframes goDawnRise { from { --go-coh: 0.45; } to { --go-coh: 1; } }
+@keyframes goBootIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes goBootFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── CLARITY (high-contrast) — lift every dawn label/value to a higher floor ── */
+.clarity .go-screen {
+  --go-label-1: #d9c8ab;
+  --go-label-2: #ecdcbe;
+  --go-label-3: #f4ead2;
+}
+.clarity .go-tab-line,
+.clarity .go-choice-line { color: #f1e6cf; }
+.clarity .go-choice-glyph { filter: drop-shadow(0 0 4px rgba(var(--ac-rgb), 0.8)); }
+.clarity .go-grade-note,
+.clarity .go-share-note { color: var(--go-label-3); }
+/* keep the warm header text legible against the brighter clarity bg too */
+.clarity .go-eyebrow { color: var(--go-gold-hi); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   STILL DAWN — run-end reduce-motion. A held, RESOLVED frame (not degraded): the
+   dawn is pinned full, nothing breathes/boots/shimmers/rises, every label legible.
+   The lean/resolve STILL work — they snap (no transition). Gated by BOTH the game's
+   `.reduce-motion` flag AND the OS `prefers-reduced-motion` query.
+══════════════════════════════════════════════════════════════════════════════ */
+.reduce-motion .go-screen .go-sigil svg,
+.reduce-motion .go-frame.go-won .go-header,
+.reduce-motion .go-frame.go-won .go-main,
+.reduce-motion .go-frame.go-won .go-footer,
+.reduce-motion .go-frame.go-won.go-pending,
+.reduce-motion .go-coh-fill,
+.reduce-motion .go-mote,
+.reduce-motion .go-gif-shimmer,
+.reduce-motion .go-gif-dot,
+.reduce-motion .go-descend,
+.reduce-motion .go-descend::before,
+.reduce-motion .go-resolve.show {
+  animation: none !important;
+}
+.reduce-motion .go-tab-sky,
+.reduce-motion .go-tab-city,
+.reduce-motion .go-tab-glow,
+.reduce-motion .go-tab-dusk,
+.reduce-motion .go-frame.go-won::before,
+.reduce-motion .go-choice,
+.reduce-motion .go-choice-glyph,
+.reduce-motion .go-coh-fill {
+  transition: none !important;
+}
+.reduce-motion .go-frame { --go-coh: 1; }
+.reduce-motion .go-mote { opacity: 0; }
+/* the resolve wash holds as a brief static state instead of fading (still shown) */
+.reduce-motion .go-resolve.show { opacity: 1; }
+.reduce-motion .go-descend:hover { letter-spacing: 0.22em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .go-screen .go-sigil svg,
+  .go-frame.go-won .go-header,
+  .go-frame.go-won .go-main,
+  .go-frame.go-won .go-footer,
+  .go-frame.go-won.go-pending,
+  .go-coh-fill,
+  .go-mote,
+  .go-gif-shimmer,
+  .go-gif-dot,
+  .go-descend,
+  .go-descend::before,
+  .go-resolve.show {
+    animation: none !important;
+  }
+  .go-tab-sky,
+  .go-tab-city,
+  .go-tab-glow,
+  .go-tab-dusk,
+  .go-frame.go-won::before,
+  .go-choice,
+  .go-choice-glyph {
+    transition: none !important;
+  }
+  .go-frame { --go-coh: 1; }
+  .go-mote { opacity: 0; }
+  .go-resolve.show { opacity: 1; }
+  .go-descend:hover { letter-spacing: 0.22em; }
+}
+
+/* ── responsive — reflow to a fluid stack on narrow viewports ── */
+@media (max-width: 920px) {
+  .go-lower { grid-template-columns: 1fr; }
+  .go-share-panel .go-gif { aspect-ratio: 16 / 7; }
+}
+@media (max-width: 640px) {
+  .go-header { justify-content: center; text-align: center; }
+  .go-hdr-left { width: 100%; justify-content: center; }
+  .go-brand { text-align: center; align-items: center; }
+  .go-coh-wrap { order: 3; flex: 1 1 100%; max-width: none; margin: 4px 0 0; }
+  .go-hdr-right { width: 100%; justify-content: center; }
+  .go-choice-row { grid-template-columns: 1fr; }
+  .go-screen .go-stats { grid-template-columns: repeat(2, 1fr); }
+  .go-footer { flex-direction: column; }
+  .go-foot-secondary { width: 100%; }
+  .go-tab-title { font-size: 30px; }
+}

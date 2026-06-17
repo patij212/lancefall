@@ -53,6 +53,7 @@ import {
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
+import { choiceEnding } from './stillpoint';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -160,6 +161,92 @@ const LOGO_SVG = `<svg viewBox="0 0 58 58" fill="none" aria-hidden="true">
 const COH_CITY_SVG = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
   <rect x="2" y="10" width="4" height="7"/><rect x="7" y="6" width="4" height="11"/><rect x="12" y="8" width="4" height="9"/>
 </svg>`;
+
+// ── FIRST LIGHT run-end static art (ported from mock-choice-v2) ────────────────
+// The dawn sigil header mark (the tonal inverse of the cockpit's cyan logo: gold).
+const GO_SIGIL_SVG = `<svg viewBox="0 0 46 46" fill="none" aria-hidden="true">
+  <circle cx="23" cy="23" r="21" stroke="#ffd884" stroke-width="1" opacity="0.55"/>
+  <circle cx="23" cy="23" r="15" stroke="#a78bfa" stroke-width="0.6" opacity="0.3"/>
+  <path d="M23 5 L26 19 L23 21 L20 19 Z" fill="#ffd884"/>
+  <circle cx="23" cy="23" r="3.4" fill="none" stroke="#fff3d6" stroke-width="1.3"/>
+  <circle cx="23" cy="23" r="1.8" fill="#ffd884"/>
+  <g stroke="#ffd884" stroke-width="1" stroke-linecap="round" opacity="0.7">
+    <line x1="23" y1="2" x2="23" y2="5"/><line x1="44" y1="23" x2="41" y2="23"/><line x1="2" y1="23" x2="5" y2="23"/>
+  </g>
+</svg>`;
+
+// The FIRST LIGHT skyline tableau — SVG city + spire + windows (CSS filters lean it).
+const GO_CITY_SVG = `<svg viewBox="0 0 680 138" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <ellipse cx="340" cy="128" rx="300" ry="44" fill="rgba(255,200,120,0.10)"/>
+  <g fill="#1a1326" opacity="0.7">
+    <rect x="0" y="86" width="34" height="52"/><rect x="40" y="70" width="26" height="68"/>
+    <rect x="74" y="94" width="40" height="44"/><rect x="120" y="78" width="30" height="60"/>
+    <rect x="540" y="78" width="30" height="60"/><rect x="576" y="94" width="40" height="44"/>
+    <rect x="622" y="70" width="26" height="68"/><rect x="654" y="86" width="26" height="52"/>
+  </g>
+  <g fill="#251830">
+    <rect x="150" y="66" width="50" height="72"/><rect x="206" y="82" width="40" height="56"/>
+    <rect x="252" y="56" width="30" height="82"/><rect x="430" y="56" width="30" height="82"/>
+    <rect x="468" y="82" width="40" height="56"/><rect x="282" y="94" width="68" height="44"/>
+    <rect x="356" y="94" width="68" height="44"/>
+  </g>
+  <g style="transform-box: fill-box; transform-origin: 50% 100%;">
+    <rect x="326" y="44" width="16" height="94" fill="#2a1c34"/><rect x="320" y="60" width="28" height="6" rx="1" fill="#2a1c34"/>
+    <rect x="333" y="28" width="2" height="20" fill="#fff3d6"/>
+    <circle cx="334" cy="28" r="2.6" fill="#fff3d6"/>
+  </g>
+  <g fill="#ffd884">
+    <circle cx="334" cy="54" r="1.3" opacity="0.95"/><circle cx="334" cy="64" r="1.3" opacity="0.85"/>
+    <circle cx="334" cy="74" r="1.3" opacity="0.7"/><circle cx="334" cy="84" r="1.2" opacity="0.55"/>
+  </g>
+  <g>
+    <circle cx="170" cy="78" r="1.3" fill="#ffe0a0"/><circle cx="176" cy="86" r="1.3" fill="#ffce80"/>
+    <circle cx="184" cy="74" r="1.2" fill="#ffd884"/><circle cx="220" cy="92" r="1.3" fill="#ffe0a0"/>
+    <circle cx="226" cy="100" r="1.2" fill="#ffce80"/><circle cx="262" cy="70" r="1.3" fill="#fff0c8"/>
+    <circle cx="266" cy="82" r="1.2" fill="#ffd884"/><circle cx="300" cy="104" r="1.2" fill="#ffce80"/>
+    <circle cx="320" cy="108" r="1.2" fill="#ffe0a0"/><circle cx="380" cy="106" r="1.2" fill="#ffd884"/>
+    <circle cx="410" cy="108" r="1.2" fill="#ffce80"/><circle cx="442" cy="70" r="1.3" fill="#fff0c8"/>
+    <circle cx="448" cy="82" r="1.2" fill="#ffd884"/><circle cx="480" cy="92" r="1.3" fill="#ffe0a0"/>
+    <circle cx="486" cy="100" r="1.2" fill="#ffce80"/><circle cx="100" cy="100" r="1.1" fill="#ffce80"/>
+    <circle cx="560" cy="100" r="1.1" fill="#ffce80"/>
+    <circle cx="200" cy="96" r="1" fill="#67e8f9" opacity="0.6"/><circle cx="470" cy="96" r="1" fill="#67e8f9" opacity="0.6"/>
+  </g>
+  <g fill="#140e1c"><rect x="160" y="52" width="34" height="86"/><rect x="486" y="52" width="34" height="86"/></g>
+  <line x1="0" y1="137" x2="680" y2="137" stroke="rgba(255,216,132,0.5)" stroke-width="0.8"/>
+</svg>`;
+
+// Rising motes over the skyline (CSS animates them; gated under reduce-motion).
+const GO_MOTES_HTML = `<span class="go-mote" style="left:16%;animation-duration:5.5s;animation-delay:0s"></span>
+<span class="go-mote" style="left:33%;animation-duration:6.8s;animation-delay:1.4s;background:rgba(255,210,140,0.7)"></span>
+<span class="go-mote" style="left:62%;animation-duration:5s;animation-delay:0.7s"></span>
+<span class="go-mote" style="left:78%;animation-duration:7.2s;animation-delay:2.2s;background:rgba(255,210,140,0.7)"></span>`;
+
+// THE CHOICE glyphs — a rising / a setting light (currentColor → the card accent).
+const GO_CATCH_GLYPH = `<svg viewBox="0 0 52 52" fill="none" aria-hidden="true">
+  <circle cx="26" cy="20" r="7" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="1.6"/>
+  <circle cx="26" cy="20" r="2.6" fill="currentColor"/>
+  <g stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.8">
+    <line x1="26" y1="6" x2="26" y2="10"/><line x1="38" y1="9" x2="35.5" y2="12.5"/>
+    <line x1="14" y1="9" x2="16.5" y2="12.5"/><line x1="42" y1="20" x2="38" y2="20"/><line x1="10" y1="20" x2="14" y2="20"/>
+  </g>
+  <path d="M10 30 C12 42 20 47 26 47 C32 47 40 42 42 30" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M14 31 C16 39 21 43 26 43 C31 43 36 39 38 31" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.5"/>
+</svg>`;
+const GO_FALL_GLYPH = `<svg viewBox="0 0 52 52" fill="none" aria-hidden="true">
+  <path d="M10 18 C12 12 20 9 26 9 C32 9 40 12 42 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M14 19 C16 14 21 12 26 12 C31 12 36 14 38 19" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <circle cx="26" cy="27" r="3" fill="currentColor"/>
+  <g stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.7">
+    <line x1="20" y1="34" x2="18" y2="42"/><line x1="26" y1="35" x2="26" y2="45"/><line x1="32" y1="34" x2="34" y2="42"/>
+  </g>
+  <circle cx="18" cy="45" r="1.3" fill="currentColor" opacity="0.6"/>
+  <circle cx="26" cy="48" r="1.3" fill="currentColor" opacity="0.5"/>
+  <circle cx="34" cy="45" r="1.3" fill="currentColor" opacity="0.6"/>
+</svg>`;
+
+// The SHARE THE DAWN preview card chrome (a static dawn frame — no canvas dependency).
+const GO_GIF_HTML = `<span class="go-gif-sky"></span><span class="go-gif-glow"></span><span class="go-gif-shimmer"></span>
+<span class="go-gif-badge"><span class="go-gif-dot"></span> GIF · 6s</span>`;
 
 // Rail-mode icons, keyed by RunConfig id. currentColor → inherits the card accent.
 const MODE_ICONS: Record<string, string> = {
@@ -346,6 +433,31 @@ export class UI {
   private goSub!: HTMLElement;
   private goDelta!: HTMLElement;
   private goAch!: HTMLElement;
+  // gameover — FIRST LIGHT run-end shell (mock-choice-v2): the screen root carries a
+  // `.go-screen` skin + state class (won / lost / pending), plus a `--lean` dial driven
+  // by THE CHOICE hover/focus and locked on commit.
+  private goScreenInner!: HTMLElement; // .go-frame — carries won/lost/choice-pending + resolved state
+  private goEyebrow!: HTMLElement; // result eyebrow ("THE SOVEREIGN HAS FALLEN")
+  private goCohPct!: HTMLElement; // header COHERENCE %
+  private goCohFoot!: HTMLElement; // header COHERENCE footnote
+  private goHsScore!: HTMLElement; // header SCORE
+  private goHsCombo!: HTMLElement; // header BEST COMBO
+  private goHsTime!: HTMLElement; // header TIME
+  private goTableau!: HTMLElement; // FIRST LIGHT tableau (DOM/CSS skyline)
+  private goTabEyebrow!: HTMLElement; // tableau eyebrow ("THE LAST CIPHER IS YOURS")
+  private goTabTitle!: HTMLElement; // tableau hero title ("FIRST LIGHT")
+  private goTabLine!: HTMLElement; // tableau italic line (echo memory)
+  private goCatchBtn!: HTMLElement; // THE CHOICE — CATCH card
+  private goFallBtn!: HTMLElement; // THE CHOICE — FALL card
+  private goGrade!: HTMLElement; // S-grade badge
+  private goGradeTitle!: HTMLElement;
+  private goGradeNote!: HTMLElement;
+  private goResolve!: HTMLElement; // committed-resolve full-screen wash overlay
+  private goResolveHead!: HTMLElement;
+  private goResolveLine!: HTMLElement;
+  private goAscendBtn!: HTMLButtonElement; // ASCEND / KEEP GOING (NG+) — shown only when relevant
+  private goResolveTimer = 0;
+  private goChoiceLocked = false; // once a choice commits, the cards lock + the world holds
 
   private displayScore = 0;
   private pauseRestartArmed = false;
@@ -964,42 +1076,228 @@ export class UI {
     );
   }
 
+  // ── FIRST LIGHT run-end (mock-choice-v2) ───────────────────────────────────
+  //   One screen, three faces: a won-with-CHOICE hero (the FIRST LIGHT tableau +
+  //   THE CHOICE cards), a plain victory shell (no cards), and a restrained loss
+  //   debrief. The DOM is built once; showGameOver()/resolveChoice() toggle state
+  //   classes + fill the refs. Every callback (onChoice/onRestart/onQuit/
+  //   onToggleNgPlus/onSaveReplay) is wired to the SAME methods as before — this is
+  //   a pure presentation re-skin, the interface is untouched.
   private buildGameOver(): void {
+    // — HEADER —
+    this.goEyebrow = el('div', { class: 'go-eyebrow' }, '');
     this.goHead = el('h2', { class: 'go-head' }, 'THE LIGHT DIMS');
     this.goSub = el('div', { class: 'go-sub' }, '');
-    this.goBadge = el('div', { class: 'go-badge' }, '');
-    this.goScore = el('div', { class: 'go-score' }, '0');
-    this.goDelta = el('div', { class: 'go-delta' }, '');
-    this.goStats = el('div', { class: 'go-stats' }, '');
-    this.goBuild = el('div', { class: 'go-build' }, '');
-    this.goAch = el('div', { class: 'go-ach' }, '');
-    const again = el('button', { class: 'btn btn-primary' }, 'AGAIN');
-    again.addEventListener('click', () => this.cb.onRestart());
-    const copy = el('button', { class: 'btn btn-ghost' }, 'COPY SCORE');
-    copy.addEventListener('click', () => this.cb.onCopyScore());
-    const dna = el('button', { class: 'btn btn-ghost' }, 'COPY BUILD ⧬');
-    dna.addEventListener('click', () => this.cb.onCopyBuildDna());
-    const duel = el('button', { class: 'btn btn-ghost' }, '⚔ DUEL A FRIEND');
-    duel.addEventListener('click', () => this.cb.onCreateChallenge());
-    const menu = el('button', { class: 'btn btn-ghost' }, 'MENU');
-    menu.addEventListener('click', () => this.cb.onQuit());
-    this.saveReplayBtn = el('button', { class: 'btn btn-ghost hidden' }, 'SHARE GIF ⤴') as HTMLButtonElement;
-    this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
-    const row = el('div', { class: 'go-row' }, again, copy, dna, duel, this.saveReplayBtn, menu);
-    // THE CHOICE — shown only on the first Sovereign kill (hold the light / let it go)
-    const catchBtn = el('button', { class: 'btn btn-primary' }, 'HOLD THE LIGHT');
-    catchBtn.addEventListener('click', () => this.cb.onChoice('catch'));
-    const fallBtn = el('button', { class: 'btn btn-ghost' }, 'LET IT GO');
-    fallBtn.addEventListener('click', () => this.cb.onChoice('fall'));
+    const brand = el('div', { class: 'go-brand' }, this.goEyebrow, this.goHead, this.goSub);
+    const sigil = el('span', { class: 'go-sigil', 'aria-hidden': 'true' });
+    sigil.innerHTML = GO_SIGIL_SVG;
+    const hdrLeft = el('div', { class: 'go-hdr-left' }, sigil, brand);
+
+    this.goCohPct = el('div', { class: 'go-coh-pct' }, '100%');
+    this.goCohFoot = el('div', { class: 'go-coh-foot' }, '');
+    const cohWrap = el(
+      'div',
+      { class: 'go-coh-wrap' },
+      el('div', { class: 'go-coh-row' }, el('div', { class: 'go-coh-lbl' }, 'CITY COHERENCE'), this.goCohPct),
+      el('div', { class: 'go-coh-track' }, el('div', { class: 'go-coh-fill' })),
+      this.goCohFoot,
+    );
+
+    this.goHsScore = el('div', { class: 'go-hstat-val', style: 'color:var(--amber)' }, '0');
+    this.goHsCombo = el('div', { class: 'go-hstat-val', style: 'color:var(--purple)' }, '×0');
+    this.goHsTime = el('div', { class: 'go-hstat-val', style: 'color:var(--cyan)' }, '0:00');
+    const hdrRight = el(
+      'div',
+      { class: 'go-hdr-right' },
+      el('div', { class: 'go-hstat' }, el('div', { class: 'go-hstat-lbl' }, 'SCORE'), this.goHsScore),
+      el('div', { class: 'go-hstat' }, el('div', { class: 'go-hstat-lbl' }, 'BEST COMBO'), this.goHsCombo),
+      el('div', { class: 'go-hstat' }, el('div', { class: 'go-hstat-lbl' }, 'TIME'), this.goHsTime),
+    );
+    const header = el('div', { class: 'go-header' }, hdrLeft, cohWrap, hdrRight);
+
+    // — FIRST LIGHT tableau (DOM/CSS skyline; reacts to --lean) —
+    this.goTabEyebrow = el('div', { class: 'go-tab-eyebrow' });
+    this.goTabEyebrow.append(el('span', { class: 'go-rule' }), 'THE LAST CIPHER IS YOURS', el('span', { class: 'go-rule r' }));
+    this.goTabTitle = el('div', { class: 'go-tab-title' }, 'FIRST LIGHT');
+    this.goTabLine = el('div', { class: 'go-tab-line' }, '');
+    const tabContent = el('div', { class: 'go-tab-content' }, this.goTabEyebrow, this.goTabTitle, this.goTabLine);
+    const sky = el('div', { class: 'go-tab-sky' });
+    const city = el('span', { class: 'go-tab-city', 'aria-hidden': 'true' });
+    city.innerHTML = GO_CITY_SVG;
+    const motes = el('div', { class: 'go-tab-motes', 'aria-hidden': 'true' });
+    motes.innerHTML = GO_MOTES_HTML;
+    this.goTableau = el(
+      'div',
+      { class: 'go-tableau' },
+      sky,
+      city,
+      el('div', { class: 'go-tab-dusk' }),
+      el('div', { class: 'go-tab-glow' }),
+      el('div', { class: 'go-tab-overlay' }),
+      motes,
+      tabContent,
+    );
+
+    // — THE CHOICE — two cards (lean-reactive, keyboard-operable). Shown only on a
+    //   choicePending run. Faithful to stillpoint.choiceEnding(): the head/line below
+    //   match choiceEnding('catch'|'fall') verbatim.
+    this.goCatchBtn = this.buildChoiceCard('catch');
+    this.goFallBtn = this.buildChoiceCard('fall');
     this.choiceRow = el(
       'div',
-      { class: 'go-row go-choice hidden' },
-      el('div', { class: 'go-choice-prompt' }, 'The last cipher cannot be solved — only chosen. Hold the light at its height, or let the day turn?'),
-      catchBtn,
-      fallBtn,
+      { class: 'go-choice-zone hidden' },
+      el(
+        'div',
+        { class: 'go-choice-prompt' },
+        el('div', { class: 'go-choice-kicker' }, '◇ THE CHOICE ◇'),
+        el('div', { class: 'go-choice-q' }, 'WHAT BECOMES OF THE LIGHT?'),
+        (() => {
+          const t = el('div', { class: 'go-choice-turing' }, 'The last cipher has no key. ');
+          t.append(el('b', {}, 'No machine can decide it'), ' — it can only be chosen.');
+          return t;
+        })(),
+      ),
+      el('div', { class: 'go-choice-row' }, this.goCatchBtn, this.goFallBtn),
     );
-    const panel = el('div', { class: 'panel' }, this.goHead, this.goSub, this.goBadge, this.goScore, this.goDelta, this.goStats, this.goBuild, this.goAch, this.choiceRow, row);
-    this.gameover = el('div', { class: 'screen screen-dim' }, panel);
+    this.wireChoiceKeyboard();
+
+    // — DEBRIEF + SHARE —
+    this.goBadge = el('div', { class: 'go-badge hidden' }, '');
+    this.goDelta = el('div', { class: 'go-delta' }, '');
+    this.goScore = el('div', { class: 'go-score hidden' }, '0'); // kept for the count-up animation target / legacy
+    this.goStats = el('div', { class: 'go-stats' }, '');
+    this.goGrade = el('div', { class: 'go-grade-badge' }, 'S');
+    this.goGradeTitle = el('div', { class: 'go-grade-title' }, '');
+    this.goGradeNote = el('div', { class: 'go-grade-note' }, '');
+    const gradeRow = el(
+      'div',
+      { class: 'go-grade-row' },
+      this.goGrade,
+      el('div', { class: 'go-grade-text' }, this.goGradeTitle, this.goGradeNote),
+    );
+    this.goAch = el('div', { class: 'go-ach' }, '');
+    this.goBuild = el('div', { class: 'go-build' }, '');
+    const statPanel = el(
+      'div',
+      { class: 'go-stat-panel' },
+      el('div', { class: 'go-panel-lbl' }, 'DEBRIEF'),
+      this.goBadge,
+      this.goDelta,
+      this.goStats,
+      this.goAch,
+      gradeRow,
+      this.goBuild,
+    );
+
+    // SHARE THE DAWN card — opens the existing SHARE modal via onSaveReplay.
+    this.saveReplayBtn = el('button', { class: 'go-sbtn primary' }, '⧉ SHARE THE DAWN') as HTMLButtonElement;
+    this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
+    const copy = el('button', { class: 'go-sbtn ghost' }, '⧉ COPY SCORE');
+    copy.addEventListener('click', () => this.cb.onCopyScore());
+    const dna = el('button', { class: 'go-sbtn ghost' }, '⧬ COPY BUILD');
+    dna.addEventListener('click', () => this.cb.onCopyBuildDna());
+    const duel = el('button', { class: 'go-sbtn ghost' }, '⚔ DUEL A FRIEND');
+    duel.addEventListener('click', () => this.cb.onCreateChallenge());
+    const sharePreview = el('span', { class: 'go-gif', 'aria-hidden': 'true' });
+    sharePreview.innerHTML = GO_GIF_HTML;
+    const sharePanel = el(
+      'div',
+      { class: 'go-share-panel' },
+      el('div', { class: 'go-panel-lbl' }, 'SHARE THE DAWN'),
+      sharePreview,
+      el('div', { class: 'go-share-btns' }, this.saveReplayBtn, copy),
+      el('div', { class: 'go-share-btns' }, dna, duel),
+      el('div', { class: 'go-share-note' }, 'the first-light frame, captured the instant the run resolved'),
+    );
+    const lower = el('div', { class: 'go-lower' }, statPanel, sharePanel);
+
+    // — FOOTER — DESCEND AGAIN → onRestart · ASCEND → onToggleNgPlus · RETURN → onQuit
+    const again = el('button', { class: 'go-descend' }, 'DESCEND AGAIN');
+    again.addEventListener('click', () => this.cb.onRestart());
+    this.goAscendBtn = el('button', { class: 'go-fbtn go-ascend hidden' }) as HTMLButtonElement;
+    this.goAscendBtn.append(el('span', {}, '↑ ASCEND'), el('span', { class: 'go-k' }, 'KEEP GOING'));
+    this.goAscendBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
+    const menu = el('button', { class: 'go-fbtn' });
+    menu.append(el('span', {}, '⌂ RETURN TO LANCEFALL'), el('span', { class: 'go-k' }, 'ESC'));
+    menu.addEventListener('click', () => this.cb.onQuit());
+    const footer = el('div', { class: 'go-footer' }, again, el('div', { class: 'go-foot-secondary' }, this.goAscendBtn, menu));
+
+    // corner accents on the main panel
+    const corners = ['c-tl', 'c-tr', 'c-bl', 'c-br'].map((c) => el('div', { class: `go-corner go-${c}` }));
+    const mainPanel = el('div', { class: 'go-main' }, ...corners, this.goTableau, this.choiceRow, lower);
+
+    // the screen root carries the `.panel` class so the role=dialog/aria-modal wiring
+    // in build() still finds it; `.go-frame` carries the won/lost/pending/resolved state.
+    this.goScreenInner = el('div', { class: 'go-frame panel' }, header, mainPanel, footer);
+
+    // committed-resolve full-screen wash (fixed overlay, like the mock's .resolve)
+    this.goResolveHead = el('div', { class: 'go-resolve-head' }, '');
+    this.goResolveLine = el('div', { class: 'go-resolve-line' }, '');
+    this.goResolve = el('div', { class: 'go-resolve', 'aria-hidden': 'true' }, this.goResolveHead, this.goResolveLine);
+
+    this.gameover = el('div', { class: 'screen screen-dim go-screen' }, this.goScreenInner, this.goResolve);
+  }
+
+  /** Build one THE CHOICE card (CATCH / FALL). The head/line are filled at show
+   *  time from stillpoint.choiceEnding() so the screen and the sim ending never drift. */
+  private buildChoiceCard(which: 'catch' | 'fall'): HTMLElement {
+    const card = el('div', {
+      class: `go-choice go-choice-${which}`,
+      tabindex: '0',
+      role: 'button',
+      'aria-pressed': 'false',
+      'data-choice': which,
+    });
+    const glyph = el('span', { class: 'go-choice-glyph', 'aria-hidden': 'true' });
+    glyph.innerHTML = which === 'catch' ? GO_CATCH_GLYPH : GO_FALL_GLYPH;
+    const act = el('div', { class: 'go-choice-act' }, which === 'catch' ? 'CATCH THE LIGHT' : 'LET IT FALL');
+    // head/line sourced from stillpoint.choiceEnding so the card description matches the
+    // sim ending verbatim (no drift) — and the cards are never blank.
+    const ending = choiceEnding(which);
+    const head = el('div', { class: 'go-choice-head' }, ending.head);
+    const line = el('div', { class: 'go-choice-line' }, ending.line);
+    const tag = el('div', { class: 'go-choice-tag' });
+    tag.append(el('b', {}, which === 'catch' ? 'HOLD' : 'RELEASE'), which === 'catch' ? ' · THE VIGIL CONTINUES' : ' · IT IS FINISHED');
+    card.append(glyph, act, head, line, tag);
+    card.setAttribute('aria-label', which === 'catch' ? 'Catch the light — hold it' : 'Let it fall — release it');
+    // the world LEANS toward the ending being weighed (dawn ⇄ dusk); locked on commit
+    const lean = which === 'catch' ? 1 : -1;
+    card.addEventListener('mouseenter', () => this.setGoLean(lean));
+    card.addEventListener('mouseleave', () => this.setGoLean(0));
+    card.addEventListener('focus', () => this.setGoLean(lean));
+    card.addEventListener('blur', () => this.setGoLean(0));
+    card.addEventListener('click', () => this.commitChoice(which));
+    return card;
+  }
+
+  /** Keyboard contract for THE CHOICE: Enter/Space commits, ArrowLeft/Right move
+   *  between the two cards (matching the mock). */
+  private wireChoiceKeyboard(): void {
+    const cards = [this.goCatchBtn, this.goFallBtn];
+    cards.forEach((card, i) => {
+      card.addEventListener('keydown', (ev: KeyboardEvent) => {
+        if (this.goChoiceLocked) return;
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          this.commitChoice(card.getAttribute('data-choice') as 'catch' | 'fall');
+        } else if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+          ev.preventDefault();
+          cards[(i + 1) % cards.length].focus();
+        }
+      });
+    });
+  }
+
+  /** Set the live --lean dial on the screen root (0 neutral · +1 CATCH · −1 FALL). */
+  private setGoLean(v: number): void {
+    if (this.goChoiceLocked) return;
+    this.goScreenInner.style.setProperty('--lean', String(v));
+  }
+
+  /** Commit THE CHOICE: drive the sim ending (onChoice) AND play the resolve. */
+  private commitChoice(which: 'catch' | 'fall'): void {
+    if (this.goChoiceLocked) return;
+    this.cb.onChoice(which); // unchanged — the sim ending is driven here
   }
 
   private buildDraft(): void {
@@ -1731,8 +2029,22 @@ export class UI {
     // move keyboard focus to the active screen's primary action
     const active = { title: this.title, paused: this.pause, gameover: this.gameover, draft: this.draft, event: this.eventPanel, playing: null }[s];
     if (active) {
-      // on the title, foreground PLAY explicitly (it is the dominant action)
-      const btn = (s === 'title' ? this.playBtn : (active.querySelector('.btn-primary, .perk-card, .btn') as HTMLElement | null));
+      let btn: HTMLElement | null;
+      if (s === 'title') {
+        // on the title, foreground PLAY explicitly (it is the dominant action)
+        btn = this.playBtn;
+      } else if (s === 'gameover') {
+        // run-end: land on THE CHOICE if it's pending (it's the meaningful action),
+        // else on DESCEND AGAIN — never silently lose focus on the new go-* buttons.
+        // focus THE CHOICE if pending; else the primary DESCEND AGAIN, queried on its OWN
+        // class (never .hidden) so a grouped selector's document order can't hand focus to
+        // SHARE or silently drop it on a hidden node. Fall back only if it's somehow absent.
+        btn = !this.choiceRow.classList.contains('hidden')
+          ? this.goCatchBtn
+          : ((active.querySelector('.go-descend') as HTMLElement | null) ?? (active.querySelector('.go-fbtn, .go-sbtn') as HTMLElement | null));
+      } else {
+        btn = active.querySelector('.btn-primary, .perk-card, .btn') as HTMLElement | null;
+      }
       btn?.focus();
     }
   }
@@ -2103,27 +2415,116 @@ export class UI {
     this.show('draft');
   }
 
-  /** After THE CHOICE is made: show the chosen ending + retire the prompt. */
+  /** After THE CHOICE commits (game.ts → makeChoice → here): resolve the whole
+   *  screen to the chosen ending. The head/line are sourced from
+   *  stillpoint.choiceEnding() upstream, so they are faithful by construction.
+   *  Plays the committed-resolve wash (a full-screen colour bloom + the ending
+   *  head/line) and LOCKS the cards. Under reduce-motion the wash is an instant,
+   *  brief held state (no transition). */
   resolveChoice(head: string, line: string): void {
+    const which: 'catch' | 'fall' = head === choiceEnding('fall').head ? 'fall' : 'catch';
+    this.goChoiceLocked = true;
+    this.goScreenInner.classList.add('resolved');
+    this.goScreenInner.setAttribute('data-ending', which);
+    // lock the world into the ending's mood (CATCH = full dawn, FALL = violet dusk)
+    this.goScreenInner.style.setProperty('--lean', which === 'catch' ? '1' : '-1');
+    for (const card of [this.goCatchBtn, this.goFallBtn]) {
+      const isIt = card.getAttribute('data-choice') === which;
+      card.classList.toggle('chosen', isIt);
+      card.classList.toggle('dimmed', !isIt);
+      card.setAttribute('aria-pressed', String(isIt));
+    }
+    // the header now reads as the resolved ending too
     this.goHead.textContent = head;
-    this.goHead.style.color = 'var(--amber)';
+    this.goEyebrow.textContent = which === 'catch' ? '✦ THE LIGHT HELD ✦' : '✦ THE LIGHT RELEASED ✦';
     this.goSub.textContent = line;
-    this.choiceRow.classList.add('hidden');
+
+    // the committed-resolve wash
+    this.goResolveHead.textContent = head;
+    this.goResolveLine.textContent = line;
+    const rgb = which === 'catch' ? '255,216,132' : '179,155,255';
+    const col = which === 'catch' ? '#ffd884' : '#b39bff';
+    this.goResolve.style.setProperty('--go-rc', rgb);
+    this.goResolveHead.style.color = col;
+    this.goResolveHead.style.textShadow = `0 0 44px ${col}99`;
+    clearTimeout(this.goResolveTimer);
+    this.replayAnim(this.goResolve, 'show'); // CSS gates the keyframe under reduce-motion (held, no fade)
+    this.goResolveTimer = window.setTimeout(() => this.goResolve.classList.remove('show'), 3200);
   }
 
   showGameOver(info: GameOverInfo): void {
     this.displayScore = 0;
     this.goScore.textContent = '0';
-    this.goHead.textContent = info.won ? 'THE LIGHT HOLDS' : 'THE LIGHT DIMS';
-    this.goHead.style.color = info.won ? 'var(--amber)' : 'var(--pink)';
-    this.goSub.textContent = info.won
-      ? 'Lancefall remembers itself'
-      : `the city slips back to grey · ${info.deathCause}${info.nemesis ? ` · ⚔ nemesis: ${info.nemesis}` : ''}`;
+    // ── reset the resolve/lean state for a fresh run-end ──
+    this.goChoiceLocked = false;
+    clearTimeout(this.goResolveTimer);
+    this.goResolve.classList.remove('show');
+    this.goScreenInner.classList.remove('resolved');
+    this.goScreenInner.removeAttribute('data-ending');
+    this.goScreenInner.style.setProperty('--lean', '0');
+    for (const card of [this.goCatchBtn, this.goFallBtn]) {
+      card.classList.remove('chosen', 'dimmed');
+      card.setAttribute('aria-pressed', 'false');
+    }
+
+    // ── one screen, three faces: won-with-CHOICE · won (no cards) · lost ──
+    const face = !info.won ? 'lost' : info.choicePending ? 'pending' : 'won';
+    this.goScreenInner.classList.toggle('go-won', info.won);
+    this.goScreenInner.classList.toggle('go-lost', !info.won);
+    this.goScreenInner.classList.toggle('go-pending', info.choicePending === true);
     this.choiceRow.classList.toggle('hidden', !info.choicePending);
+
+    // ── HEADER brand + the FIRST LIGHT tableau (won) / darker debrief (lost) ──
+    if (info.won) {
+      this.goHead.textContent = info.choicePending ? 'THE LONGEST DAY' : 'THE LIGHT HOLDS';
+      this.goHead.style.color = 'var(--go-gold-hi)';
+      this.goEyebrow.textContent = '✦ THE SOVEREIGN HAS FALLEN ✦';
+      this.goSub.textContent = info.choicePending
+        ? `${info.mode} · the day is yours to keep — or to let go`
+        : 'Lancefall remembers itself in full light';
+      this.goTabTitle.textContent = 'FIRST LIGHT';
+      this.goTabEyebrow.replaceChildren(el('span', { class: 'go-rule' }), info.choicePending ? 'THE LAST CIPHER IS YOURS' : 'THE CITY WAKES', el('span', { class: 'go-rule r' }));
+      this.goTabLine.textContent = 'A lamplighter remembers the bells, and how the whole street would answer them.';
+    } else {
+      this.goHead.textContent = 'THE LIGHT DIMS';
+      this.goHead.style.color = 'var(--pink)';
+      this.goEyebrow.textContent = '✶ ECHO OF THE FALL ✶';
+      this.goSub.textContent = `${info.deathCause}${info.nemesis ? ` · ⚔ nemesis: ${info.nemesis}` : ''}`;
+      this.goTabTitle.textContent = 'NIGHTFALL';
+      this.goTabEyebrow.replaceChildren(el('span', { class: 'go-rule' }), 'THE CITY SLIPS BACK TO GREY', el('span', { class: 'go-rule r' }));
+      this.goTabLine.textContent = 'The bells go quiet. The street forgets, one window at a time.';
+    }
+
+    // ── COHERENCE header dial — resolved-full on a win, dimmed on a loss ──
+    const cohPct = info.won ? 100 : Math.max(18, Math.min(72, 28 + info.wave * 3));
+    this.goCohPct.textContent = `${cohPct}%`;
+    this.goScreenInner.style.setProperty('--go-coh', String(cohPct / 100));
+    this.goCohFoot.textContent = info.won ? 'THE CITY REMEMBERS ITSELF IN FULL' : 'THE CITY REMEMBERS ONLY FRAGMENTS';
+
+    // ── HEADER stats ──
+    this.goHsScore.textContent = info.score.toLocaleString();
+    this.goHsCombo.textContent = `×${info.combo}`;
+    this.goHsTime.textContent = formatTime(info.time);
+
+    // ── SHARE / ASCEND visibility ──
     this.saveReplayBtn.classList.toggle('hidden', !info.canReplay);
+    // ASCEND (NG+ / KEEP GOING) — only relevant on a win once the loop is unlocked
+    const ngUnlocked = (this.saveRef?.ngPlusLevel ?? 0) >= 1;
+    const ngActive = this.saveRef?.ngPlusActive ?? false;
+    const showAscend = info.won && ngUnlocked;
+    this.goAscendBtn.classList.toggle('hidden', !showAscend);
+    if (showAscend) {
+      this.goAscendBtn.classList.toggle('active', ngActive);
+      const lvl = this.saveRef?.ngPlusLevel ?? 1;
+      this.goAscendBtn.replaceChildren(
+        el('span', {}, ngActive ? `★ ASCEND ×${lvl}` : `↑ ASCEND ×${lvl}`),
+        el('span', { class: 'go-k' }, ngActive ? 'ON' : 'KEEP GOING'),
+      );
+    }
+
+    // ── NEW BEST badge + PB delta ──
     this.goBadge.classList.toggle('hidden', !info.newBest);
     this.goBadge.textContent = info.newBest ? '★ NEW BEST ★' : '';
-    // personal-best delta vs your previous high
     if (info.newBest && info.pbDelta > 0) {
       this.goDelta.textContent = `+${info.pbDelta.toLocaleString()} over your best!`;
       this.goDelta.style.color = 'var(--green)';
@@ -2133,7 +2534,8 @@ export class UI {
     } else {
       this.goDelta.textContent = '';
     }
-    // newly-unlocked achievement chips + active-mutator chips
+
+    // ── achievement + mutator chips ──
     this.goAch.replaceChildren();
     for (const m of info.mutators) {
       const chip = el('span', { class: 'ach-chip mut-chip' }, `⚡ ${m.name}`);
@@ -2143,10 +2545,14 @@ export class UI {
     for (const name of info.newAchievements) {
       this.goAch.append(el('span', { class: 'ach-chip' }, `🏆 ${name}`));
     }
+
+    // ── DEBRIEF stat grid ──
     const goStats = [
-      stat('best combo', `x${info.combo}`),
+      stat('final score', info.score.toLocaleString()),
+      stat('best combo', `×${info.combo}`),
+      stat('coherence', `${cohPct}%`),
+      stat('run time', formatTime(info.time)),
       stat('wave', String(info.wave)),
-      stat('time', formatTime(info.time)),
       stat('◆ shards', `+${info.shardsEarned}`),
       stat(info.daily ? 'daily best' : 'high score', (info.daily ? info.dailyBest : info.highScore).toLocaleString()),
     ];
@@ -2158,18 +2564,45 @@ export class UI {
       goStats.push(stat('attempt', `${info.dailyAttempt}/${info.dailyAttemptsMax ?? MAX_DAILY_ATTEMPTS}`));
     }
     this.goStats.replaceChildren(...goStats);
+
+    // ── GRADE row (a flavour summary; not scored — the numbers already carry it) ──
+    const flawless = info.won && info.hitsTaken === 0;
+    const grade = !info.won ? '—' : flawless ? 'S' : info.newBest ? 'A' : 'B';
+    this.goGrade.textContent = grade;
+    if (info.won) {
+      const bits = ['SOVEREIGN'];
+      if (flawless) bits.push('NO-HIT');
+      bits.push('COHERENCE FULL');
+      this.goGradeTitle.textContent = bits.join(' · ');
+      this.goGradeNote.textContent = `+${info.shardsEarned} memory shards${info.newBest ? ' · a new personal best' : ''}.`;
+    } else {
+      this.goGradeTitle.textContent = info.nemesis ? `FELLED BY ${info.nemesis}` : 'THE DESCENT ENDS';
+      this.goGradeNote.textContent = `Reached wave ${info.wave}. +${info.shardsEarned} memory shards carried out of the dark.`;
+    }
+
+    // ── build line ──
     this.goBuild.replaceChildren(
       el('span', { class: 'go-ship' }, `${info.mode} · ${info.ship}`),
       el('span', { class: 'go-perks' }, info.perks ? ` · ${info.perks}` : ' · no perks taken'),
     );
+
+    void face;
     this.show('gameover');
-    // animate score count-up
+
+    // ── score count-up (gated under reduce-motion) ──
     const target = info.score;
+    if (this.motionOff()) {
+      this.goScore.textContent = target.toLocaleString();
+      this.goHsScore.textContent = target.toLocaleString();
+      return;
+    }
     const start = performance.now();
     const tick = (now: number) => {
-      const k = Math.min(1, (now - start) / 700);
-      const v = Math.round(target * (1 - Math.pow(1 - k, 3)));
-      this.goScore.textContent = v.toLocaleString();
+      const k = Math.min(1, (now - start) / 1000);
+      const eased = 1 - Math.pow(1 - k, 3);
+      const v = Math.round(target * eased).toLocaleString();
+      this.goScore.textContent = v;
+      this.goHsScore.textContent = v;
       if (k < 1 && this.current === 'gameover') requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
