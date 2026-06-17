@@ -64,6 +64,13 @@ describe('save migration', () => {
     expect(out.baseShields).toBe(TUNE.player.baseShields);
     expect(out.cityMemoryMeter).toBe(true);
     expect(out.firstRunsBeatHint).toBe(0);
+    // §1.2 — a v5 save predates the sandbox flag → defaults false so the player sees it once
+    expect(out.seenSandbox).toBe(false);
+  });
+
+  it('preserves a real seenSandbox and coerces a corrupted one to false', () => {
+    expect(migrateSave({ version: 6, seenSandbox: true }, defaultSave()).seenSandbox).toBe(true);
+    expect(migrateSave({ version: 6, seenSandbox: 'yes' }, defaultSave()).seenSandbox).toBe(false);
   });
 
   it('round-trips a full default save unchanged', () => {

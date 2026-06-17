@@ -85,6 +85,8 @@ export interface UICallbacks {
   onSelectMode: (id: string) => void;
   onToggleCityMemory: (v: boolean) => void;
   onSetHandle: (name: string) => void;
+  /** §1.2 — the player SKIPped the no-fail DASH SANDBOX (button / any-key) → start the run now */
+  onSkipSandbox: () => void;
 }
 
 export interface GameOverInfo {
@@ -255,6 +257,10 @@ export class UI {
   private inspectPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
   private hud!: HTMLElement;
+  // §1.2 — the no-fail DASH SANDBOX overlay (an instructional layer over the playing
+  // canvas; pointer-events stay off so canvas dash input still works, except the SKIP btn)
+  private sandboxOverlay!: HTMLElement;
+  private sandboxText!: HTMLElement;
   private touchPauseBtn!: HTMLButtonElement;
   private rebinding: 'dash' | 'overdrive' | 'pause' | null = null; // active key-capture, if any
   private announceEl!: HTMLElement;
@@ -380,11 +386,12 @@ export class UI {
     this.buildDuel();
     this.buildInspect();
     this.buildShare();
+    this.buildSandbox();
     // aria-live so the narrator's SOUL payload reaches screen-reader users:
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -1626,6 +1633,9 @@ export class UI {
     this.draft.classList.toggle('hidden', s !== 'draft');
     this.eventPanel.classList.toggle('hidden', s !== 'event');
     this.hud.classList.toggle('hidden', s !== 'playing');
+    // §1.2 — any standard screen transition force-hides the sandbox teach overlay so it
+    // can never leak into a real run / menu (the Game shows it explicitly via showSandbox).
+    this.sandboxOverlay.classList.add('hidden');
     // any screen transition dismisses every modal so none can block play or strand the
     // focus-trap; clear the open-stack/opener bookkeeping to match (focus is set below).
     for (const p of this.modalPanels) {
@@ -1915,6 +1925,49 @@ export class UI {
 
   hideSoundHint(): void {
     this.soundHint.style.display = 'none';
+  }
+
+  // ── §1.2 DASH SANDBOX overlay ──────────────────────────────────────────────
+  /** Build the no-fail sandbox instructional overlay: a stepped center prompt + a
+   *  SKIP button. The overlay itself is pointer-events:none so the player can still
+   *  dash on the canvas behind it; only the SKIP button is interactive. The teach
+   *  text lives here in the DOM (NOT canvas text — that would require render.ts). */
+  private buildSandbox(): void {
+    this.sandboxText = el('div', { class: 'sandbox-step', role: 'status', 'aria-live': 'polite' }, '');
+    const skip = el('button', { class: 'btn btn-ghost btn-sm sandbox-skip', type: 'button' }, 'SKIP ▸');
+    skip.addEventListener('click', () => this.cb.onSkipSandbox());
+    this.sandboxOverlay = el(
+      'div',
+      { class: 'screen sandbox-overlay hidden', 'aria-label': 'Dash practice' },
+      el('div', { class: 'sandbox-tag' }, 'DASH PRACTICE · no danger here'),
+      this.sandboxText,
+      el('div', { class: 'sandbox-skip-wrap' }, skip),
+    );
+  }
+
+  /** Show the sandbox overlay over the playing canvas with the first step's text. */
+  showSandbox(text: string): void {
+    this.sandboxText.textContent = text;
+    // §1.2 fix — hide EVERY standard screen so the practice canvas (the sandbox player +
+    // dummy targets, drawn by the sandbox frame) is actually visible. The title/cockpit
+    // was previously left up, covering the canvas so the teach floated over a dead menu.
+    this.title.classList.add('hidden');
+    this.pause.classList.add('hidden');
+    this.gameover.classList.add('hidden');
+    this.draft.classList.add('hidden');
+    this.eventPanel.classList.add('hidden');
+    this.hud.classList.add('hidden'); // no score/combo HUD during the teach
+    this.sandboxOverlay.classList.remove('hidden');
+  }
+
+  /** Update the stepped instruction text (no DOM churn beyond the text node). */
+  setSandboxText(text: string): void {
+    if (this.sandboxText.textContent !== text) this.sandboxText.textContent = text;
+  }
+
+  /** Hide the sandbox overlay (on completion or skip). */
+  hideSandbox(): void {
+    this.sandboxOverlay.classList.add('hidden');
   }
 
   /** Show the active mode on the HUD (hidden for plain Endless). */

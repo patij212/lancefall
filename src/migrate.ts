@@ -29,9 +29,12 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          explicit transform needed.
   // v5 → v6: reserved the v6-pass fields (selectedMode, dailyAttempts,
   //          dailyAttemptDate, baseShields, cityMemoryMeter, firstRunsBeatHint,
-  //          and the 4.2 daily-streak pair lastPlayedDate/playStreak). Purely
-  //          additive → default-filled by the spread; the per-field validation loop
-  //          below resets a hand-edited lastPlayedDate ('' default) / playStreak (≥0
+  //          the 4.2 daily-streak pair lastPlayedDate/playStreak, and the §1.2
+  //          DASH SANDBOX onboarding flag seenSandbox). Purely additive → an
+  //          older v6 save missing seenSandbox default-fills to false (the new
+  //          player still gets the sandbox once); the per-field validation loop
+  //          below coerces a hand-edited non-boolean seenSandbox back to false,
+  //          and resets a hand-edited lastPlayedDate ('' default) / playStreak (≥0
   //          number) to its default. No explicit transform / no version bump needed.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 

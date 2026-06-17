@@ -92,6 +92,9 @@ export interface SaveData {
   lastPlayedDate: string;
   /** consecutive-day play streak (1 on first play; +1 each next calendar day; reset on a gap) */
   playStreak: number;
+  /** PERFECT_10_SPEC §1.2 — the no-fail DASH SANDBOX onboarding has been shown (or
+   *  skipped) once; gates it to first-run-only so it never repeats. Default false. */
+  seenSandbox: boolean;
 }
 
 export interface Settings {
@@ -164,6 +167,7 @@ export function defaultSave(): SaveData {
     firstRunsBeatHint: 0,
     lastPlayedDate: '',
     playStreak: 0,
+    seenSandbox: false,
   };
 }
 

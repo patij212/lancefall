@@ -73,8 +73,10 @@ import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf 
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
+import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, dummyLayout, SANDBOX_TARGET_SKEWERS } from './sandbox';
+import type { SandboxState } from './sandbox';
 
-type State = 'title' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
+type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
 // ── 4.1 CHALLENGE THE DEV — a pinned fixed-seed run that races an author ghost. ──
 // The seed is a constant so the dev's "official" challenge run is identical for everyone.
@@ -160,6 +162,14 @@ export class Game {
   private runHeat = 0; // heat level locked in for the active run
   private onboarding = false; // first-run progressive tutorial active
   private onboardStep = 0;
+  // §1.2 DASH SANDBOX — the no-fail first-run teach. A DEDICATED throwaway World +
+  // its own non-seeded rng, so the teach NEVER touches this.world or the seeded run
+  // streams; the run begins only once the sandbox hands off to start(cfg), which
+  // fully resets+re-seeds the real world. Held mode is the run to launch on completion.
+  private sandbox: SandboxState | null = null;
+  private sandboxWorld: World | null = null;
+  private sandboxMode: RunConfig = MODES[0];
+  private sandboxDummyDashId = -1; // last dash that scored a sandbox skewer (one per dash)
   // Grid B — no-fail opening grace, ONLY on a brand-new player's first run. A PURE
   // wall-clock gate that tops up i-frames so the dash can be learned before dying;
   // never touches world.rng / spawns, so the Daily stays deterministic.
@@ -184,7 +194,7 @@ export class Game {
     this.world = new World(createRng(this.seed));
 
     this.ui = new UI(uiRoot, this.settings, {
-      onStart: (cfg) => this.start(cfg),
+      onStart: (cfg) => this.descend(cfg),
       onRestart: () => this.start(this.mode),
       onResume: () => this.resume(),
       onPause: () => { if (this.state === 'playing') this.pause(); }, // touch PAUSE button
@@ -213,6 +223,7 @@ export class Game {
       onSelectMode: (id) => this.selectMode(id),
       onToggleCityMemory: (v) => { this.save.cityMemoryMeter = v; saveSave(this.save); },
       onSetHandle: (name) => this.setHandle(name),
+      onSkipSandbox: () => this.finishSandbox(),
     });
 
     this.resize();
@@ -335,6 +346,170 @@ export class Game {
       this.renderer.setQuality(this.perfScale); // gate the skyline window-lights under load
       this.perfCooldown = 3; // avoid thrash
     }
+  }
+
+  // ── §1.2 DASH SANDBOX — the no-fail first-run teach ────────────────────────
+  /** The DESCEND entry. A brand-new player (seenSandbox false, motion not reduced)
+   *  is routed into the no-fail sandbox FIRST; everyone else starts the run directly.
+   *  Determinism: the sandbox runs on a SEPARATE throwaway World and NEVER touches
+   *  this.world or any seeded rng stream, so start(cfg) below seeds exactly as today. */
+  private descend(cfg: RunConfig): void {
+    if (shouldShowSandbox(this.save.seenSandbox, this.settings.reduceMotion)) {
+      this.startSandbox(cfg);
+    } else {
+      // even when we skip the teach (returning player or reduce-motion), record it as
+      // seen so the flag converges and the gate is a true once-ever event.
+      if (!this.save.seenSandbox) {
+        this.save.seenSandbox = true;
+        saveSave(this.save);
+      }
+      this.start(cfg);
+    }
+  }
+
+  /** Enter the sandbox state: build a dedicated throwaway world, spawn inert dummy
+   *  targets, make the player unfailable, and surface the first teach step in the DOM
+   *  overlay. Audio is unlocked so the dash/whoosh sells the verb. No this.world / no
+   *  seeded rng is touched here — the real run is untouched until finishSandbox(). */
+  private startSandbox(cfg: RunConfig): void {
+    this.audio.ensure();
+    this.ui.hideSoundHint();
+    this.sandboxMode = cfg;
+    this.sandbox = newSandbox();
+    this.sandboxDummyDashId = -1;
+    // a SEPARATE world on a throwaway, NON-seeded rng — it can never perturb the run.
+    const sw = new World(createRng(0x5A4D_B0C5)); // "SANDBOX" — a fixed throwaway seed
+    sw.reset(window.innerWidth, window.innerHeight);
+    sw.player.x = window.innerWidth * 0.32;
+    sw.player.y = window.innerHeight * 0.5;
+    sw.player.iframe = 1e9; // truly unfailable for the whole teach
+    // inert dummy targets — a harmless kind we never tick AI on (the sandbox runs its
+    // own loop, not this.step), so they fire nothing and can't move into the player.
+    const cx = window.innerWidth * 0.32;
+    const cy = window.innerHeight * 0.5;
+    for (const d of dummyLayout()) {
+      const e = sw.spawnEnemy('drifter', cx + d.dx, cy + d.dy, 1, 1, false, false, 0);
+      if (e) {
+        e.scale = 1; // already popped in (no entrance tween needed here)
+        e.hp = 1; // a single skewer pops it
+        e.maxHp = 1;
+      }
+    }
+    this.sandboxWorld = sw;
+    this.renderer.setGhost(null, 0);
+    this.renderer.setBiomeTint(null);
+    this.renderer.setCoherence(0.7, 0, 0, 0); // a calm, mostly-lit teach (no FALL wash)
+    this.input.clearHeld(); // never auto-charge from a held key carried in from the menu
+    this.audio.startDrone();
+    this.audio.duckMusic(true);
+    this.state = 'sandbox';
+    this.ui.showSandbox(sandboxText(this.sandbox));
+  }
+
+  /** One display-frame of the sandbox: drive the dummy world's player (charge/dash),
+   *  detect skewers, advance the pure step machine, then render the throwaway world
+   *  through the EXISTING renderer (canvas) with the DOM overlay on top. Hands off to
+   *  the real start() the instant the lesson completes. */
+  private stepSandboxFrame(realDt: number): void {
+    const sw = this.sandboxWorld;
+    const sb = this.sandbox;
+    if (!sw || !sb) {
+      this.finishSandbox();
+      return;
+    }
+    // fixed-ish player update on the frame dt (clamped) — no spawns, no rng draws.
+    const dt = Math.min(realDt, 0.05);
+    resetEvents(this.ev);
+    const wasCharging = sw.player.phase === 'charging';
+    updatePlayer(sw.player, this.input.state, dt, sw.stats, sw.width, sw.height, this.ev, this.settings.dashStyle === 'slingshot', 0);
+    sw.player.iframe = 1e9; // keep it unfailable even as updatePlayer decrements i-frames
+
+    // sell the verb with the existing audio cues (no sim coupling)
+    if (this.ev.beganCharge) this.audio.startCharge();
+    if (sw.player.phase === 'charging') this.audio.setCharge(sw.player.charge);
+    if (wasCharging && sw.player.phase !== 'charging' && !this.ev.dashFired) this.audio.endCharge();
+    if (this.ev.dashFired) {
+      this.audio.endCharge();
+      this.audio.whoosh();
+      this.shake.add(TUNE.juice.traumaDash);
+      sw.particles.streaks(sw.player.x, sw.player.y, sw.player.dashDirX, sw.player.dashDirY, '#5beaff');
+    }
+    if (this.ev.landed) sw.particles.dust(sw.player.x, sw.player.y, '#22d3ee');
+
+    // detect a skewer: the dash/landing segment crossing any live dummy. One skewer
+    // per dash (dashId-tagged) so a single dash can't double-count.
+    let skewer = false;
+    const dashing = sw.player.phase === 'dashing' || this.ev.landed;
+    if (dashing && sw.player.dashId !== this.sandboxDummyDashId) {
+      const ax = sw.player.dashFromX, ay = sw.player.dashFromY, bx = sw.player.x, by = sw.player.y;
+      sw.enemies.forEachActive((e) => {
+        if (skewer || !e.active) return;
+        if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, 16)) {
+          skewer = true;
+          this.sandboxDummyDashId = sw.player.dashId;
+          // pop it with the existing juice (cosmetic; throwaway world)
+          sw.particles.burst(e.x, e.y, 22, e.color);
+          sw.particles.floatText(e.x, e.y - 16, 'SKEWER', '#5beaff', 0.9);
+          this.shake.add(TUNE.juice.traumaKill);
+          this.scheduler.requestHitstop(0.06);
+          this.audio.thunk(12, this.panFor(e.x));
+          sw.enemies.release(e);
+        }
+      });
+    }
+
+    sw.particles.update(dt);
+
+    // advance the pure step machine; relabel the overlay text on a step change
+    const prev = sb;
+    const next = stepSandbox(prev, dt, { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer });
+    this.sandbox = next;
+    this.ui.setSandboxText(sandboxText(next));
+
+    // re-arm dummies if the player skewered both before the lesson auto-advances, so
+    // there's always a target to chain (keeps the "again!" beat satisfying).
+    if (skewer && next.skewers < SANDBOX_TARGET_SKEWERS && sw.enemies.activeCount === 0) {
+      const e = sw.spawnEnemy('drifter', sw.width * 0.6, sw.height * 0.5, 1, 1, false, false, 0);
+      if (e) { e.scale = 1; e.hp = 1; e.maxHp = 1; }
+    }
+
+    if (sandboxComplete(next)) {
+      this.finishSandbox();
+      return;
+    }
+
+    // render the throwaway world via the EXISTING renderer (no canvas text added)
+    this.renderer.render(sw, this.cam, {
+      reduceFlashing: this.settings.reduceFlashing,
+      colorblind: this.settings.colorblind,
+      combo: 0,
+      caScale: this.settings.chromAberration,
+      reduceMotion: this.settings.reduceMotion,
+      clarity: this.settings.clarity,
+      beatRing: false,
+      beatPhase: 0,
+      slingshot: this.settings.dashStyle === 'slingshot',
+      firstLight: 0,
+      cipherAssist: false,
+    });
+  }
+
+  /** Leave the sandbox (completed OR skipped): mark it seen so it never repeats, drop
+   *  the throwaway world, hide the overlay, then begin the REAL run via the existing
+   *  start() path — which fully resets+re-seeds this.world, guaranteeing zero residue. */
+  private finishSandbox(): void {
+    if (this.state !== 'sandbox') return;
+    if (!this.save.seenSandbox) {
+      this.save.seenSandbox = true;
+      saveSave(this.save);
+    }
+    const cfg = this.sandboxMode;
+    this.sandbox = null;
+    this.sandboxWorld = null; // GC the throwaway world; this.world was never touched
+    this.audio.endCharge();
+    this.input.clearHeld(); // drop the held dash key so the real run never auto-charges
+    this.ui.hideSandbox();
+    this.start(cfg); // the unchanged seed/init path — the run is bit-identical to a normal DESCEND
   }
 
   // ── state transitions ──
@@ -884,6 +1059,26 @@ export class Game {
     if (!(realDt > 0)) realDt = 0;
     else if (realDt > 0.1) realDt = 0.1; // clamp huge gaps to one big step
 
+    // §1.2 — the no-fail sandbox runs its own self-contained frame against a throwaway
+    // world (input is polled against the SANDBOX player), then renders + returns early.
+    // It never advances this.world / the seeded sim, so determinism is structurally safe.
+    if (this.state === 'sandbox') {
+      const sp = this.sandboxWorld?.player;
+      this.input.poll(sp ? sp.x : 0, sp ? sp.y : 0);
+      // SKIP on ESC / P (the pause keys — the universal "get me out") so the teach is
+      // always escapable. The dash keys (Space/J/click) drive the LESSON, so they must
+      // NOT skip — we deliberately do not treat the start edge as a skip here. The
+      // explicit on-screen SKIP button (onSkipSandbox) covers pointer-only players.
+      if (this.input.state.pausePressed) { this.finishSandbox(); return; }
+      this.input.consumeStart(); // clear the start edge so it can't leak into the real run
+      this.input.consumeConfirm();
+      this.shake.update(realDt);
+      this.updateCamera(realDt);
+      this.stepSandboxFrame(realDt);
+      requestAnimationFrame((t) => this.frame(t));
+      return;
+    }
+
     if (this.state === 'playing') this.adaptPerf(realDt);
 
     this.input.poll(this.world.player.x, this.world.player.y);
@@ -1070,7 +1265,7 @@ export class Game {
         const idx = inp.selectIndex;
         if (idx >= 0 && idx < MODES.length) this.selectMode(MODES[idx].id);
       }
-      if (this.input.consumeStart()) this.start(modeById(this.save.selectedMode)); // launch the persisted mode (parity with PLAY)
+      if (this.input.consumeStart()) this.descend(modeById(this.save.selectedMode)); // launch the persisted mode (parity with PLAY)
     } else if (this.state === 'playing') {
       if (inp.pausePressed) this.pause();
       if (inp.overdrivePressed && canActivate(this.world.overdrive)) this.activateBurst();
