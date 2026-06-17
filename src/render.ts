@@ -2049,7 +2049,7 @@ export class Renderer {
     ctx.fill();
     // CIPHER core — shows the ciphered SYMBOL. The player READS the substitution key on the
     // HUD to find the next core (no give-away highlight — decoding IS the act). Keyed cores go
-    // green; cores already ruled out by a wrong dash this round get a struck-through tint.
+    // green; the NEXT core lights white only under cipherAssist (Casual / opt-in).
     const cipher = this.cipher;
     if (cipher && !cipher.solved) {
       const slot = e.phase;
@@ -2066,11 +2066,19 @@ export class Renderer {
       ctx.stroke();
       ctx.restore();
       ctx.save();
-      ctx.fillStyle = keyed ? '#34d399' : '#0b0e17';
       ctx.font = `bold ${Math.round(r * 0.8)}px 'Space Grotesk', system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(cipherSymbol(glyph), 0, 0);
+      // The SYMBOL must READ — decoding it IS the act. A thin dark outline under a bright
+      // fill keeps it legible on any core fill, through the bloom + the COHERENCE wash.
+      // (Was a near-black fill that vanished on the dark core — the one mark you must read.)
+      const sym = cipherSymbol(glyph);
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = Math.max(2, r * 0.14);
+      ctx.strokeStyle = 'rgba(4,6,12,0.72)';
+      ctx.strokeText(sym, 0, 0);
+      ctx.fillStyle = keyed ? '#34d399' : isNext ? '#ffffff' : '#fde047';
+      ctx.fillText(sym, 0, 0);
       ctx.restore();
     }
   }
