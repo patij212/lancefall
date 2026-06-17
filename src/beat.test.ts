@@ -111,6 +111,32 @@ describe('beat — pure rhythm clock + grading', () => {
   });
 });
 
+// Playtest (Nick): slow-mo "interrupted the rhythm" — the beat clock keeps real time while
+// the dash plays out in slowed sim time, so a dash that LOOKS on-beat grades off. gradeRelease
+// widens its windows by 1/timeScale during slow-mo so the felt cadence maps back to the grade.
+describe('gradeRelease — slow-mo widens the on-beat window', () => {
+  it('timeScale defaults to 1 (grading byte-identical to before)', () => {
+    expect(gradeRelease(0.171, true)).toBe('off');
+    expect(gradeRelease(0.171, true, 1)).toBe('off');
+    expect(gradeRelease(0.105, true, 1)).toBe('perfect');
+  });
+  it('half-speed doubles the windows: a would-be-off dash grades good, a good dash grades perfect', () => {
+    // at full speed: 0.27 is off, 0.15 is good
+    expect(gradeRelease(0.27, true, 1)).toBe('off');
+    expect(gradeRelease(0.15, true, 1)).toBe('good');
+    // at 0.5x the windows double → 0.27 promotes to good, 0.15 promotes to perfect
+    expect(gradeRelease(0.27, true, 0.5)).toBe('good');
+    expect(gradeRelease(0.15, true, 0.5)).toBe('perfect');
+  });
+  it('deep LAST BREATH slow-mo widens further still (a far-off dash still reads on-beat)', () => {
+    expect(gradeRelease(0.4, true, 1)).toBe('off');
+    expect(gradeRelease(0.4, true, 0.18)).not.toBe('off');
+  });
+  it('still grades off while unsynced, regardless of timeScale (no reward before the epoch)', () => {
+    expect(gradeRelease(0, false, 0.18)).toBe('off');
+  });
+});
+
 // Adaptive per-track tempo (Deep Dive A): when the active authored source's BPM changes,
 // the cosmetic clock re-grids and re-epochs, reusing the existing reconcile/seed machinery.
 // (Cosmetic only — never affects the seeded sim, so no Daily-determinism concern.)

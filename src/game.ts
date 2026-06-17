@@ -1199,7 +1199,9 @@ export class Game {
     // loses nothing; this path reads/writes NO rng stream.
     if (this.dashFiredThisStep) {
       this.dashFiredThisStep = false;
-      const grade = gradeRelease(this.beat.beatError(), this.beat.synced);
+      // pass the current time scale so a dash that LOOKS on-beat during slow-mo grades on-beat
+      // (playtest: slow-mo broke the rhythm) — the window widens by 1/timeScale while slowed
+      const grade = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale);
       if (grade !== 'off') {
         const perfect = grade === 'perfect';
         coherenceBeatKick(this.coherence, perfect);

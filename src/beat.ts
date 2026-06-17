@@ -86,12 +86,20 @@ export class BeatClock {
 }
 
 /** PURE grade of a dash release. Unsynced ⇒ 'off' (no false rewards before the
- *  audio epoch is known). A ~1-frame grace forgives input-poll quantization. */
-export function gradeRelease(beatErr: number, synced: boolean): BeatGrade {
+ *  audio epoch is known). A ~1-frame grace forgives input-poll quantization.
+ *
+ *  Playtest (Nick): slow-mo "interrupted the rhythm". The beat clock keeps REAL time (audio is
+ *  immune to slow-mo) while the dash plays out in SLOWED sim time, so the real-time beatErr is
+ *  inflated ~1/timeScale relative to how on-beat the dash FELT — and an on-beat-feeling dash
+ *  graded 'off'. We widen the windows by 1/timeScale so the felt cadence maps back to the
+ *  grade. timeScale defaults to 1 ⇒ byte-identical at normal speed. The ~1-frame grace is a
+ *  real-time input-poll artifact, so it is NOT scaled. Pure + Daily-safe (reward-only). */
+export function gradeRelease(beatErr: number, synced: boolean, timeScale = 1): BeatGrade {
   if (!synced) return 'off';
   const e = beatErr - BEAT.graceOnLanding;
+  const w = timeScale > 0 && timeScale < 1 ? 1 / timeScale : 1; // widen windows during slow-mo only
   const EPS = 1e-9; // inclusive windows: float noise must not flip a grade at the exact edge
-  if (e <= BEAT.perfectWindow + EPS) return 'perfect';
-  if (e <= BEAT.goodWindow + EPS) return 'good';
+  if (e <= BEAT.perfectWindow * w + EPS) return 'perfect';
+  if (e <= BEAT.goodWindow * w + EPS) return 'good';
   return 'off';
 }
