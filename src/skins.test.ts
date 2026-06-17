@@ -19,12 +19,15 @@ const RARITY_ACH: Record<SkinRarity, string | null> = {
 };
 
 describe('skins registry', () => {
-  it('ports the 5 heroes + the 5 remaining bosses, each with 4 rarities', () => {
-    // Phase 1 heroes + Phase 2a bosses (the Champion/elite is an overlay flag, not
-    // an EnemyKind, so it is intentionally not in this per-kind dispatch/save list).
+  it('ports the 5 heroes + 5 bosses + 9 mini-enemies, each with 4 rarities', () => {
+    // Phase 1 heroes + Phase 2a bosses + Phase 2b minis (the Champion/elite is an
+    // overlay flag, not an EnemyKind, so it is intentionally not in this per-kind
+    // dispatch/save list; hollow_echo / sovereign_core are summon sub-kinds, never
+    // picker-equipped, so they are excluded too).
     expect(PORTED_KINDS).toEqual([
       'darter', 'orbiter', 'lancer', 'seeker', 'warden',
       'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign',
+      'splitter', 'mini', 'bloomer', 'bomber', 'wisp', 'drifter', 'shade', 'brooder', 'herald',
     ]);
     expect(ALL_SKINS).toHaveLength(PORTED_KINDS.length * 4);
     for (const kind of PORTED_KINDS) {
@@ -68,7 +71,9 @@ describe('skins registry', () => {
 
   it('skinById returns null for an unknown / un-ported id', () => {
     expect(skinById('does-not-exist')).toBeNull();
-    expect(skinById('bomber-legendary')).toBeNull(); // bomber is un-ported in Phase 1
+    // hollow_echo / sovereign_core are summon sub-kinds — never ported / picker-equipped
+    expect(skinById('hollow_echo-legendary')).toBeNull();
+    expect(skinById('sovereign_core-default')).toBeNull();
     expect(skinById('')).toBeNull();
   });
 });

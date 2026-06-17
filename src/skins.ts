@@ -2948,6 +2948,1916 @@ const sovereignLegendary: SkinDraw = (ctx, e, r, c) => {
   ctx.shadowBlur = 0;
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE 2b — the 9 remaining MINI-ENEMIES (the many-on-screen chaff). Same contract
+// as the heroes/bosses above. Each kind's 4 gallery takes v2-A/B/C/D → common/rare/
+// epic/legendary (the gallery ROSTER's no-star order: A=Common…D=Legendary). These
+// render at ~24px among many, so they hit 'mid'/'far' LOD constantly — the LOD
+// branches (reduced shadowBlur, no sub-pixel motes, glyph-only at 'far') are the
+// 60fps lever. COSMETIC ONLY: no sim/rng/hitbox/scoring reads; reduceMotion freezes
+// every sin() pulse via bt(c); every shadowBlur passes through lodBlur(); additive
+// bloom uses glow() (skipped at 'far').
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── SPLITTER (#a855f7 purple — diamond; bursts into two minis) ──────────────
+// NativeR 26–30. Silhouette: a diamond/rhombus. Threat-rim: the diamond body.
+const splitterCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const t = bt(c);
+  const sp = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 2);
+  const gap = R * 0.12 * sp;
+  glow(ctx, c, R * 3, col, 0.35);
+  // two splitting diamond-halves — rimColor outline (the diamond silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1a0a26';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -R);
+  ctx.lineTo(-R * 0.9 - gap, 0);
+  ctx.lineTo(0, R);
+  ctx.lineTo(-gap, R * 0.5);
+  ctx.lineTo(-gap, -R * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -R);
+  ctx.lineTo(R * 0.9 + gap, 0);
+  ctx.lineTo(0, R);
+  ctx.lineTo(gap, R * 0.5);
+  ctx.lineTo(gap, -R * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    // the fracture seam
+    ctx.save();
+    ctx.strokeStyle = rgba(col, 0.6 + 0.3 * sp);
+    ctx.lineWidth = 1.4;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = lodBlur(c, 8);
+    ctx.beginPath();
+    ctx.moveTo(0, -R);
+    ctx.lineTo(-R * 0.1, -R * 0.4);
+    ctx.lineTo(R * 0.1, R * 0.1);
+    ctx.lineTo(0, R);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.fillStyle = col;
+      if (c.lod === 'full') {
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 10;
+      }
+      ctx.beginPath();
+      ctx.arc(s * (R * 0.4 + gap), 0, R * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(s * (R * 0.4 + gap), 0, R * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+};
+
+const splitterRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#e0b3ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 3);
+  glow(ctx, c, R * 3, col, 0.35);
+  // faceted diamond body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#150820';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -R);
+  ctx.lineTo(R, 0);
+  ctx.lineTo(0, R);
+  ctx.lineTo(-R, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.4);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -R);
+    ctx.lineTo(0, R);
+    ctx.moveTo(-R, 0);
+    ctx.lineTo(R, 0);
+    ctx.moveTo(0, -R);
+    ctx.lineTo(-R * 0.5, 0);
+    ctx.lineTo(0, R);
+    ctx.moveTo(0, -R);
+    ctx.lineTo(R * 0.5, 0);
+    ctx.lineTo(0, R);
+    ctx.stroke();
+    ctx.save();
+    ctx.strokeStyle = rgba(col, 0.6 + 0.3 * (c.opts.reduceMotion ? 0 : Math.sin(t * 5)));
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = lodBlur(c, 8);
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.3, -R * 0.6);
+    ctx.lineTo(R * 0.2, 0);
+    ctx.lineTo(-R * 0.2, R * 0.6);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+  for (let s = -1; s <= 1; s += 2) {
+    ctx.fillStyle = col;
+    if (c.lod === 'full') {
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 8 * pp;
+    }
+    ctx.beginPath();
+    ctx.arc(s * R * 0.35, 0, R * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+};
+
+const splitterEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#e0b3ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.6 + 0.4 * Math.sin(t * 2.5);
+  glow(ctx, c, R * 3, col, 0.35);
+  // diamond body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1a0a26';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(0, -R);
+  ctx.lineTo(R, 0);
+  ctx.lineTo(0, R);
+  ctx.lineTo(-R, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.fillStyle = rgba(col, 0.12);
+    ctx.beginPath();
+    ctx.moveTo(0, -R * 0.6);
+    ctx.lineTo(R * 0.6, 0);
+    ctx.lineTo(0, R * 0.6);
+    ctx.lineTo(-R * 0.6, 0);
+    ctx.closePath();
+    ctx.fill();
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.strokeStyle = rgba(col, 0.6);
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(s * R * 0.4, 0);
+      ctx.stroke();
+      ctx.fillStyle = '#240e34';
+      ctx.strokeStyle = acc;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(s * R * 0.42, 0, R * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = rgba(col, 0.6 + 0.4 * pp);
+      if (c.lod === 'full') {
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 8 * pp;
+      }
+      ctx.beginPath();
+      ctx.arc(s * R * 0.42, 0, R * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+};
+
+// LEGENDARY = gallery v2-D (mid-division: two budding diamonds pulling apart)
+const splitterLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 26);
+  const col = e.color;
+  const acc = '#e0b3ff';
+  const t = bt(c);
+  const div = c.opts.reduceMotion ? 0.5 : Math.sin(t * 1.8) * 0.5 + 0.5;
+  const sep = R * 0.5 * div;
+  glow(ctx, c, R * 3, col, 0.35);
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-sep, -R * 0.3);
+    ctx.quadraticCurveTo(0, 0, sep, -R * 0.3);
+    ctx.moveTo(-sep, R * 0.3);
+    ctx.quadraticCurveTo(0, 0, sep, R * 0.3);
+    ctx.stroke();
+  }
+  // two budding diamonds — the lead (s<0) carries the rimColor (the read)
+  for (let s = -1; s <= 1; s += 2) {
+    if (c.lod === 'far' && s > 0) continue; // glyph-only: one diamond is enough to read
+    ctx.save();
+    ctx.translate(s * sep, 0);
+    ctx.fillStyle = c.flash ? '#ffffff' : '#1a0a26';
+    ctx.strokeStyle = s < 0 ? c.rimColor : rgba(acc, 0.85);
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.moveTo(0, -R * 0.8);
+    ctx.lineTo(s * R * 0.7, 0);
+    ctx.lineTo(0, R * 0.8);
+    ctx.lineTo(-s * R * 0.4, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = col;
+    if (c.lod === 'full') {
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 8;
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+};
+
+// ── MINI (#c9a6ff lilac — small diamond; the swarm chaser) ──────────────────
+// NativeR 16–20. Silhouette: a small diamond. Threat-rim: the diamond body.
+const miniCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 20);
+  const col = e.color;
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 6);
+  glow(ctx, c, R * 2.5, col, 0.3);
+  if (c.lod !== 'far') {
+    // motion streak behind the dart
+    ctx.strokeStyle = rgba(col, 0.3);
+    ctx.lineWidth = 2;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.9 - k * R * 0.5, 0);
+      ctx.lineTo(-R * 1.6 - k * R * 0.6, 0);
+      ctx.stroke();
+    }
+  }
+  // forward dart-diamond — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1a1226';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(R * 1.1, 0);
+  ctx.lineTo(0, -R * 0.8);
+  ctx.lineTo(-R * 0.8, 0);
+  ctx.lineTo(0, R * 0.8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const miniRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 18);
+  const col = e.color;
+  const acc = '#efe2ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 6);
+  glow(ctx, c, R * 2.5, col, 0.3);
+  if (c.lod !== 'far') {
+    // the trailing ghost sibling
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#1a1226';
+    ctx.strokeStyle = rgba(acc, 0.6);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.6, 0);
+    ctx.lineTo(-R * 1.4, -R * 0.7);
+    ctx.lineTo(-R * 2.0, 0);
+    ctx.lineTo(-R * 1.4, R * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+  // forward shard — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1a1226';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(R * 1.1, 0);
+  ctx.lineTo(0, -R * 0.9);
+  ctx.lineTo(-R * 0.7, 0);
+  ctx.lineTo(0, R * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(R * 0.05, 0, R * 0.24, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(R * 0.05, 0, R * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const miniEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 16);
+  const col = e.color;
+  const acc = '#efe2ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 6);
+  glow(ctx, c, R * 2.6, col, 0.3);
+  // a triad of small darts — the lead carries the rimColor (the read)
+  const pos: [number, number][] = [[R * 0.6, 0], [-R * 0.5, -R * 0.6], [-R * 0.5, R * 0.6]];
+  for (let k = 0; k < 3; k++) {
+    if (c.lod === 'far' && k > 0) break; // glyph-only: the lead dart is enough to read
+    ctx.save();
+    ctx.translate(pos[k][0] + (c.opts.reduceMotion ? 0 : Math.sin(t * 4 + k) * 2), pos[k][1]);
+    ctx.fillStyle = c.flash ? '#ffffff' : '#1a1226';
+    ctx.strokeStyle = k === 0 ? c.rimColor : rgba(acc, 0.85);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(R * 0.7, 0);
+    ctx.lineTo(0, -R * 0.6);
+    ctx.lineTo(-R * 0.5, 0);
+    ctx.lineTo(0, R * 0.6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = col;
+    if (c.lod === 'full') {
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 6 * pp;
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+};
+
+// LEGENDARY = gallery v2-D (spoked diamond w/ radiating sensor spurs)
+const miniLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 20);
+  const col = e.color;
+  const acc = '#efe2ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 6);
+  glow(ctx, c, R * 2.6, col, 0.3);
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.7);
+    ctx.lineWidth = 1.4;
+    for (let k = 0; k < 4; k++) {
+      const sa = (k / 4) * Math.PI * 2 + Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(sa) * R * 0.7, Math.sin(sa) * R * 0.7);
+      ctx.lineTo(Math.cos(sa) * R * 1.1, Math.sin(sa) * R * 1.1);
+      ctx.stroke();
+    }
+  }
+  // diamond body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1a1226';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(0, -R * 0.8);
+  ctx.lineTo(R * 0.8, 0);
+  ctx.lineTo(0, R * 0.8);
+  ctx.lineTo(-R * 0.8, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+// ── BLOOMER (#fbbf24 amber — square pod; rings on a timer) ──────────────────
+// NativeR 30. Silhouette: a square pod. Threat-rim: the pod body.
+const bloomerCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#ffe9a8';
+  const t = bt(c);
+  const bloom = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 1.6);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 3, col, 0.32);
+  if (c.lod !== 'far') {
+    // the bloom telegraph ring
+    ctx.strokeStyle = rgba(col, 0.2 + 0.3 * bloom);
+    ctx.setLineDash([4, 5]);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.9 + R * 0.4 * bloom, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // blooming petals
+    for (let k = 0; k < 4; k++) {
+      ctx.save();
+      ctx.rotate((k * Math.PI) / 2);
+      const ext = R * 0.55 + R * 0.35 * bloom;
+      ctx.fillStyle = '#2a1e02';
+      ctx.strokeStyle = rgba(acc, 0.8);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.22, -R * 0.45);
+      ctx.lineTo(0, -ext);
+      ctx.lineTo(R * 0.22, -R * 0.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // square pod core — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1f1602';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.4, -R * 0.4, R * 0.8, R * 0.8);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const bloomerRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#ffe9a8';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 3, col, 0.32);
+  // square pod body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1f1602';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.5, -R * 0.5, R, R);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    for (let sx = -1; sx <= 1; sx += 2) {
+      for (let sy = -1; sy <= 1; sy += 2) {
+        ctx.fillStyle = rgba(acc, 0.6);
+        ctx.beginPath();
+        ctx.arc(sx * R * 0.38, sy * R * 0.38, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // the rotating barrel-ring turret
+    ctx.save();
+    ctx.rotate(c.opts.reduceMotion ? 0 : t * 0.5);
+    for (let k = 0; k < 8; k++) {
+      const ba = (k / 8) * Math.PI * 2;
+      ctx.fillStyle = '#2a1e02';
+      ctx.strokeStyle = rgba(acc, 0.7);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(ba) * R * 0.7, Math.sin(ba) * R * 0.7, R * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = rgba(col, 0.7);
+      ctx.beginPath();
+      ctx.arc(Math.cos(ba) * R * 0.7, Math.sin(ba) * R * 0.7, R * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const bloomerEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#ffe9a8';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.6 + 0.4 * Math.sin(t * 2);
+  glow(ctx, c, R * 3, col, 0.32);
+  // pod body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1f1602';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.55, -R * 0.5, R * 1.1, R);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    // opening lid hinges
+    ctx.strokeStyle = rgba(acc, 0.8);
+    ctx.lineWidth = 1.5;
+    const op = R * 0.2 * pp;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.55, -R * 0.5);
+    ctx.lineTo(-R * 0.1, -R * 0.5 - op);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(R * 0.55, -R * 0.5);
+    ctx.lineTo(R * 0.1, -R * 0.5 - op);
+    ctx.stroke();
+    // seed cluster
+    for (let k = 0; k < 4; k++) {
+      const sx = -R * 0.3 + k * R * 0.2;
+      ctx.fillStyle = rgba(col, 0.5 + 0.4 * (c.opts.reduceMotion ? 0.5 : Math.sin(t * 3 + k)));
+      ctx.beginPath();
+      ctx.arc(sx, -R * 0.1, R * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // a rising sprout
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -R * 0.5);
+    ctx.quadraticCurveTo(R * 0.3, -R * 0.9, 0, -R * 1.1);
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, R * 0.2, R * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// LEGENDARY = gallery v2-D (telegraph-ringed pod w/ four corner barrels)
+const bloomerLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#ffe9a8';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  const tel = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 1.8);
+  glow(ctx, c, R * 3, col, 0.32);
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.2 + 0.3 * tel);
+    ctx.setLineDash([4, 5]);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.95 + R * 0.3 * tel, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // pod body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1f1602';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.5, -R * 0.5, R, R);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    for (let sx = -1; sx <= 1; sx += 2) {
+      for (let sy = -1; sy <= 1; sy += 2) {
+        ctx.fillStyle = '#2a1e02';
+        ctx.strokeStyle = rgba(acc, 0.7);
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.arc(sx * R * 0.5, sy * R * 0.5, R * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = rgba(col, 0.7);
+        ctx.beginPath();
+        ctx.arc(sx * R * 0.5, sy * R * 0.5, R * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+// ── BOMBER (#fb7185 rose — circle; kamikaze ring-on-death) ──────────────────
+// NativeR 28. Silhouette: a circle. Threat-rim: the circular shell.
+const bomberCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffc2cc';
+  const t = bt(c);
+  const ch = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 3);
+  glow(ctx, c, R * 3, col, 0.35);
+  if (c.lod !== 'far') {
+    // the mine prongs
+    ctx.strokeStyle = rgba(acc, 0.7);
+    ctx.lineWidth = 1.6;
+    for (let k = 0; k < 8; k++) {
+      const pa = (k / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(pa) * R * 0.9, Math.sin(pa) * R * 0.9);
+      ctx.lineTo(Math.cos(pa) * R * 1.2, Math.sin(pa) * R * 1.2);
+      ctx.stroke();
+      ctx.fillStyle = acc;
+      ctx.beginPath();
+      ctx.arc(Math.cos(pa) * R * 1.2, Math.sin(pa) * R * 1.2, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // circular shell — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#260810';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.85, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.5);
+    ctx.lineWidth = 1.2;
+    ngon(ctx, 6, R * 0.55, 0);
+    ctx.stroke();
+  }
+  // charging core
+  ctx.fillStyle = rgba(col, 0.5 + 0.4 * ch);
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 16 * ch;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.28 + R * 0.08 * ch, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const bomberRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffc2cc';
+  const t = bt(c);
+  const bl = c.opts.reduceMotion ? 1 : Math.sin(t * 4) > 0.3 ? 1 : 0.35;
+  glow(ctx, c, R * 3, col, 0.35);
+  // hex-plated shell — the first wedge stroke = rimColor (the circular read)
+  for (let i = 0; i < 6; i++) {
+    const a0 = (i / 6) * Math.PI * 2 + 0.08;
+    const a1 = ((i + 1) / 6) * Math.PI * 2 - 0.08;
+    const ir = R * 0.4;
+    ctx.fillStyle = c.flash ? '#ffffff' : '#260810';
+    ctx.strokeStyle = i === 0 ? c.rimColor : rgba(acc, 0.8);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a0) * ir, Math.sin(a0) * ir);
+    ctx.lineTo(Math.cos(a0) * R * 0.85, Math.sin(a0) * R * 0.85);
+    ctx.arc(0, 0, R * 0.85, a0, a1);
+    ctx.lineTo(Math.cos(a1) * ir, Math.sin(a1) * ir);
+    ctx.arc(0, 0, ir, a1, a0, true);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.6);
+    ctx.lineWidth = 1.4;
+    for (let k = 0; k < 4; k++) {
+      const pa = (k / 4) * Math.PI * 2 + Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(pa) * R * 0.85, Math.sin(pa) * R * 0.85);
+      ctx.lineTo(Math.cos(pa) * R * 1.15, Math.sin(pa) * R * 1.15);
+      ctx.stroke();
+    }
+  }
+  ctx.save();
+  ctx.globalAlpha = bl;
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 14;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const bomberEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffc2cc';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 3, col, 0.35);
+  if (c.lod !== 'far') {
+    // thruster afterimages (the chasing kamikaze)
+    ctx.fillStyle = rgba(col, 0.25);
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.arc(-R * 0.9 - k * R * 0.4, 0, R * 0.18 - k * R * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // circular shell — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#260810';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.85, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.save();
+    ctx.rotate(c.opts.reduceMotion ? 0 : t * 0.6);
+    ctx.strokeStyle = rgba(acc, 0.4);
+    ctx.lineWidth = 1.1;
+    for (let k = 0; k < 4; k++) {
+      const sa = (k / 4) * Math.PI;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, R * 0.85, R * 0.85 * Math.abs(Math.cos(sa)), sa, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // forward intent-eye
+    ctx.fillStyle = '#0a0204';
+    ctx.strokeStyle = acc;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(R * 0.4, 0, R * 0.24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(c.lod === 'far' ? 0 : R * 0.45, 0, R * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// LEGENDARY = gallery v2-D (orbiting-mine ring around a charging core)
+const bomberLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffc2cc';
+  const t = bt(c);
+  const ch = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 3);
+  glow(ctx, c, R * 3, col, 0.35);
+  if (c.lod !== 'far') {
+    for (let k = 0; k < 6; k++) {
+      const ba = (k / 6) * Math.PI * 2 + (c.opts.reduceMotion ? 0 : t * 0.2);
+      ctx.fillStyle = '#260810';
+      ctx.strokeStyle = rgba(acc, 0.7);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(ba) * R * 0.95, Math.sin(ba) * R * 0.95, R * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = rgba(col, 0.6);
+      ctx.beginPath();
+      ctx.arc(Math.cos(ba) * R * 0.95, Math.sin(ba) * R * 0.95, R * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // inner shell — rimColor outline (the circular silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1a0508';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = rgba(col, 0.5 + 0.4 * ch);
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 14 * ch;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+// ── WISP (#67e8f9 cyan — triangle pack; the crescent darts) ─────────────────
+// NativeR 20–24. Silhouette: a forward triangle. Threat-rim: the triangle body.
+const wispCommon: SkinDraw = (ctx, e, r, c) => {
+  ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+  const R = fit(ctx, r, 22);
+  const col = e.color;
+  const acc = '#c7f6ff';
+  const t = bt(c);
+  const off = c.opts.reduceMotion ? 0 : Math.sin(t * 2) * R * 0.12;
+  glow(ctx, c, R * 3, col, 0.32);
+  // three pack-darts — the lead (i===2) carries the rimColor (the read)
+  const pos: [number, number, number][] = [[-R * 0.6, -R * 0.9, -1], [-R * 0.6, R * 0.9, 1], [R * 0.7, 0, 0]];
+  for (let i = 0; i < 3; i++) {
+    if (c.lod === 'far' && i < 2) continue; // glyph-only: the lead dart is enough to read
+    ctx.save();
+    ctx.translate(pos[i][0], pos[i][1] + off * pos[i][2]);
+    ctx.fillStyle = c.flash ? '#ffffff' : '#0a2630';
+    ctx.strokeStyle = i === 2 ? c.rimColor : rgba(acc, 0.85);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(R * 0.7, 0);
+    ctx.lineTo(-R * 0.5, -R * 0.45);
+    ctx.lineTo(-R * 0.2, 0);
+    ctx.lineTo(-R * 0.5, R * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = col;
+    if (c.lod === 'full') {
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 6;
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.3);
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.2, -R * 0.4);
+    ctx.lineTo(-R * 0.2, R * 0.4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+};
+
+const wispRare: SkinDraw = (ctx, e, r, c) => {
+  ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+  const R = fit(ctx, r, 24);
+  const col = e.color;
+  const acc = '#c7f6ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 5);
+  glow(ctx, c, R * 3, col, 0.32);
+  if (c.lod !== 'far') {
+    // trailing echoes
+    for (let k = 2; k >= 1; k--) {
+      ctx.globalAlpha = 0.18 * k;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(R * 0.9 - k * R * 0.6, 0);
+      ctx.lineTo(-R * 0.5 - k * R * 0.6, -R * 0.7);
+      ctx.lineTo(-R * 0.5 - k * R * 0.6, R * 0.7);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // triangle body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#0a2630';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(R * 0.9, 0);
+  ctx.lineTo(-R * 0.5, -R * 0.75);
+  ctx.lineTo(-R * 0.5, R * 0.75);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.4);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(R * 0.7, 0);
+    ctx.lineTo(-R * 0.4, -R * 0.5);
+    ctx.moveTo(R * 0.7, 0);
+    ctx.lineTo(-R * 0.4, R * 0.5);
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+const wispEpic: SkinDraw = (ctx, e, r, c) => {
+  ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+  const R = fit(ctx, r, 20);
+  const col = e.color;
+  const acc = '#c7f6ff';
+  glow(ctx, c, R * 3, col, 0.32);
+  // five-strong pack — the lead (i===0) carries the rimColor (the read)
+  const pos: [number, number][] = [[R * 0.8, 0], [-R * 0.2, -R * 0.7], [-R * 0.2, R * 0.7], [-R * 1.1, -R * 1.3], [-R * 1.1, R * 1.3]];
+  for (let i = 0; i < 5; i++) {
+    if (c.lod === 'far' && i > 0) break; // glyph-only: the lead dart is enough to read
+    const sc = i < 3 ? 1 : 0.7;
+    ctx.save();
+    ctx.translate(pos[i][0], pos[i][1]);
+    ctx.globalAlpha = i < 3 ? 1 : 0.6;
+    ctx.fillStyle = c.flash ? '#ffffff' : '#0a2630';
+    ctx.strokeStyle = i === 0 ? c.rimColor : rgba(acc, 0.85);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(R * 0.7 * sc, 0);
+    ctx.lineTo(-R * 0.4 * sc, -R * 0.5 * sc);
+    ctx.lineTo(-R * 0.4 * sc, R * 0.5 * sc);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.1 * sc, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+};
+
+// LEGENDARY = gallery v2-D (lone dart w/ swept antennae + a spine line)
+const wispLegendary: SkinDraw = (ctx, e, r, c) => {
+  ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+  const R = fit(ctx, r, 24);
+  const col = e.color;
+  const acc = '#c7f6ff';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 5);
+  glow(ctx, c, R * 3, col, 0.32);
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.4);
+    ctx.lineWidth = 1.6;
+    for (let s = -1; s <= 1; s += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.4, s * R * 0.2);
+      ctx.quadraticCurveTo(-R * 1.2, s * R * 0.4 + (c.opts.reduceMotion ? 0 : Math.sin(t * 3) * 4), -R * 1.8, s * R * 0.15);
+      ctx.stroke();
+    }
+  }
+  // triangle body — rimColor outline (the silhouette)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#0a2630';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(R * 0.9, 0);
+  ctx.lineTo(-R * 0.5, -R * 0.7);
+  ctx.lineTo(-R * 0.5, R * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.4);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(R * 0.7, 0);
+    ctx.lineTo(-R * 0.4, 0);
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// ── DRIFTER (#10b981 emerald — crescent; arc-fan zoner) ─────────────────────
+// NativeR 30–32. Silhouette: a concave crescent. Threat-rim: the crescent body.
+const drifterCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 3, col, 0.34);
+  if (c.lod !== 'far') {
+    // arc-fan telegraph
+    ctx.strokeStyle = rgba(col, 0.35);
+    ctx.setLineDash([4, 5]);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(-R * 0.2, 0, R * 0.95, -Math.PI * 0.4, Math.PI * 0.4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // crescent body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#082a20';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(-R * 0.2, 0, R * 0.95, Math.PI * 0.55, Math.PI * 1.45, false);
+  ctx.arc(-R * 0.05, 0, R * 0.62, Math.PI * 1.45, Math.PI * 0.55, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(-R * 0.2, 0, R * 0.78, Math.PI * 0.7, Math.PI * 1.3);
+    ctx.stroke();
+    for (let k = -1; k <= 1; k++) {
+      const na = Math.PI + k * 0.5;
+      ctx.fillStyle = col;
+      if (c.lod === 'full') {
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 8 * pp;
+      }
+      ctx.beginPath();
+      ctx.arc(-R * 0.2 + Math.cos(na) * R * 0.95, Math.sin(na) * R * 0.95, R * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+};
+
+const drifterRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const t = bt(c);
+  const sweep = c.opts.reduceMotion ? 0 : Math.sin(t * 1.3) * 0.5;
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 3, col, 0.34);
+  // crescent body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#082a20';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(-R * 0.2, 0, R * 0.95, Math.PI * 0.55, Math.PI * 1.45, false);
+  ctx.arc(-R * 0.05, 0, R * 0.6, Math.PI * 1.45, Math.PI * 0.55, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    // the sweeping beam
+    ctx.save();
+    ctx.translate(-R * 0.05, 0);
+    ctx.rotate(sweep);
+    const bg = ctx.createLinearGradient(0, 0, R * 1.3, 0);
+    bg.addColorStop(0, rgba(col, 0.4));
+    bg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(R * 1.3, -R * 0.3);
+    ctx.lineTo(R * 1.3, R * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = rgba(col, 0.6);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(-R * 0.2, 0, R * 0.78, Math.PI * 0.65, Math.PI * 1.35);
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(-R * 0.05, 0, R * 0.14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+const drifterEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const acc = '#a7f3d0';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 3, col, 0.34);
+  // crescent body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#082a20';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(-R * 0.2, 0, R * 0.95, Math.PI * 0.5, Math.PI * 1.5, false);
+  ctx.arc(-R * 0.05, 0, R * 0.6, Math.PI * 1.5, Math.PI * 0.5, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    for (let s = -1; s <= 1; s += 2) {
+      const ty = s * R * 0.78;
+      const tx = -R * 0.05;
+      ctx.strokeStyle = acc;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + R * 0.5, ty + s * R * 0.2);
+      ctx.stroke();
+      ctx.fillStyle = col;
+      if (c.lod === 'full') {
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 8 * pp;
+      }
+      ctx.beginPath();
+      ctx.arc(tx + R * 0.5, ty + s * R * 0.2, R * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(-R * 0.2, 0, R * 0.78, Math.PI * 0.7, Math.PI * 1.3);
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(-R * 0.55, 0, R * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// LEGENDARY = gallery v2-D (a ray/manta crescent w/ trailing filament fins)
+const drifterLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#a7f3d0';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.6 + 0.4 * Math.sin(t * 2.5);
+  glow(ctx, c, R * 3, col, 0.34);
+  // ray-crescent body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : rgba(col, 0.14);
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.8, Math.PI, Math.PI * 2, false);
+  ctx.lineTo(R * 0.8, R * 0.15);
+  ctx.quadraticCurveTo(0, R * 0.5, -R * 0.8, R * 0.15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = acc;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 0.8, Math.PI * 1.05, Math.PI * 1.95);
+    ctx.stroke();
+    // trailing filaments
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.3;
+    for (let k = -2; k <= 2; k++) {
+      const tx = k * R * 0.28;
+      const wob = c.opts.reduceMotion ? 0 : Math.sin(t * 2 + k);
+      ctx.beginPath();
+      ctx.moveTo(tx, R * 0.25);
+      ctx.quadraticCurveTo(tx + wob * 5, R * 0.8, tx + wob * 8, R * 1.3);
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, -R * 0.2, R * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// ── SHADE (#f97316 orange — blinking square; teleport ambusher) ─────────────
+// NativeR 28. Silhouette: a 45°-rotated square (diamond-on-edge) w/ a ring core.
+const shadeCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffcf9e';
+  const t = bt(c);
+  const blink = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 1.5);
+  glow(ctx, c, R * 3, col, 0.3);
+  if (c.lod !== 'far') {
+    // blink telegraph ring
+    ctx.strokeStyle = rgba(col, 0.2 + 0.3 * blink);
+    ctx.setLineDash([4, 5]);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, R * 1.0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // the phase-echo square
+    ctx.save();
+    ctx.globalAlpha = 0.3 * blink;
+    ctx.translate(R * 0.3 * blink, -R * 0.2 * blink);
+    ctx.rotate(Math.PI / 4 + 0.3);
+    ctx.strokeStyle = acc;
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(-R * 0.55, -R * 0.55, R * 1.1, R * 1.1);
+    ctx.restore();
+  }
+  // the rotated square body — rimColor outline (the silhouette read)
+  ctx.save();
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = c.flash ? '#ffffff' : '#2a1405';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.6, -R * 0.6, R * 1.2, R * 1.2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  // void-core ring
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.28, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const shadeRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffcf9e';
+  const t = bt(c);
+  const dis = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 1.2);
+  glow(ctx, c, R * 3, col, 0.3);
+  // half-dissolved rotated square — the solid half carries the rimColor (the read)
+  ctx.save();
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = c.flash ? '#ffffff' : '#2a1405';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.6, -R * 0.6, R * 0.6, R * 1.2);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = rgba(acc, 0.4 + 0.4 * dis);
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(0, -R * 0.6, R * 0.6, R * 1.2);
+    ctx.setLineDash([]);
+    for (let k = 0; k < 4; k++) {
+      const px = R * 0.3 + k * R * 0.18;
+      const py = (k % 2 ? 1 : -1) * R * 0.3;
+      ctx.fillStyle = rgba(col, 0.6 * dis);
+      ctx.beginPath();
+      ctx.arc(px, py, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.26, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.05, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const shadeEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffcf9e';
+  const t = bt(c);
+  glow(ctx, c, R * 3, col, 0.3);
+  // glitch-sliced rotated square — rimColor frames the read at full/mid; the
+  // ring-core is the constant silhouette anchor at every LOD.
+  if (c.lod !== 'far') {
+    ctx.save();
+    ctx.rotate(Math.PI / 4);
+    const slices = 5;
+    for (let k = 0; k < slices; k++) {
+      const y = -R * 0.6 + k * ((R * 1.2) / slices);
+      const dx = c.opts.reduceMotion ? 0 : Math.sin(t * 3 + k * 1.3) * R * 0.25;
+      ctx.fillStyle = k % 2 ? '#2a1405' : '#3a1c08';
+      ctx.strokeStyle = k === 0 ? c.rimColor : rgba(acc, 0.7);
+      ctx.lineWidth = k === 0 ? 1.8 : 1.2;
+      ctx.beginPath();
+      ctx.rect(-R * 0.6 + dx, y, R * 1.2, (R * 1.2) / slices - 1);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else {
+    // far: a single clean rimColor square keeps the silhouette legible
+    ctx.save();
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = c.flash ? '#ffffff' : '#2a1405';
+    ctx.strokeStyle = c.rimColor;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.rect(-R * 0.6, -R * 0.6, R * 1.2, R * 1.2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.26, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+// LEGENDARY = gallery v2-D (tendrilled blink-square w/ a frail outer frame)
+const shadeLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 28);
+  const col = e.color;
+  const acc = '#ffcf9e';
+  const t = bt(c);
+  const blink = c.opts.reduceMotion ? 0.7 : 0.4 + 0.6 * Math.abs(Math.sin(t * 1.5));
+  glow(ctx, c, R * 3, col, 0.3);
+  // shape-coded silhouette: the rotated square, stroked in rimColor at EVERY
+  // LOD (matches shadeCommon/Rare/Epic). This is the constant threat-rim that
+  // survives the COHERENCE wash and reads as a square (not a ring) at far.
+  ctx.save();
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = c.flash ? '#ffffff' : '#2a1405';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.55, -R * 0.55, R * 1.1, R * 1.1);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  if (c.lod !== 'far') {
+    // reaching tendrils
+    ctx.strokeStyle = rgba(col, 0.3);
+    ctx.lineWidth = 1.4;
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + (c.opts.reduceMotion ? 0 : t * 0.3);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * R * 0.55, Math.sin(a) * R * 0.55);
+      ctx.quadraticCurveTo(
+        Math.cos(a) * R * 1.1,
+        Math.sin(a) * R * 1.1 + (c.opts.reduceMotion ? 0 : Math.sin(t * 2 + k) * 5),
+        Math.cos(a + 0.3) * R * 1.3,
+        Math.sin(a + 0.3) * R * 1.3,
+      );
+      ctx.stroke();
+    }
+    // a frail outer frame (blinks) — a flourish framing the rim square
+    ctx.save();
+    ctx.rotate(Math.PI / 4);
+    ctx.globalAlpha = blink;
+    ctx.strokeStyle = acc;
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(-R * 0.72, -R * 0.72, R * 1.44, R * 1.44);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+  // void-core ring
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.24, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+};
+
+// ── BROODER (#a78bfa violet — hex pod; the mini-hatcher) ────────────────────
+// NativeR 32. Silhouette: a hexagon pod. Threat-rim: the hex body.
+const brooderCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const acc = '#dccffe';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 2.5);
+  glow(ctx, c, R * 3, col, 0.34);
+  // hex pod body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#150a26';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ngon(ctx, 6, R, 0);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.fillStyle = rgba(col, 0.12);
+    ctx.strokeStyle = rgba(acc, 0.5);
+    ctx.lineWidth = 1.2;
+    ngon(ctx, 6, R * 0.6, 0);
+    ctx.fill();
+    ctx.stroke();
+    // the egg clutch
+    const eggs: [number, number][] = [[-R * 0.22, -R * 0.1], [R * 0.18, -R * 0.18], [-R * 0.05, R * 0.28], [R * 0.3, R * 0.15]];
+    for (let k = 0; k < eggs.length; k++) {
+      ctx.fillStyle = rgba(col, 0.6 + 0.3 * (c.opts.reduceMotion ? 0 : Math.sin(t * 3 + k)));
+      ctx.beginPath();
+      ctx.arc(eggs[k][0], eggs[k][1], R * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  if (c.lod !== 'far') {
+    // a hatched drone leaving the belly
+    ctx.save();
+    ctx.rotate(c.opts.reduceMotion ? 0 : t * 0.8);
+    ctx.fillStyle = acc;
+    ctx.beginPath();
+    ctx.arc(0, -R * 1.15, R * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+};
+
+const brooderRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const acc = '#dccffe';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 2.5);
+  glow(ctx, c, R * 3, col, 0.34);
+  // hex pod body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#150a26';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ngon(ctx, 6, R, c.opts.reduceMotion ? 0 : t * 0.1);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.2;
+    for (let k = 0; k < 6; k++) {
+      const va = (k / 6) * Math.PI * 2 + (c.opts.reduceMotion ? 0 : t * 0.1);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(va) * R * 0.8, Math.sin(va) * R * 0.8);
+      ctx.stroke();
+    }
+    // orbiting drones
+    ctx.save();
+    ctx.rotate(c.opts.reduceMotion ? 0 : t * 0.7);
+    for (let k = 0; k < 2; k++) {
+      ctx.rotate(Math.PI);
+      const dx = R * 1.2;
+      ctx.fillStyle = '#1a0f2e';
+      ctx.strokeStyle = acc;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(dx, 0, R * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(dx, 0, R * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const brooderEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const acc = '#dccffe';
+  const t = bt(c);
+  glow(ctx, c, R * 3, col, 0.34);
+  // hex pod body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#150a26';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ngon(ctx, 6, R, 0);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    // a honeycomb of hatching cells
+    const hc: [number, number][] = [[0, 0], [0, -0.5], [0, 0.5], [-0.43, -0.25], [0.43, -0.25], [-0.43, 0.25], [0.43, 0.25]];
+    for (let k = 0; k < hc.length; k++) {
+      const cx = hc[k][0] * R;
+      const cy = hc[k][1] * R;
+      const lit = k % 3 === 0;
+      ctx.fillStyle = lit ? rgba(col, 0.5 + 0.4 * (c.opts.reduceMotion ? 0 : Math.sin(t * 3 + k))) : '#1a0f2e';
+      ctx.strokeStyle = rgba(acc, 0.6);
+      ctx.lineWidth = 1.1;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ngon(ctx, 6, R * 0.22, 0);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// LEGENDARY = gallery v2-D (split-rupturing pod w/ a fracture line + escaping eggs)
+const brooderLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 32);
+  const col = e.color;
+  const acc = '#dccffe';
+  const t = bt(c);
+  const rup = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 1.8);
+  glow(ctx, c, R * 3, col, 0.34);
+  // hex pod body — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#150a26';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ngon(ctx, 6, R, 0);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    // the rupture fracture
+    ctx.save();
+    ctx.strokeStyle = rgba(col, 0.6 + 0.3 * rup);
+    ctx.lineWidth = 1.6;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = lodBlur(c, 8);
+    ctx.beginPath();
+    ctx.moveTo(0, -R * 0.9);
+    ctx.lineTo(R * 0.15, -R * 0.3);
+    ctx.lineTo(-R * 0.1, R * 0.2);
+    ctx.lineTo(R * 0.1, R * 0.9);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    // escaping eggs
+    for (let k = 0; k < 3; k++) {
+      const ey = -R * 0.4 + k * R * 0.4;
+      const ex = R * 0.2 + rup * R * 0.4;
+      ctx.fillStyle = '#1a1226';
+      ctx.strokeStyle = acc;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(ex + R * 0.18, ey);
+      ctx.lineTo(ex, ey - R * 0.12);
+      ctx.lineTo(ex - R * 0.12, ey);
+      ctx.lineTo(ex, ey + R * 0.12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+  }
+  ctx.beginPath();
+  ctx.arc(-R * 0.15, 0, R * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+// ── HERALD (#a3e635 lime — wall bar; the gap-wall caster) ───────────────────
+// NativeR 30. Silhouette: a tall vertical bar/monolith. Threat-rim: the bar body.
+const heraldCommon: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#e6ffb0';
+  const t = bt(c);
+  const pulse = c.opts.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 2);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 2.6, col, 0.3);
+  if (c.lod !== 'far') {
+    // wall-preview w/ the safe gap lane
+    ctx.strokeStyle = rgba(col, 0.3 + 0.3 * pulse);
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(R * 1.4, -R * 1.4);
+    ctx.lineTo(R * 1.4, -R * 0.4);
+    ctx.moveTo(R * 1.4, R * 0.4);
+    ctx.lineTo(R * 1.4, R * 1.4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // monolith bar — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1c2608';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.rect(-R * 0.35, -R * 1.3, R * 0.7, R * 2.6);
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(acc, 0.4);
+    ctx.lineWidth = 1;
+    for (let k = -1; k <= 1; k++) {
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.35, k * R * 0.7);
+      ctx.lineTo(R * 0.35, k * R * 0.7);
+      ctx.stroke();
+    }
+    ctx.fillStyle = rgba(col, 0.2);
+    ctx.fillRect(-R * 0.35, -R * 0.35, R * 0.7, R * 0.7);
+    ctx.strokeStyle = rgba(col, 0.7);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.35, -R * 0.35);
+    ctx.lineTo(R * 0.35, -R * 0.35);
+    ctx.moveTo(-R * 0.35, R * 0.35);
+    ctx.lineTo(R * 0.35, R * 0.35);
+    ctx.stroke();
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, -R * 1.0, R * 0.14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+const heraldRare: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#e6ffb0';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 3);
+  glow(ctx, c, R * 2.6, col, 0.3);
+  // stacked plate-segments forming the bar — the first plate carries the rimColor
+  const segsY = [-1.2, -0.8, -0.4, 0.4, 0.8, 1.2];
+  for (let k = 0; k < segsY.length; k++) {
+    const y = segsY[k] * R;
+    if (c.lod === 'far' && k > 0 && k < segsY.length - 1) {
+      // far: keep just the top + bottom plates so the bar silhouette still reads
+      continue;
+    }
+    ctx.fillStyle = c.flash ? '#ffffff' : '#1c2608';
+    ctx.strokeStyle = k === 0 ? c.rimColor : rgba(acc, 0.8);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.rect(-R * 0.4, y - R * 0.16, R * 0.8, R * 0.32);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = rgba(col, 0.5);
+    ctx.beginPath();
+    ctx.arc(0, y, R * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (c.lod !== 'far') {
+    // the safe-gap window
+    ctx.fillStyle = rgba(col, 0.18);
+    ctx.fillRect(-R * 0.45, -R * 0.35, R * 0.9, R * 0.7);
+    ctx.strokeStyle = rgba(col, 0.6);
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(-R * 0.45, -R * 0.35, R * 0.9, R * 0.7);
+    ctx.setLineDash([]);
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.06, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const heraldEpic: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const acc = '#e6ffb0';
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 2.6, col, 0.3);
+  // twin pillar-bars — both carry the rimColor (the gate silhouette)
+  for (let s = -1; s <= 1; s += 2) {
+    ctx.fillStyle = c.flash ? '#ffffff' : '#1c2608';
+    ctx.strokeStyle = c.rimColor;
+    ctx.lineWidth = 1.7;
+    ctx.beginPath();
+    ctx.rect(s * R * 0.45 - R * 0.22, -R * 1.2, R * 0.44, R * 2.4);
+    ctx.fill();
+    ctx.stroke();
+    if (c.lod !== 'far') {
+      ctx.strokeStyle = rgba(acc, 0.4);
+      ctx.lineWidth = 1;
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath();
+        ctx.moveTo(s * R * 0.45 - R * 0.22, k * R * 0.6);
+        ctx.lineTo(s * R * 0.45 + R * 0.22, k * R * 0.6);
+        ctx.stroke();
+      }
+    }
+  }
+  if (c.lod !== 'far') {
+    // the previewed wall edges + the safe gap
+    ctx.strokeStyle = rgba(col, 0.4 + 0.3 * (c.opts.reduceMotion ? 0 : Math.sin(t * 3)));
+    ctx.lineWidth = 1.4;
+    for (let k = -1; k <= 1; k++) {
+      if (k === 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.23, k * R * 0.6);
+      ctx.lineTo(R * 0.23, k * R * 0.6);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = rgba(col, 0.6);
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(-R * 0.23, -R * 0.3, R * 0.46, R * 0.6);
+    ctx.setLineDash([]);
+  }
+  for (let s = -1; s <= 1; s += 2) {
+    ctx.fillStyle = col;
+    if (c.lod === 'full') {
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 10 * pp;
+    }
+    ctx.beginPath();
+    ctx.arc(s * R * 0.45, -R * 1.0, R * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+};
+
+// LEGENDARY = gallery v2-D (an obelisk monolith w/ a rib-ladder + side wall preview)
+const heraldLegendary: SkinDraw = (ctx, e, r, c) => {
+  const R = fit(ctx, r, 30);
+  const col = e.color;
+  const t = bt(c);
+  const pp = c.opts.reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(t * 4);
+  glow(ctx, c, R * 2.6, col, 0.3);
+  // obelisk bar — rimColor outline (the silhouette read)
+  ctx.fillStyle = c.flash ? '#ffffff' : '#1c2608';
+  ctx.strokeStyle = c.rimColor;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(-R * 0.28, R * 1.3);
+  ctx.lineTo(-R * 0.16, -R * 1.0);
+  ctx.lineTo(0, -R * 1.3);
+  ctx.lineTo(R * 0.16, -R * 1.0);
+  ctx.lineTo(R * 0.28, R * 1.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  if (c.lod !== 'far') {
+    ctx.strokeStyle = rgba(col, 0.5);
+    ctx.lineWidth = 1.2;
+    for (let k = 0; k < 4; k++) {
+      const y = -R * 0.6 + k * R * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.24, y);
+      ctx.lineTo(R * 0.24, y);
+      ctx.stroke();
+      ctx.fillStyle = rgba(col, 0.5 + 0.3 * (c.opts.reduceMotion ? 0 : Math.sin(t * 3 + k)));
+      ctx.beginPath();
+      ctx.arc(0, y, R * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // side wall-preview gap lane
+    ctx.strokeStyle = rgba(col, 0.3);
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(R * 0.6, -R * 0.4);
+    ctx.lineTo(R * 0.6, R * 0.4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.fillStyle = col;
+  if (c.lod === 'full') {
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10 * pp;
+  }
+  ctx.beginPath();
+  ctx.arc(0, -R * 1.0, R * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, -R * 1.0, R * 0.05, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 // ── REGISTRY ────────────────────────────────────────────────────────────────
 /** Build the 4 takes for a hero kind. The Common is the kind's baseline (its id
  *  is `<kind>-default` so a fresh save / fallback maps cleanly). */
@@ -3026,6 +4936,61 @@ export const ALL_SKINS: SkinDef[] = [
     epic: ['REGALIA', sovereignEpic],
     legendary: ['EVENT-HORIZON', sovereignLegendary],
   }),
+  // ── Phase 2b: the 9 remaining mini-enemies (gallery v2-A/B/C/D → C/R/E/L order) ──
+  ...hero('splitter', {
+    common: ['CLEAVE', splitterCommon],
+    rare: ['FACET', splitterRare],
+    epic: ['PRISM', splitterEpic],
+    legendary: ['MITOSIS', splitterLegendary],
+  }),
+  ...hero('mini', {
+    common: ['SHARD', miniCommon],
+    rare: ['SLIVER', miniRare],
+    epic: ['TRIAD', miniEpic],
+    legendary: ['CALTROP', miniLegendary],
+  }),
+  ...hero('bloomer', {
+    common: ['BLOOM', bloomerCommon],
+    rare: ['CAROUSEL', bloomerRare],
+    epic: ['SEEDPOD', bloomerEpic],
+    legendary: ['FOURGUN', bloomerLegendary],
+  }),
+  ...hero('bomber', {
+    common: ['MINE', bomberCommon],
+    rare: ['CARAPACE', bomberRare],
+    epic: ['KAMIKAZE', bomberEpic],
+    legendary: ['CLUSTER', bomberLegendary],
+  }),
+  ...hero('wisp', {
+    common: ['TRIDENT', wispCommon],
+    rare: ['ECHO', wispRare],
+    epic: ['MURMUR', wispEpic],
+    legendary: ['STINGRAY', wispLegendary],
+  }),
+  ...hero('drifter', {
+    common: ['CRESCENT', drifterCommon],
+    rare: ['SWEEP', drifterRare],
+    epic: ['HALOFAN', drifterEpic],
+    legendary: ['MANTARAY', drifterLegendary],
+  }),
+  ...hero('shade', {
+    common: ['BLINK', shadeCommon],
+    rare: ['DISSOLVE', shadeRare],
+    epic: ['GLITCH', shadeEpic],
+    legendary: ['REVENANT', shadeLegendary],
+  }),
+  ...hero('brooder', {
+    common: ['CLUTCH', brooderCommon],
+    rare: ['SWARMHIVE', brooderRare],
+    epic: ['HONEYCOMB', brooderEpic],
+    legendary: ['RUPTURE', brooderLegendary],
+  }),
+  ...hero('herald', {
+    common: ['MONOLITH', heraldCommon],
+    rare: ['BULWARK', heraldRare],
+    epic: ['GATEWAY', heraldEpic],
+    legendary: ['OBELISK', heraldLegendary],
+  }),
 ];
 
 /** Kinds that have ported skins this phase. Un-listed kinds fall back to the
@@ -3036,6 +5001,9 @@ export const PORTED_KINDS: EnemyKind[] = [
   // flag, NOT an EnemyKind, so it cannot be dispatched/saved per-kind without a
   // system change; left to the dedicated elite-aura pass in render.ts).
   'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign',
+  // Phase 2b — the 9 remaining mini-enemies, completing the 19-kind roster.
+  // (hollow_echo / sovereign_core are summon sub-kinds, never picker-equipped.)
+  'splitter', 'mini', 'bloomer', 'bomber', 'wisp', 'drifter', 'shade', 'brooder', 'herald',
 ];
 
 const BY_KIND = new Map<EnemyKind, SkinDef[]>();

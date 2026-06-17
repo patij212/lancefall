@@ -98,6 +98,16 @@ describe('save migration', () => {
       mirrorblade: 'mirrorblade-default',
       hollow: 'hollow-default',
       sovereign: 'sovereign-default',
+      // Phase 2b — the 9 remaining mini-enemies complete the roster
+      splitter: 'splitter-default',
+      mini: 'mini-default',
+      bloomer: 'bloomer-default',
+      bomber: 'bomber-default',
+      wisp: 'wisp-default',
+      drifter: 'drifter-default',
+      shade: 'shade-default',
+      brooder: 'brooder-default',
+      herald: 'herald-default',
     });
   });
 
@@ -132,14 +142,19 @@ describe('save migration', () => {
 
   it('drops unknown kinds and a non-object selectedSkins blob', () => {
     const out = migrateSave(
-      { version: 6, selectedSkins: { darter: 'darter-default', bomber: 'whatever', junk: 123 } },
+      // hollow_echo is a summon sub-kind — never a ported/picker kind, so it is dropped
+      { version: 6, selectedSkins: { darter: 'darter-default', hollow_echo: 'whatever', junk: 123 } },
       defaultSave(),
     );
-    // only the ported kinds survive; bomber/junk are never added
+    // only the ported kinds survive; hollow_echo/junk are never added
     expect(Object.keys(out.selectedSkins).sort()).toEqual(
-      ['beacon', 'darter', 'hollow', 'lancer', 'mirrorblade', 'orbiter', 'seeker', 'sovereign', 'warden', 'weaver'],
+      [
+        'beacon', 'bloomer', 'bomber', 'brooder', 'darter', 'drifter', 'herald', 'hollow',
+        'lancer', 'mini', 'mirrorblade', 'orbiter', 'seeker', 'shade', 'sovereign', 'splitter',
+        'warden', 'weaver', 'wisp',
+      ],
     );
-    expect((out.selectedSkins as Record<string, unknown>).bomber).toBeUndefined();
+    expect((out.selectedSkins as Record<string, unknown>).hollow_echo).toBeUndefined();
     // a non-record blob → every kind defaults
     const out2 = migrateSave({ version: 6, selectedSkins: 'corrupt' }, defaultSave());
     expect(out2.selectedSkins.warden).toBe('warden-default');
@@ -161,6 +176,16 @@ describe('save migration', () => {
       mirrorblade: 'mirrorblade-default',
       hollow: 'hollow-default',
       sovereign: 'sovereign-default',
+      // Phase 2b mini-enemy kinds — defaults (plus one equipped to exercise minis)
+      splitter: 'splitter-epic',
+      mini: 'mini-default',
+      bloomer: 'bloomer-default',
+      bomber: 'bomber-default',
+      wisp: 'wisp-default',
+      drifter: 'drifter-default',
+      shade: 'shade-default',
+      brooder: 'brooder-default',
+      herald: 'herald-default',
     };
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);
   });

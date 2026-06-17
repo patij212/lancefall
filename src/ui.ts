@@ -1820,6 +1820,16 @@ export class UI {
     mirrorblade: '#ef4444',
     hollow: '#6ee7b7',
     sovereign: '#fde047',
+    // Phase 2b — the 9 remaining mini-enemies (archetype colours from tune.ts)
+    splitter: '#a855f7',
+    mini: '#c9a6ff',
+    bloomer: '#fbbf24',
+    bomber: '#fb7185',
+    wisp: '#67e8f9',
+    drifter: '#10b981',
+    shade: '#f97316',
+    brooder: '#a78bfa',
+    herald: '#a3e635',
   };
 
   private static readonly KIND_LABEL: Record<string, string> = {
@@ -1834,6 +1844,16 @@ export class UI {
     mirrorblade: 'THE MIRRORBLADE',
     hollow: 'THE HOLLOW',
     sovereign: 'THE SOVEREIGN',
+    // Phase 2b — the 9 remaining mini-enemies
+    splitter: 'SPLITTER',
+    mini: 'MINI',
+    bloomer: 'BLOOMER',
+    bomber: 'BOMBER',
+    wisp: 'WISP',
+    drifter: 'DRIFTER',
+    shade: 'SHADE',
+    brooder: 'BROODER',
+    herald: 'HERALD',
   };
 
   /** Boss kinds whose gallery art is authored at a large native radius — preview
