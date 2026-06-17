@@ -31,39 +31,52 @@ const LANCE: ShipModel = {
   core: [0.42, 0],
 };
 
-// GLAIVE — glass cannon, wide spear: a forked twin-blade whose horns sweep FORWARD,
-// with a haft crossbar and a notched rear. Reads as a thrown blade.
+// GLAIVE — glass cannon, wide spear: a broad aggressive spearhead that leads with a sharp
+// nose, flares to wide shoulders, then tapers to a forked swallowtail (two rear-swept
+// tines over a shallow notch), with an engraved spine. Wide and bladed — a thrown spear,
+// not a needle (kept clearly distinct from PHANTOM's thin dagger + REAVER's clawed rear).
 const GLAIVE: ShipModel = {
   hull: [
-    [0.4, 0],
-    [1.0, 0.72],
-    [-0.5, 0.45],
-    [-0.28, 0],
-    [-0.5, -0.45],
-    [1.0, -0.72],
+    [1.45, 0],
+    [0.55, 0.5],
+    [-0.2, 0.4],
+    [-0.9, 0.52],
+    [-0.45, 0],
+    [-0.9, -0.52],
+    [-0.2, -0.4],
+    [0.55, -0.5],
   ],
   detail: [
-    [0.02, 0.5],
-    [0.02, -0.5],
+    [1.2, 0],
+    [-0.3, 0],
   ],
 };
 
-// BASTION — tank: a broad armoured hull with a blunt prow ram, a bulkhead line and a
-// central reactor core. Heavy and wide.
+// BASTION — tank: a broad armoured warship — a pointed ram-prow, heavy forward-swept
+// wing-sponsons, a wide weighted stern and a forward bridge core. Heavy and shielded,
+// but unmistakably a ship (not a crest).
 const BASTION: ShipModel = {
   hull: [
-    [0.95, 0],
-    [0.45, 0.68],
-    [-0.5, 0.72],
+    [1.15, 0],
+    [0.6, 0.32],
+    [0.55, 0.7],
+    [0.18, 0.5],
+    [-0.4, 0.46],
+    [-0.5, 0.78],
+    [-0.82, 0.5],
     [-0.78, 0],
-    [-0.5, -0.72],
-    [0.45, -0.68],
+    [-0.82, -0.5],
+    [-0.5, -0.78],
+    [-0.4, -0.46],
+    [0.18, -0.5],
+    [0.55, -0.7],
+    [0.6, -0.32],
   ],
   detail: [
-    [0.18, 0.5],
-    [0.18, -0.5],
+    [0.7, 0],
+    [-0.3, 0],
   ],
-  core: [-0.05, 0],
+  core: [0.42, 0],
 };
 
 // TEMPEST — nimble: a sharp-nosed interceptor with a slim fuselage and wings swept far
