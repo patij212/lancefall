@@ -16,9 +16,10 @@
 - **Controls:** keyboard+mouse / gamepad / touch (twin sticks). Rebindable. Casual mode for run 1.
 - **Price:** pay-what-you-want.
 - **Assets (in `../press/`):** `og-card.png` (1200×630 social/OG card) · `firstlight-winframe.png` (the
-  hero / itch cover) · `gameplay-cipher.png` (READ THE KEY mid-decode) · `the-choice.png` ·
-  `title-cockpit.png` · `skins-gallery.png` · `how-to.png`. All captured from the live build; the
-  three gameplay shots came from the pre-submit QA sweep.
+  hero / itch cover) · `gameplay-cipher.png` (READ THE KEY mid-decode) · `gameplay-combat.png`
+  (bullet-storm + graze) · `the-choice.png` · `title-cockpit.png` · `skins-gallery.png` · `how-to.png` ·
+  `trailer-storyboard.png` (the §2 beats as a contact sheet — which frames I have vs need live).
+  All captured from the live build; the gameplay shots came from the pre-submit QA sweep.
 
 ---
 
