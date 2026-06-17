@@ -2,7 +2,7 @@
 // then composites to screen with optional chromatic aberration (channel-split)
 // and a vignette. Shape-coded enemies (colorblind-friendly) + glowing neon.
 
-import { TUNE, COMBO_COLORS, WARDEN, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD, THREAT_RIM } from './tune';
+import { TUNE, COMBO_COLORS, WARDEN, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD, THREAT_RIM, BIOMECH } from './tune';
 import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
@@ -30,6 +30,15 @@ import {
   bossEntranceBlur,
   allowChromaticAberration,
 } from './renderMath';
+
+// ── BIOMECHANICAL enemy art direction (Proposal B) ──────────────────────────
+// When true, enemies/bosses render as "living machines": their existing shape-coded
+// silhouette (unchanged) gains a dark carapace, a constant neon threat-rim, glowing
+// bio-veins, sensor-cluster "eyes", and a pulsing organic core. Purely cosmetic — no
+// sim/determinism impact. Flip to false to A/B against the original flat neon look;
+// every old draw routine is preserved below (the *Legacy methods + the legacy switch
+// branches reached when this is false), so rollback is a one-line change.
+const BIOMECH_ENEMIES = true;
 
 export interface Camera {
   leanX: number;
@@ -719,6 +728,12 @@ export class Renderer {
     ctx.strokeStyle = rimColor;
     ctx.fillStyle = flash ? '#ffffff' : shade(e.color, 0.18);
 
+    // BIOMECH (Proposal B) — the living-machine detailing pass. Same shape-coded
+    // silhouette (preserved per-case), enriched interior. When the flag is false the
+    // legacy flat-neon switch below runs instead (kept reachable for A/B + rollback).
+    if (BIOMECH_ENEMIES) {
+      this.drawEnemyBiomech(ctx, e, r, opts, shipId, flash, rimColor);
+    } else {
     switch (e.kind) {
       case 'darter': {
         const tele = 1 + (e.telegraph || 0) * 0.5;
@@ -955,6 +970,7 @@ export class Renderer {
         this.drawSovereignCore(ctx, e, r);
         break;
     }
+    }
 
     // shield arc
     if (e.shielded) {
@@ -966,6 +982,608 @@ export class Renderer {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  /** Resting bio-vein breath: a slow sin pulse around the vein alpha. Frozen at its
+   *  mid value under reduceMotion (a11y) and clamped to [0,1]. `aggro` 0..1 (telegraph)
+   *  lifts the veins brighter when a creature is about to act — that's gameplay state,
+   *  not decoration, so it is honoured even under reduceMotion. */
+  private bioPulse(aggro = 0): number {
+    const breath = this.reduceMotionR ? 0 : Math.sin(this.bgT * BIOMECH.pulseSpeed) * BIOMECH.pulseDepth;
+    return clamp(BIOMECH.veinAlpha + breath + aggro * 0.22, 0, 1);
+  }
+
+  /** BIOMECH dispatcher — draws the living-machine version of every small enemy and
+   *  routes bosses/elites to their *Biomech methods. The caller has already: drawn the
+   *  glow + (elite) aura, translated to the enemy, and set strokeStyle=rimColor (the
+   *  constant neon threat-rim) + fillStyle=dark carapace. Each case re-uses the EXACT
+   *  legacy silhouette so colourblind shape-coding is preserved; the biomech layer is
+   *  additive (veins + plates + sensor cores). */
+  private drawEnemyBiomech(
+    ctx: CanvasRenderingContext2D,
+    e: Enemy,
+    r: number,
+    opts: RenderOpts,
+    shipId: string,
+    flash: boolean,
+    rimColor: string,
+  ): void {
+    const col = e.color;
+    const tele = e.telegraph || 0;
+    switch (e.kind) {
+      case 'darter': {
+        // manta carapace — the arrowhead silhouette (concave back), unchanged. Add a
+        // spine bio-vein, swept-back tendrils, a core behind the snout + a nose sensor.
+        const t = 1 + tele * 0.5;
+        ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+        ctx.scale(t, t);
+        // trailing bio-vein tendrils (swept back along -x)
+        ctx.save();
+        beginVeins(ctx, col, this.bioPulse(tele) * 0.55, flash);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.4, r * 0.25);
+        ctx.bezierCurveTo(-r * 0.7, r * 0.35, -r * 0.95, r * 0.55, -r * 1.05, r * 0.7);
+        ctx.moveTo(-r * 0.4, -r * 0.25);
+        ctx.bezierCurveTo(-r * 0.7, -r * 0.35, -r * 0.95, -r * 0.55, -r * 1.05, -r * 0.7);
+        ctx.stroke();
+        ctx.restore();
+        // carapace silhouette (legacy arrowhead points)
+        poly(ctx, [
+          [r, 0],
+          [-r * 0.8, r * 0.7],
+          [-r * 0.4, 0],
+          [-r * 0.8, -r * 0.7],
+        ]);
+        // spine vein down the body
+        ctx.save();
+        beginVeins(ctx, col, this.bioPulse(tele), flash);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.3, 0);
+        ctx.lineTo(r * 0.7, 0);
+        ctx.stroke();
+        ctx.restore();
+        // core just behind the snout + a forward nose sensor
+        ctx.save();
+        ctx.translate(r * 0.18, 0);
+        bioCore(ctx, col, r, flash);
+        ctx.restore();
+        bioNode(ctx, col, r * 0.92, 0, r * 0.16, flash);
+        break;
+      }
+      case 'orbiter': {
+        // hex carapace ring (unchanged), with radial armour spokes, an eye-core inside
+        // a lit plate, and three orbiting sensor dots.
+        ngon(ctx, 6, r);
+        // radial spokes from the core toward each hex vertex
+        ctx.save();
+        beginVeins(ctx, col, this.bioPulse(tele), flash);
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+          ctx.moveTo(Math.cos(a) * r * 0.46, Math.sin(a) * r * 0.46);
+          ctx.lineTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8);
+        }
+        ctx.stroke();
+        ctx.restore();
+        // eye plate + core
+        ctx.fillStyle = flash ? '#ffffff' : shade(col, BIOMECH.plateFill);
+        ctx.strokeStyle = rimColor;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.46, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        bioCore(ctx, col, r, flash);
+        // orbiting sensor dots (static positions — no per-frame motion needed)
+        for (let i = 0; i < 3; i++) {
+          const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+          bioNode(ctx, col, Math.cos(a) * r * 1.18, Math.sin(a) * r * 1.18, r * 0.13, flash);
+          ctx.restore();
+        }
+        break;
+      }
+      case 'splitter': {
+        // diamond carapace (unchanged), with a fracture-seam vein (the split tell) and
+        // two embryo cores either side of the seam.
+        ctx.rotate(Math.PI / 4);
+        rect(ctx, r * 1.3);
+        // fracture seam — a jagged vein down the diamond's vertical axis (pre-rotation
+        // it's a diagonal; that's the split line). Drawn in local rect space.
+        ctx.save();
+        beginVeins(ctx, col, this.bioPulse(tele), flash);
+        const h = r * 1.3;
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.lineTo(-h * 0.18, -h * 0.3);
+        ctx.lineTo(h * 0.2, h * 0.1);
+        ctx.lineTo(-h * 0.15, h * 0.45);
+        ctx.lineTo(0, h);
+        ctx.stroke();
+        ctx.restore();
+        // twin embryo cores
+        bioNode(ctx, col, -h * 0.34, 0, r * 0.22, flash);
+        bioNode(ctx, col, h * 0.34, 0, r * 0.22, flash);
+        break;
+      }
+      case 'mini': {
+        // mini diamond (unchanged) with a single hatch core + a faint ghost-sibling
+        // diamond trailing it (it's a brood/splitter spawn).
+        ctx.rotate(Math.PI / 4);
+        // ghost sibling, offset back-left (in rotated space)
+        ctx.save();
+        ctx.globalAlpha = 0.32;
+        ctx.translate(-r * 1.1, -r * 1.1);
+        rect(ctx, r * 0.85);
+        ctx.restore();
+        rect(ctx, r * 1.3);
+        bioCore(ctx, col, r, flash);
+        break;
+      }
+      case 'bloomer': {
+        // square pod (unchanged) with four petal plates on the faces, a pistil core +
+        // four stamen pips, and the legacy telegraph bloom ring.
+        rect(ctx, r * 1.25);
+        // petal plates on each face (triangles pointing out)
+        ctx.fillStyle = flash ? '#ffffff' : shade(col, BIOMECH.plateFill);
+        ctx.strokeStyle = rimColor;
+        const pr = r * 1.25;
+        const petal = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number): void => {
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.lineTo(cx, cy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        };
+        petal(-pr * 0.3, -pr, pr * 0.3, -pr, 0, -pr * 1.5); // top
+        petal(-pr * 0.3, pr, pr * 0.3, pr, 0, pr * 1.5); // bottom
+        petal(-pr, -pr * 0.3, -pr, pr * 0.3, -pr * 1.5, 0); // left
+        petal(pr, -pr * 0.3, pr, pr * 0.3, pr * 1.5, 0); // right
+        bioCore(ctx, col, r, flash);
+        // stamen pips around the pistil
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2;
+          ctx.save();
+          ctx.globalAlpha = 0.6;
+          bioNode(ctx, col, Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5, r * 0.1, flash);
+          ctx.restore();
+        }
+        // legacy telegraph bloom ring (gameplay tell — kept, rim-coloured)
+        ctx.strokeStyle = rimColor;
+        ctx.globalAlpha = 0.5 + 0.5 * tele;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (1.6 + tele * 0.6), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'lancer': {
+        this.drawLancerBiomech(ctx, e, r, flash, rimColor);
+        break;
+      }
+      case 'bomber': {
+        // armoured circular shell (unchanged) with radial mine-prongs, an inner hex
+        // plate, and a hazard core that pulses faster on the detonation wind-up.
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // mine prongs radiating out (8 spokes)
+        ctx.save();
+        beginVeins(ctx, col, this.bioPulse(tele), flash);
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+          ctx.lineTo(Math.cos(a) * r * 1.28, Math.sin(a) * r * 1.28);
+        }
+        ctx.stroke();
+        ctx.restore();
+        // inner hex armour plate
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = rimColor;
+        ctx.lineWidth = 1.2;
+        ngonStroke(ctx, 6, r * 0.62);
+        ctx.restore();
+        // hazard core — brighter/larger during the death-arming pulse
+        const armed = tele > 0 ? 0.5 + 0.5 * (this.reduceMotionR ? 0.5 : Math.abs(Math.sin(e.spawnTime * 18))) : 0.4;
+        ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (0.3 + 0.12 * tele), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255,255,255,${armed})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'wisp': {
+        // a single arrowhead (the pack member) — legacy silhouette unchanged — with a
+        // spine vein and a forward sensor pip. (Each pack member is one entity.)
+        ctx.rotate(Math.atan2(e.vy, e.vx) || 0);
+        poly(ctx, [
+          [r, 0],
+          [-r * 0.7, r * 0.7],
+          [-r * 0.7, -r * 0.7],
+        ]);
+        ctx.save();
+        beginVeins(ctx, col, this.bioPulse(tele), flash);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.4, 0);
+        ctx.lineTo(r * 0.6, 0);
+        ctx.stroke();
+        ctx.restore();
+        bioNode(ctx, col, r * 0.55, 0, r * 0.18, flash);
+        break;
+      }
+      case 'drifter': {
+        this.drawDrifterBiomech(ctx, e, r, flash, rimColor);
+        break;
+      }
+      case 'shade': {
+        // blinking square (unchanged: rotated rect) with a void core (hollow ring, no
+        // fill — contact-lethal, fires no bullets), a phase-echo ghost, and the legacy
+        // pre-blink warning ring.
+        const warn = tele;
+        if (warn > 0) {
+          ctx.globalAlpha = 0.3 + 0.5 * warn;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * (1.4 + warn * 0.8), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = rimColor;
+          ctx.lineWidth = opts.colorblind ? 3 : 2;
+        }
+        const spin = this.reduceMotionR ? 0 : e.spawnTime * 1.5;
+        // phase-echo ghost (mid-teleport), offset-rotated and dim
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.rotate(Math.PI / 4 + spin + 0.5);
+        rect(ctx, r * 1.2);
+        ctx.restore();
+        // solid body
+        ctx.save();
+        ctx.rotate(Math.PI / 4 + spin);
+        rect(ctx, r * 1.2);
+        ctx.restore();
+        // void core — a hollow ring (no nucleus fill) with a hot pip: it consumes, not emits
+        ctx.strokeStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.veinLift);
+        ctx.lineWidth = BIOMECH.veinWidth + 0.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'brooder': {
+        // hex carrier pod (unchanged) with a translucent brood belly (inner hex plate),
+        // egg dots, a pulsing hatch core, and orbiting drone(s).
+        const spin = this.reduceMotionR ? 0 : e.spawnTime * 0.3;
+        ctx.save();
+        ctx.rotate(spin);
+        ngon(ctx, 6, r);
+        ctx.restore();
+        // brood belly plate
+        ctx.fillStyle = flash ? '#ffffff' : shade(col, BIOMECH.plateFill);
+        ctx.strokeStyle = rimColor;
+        ctx.save();
+        ctx.rotate(spin);
+        ngon(ctx, 6, r * 0.62);
+        ctx.restore();
+        // egg dots (minis waiting to hatch) — static cluster
+        ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.veinLift);
+        ctx.globalAlpha = 0.55;
+        for (const [ex, ey] of [
+          [-r * 0.28, -r * 0.1],
+          [r * 0.26, -r * 0.18],
+          [-r * 0.08, r * 0.28],
+        ]) {
+          ctx.beginPath();
+          ctx.arc(ex, ey, r * 0.13, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        // pulsing hatch core — flickers brighter in the hatch wind-up
+        const pulse = tele > 0 ? 0.4 + 0.6 * (this.reduceMotionR ? 0.5 : Math.abs(Math.sin(e.spawnTime * 22))) : 0.4;
+        ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (0.3 + 0.12 * tele), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        // orbiting drone above the pod
+        ctx.globalAlpha = 0.5;
+        bioNode(ctx, col, 0, -r * 1.2, r * 0.13, flash);
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'herald': {
+        this.drawHeraldBiomech(ctx, e, r, flash, rimColor);
+        break;
+      }
+      case 'seeker': {
+        this.drawSeekerBiomech(ctx, e, r, flash, rimColor);
+        break;
+      }
+      // bosses + sub-entities — dedicated biomech methods
+      case 'hollow':
+        this.drawHollowBiomech(ctx, e, r);
+        break;
+      case 'hollow_echo':
+        this.drawHollowEchoBiomech(ctx, e, r);
+        break;
+      case 'warden':
+        this.drawWardenBiomech(ctx, e, r);
+        break;
+      case 'weaver':
+        this.drawWeaverBiomech(ctx, e, r);
+        break;
+      case 'beacon':
+        this.drawBeaconBiomech(ctx, e, r);
+        break;
+      case 'mirrorblade':
+        this.drawMirrorblade(ctx, e, r, shipId); // already a bespoke silhouette echo — biomech-neutral
+        break;
+      case 'sovereign':
+        this.drawSovereignBiomech(ctx, e, r);
+        break;
+      case 'sovereign_core':
+        this.drawSovereignCore(ctx, e, r); // small cipher pip; legacy read is already ideal
+        break;
+    }
+  }
+
+  /** LANCER (biomech) — railgun barrel silhouette (elongated triangle, unchanged) with
+   *  segmentation veins, a breech core, and a muzzle charge node. Keeps the legacy LOCK
+   *  aim-line telegraph (the dodge tell). */
+  private drawLancerBiomech(
+    ctx: CanvasRenderingContext2D,
+    e: Enemy,
+    r: number,
+    flash: boolean,
+    rimColor: string,
+  ): void {
+    const col = e.color;
+    const tele = e.telegraph || 0;
+    // the LOCK aim line (legacy gameplay tell)
+    if (tele > 0) {
+      ctx.save();
+      ctx.rotate(e.angle);
+      ctx.strokeStyle = `rgba(255,160,80,${0.18 + 0.55 * tele})`;
+      ctx.lineWidth = 1.5 + 2.5 * tele;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(1600, 0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    ctx.rotate(tele > 0 ? e.angle : Math.atan2(e.vy, e.vx) || 0);
+    // barrel silhouette (legacy triangle)
+    ctx.strokeStyle = rimColor;
+    poly(ctx, [
+      [r * 1.6, 0],
+      [-r * 0.5, r * 0.5],
+      [-r * 0.5, -r * 0.5],
+    ]);
+    // segmentation veins across the barrel
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(tele), flash);
+    ctx.beginPath();
+    for (const sx of [0, r * 0.55]) {
+      ctx.moveTo(sx, -r * 0.34);
+      ctx.lineTo(sx, r * 0.34);
+    }
+    ctx.stroke();
+    ctx.restore();
+    // breech core (at the wide back end)
+    ctx.save();
+    ctx.translate(-r * 0.22, 0);
+    bioCore(ctx, col, r, flash);
+    ctx.restore();
+    // muzzle charge node — brightens with the lock
+    ctx.save();
+    ctx.globalAlpha = 0.6 + 0.4 * tele;
+    bioNode(ctx, col, r * 1.3, 0, r * 0.16 + r * 0.08 * tele, flash);
+    ctx.restore();
+  }
+
+  /** DRIFTER (biomech) — crescent-blade body (concave arc, unchanged) with inner arc
+   *  bio-veins and emitter nodes on the convex edge. Keeps the legacy arc-fan tell. */
+  private drawDrifterBiomech(
+    ctx: CanvasRenderingContext2D,
+    e: Enemy,
+    r: number,
+    flash: boolean,
+    rimColor: string,
+  ): void {
+    const col = e.color;
+    const tele = e.telegraph || 0;
+    // lock aim line (legacy tell) — drawn in world-facing direction
+    if (tele > 0) {
+      ctx.save();
+      ctx.rotate(e.angle);
+      ctx.strokeStyle = `rgba(52,211,153,${0.18 + 0.5 * tele})`;
+      ctx.lineWidth = 1.5 + 2 * tele;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(1400, 0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    // crescent body (legacy silhouette: concave arc opening toward travel)
+    ctx.rotate((Math.atan2(e.vy, e.vx) || 0) + Math.PI);
+    ctx.strokeStyle = rimColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, -1.1, 1.1);
+    ctx.arc(r * 0.7, 0, r * 0.9, 0.95, -0.95, true);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // inner bio-vein following the concave edge
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(tele) * 0.8, flash);
+    ctx.beginPath();
+    ctx.arc(r * 0.1, 0, r * 0.55, -0.9, 0.9);
+    ctx.stroke();
+    ctx.restore();
+    // emitter nodes on the convex (outer) edge
+    bioNode(ctx, col, -r * 0.78, 0, r * 0.18, flash);
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    bioNode(ctx, col, -r * 0.5, -r * 0.62, r * 0.12, flash);
+    bioNode(ctx, col, -r * 0.5, r * 0.62, r * 0.12, flash);
+    ctx.restore();
+  }
+
+  /** HERALD (biomech) — monolith wall-bar (unchanged tall bar) with a brighter gap-lane
+   *  band, segment veins, and an emitter core at the top. Keeps the legacy wall-preview
+   *  telegraph with the safe lane shown. */
+  private drawHeraldBiomech(
+    ctx: CanvasRenderingContext2D,
+    e: Enemy,
+    r: number,
+    flash: boolean,
+    rimColor: string,
+  ): void {
+    const col = e.color;
+    const tele = e.telegraph || 0;
+    // wall-preview telegraph (legacy: broken dashed wall with the safe lane gap)
+    if (tele > 0) {
+      ctx.save();
+      ctx.rotate(e.angle);
+      const a = 0.16 + 0.5 * tele;
+      ctx.strokeStyle = `rgba(163,230,53,${a})`;
+      ctx.lineWidth = 1.5 + 2.5 * tele;
+      ctx.setLineDash([8, 7]);
+      const wh = HERALD.wallHalf;
+      const gh = HERALD.gapHalf;
+      const g = e.subPhase;
+      ctx.beginPath();
+      ctx.moveTo(0, -wh);
+      ctx.lineTo(0, g - gh);
+      ctx.moveTo(0, g + gh);
+      ctx.lineTo(0, wh);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.moveTo(0, g);
+      ctx.lineTo(26, g);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+    // monolith body (legacy: tall bar perpendicular to aim)
+    ctx.rotate(e.angle);
+    ctx.strokeStyle = rimColor;
+    ctx.beginPath();
+    ctx.rect(-r * 0.42, -r * 1.15, r * 0.84, r * 2.3);
+    ctx.fill();
+    ctx.stroke();
+    // wall-segment veins across the bar
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(tele), flash);
+    ctx.beginPath();
+    for (const sy of [-r * 0.55, r * 0.55]) {
+      ctx.moveTo(-r * 0.42, sy);
+      ctx.lineTo(r * 0.42, sy);
+    }
+    ctx.stroke();
+    ctx.restore();
+    // the gap-lane band — a brighter lit panel across the bar's middle (the safe lane)
+    ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+    ctx.globalAlpha = 0.28;
+    ctx.fillRect(-r * 0.42, -r * 0.22, r * 0.84, r * 0.44);
+    ctx.globalAlpha = 1;
+    // emitter core at the top of the monolith
+    ctx.save();
+    ctx.translate(0, -r * 0.78);
+    bioCore(ctx, col, r * 0.8, flash);
+    ctx.restore();
+  }
+
+  /** SEEKER (biomech) — faceted sensor head (pentagon) with a tracking eye, antennae,
+   *  and a reticle ring. Keeps the legacy ringed-eye read + lock-on aim line. The pupil
+   *  offsets toward the bolt heading (e.angle), reinforcing "it's looking at you." */
+  private drawSeekerBiomech(
+    ctx: CanvasRenderingContext2D,
+    e: Enemy,
+    r: number,
+    flash: boolean,
+    rimColor: string,
+  ): void {
+    const col = e.color;
+    const tele = e.telegraph || 0;
+    // lock-on aim line (legacy tell)
+    if (tele > 0) {
+      ctx.save();
+      ctx.rotate(e.angle);
+      ctx.strokeStyle = `rgba(232,121,249,${0.18 + 0.5 * tele})`;
+      ctx.lineWidth = 1.5 + 2 * tele;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(900, 0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    // eye body — legacy read is a filled ringed circle; keep the circular silhouette so
+    // colourblind shape-coding (Seeker = eye) is unchanged.
+    ctx.strokeStyle = rimColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // antennae (two short bristles up-forward)
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(tele), flash);
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.45, -r * 0.6);
+    ctx.lineTo(-r * 0.7, -r * 1.05);
+    ctx.moveTo(r * 0.45, -r * 0.6);
+    ctx.lineTo(r * 0.7, -r * 1.05);
+    ctx.stroke();
+    ctx.restore();
+    bioNode(ctx, col, -r * 0.7, -r * 1.05, r * 0.1, flash);
+    bioNode(ctx, col, r * 0.7, -r * 1.05, r * 0.1, flash);
+    // reticle ring (legacy tracker tell — rim-coloured, brightens with the lock)
+    ctx.strokeStyle = rimColor;
+    ctx.globalAlpha = 0.6 + 0.4 * tele;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.55, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // tracking eye: iris core + a pupil offset toward the bolt heading
+    ctx.fillStyle = flash ? '#ffffff' : shade(col, BIOMECH.plateFill);
+    ctx.strokeStyle = rimColor;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    const pa = tele > 0 ? e.angle : 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(Math.cos(pa) * r * 0.16, Math.sin(pa) * r * 0.16, r * 0.16, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawHollow(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
@@ -1319,6 +1937,448 @@ export class Renderer {
       ctx.fillText(cipherSymbol(glyph), 0, 0);
       ctx.restore();
     }
+  }
+
+  // ── BIOMECH boss draws ───────────────────────────────────────────────────────
+  // Each preserves the legacy boss silhouette + HP ring + gameplay telegraphs and
+  // layers carapace plating, bio-veins, and sensor clusters over it. Rotational
+  // animation gated by reduceMotion; no new shadowBlur; no per-frame allocation.
+
+  /** WARDEN (biomech) — the First Gate keeper: a hex turbine hub with carapace blades,
+   *  a barred gate arc, an armoured plate hub + red core, and a sensor pod on a stalk.
+   *  Keeps the legacy HP ring + the REAR weak-point gold arc. */
+  private drawWardenBiomech(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const white = e.telegraph || 0;
+    const col = WARDEN.color;
+    const flash = e.hitFlash > 0;
+    const fill = flash ? '#ffffff' : shade(col, 0.18);
+    const rim = flash ? '#ffffff' : threatRim(col, THREAT_RIM.lift);
+    const spin = this.reduceMotionR ? 0 : e.spawnTime * 0.4;
+    // the barred outer gate arc (front-facing) — thick veins reading as bars
+    ctx.save();
+    beginVeins(ctx, col, 0.7, flash);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.5, -0.5, 0.5);
+    ctx.stroke();
+    ctx.restore();
+    // turbine carapace blades — six swept plate fins around the hub
+    ctx.save();
+    ctx.rotate(spin);
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2.5;
+    for (let k = 0; k < 6; k++) {
+      ctx.save();
+      ctx.rotate((k / 6) * Math.PI * 2);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(r * 0.95, -r * 0.22);
+      ctx.quadraticCurveTo(r * 1.15, r * 0.05, r * 0.7, r * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    // hex hub body brightening toward white on telegraph
+    ctx.save();
+    ctx.rotate(spin);
+    ctx.fillStyle = flash ? '#ffffff' : mix(col, '#ffffff', white * 0.7);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 3;
+    ngon(ctx, 6, r * 0.5);
+    ctx.restore();
+    // armoured plate hub + bio-vein spokes + red core
+    ctx.fillStyle = flash ? '#ffffff' : shade(col, BIOMECH.plateFill);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    bioCore(ctx, col, r * 0.7, flash);
+    // sensor pod on a stalk (up)
+    ctx.save();
+    beginVeins(ctx, col, 0.7, flash);
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.34);
+    ctx.lineTo(0, -r * 0.62);
+    ctx.stroke();
+    ctx.restore();
+    bioNode(ctx, col, 0, -r * 0.66, r * 0.12, flash);
+    // legacy HP ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+    // REAR weak-point telegraph (legacy) — gold back arc; ×3 dash from behind
+    if (e.facing !== undefined) {
+      const rear = e.facing + Math.PI;
+      const pulse = this.reduceMotionR ? 0.85 : 0.7 + 0.3 * Math.sin(this.bgT * 5);
+      ctx.strokeStyle = `rgba(253, 224, 71, ${pulse})`;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.18, rear - WARDEN.rearArc / 2, rear + WARDEN.rearArc / 2);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
+  }
+
+  /** WEAVER (biomech) — the Spinner of the Lie: a spinner abdomen (4-point diamond) at
+   *  the centre of a woven cipher web, with glyph nodes at the web intersections. Keeps
+   *  the legacy 8-point star core read + HP ring. */
+  private drawWeaverBiomech(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const col = '#a855f7';
+    const white = e.telegraph || 0;
+    const flash = e.hitFlash > 0;
+    const rim = flash ? '#ffffff' : threatRim(col, THREAT_RIM.lift);
+    // woven web: radial threads + two concentric hex rings (the cipher lattice)
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(white) * 0.7, flash);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * r * 1.55, Math.sin(a) * r * 1.55);
+    }
+    ctx.stroke();
+    ctx.globalAlpha *= 0.6;
+    ngonStroke(ctx, 6, r * 0.95);
+    ngonStroke(ctx, 6, r * 1.45);
+    ctx.restore();
+    // glyph nodes at the inner hex vertices
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.veinLift);
+      ctx.fillRect(Math.cos(a) * r * 0.95 - 2.5, Math.sin(a) * r * 0.95 - 2.5, 5, 5);
+      ctx.restore();
+    }
+    // spinner abdomen — the legacy 8-point star, brightening on telegraph
+    ctx.save();
+    ctx.rotate(this.reduceMotionR ? 0 : e.angle);
+    ctx.fillStyle = flash ? '#ffffff' : mix(col, '#ffffff', white * 0.6);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const rad = i % 2 === 0 ? r : r * 0.45;
+      const x = Math.cos(a) * rad;
+      const y = Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    bioCore(ctx, col, r * 0.9, flash);
+    // legacy HP ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  /** BEACON (biomech) — the Light That Lied: a lamp-tower body (tapered trapezoid) with
+   *  a lamp housing + flickering core, structural rib veins, and broken signal-ring
+   *  veins. Keeps the legacy rotating sweep beam + HP ring. */
+  private drawBeaconBiomech(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const col = '#38bdf8';
+    const white = e.telegraph || 0;
+    const flash = e.hitFlash > 0;
+    const fill = flash ? '#ffffff' : shade(col, 0.18);
+    const rim = flash ? '#ffffff' : threatRim(col, THREAT_RIM.lift);
+    // legacy rotating sweep beam (the lighthouse tell)
+    if (e.phase === 0 && e.subPhase !== 2) {
+      const active = e.subPhase === 1;
+      ctx.save();
+      ctx.rotate(e.angle);
+      ctx.globalCompositeOperation = 'lighter';
+      const w = active ? BEACON.beamWidth : 5;
+      ctx.globalAlpha = active ? 0.85 : 0.25 + 0.45 * white;
+      ctx.fillStyle = active ? '#bfefff' : '#38bdf8';
+      ctx.fillRect(-3000, -w / 2, 6000, w);
+      if (active) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-3000, -w / 6, 6000, w / 3);
+      }
+      ctx.restore();
+    }
+    // broken signal-ring veins (front arc, the lie's dead signal)
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(white) * 0.6, flash);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.35, -0.55, 0.55);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.7, -0.45, 0.45);
+    ctx.stroke();
+    ctx.restore();
+    // lamp-tower body — a tapered trapezoid (broad base, narrow top): legacy read kept
+    // as the bright triangular emitter at the top; the tower below reads as the tower.
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.75, r);
+    ctx.lineTo(-r * 0.32, -r * 0.4);
+    ctx.lineTo(r * 0.32, -r * 0.4);
+    ctx.lineTo(r * 0.75, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // structural rib veins across the tower
+    ctx.save();
+    beginVeins(ctx, col, this.bioPulse(white), flash);
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, r * 0.35);
+    ctx.lineTo(r * 0.5, r * 0.35);
+    ctx.moveTo(-r * 0.62, r * 0.78);
+    ctx.lineTo(r * 0.62, r * 0.78);
+    ctx.stroke();
+    ctx.restore();
+    // lamp housing (triangular emitter, legacy) + flickering core
+    ctx.save();
+    ctx.translate(0, -r * 0.62);
+    ctx.rotate(this.reduceMotionR ? 0 : e.angle);
+    ctx.fillStyle = flash ? '#ffffff' : mix(col, '#ffffff', white * 0.5);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2.5;
+    ngon(ctx, 3, r * 0.5);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, -r * 0.62);
+    bioCore(ctx, col, r * 0.7, flash);
+    ctx.restore();
+    // legacy HP ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  /** HOLLOW (biomech) — What Grief Left: a broken/incomplete carapace shell (open arc),
+   *  an empty ribcage of dim arcs, and a faint fugitive key-glyph heart that shows in the
+   *  sync window. Keeps the legacy pentagon-shell read, the sync dash tell + HP ring. */
+  private drawHollowBiomech(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const sync = e.telegraph || 0;
+    const open = e.phase === 2;
+    const col = HOLLOW.color;
+    const flash = e.hitFlash > 0;
+    const lit = flash ? '#ffffff' : mix(col, '#ffffff', sync * 0.85);
+    // concentric pentagon shells (legacy shape-coding — hollow, brightening on sync)
+    ctx.save();
+    ctx.rotate(e.angle);
+    ctx.strokeStyle = lit;
+    ctx.fillStyle = open ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0)';
+    ctx.lineWidth = 2.5;
+    for (let k = 3; k >= 1; k--) {
+      ctx.globalAlpha = 0.35 + 0.25 * k;
+      ngon(ctx, 5, r * (k / 3));
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    // empty ribcage — three dim concentric arcs on the open (right) side
+    ctx.save();
+    beginVeins(ctx, col, 0.4, flash);
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(-r * 0.1, 0, r * (0.5 + i * 0.28), -0.85, 0.85);
+      ctx.stroke();
+    }
+    ctx.restore();
+    // fugitive key-glyph heart — faint, brightens only in the sync window (it forgets itself)
+    ctx.save();
+    ctx.globalAlpha = open ? 0.95 : 0.32 + 0.4 * sync;
+    ctx.strokeStyle = open ? '#ffffff' : threatRim(col, BIOMECH.veinLift);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2);
+    ctx.moveTo(r * 0.2, 0);
+    ctx.lineTo(r * 0.5, 0);
+    ctx.moveTo(r * 0.38, 0);
+    ctx.lineTo(r * 0.38, r * 0.18);
+    ctx.stroke();
+    ctx.fillStyle = open ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // legacy sync telegraph (closing dashed ring) + HP ring
+    if (sync > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = open ? '#ffffff' : `rgba(167,243,208,${0.3 + 0.6 * sync})`;
+      ctx.lineWidth = open ? 4 : 2 + 2 * sync;
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (open ? 1.15 : 1.1 + (1 - sync) * 1.2), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
+  }
+
+  /** HOLLOW ECHO (biomech) — a killable phantom clone: the legacy spinning pentagon,
+   *  hollow with a faint heart pip + a single rib vein. */
+  private drawHollowEchoBiomech(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const flash = e.hitFlash > 0;
+    const col = HOLLOW.echoColor;
+    ctx.save();
+    ctx.rotate(this.reduceMotionR ? 0 : e.spawnTime * 0.8);
+    ctx.strokeStyle = flash ? '#ffffff' : col;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.85;
+    ngonStroke(ctx, 5, r);
+    ctx.globalAlpha = 0.5;
+    ngonStroke(ctx, 5, r * 0.55);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = flash ? '#ffffff' : col;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** SOVEREIGN (biomech) — the Crown That Fell First: gravity-warped accretion rings,
+   *  an event-horizon disc plate, a fallen-crown carapace, debris caught in the well,
+   *  and a molten core. Keeps the legacy crown beams, expose aura + HP ring. */
+  private drawSovereignBiomech(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
+    const exposed = e.phase === 2;
+    const tele = e.telegraph || 0;
+    const col = SOVEREIGN.color;
+    const flash = e.hitFlash > 0;
+    const rim = flash ? '#ffffff' : threatRim(col, THREAT_RIM.lift);
+    // legacy CROWN BEAMS (phase 0)
+    if (e.phase === 0 && e.subPhase !== 2) {
+      const active = e.subPhase === 1;
+      const w = active ? SOVEREIGN.beamWidth : 5;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < SOVEREIGN.beamArms; k++) {
+        ctx.save();
+        ctx.rotate(e.angle + (k * Math.PI) / SOVEREIGN.beamArms);
+        ctx.globalAlpha = active ? 0.8 : 0.2 + 0.45 * tele;
+        ctx.fillStyle = active ? '#fff7c2' : '#fde047';
+        ctx.fillRect(-3000, -w / 2, 6000, w);
+        if (active) {
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(-3000, -w / 6, 6000, w / 3);
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    // legacy EXPOSED aura (vulnerable punish window)
+    if (exposed) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = this.reduceMotionR ? 0.45 : 0.35 + 0.3 * Math.sin(e.spawnTime * 12);
+      ctx.fillStyle = '#fff3a8';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // gravity-warped accretion rings (tilted ellipses — the well bends space)
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 1.5;
+    for (const [rx, ry, rot] of [
+      [r * 1.85, r * 0.75, -0.35],
+      [r * 1.65, r * 0.5, 0.5],
+    ] as const) {
+      ctx.save();
+      ctx.rotate(rot);
+      ctx.scale(1, ry / rx);
+      ctx.beginPath();
+      ctx.arc(0, 0, rx, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    // debris dragged into the well (static node positions)
+    for (const [dx, dy] of [
+      [-r * 1.7, -r * 0.3],
+      [r * 1.9, r * 0.35],
+      [r * 0.7, -r * 1.6],
+      [-r * 1.1, r * 1.5],
+    ]) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      bioNode(ctx, col, dx, dy, r * 0.06, flash);
+      ctx.restore();
+    }
+    // event-horizon disc plate
+    ctx.fillStyle = flash ? '#ffffff' : shade(col, BIOMECH.plateFill);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // outer crown ring (8-point, legacy) brightening toward white on telegraph/expose
+    ctx.save();
+    ctx.rotate(this.reduceMotionR ? 0 : e.spawnTime * 0.5);
+    ctx.strokeStyle = exposed ? '#ffffff' : flash ? '#ffffff' : mix(col, '#ffffff', tele * 0.6);
+    ctx.lineWidth = 3;
+    ngonStroke(ctx, 8, r * 1.05);
+    ctx.restore();
+    // the fallen-crown carapace — a crown-shape plate over the disc
+    ctx.save();
+    ctx.rotate(0.2);
+    ctx.fillStyle = flash ? '#ffffff' : shade(col, 0.22);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.5, r * 0.18);
+    ctx.lineTo(-r * 0.5, -r * 0.18);
+    ctx.lineTo(-r * 0.2, r * 0.05);
+    ctx.lineTo(0, -r * 0.32);
+    ctx.lineTo(r * 0.2, r * 0.05);
+    ctx.lineTo(r * 0.5, -r * 0.18);
+    ctx.lineTo(r * 0.5, r * 0.18);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    // molten core
+    ctx.fillStyle = exposed || flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+    // legacy HP ring
+    const frac = e.hp / e.maxHp;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.75, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    ctx.stroke();
   }
 
   private drawPlayer(world: World): void {
@@ -1723,6 +2783,44 @@ export class Renderer {
   }
 }
 
+// ── BIOMECH drawing helpers ──────────────────────────────────────────────────
+// All cosmetic, allocation-free (numbers only), and shape-additive. They draw the
+// "living machine" detailing ON TOP of a silhouette the caller has already stroked.
+
+/** A glowing organic core: a lit neon nucleus + a hot white centre pip. Drawn at
+ *  the current origin (caller has translated). `col` is the creature's accent. */
+function bioCore(ctx: CanvasRenderingContext2D, col: string, r: number, flash: boolean): void {
+  ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * BIOMECH.coreRadiusFrac, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, 0, r * BIOMECH.hotRadiusFrac, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** A small sensor "eye"/node at (x,y): a lit ring of accent with a white pip. */
+function bioNode(ctx: CanvasRenderingContext2D, col: string, x: number, y: number, rad: number, flash: boolean): void {
+  ctx.fillStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.coreLift);
+  ctx.beginPath();
+  ctx.arc(x, y, rad, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x, y, rad * 0.42, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Begin a bio-vein stroke pass: thin bright neon strands. `alpha` is the (already
+ *  pulse-resolved) opacity. Caller draws paths then resets alpha via ctx.restore. */
+function beginVeins(ctx: CanvasRenderingContext2D, col: string, alpha: number, flash: boolean): void {
+  ctx.strokeStyle = flash ? '#ffffff' : threatRim(col, BIOMECH.veinLift);
+  ctx.lineWidth = BIOMECH.veinWidth;
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = alpha;
+}
+
 // ── drawing helpers ──
 function poly(ctx: CanvasRenderingContext2D, pts: [number, number][]): void {
   ctx.beginPath();
@@ -1751,6 +2849,20 @@ function rect(ctx: CanvasRenderingContext2D, half: number): void {
   ctx.beginPath();
   ctx.rect(-half, -half, half * 2, half * 2);
   ctx.fill();
+  ctx.stroke();
+}
+
+/** Stroke-only regular n-gon (no fill) — used for biomech inner armour plates. */
+function ngonStroke(ctx: CanvasRenderingContext2D, n: number, r: number): void {
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
   ctx.stroke();
 }
 

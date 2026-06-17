@@ -560,6 +560,31 @@ export const THREAT_RIM = {
   bulletAlpha: 0.85,
 } as const;
 
+// ── BIOMECH — visual-only constants for the "living machine" enemy art direction
+//    (Proposal B). Cosmetic detailing tuning ONLY; consumed by render.ts behind the
+//    BIOMECH_ENEMIES flag. Touches no sim state, no determinism, no collision. The
+//    biomech layer is ADDITIVE over each creature's existing (shape-coded) silhouette:
+//    a dark carapace fill + constant neon threat-rim stroke (unchanged), plus glowing
+//    bio-veins, sensor-cluster "eyes", and a pulsing organic core. ──
+export const BIOMECH = {
+  // bio-vein lines: thin bright neon strands threaded over the carapace. They sit
+  // BELOW the threat-rim brightness so the silhouette edge always reads first.
+  veinWidth: 1.4, // px line width of bio-veins
+  veinLift: 0.28, // how far the vein colour is pushed toward white (dimmer than the rim's 0.45)
+  veinAlpha: 0.78, // resting vein opacity
+  // organic core: a filled neon nucleus with a hot white centre pip.
+  coreLift: 0.55, // core fill pushed toward white (a lit, "alive" nucleus)
+  coreRadiusFrac: 0.3, // core radius as a fraction of the body radius r
+  hotRadiusFrac: 0.13, // white centre pip radius as a fraction of r
+  // carapace plate: a faintly-lit inner panel that sits just inside the rim, reading
+  // as armour. Darker than the core, brighter than the deep background fill.
+  plateFill: 0.1, // shade() multiplier for plate panels (vs body fill at 0.18)
+  // bio-vein PULSE (gated by reduce-motion): aggression-linked breathing of the veins.
+  // Under reduceMotion the pulse is frozen at its mid value (see bioPulse in render).
+  pulseSpeed: 3.4, // rad/s breathing rate of resting veins
+  pulseDepth: 0.22, // ± amplitude of the resting vein-alpha breath
+} as const;
+
 // ── PERF — render-only fill-rate gates keyed off the director's perfScale (quality
 //    0.4..1). EVERY value is the FULL-QUALITY default at quality 1, so the look is
 //    bit-identical at full quality; the gates only shed the heaviest GPU ops as the
