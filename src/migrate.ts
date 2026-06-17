@@ -10,6 +10,7 @@
 import type { SaveData } from './save';
 import { MODES } from './modes';
 import { PORTED_KINDS, defaultSkinId, skinById, canUnlockSkin } from './skins';
+import { GLOSS_IDS } from './gloss';
 
 export const SAVE_VERSION = 6;
 
@@ -84,7 +85,18 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // sanitized to a string[] by the generic array branch above.
   const achs = Array.isArray(out.achievements) ? out.achievements : [];
   out.selectedSkins = sanitizeSelectedSkins(out.selectedSkins, achs);
+  // §1.7 jargon glosses — keep only known, deduped GlossId strings. The generic loop
+  // above already reset a non-array to []; this filters the CONTENTS so a hand-edited
+  // blob can't bloat the set or inject a non-id (an unknown id would never match anyway).
+  out.glossSeen = sanitizeGlossSeen(out.glossSeen);
   return out;
+}
+
+/** Coerce the persisted gloss-seen set to known, deduped GlossId strings. Pure + total. */
+function sanitizeGlossSeen(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const known = new Set<string>(GLOSS_IDS);
+  return [...new Set(raw.filter((x): x is string => typeof x === 'string' && known.has(x)))];
 }
 
 /** Coerce a stored enemy-skin map to a clean {kind:skinId} record: only PORTED

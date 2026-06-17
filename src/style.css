@@ -1753,6 +1753,65 @@ body {
   transform: translateY(0);
 }
 
+/* ── §1.7 first-appearance jargon gloss — a calm "field note" that rises above the
+   meter strip the first time a concept (graze / DAYBREAK / ARMOR / COHERENCE / FUSION)
+   appears. Static (no flashing); the only motion is the entrance, gated off under
+   reduce-motion. --gloss-accent is set per term in JS and tints the rule + label. */
+.hud-gloss {
+  position: absolute;
+  bottom: 168px;
+  left: 50%;
+  transform: translate(-50%, 10px);
+  width: min(540px, 86vw);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 16px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gloss-accent, #3df0ff);
+  background: linear-gradient(180deg, rgba(14, 17, 27, 0.95), rgba(10, 12, 20, 0.95));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+  z-index: 6;
+}
+.hud-gloss.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.hud-gloss-term {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  color: var(--gloss-accent, #3df0ff);
+  text-shadow: 0 0 10px var(--gloss-accent, #3df0ff);
+}
+.hud-gloss-body {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text, #e8ecf6);
+}
+.reduce-motion .hud-gloss {
+  transform: translate(-50%, 0);
+  transition: opacity 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-gloss {
+    transform: translate(-50%, 0) !important;
+    transition: opacity 0.2s ease !important;
+  }
+}
+@media (max-width: 700px) {
+  .hud-gloss {
+    bottom: 150px;
+    font-size: 13px;
+  }
+}
+
 @media (max-width: 700px) {
   .settings-body {
     grid-template-columns: 1fr;

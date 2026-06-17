@@ -100,6 +100,10 @@ export interface SaveData {
   /** PERFECT_10_SPEC §1.2 — the no-fail DASH SANDBOX onboarding has been shown (or
    *  skipped) once; gates it to first-run-only so it never repeats. Default false. */
   seenSandbox: boolean;
+  /** PERFECT_10_SPEC §1.7 — ids of first-appearance jargon glosses already shown once
+   *  (graze / overdrive / armor / coherence / fusion). Sanitized to known GlossId
+   *  strings; an unknown id is dropped. Default []. */
+  glossSeen: string[];
 }
 
 export interface Settings {
@@ -184,6 +188,7 @@ export function defaultSave(): SaveData {
     lastPlayedDate: '',
     playStreak: 0,
     seenSandbox: false,
+    glossSeen: [],
   };
 }
 

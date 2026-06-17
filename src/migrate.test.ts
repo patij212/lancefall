@@ -73,6 +73,24 @@ describe('save migration', () => {
     expect(migrateSave({ version: 6, seenSandbox: 'yes' }, defaultSave()).seenSandbox).toBe(false);
   });
 
+  // ── §1.7 jargon glosses — glossSeen sanitize ──
+  it('default-fills glossSeen to [] for an old save', () => {
+    expect(migrateSave({ version: 5, highScore: 1 }, defaultSave()).glossSeen).toEqual([]);
+  });
+
+  it('preserves known glossSeen ids and drops garbage / dupes / non-ids', () => {
+    const out = migrateSave(
+      { version: 6, glossSeen: ['graze', 'graze', 'armor', 'not-a-gloss', 7, null, 'fusion'] },
+      defaultSave(),
+    );
+    expect(out.glossSeen).toEqual(['graze', 'armor', 'fusion']);
+  });
+
+  it('coerces a non-array glossSeen to []', () => {
+    expect(migrateSave({ version: 6, glossSeen: 'graze' }, defaultSave()).glossSeen).toEqual([]);
+    expect(migrateSave({ version: 6, glossSeen: 42 }, defaultSave()).glossSeen).toEqual([]);
+  });
+
   it('round-trips a full default save unchanged', () => {
     const s = defaultSave();
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);

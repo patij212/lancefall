@@ -226,6 +226,7 @@ export class Game {
       onArchetypeChange: (id) => this.setArchetype(id),
       onSelectMode: (id) => this.selectMode(id),
       onToggleCityMemory: (v) => { this.save.cityMemoryMeter = v; saveSave(this.save); },
+      onMarkGloss: (id) => { if (!this.save.glossSeen.includes(id)) { this.save.glossSeen.push(id); saveSave(this.save); } },
       onSetHandle: (name) => this.setHandle(name),
       onSkipSandbox: () => this.finishSandbox(),
     });

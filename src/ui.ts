@@ -25,6 +25,7 @@ import { TRAILS } from './trails';
 import { PORTED_KINDS, skinsForKind, canUnlockSkin, skinUnlockHint } from './skins';
 import type { SkinDef } from './skins';
 import type { Enemy } from './types';
+import { GLOSSES, glossTriggers, type GlossId } from './gloss';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import {
@@ -92,6 +93,8 @@ export interface UICallbacks {
   onArchetypeChange: (id: string) => void;
   onSelectMode: (id: string) => void;
   onToggleCityMemory: (v: boolean) => void;
+  /** §1.7 — a first-appearance jargon gloss was shown; persist it as seen (once-ever) */
+  onMarkGloss: (id: string) => void;
   onSetHandle: (name: string) => void;
   /** §1.2 — the player SKIPped the no-fail DASH SANDBOX (button / any-key) → start the run now */
   onSkipSandbox: () => void;
@@ -381,6 +384,17 @@ export class UI {
   private announceTimer = 0;
   private saveRef: SaveData | null = null;
 
+  // §1.7 — first-appearance jargon gloss callout. One shown at a time (a queue drains
+  // FIFO); each id shows once ever (persisted in save.glossSeen via onMarkGloss). The
+  // session set reserves an id at ENQUEUE time so a per-frame trigger can't double-queue.
+  private glossEl!: HTMLElement;
+  private glossTermEl!: HTMLElement;
+  private glossBodyEl!: HTMLElement;
+  private glossQueue: GlossId[] = [];
+  private glossActive = false;
+  private glossTimer = 0;
+  private glossSeenSession = new Set<GlossId>();
+
   // hud refs
   private scoreEl!: HTMLElement;
   private waveEl!: HTMLElement;
@@ -529,7 +543,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -690,7 +704,7 @@ export class UI {
     const topCenter = el('div', { class: 'hud-topcenter' }, this.comboEl, comboBarWrap, this.beatPip);
 
     this.staminaWrap = el('div', { class: 'hud-stamina', title: 'STAMINA — each dash spends a segment. It refills over time and faster when you graze bullets.' });
-    this.shieldsWrap = el('div', { class: 'hud-shields' });
+    this.shieldsWrap = el('div', { class: 'hud-shields', title: 'ARMOR — each pip absorbs one lethal hit before LAST BREATH. One pip regenerates every boss clear.' });
     this.grazeEl = el('div', { class: 'hud-graze', title: 'GRAZE — skim a bullet without being hit to refill stamina and build your run.' }, '');
     this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
     this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
@@ -731,8 +745,57 @@ export class UI {
     this.touchPauseBtn.addEventListener('pointerdown', fireePause);
     this.touchPauseBtn.addEventListener('click', fireePause);
 
+    // §1.7 — first-appearance jargon gloss. Built here but appended to ROOT (next to
+    // the toast/announce layers) so it stacks ABOVE the draft/pause overlays — the
+    // FUSION gloss has to read over the open draft. aria-live so a reader speaks it.
+    this.glossTermEl = el('div', { class: 'hud-gloss-term' });
+    this.glossBodyEl = el('div', { class: 'hud-gloss-body' });
+    this.glossEl = el('div', { class: 'hud-gloss', role: 'status', 'aria-live': 'polite' }, this.glossTermEl, this.glossBodyEl);
+
     this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap, this.cipherEl, this.touchPauseBtn);
     this.rebuildStamina(TUNE.stamina.segments);
+  }
+
+  // ── §1.7 first-appearance jargon glosses ──────────────────────────────────────
+  /** Enqueue a term's one-line gloss the first time its concept appears. No-op if the
+   *  id was already shown (this session OR persisted) — once ever. Reserves the id in
+   *  the session set immediately so a per-frame trigger can't enqueue it twice before
+   *  it drains. */
+  private queueGloss(id: GlossId): void {
+    const s = this.saveRef;
+    if (!s || this.glossSeenSession.has(id) || s.glossSeen.includes(id)) return;
+    this.glossSeenSession.add(id);
+    this.glossQueue.push(id);
+    this.pumpGloss();
+  }
+
+  /** Show the next queued gloss if none is on screen. Marks it seen + persists at the
+   *  moment it actually shows (not when queued), so an unshown queue tail can reappear
+   *  next session rather than being silently consumed. */
+  private pumpGloss(): void {
+    if (this.glossActive || this.glossQueue.length === 0) return;
+    const id = this.glossQueue.shift()!;
+    const def = GLOSSES[id];
+    if (!def) { this.pumpGloss(); return; }
+    this.glossActive = true;
+    const s = this.saveRef;
+    if (s && !s.glossSeen.includes(id)) {
+      s.glossSeen.push(id); // optimistic local mark so a re-open this session won't re-fire
+      this.cb.onMarkGloss(id);
+    }
+    this.glossTermEl.textContent = def.term;
+    this.glossBodyEl.textContent = def.text;
+    this.glossEl.style.setProperty('--gloss-accent', def.accent);
+    this.glossEl.classList.remove('show');
+    void this.glossEl.offsetWidth; // restart the entrance
+    this.glossEl.classList.add('show');
+    clearTimeout(this.glossTimer);
+    this.glossTimer = window.setTimeout(() => {
+      this.glossEl.classList.remove('show');
+      this.glossActive = false;
+      // small gap before the next one so they read as separate notes
+      window.setTimeout(() => this.pumpGloss(), 360);
+    }, 5400);
   }
 
   private rebuildStamina(count: number): void {
@@ -2598,6 +2661,13 @@ export class UI {
     const show = cfg.id !== 'endless';
     this.dailyBadge.classList.toggle('hidden', !show);
     if (show) this.dailyBadge.textContent = `◆ ${cfg.name}`;
+    // fresh run → clear any transient gloss display so a stale dismiss-timer from the
+    // previous run can't block the next one. The session-seen set is intentionally kept
+    // (a gloss is once-ever, even across runs in one session).
+    clearTimeout(this.glossTimer);
+    this.glossQueue.length = 0;
+    this.glossActive = false;
+    this.glossEl.classList.remove('show');
   }
 
   /** Show the active run mutators as a small coloured badge row under the mode badge. */
@@ -2613,6 +2683,8 @@ export class UI {
   showDraft(cards: DraftCard[]): void {
     const wrap = this.draft.querySelector('#draft-cards')!;
     wrap.replaceChildren();
+    // §1.7 — the first time a FUSION (evolution) is actually offered, gloss what it is
+    if (cards.some((c) => isEvolution(c))) this.queueGloss('fusion');
     cards.forEach((c, i) => {
       const evo = isEvolution(c);
       const relic = isRelic(c);
@@ -3072,6 +3144,11 @@ export class UI {
       this.puFill.style.transform = `scaleX(${Math.max(0, Math.min(1, pu.total > 0 ? pu.timer / pu.total : 0))})`;
       this.puFill.style.background = def.color;
     }
+
+    // §1.7 — surface a first-appearance gloss for any in-combat concept that just
+    // appeared (graze / DAYBREAK ready / ARMOR / COHERENCE). Each fires once ever;
+    // updateHud only runs while 'playing', so none of these teach during the sandbox.
+    for (const id of glossTriggers(world, coherence)) this.queueGloss(id);
   }
 }
 
