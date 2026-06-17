@@ -9,7 +9,14 @@
 
 LANCEFALL is the playground's first **juicy real-time action game** — Geometry Wars meets Luftrausers meets a Hyper-Light dash-attack, running at 60fps in a single browser tab with zero downloads.
 
-![LANCEFALL](./public/favicon.svg)
+![LANCEFALL — a neon dash-combat bullet-hell · lancefall.pages.dev](./press/og-card.png)
+
+|  |  |
+|:-:|:-:|
+| ![FIRST LIGHT — the win frame](./press/firstlight-winframe.png) | ![A boss cipher-lock — READ THE KEY](./press/gameplay-cipher.png) |
+| ![Bullet-hell combat + graze](./press/gameplay-combat.png) | ![THE CHOICE](./press/the-choice.png) |
+
+> *Top: FIRST LIGHT (the win frame) · a boss cipher-lock mid-decode. Bottom: bullet-hell + graze · THE CHOICE.*
 
 ---
 
