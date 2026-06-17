@@ -146,7 +146,7 @@ visual — the decode HUD and FIRST LIGHT included — respects the reduce-flash
 clarity accessibility settings (FIRST LIGHT is a no-strobe, no-motion sustained cross-fade).
 
 **Tested + verified.** The pure simulation — including the cipher *and* the decode view — is
-unit-tested (480+ Vitest tests, incl. a test that plays the substitution decode end-to-end and a
+unit-tested (730+ Vitest tests, incl. a test that plays the substitution decode end-to-end and a
 determinism guard for the Daily stream). Every change went through `tsc` + tests + a production
 build + an in-browser Playwright smoke (zero console errors).
 
