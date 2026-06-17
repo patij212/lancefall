@@ -9,6 +9,7 @@
 
 import type { SaveData } from './save';
 import { MODES } from './modes';
+import { PORTED_KINDS, defaultSkinId, skinById, canUnlockSkin } from './skins';
 
 export const SAVE_VERSION = 6;
 
@@ -51,7 +52,10 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   for (const k of Object.keys(b)) {
     const bv = b[k];
     const ov = o[k];
-    if (Array.isArray(bv)) {
+    if (k === 'selectedSkins') {
+      // a {string:string} record — NOT a number-record; sanitized below.
+      continue;
+    } else if (Array.isArray(bv)) {
       if (!Array.isArray(ov)) o[k] = bv;
     } else if (bv !== null && typeof bv === 'object') {
       o[k] = coerceNumberRecord(ov, bv as Record<string, number>);
@@ -73,6 +77,34 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // 4.2 — playStreak is a count: clamp a hand-edited negative/fractional value to a
   // safe non-negative integer (the generic loop above only checks it's a finite number).
   if (typeof o.playStreak === 'number') o.playStreak = Math.max(0, Math.floor(o.playStreak));
+  // enemy SKINS — a {kind:skinId} record. Build a fresh map: every PORTED kind gets
+  // a validated id (a known + UNLOCKED skin for that kind, else the kind's default);
+  // unknown kinds in the stored blob are dropped (never added). Old saves missing the
+  // field default-fill to every kind's default. Achievements have already been
+  // sanitized to a string[] by the generic array branch above.
+  const achs = Array.isArray(out.achievements) ? out.achievements : [];
+  out.selectedSkins = sanitizeSelectedSkins(out.selectedSkins, achs);
+  return out;
+}
+
+/** Coerce a stored enemy-skin map to a clean {kind:skinId} record: only PORTED
+ *  kinds are kept; each value must be a SkinDef of that kind that is currently
+ *  unlocked (achievement-gated) — anything else (unknown kind, wrong-kind id,
+ *  locked id, non-string) resets to the kind's default. Pure + total. */
+function sanitizeSelectedSkins(raw: unknown, achievements: string[]): Record<string, string> {
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const out: Record<string, string> = {};
+  for (const kind of PORTED_KINDS) {
+    const fallback = defaultSkinId(kind);
+    const v = src[kind];
+    if (typeof v !== 'string') {
+      out[kind] = fallback;
+      continue;
+    }
+    const def = skinById(v);
+    const ok = def !== null && def.kind === kind && canUnlockSkin(def, achievements);
+    out[kind] = ok ? v : fallback;
+  }
   return out;
 }
 

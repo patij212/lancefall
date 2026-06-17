@@ -82,4 +82,71 @@ describe('save migration', () => {
     expect(migrateSave({ version: 6, selectedMode: 'garbage-not-a-mode' }, defaultSave()).selectedMode).toBe('endless');
     expect(migrateSave({ version: 6, selectedMode: 'nightmare' }, defaultSave()).selectedMode).toBe('nightmare');
   });
+
+  // ── enemy SKINS (cosmetic) — selectedSkins sanitize / migrate round-trip ──
+  it('default-fills selectedSkins for an old save (every ported kind → its default)', () => {
+    const out = migrateSave({ version: 5, highScore: 1 }, defaultSave());
+    expect(out.selectedSkins).toEqual({
+      darter: 'darter-default',
+      orbiter: 'orbiter-default',
+      lancer: 'lancer-default',
+      seeker: 'seeker-default',
+      warden: 'warden-default',
+    });
+  });
+
+  it('preserves an UNLOCKED equipped skin (achievement held)', () => {
+    const out = migrateSave(
+      { version: 6, achievements: ['regicide'], selectedSkins: { darter: 'darter-legendary' } },
+      defaultSave(),
+    );
+    expect(out.selectedSkins.darter).toBe('darter-legendary');
+  });
+
+  it('coerces a LOCKED equipped skin back to the kind default (achievement missing)', () => {
+    const out = migrateSave(
+      { version: 6, achievements: [], selectedSkins: { darter: 'darter-legendary' } },
+      defaultSave(),
+    );
+    expect(out.selectedSkins.darter).toBe('darter-default');
+  });
+
+  it('coerces an unknown id and a wrong-kind id back to the kind default', () => {
+    const out = migrateSave(
+      {
+        version: 6,
+        achievements: ['regicide'],
+        selectedSkins: { orbiter: 'not-a-skin', lancer: 'darter-legendary' /* wrong kind */ },
+      },
+      defaultSave(),
+    );
+    expect(out.selectedSkins.orbiter).toBe('orbiter-default');
+    expect(out.selectedSkins.lancer).toBe('lancer-default');
+  });
+
+  it('drops unknown kinds and a non-object selectedSkins blob', () => {
+    const out = migrateSave(
+      { version: 6, selectedSkins: { darter: 'darter-default', bomber: 'whatever', junk: 123 } },
+      defaultSave(),
+    );
+    // only the 5 ported kinds survive; bomber/junk are never added
+    expect(Object.keys(out.selectedSkins).sort()).toEqual(['darter', 'lancer', 'orbiter', 'seeker', 'warden']);
+    expect((out.selectedSkins as Record<string, unknown>).bomber).toBeUndefined();
+    // a non-record blob → every kind defaults
+    const out2 = migrateSave({ version: 6, selectedSkins: 'corrupt' }, defaultSave());
+    expect(out2.selectedSkins.warden).toBe('warden-default');
+  });
+
+  it('round-trips a save with an unlocked equipped skin set unchanged', () => {
+    const s = defaultSave();
+    s.achievements = ['survivor', 'gauntlet', 'regicide'];
+    s.selectedSkins = {
+      darter: 'darter-legendary',
+      orbiter: 'orbiter-epic',
+      lancer: 'lancer-rare',
+      seeker: 'seeker-default',
+      warden: 'warden-legendary',
+    };
+    expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);
+  });
 });

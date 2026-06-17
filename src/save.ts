@@ -7,6 +7,7 @@ import { SAVE_VERSION, migrateSave } from './migrate';
 import { TUNE } from './tune';
 import type { SoundtrackId } from './soundtracks';
 import { defaultKeyBindings, type KeyBindings } from './input';
+import { PORTED_KINDS, defaultSkinId } from './skins';
 
 const SAVE_KEY = 'lancefall.save';
 const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
@@ -36,6 +37,10 @@ export interface SaveData {
   unlockedTrails: string[];
   /** currently-selected dash-trail id */
   selectedTrail: string;
+  /** cosmetic enemy-skin selection per kind (EnemyKind → skinId). Unlocks derive
+   *  from `achievements` (no separate unlockedSkins field — like dash trails);
+   *  an unknown / locked id is coerced back to the kind's default by the sanitizer. */
+  selectedSkins: Record<string, string>;
   /** lifetime totals */
   lifeKills: number;
   lifeBoss: number;
@@ -124,6 +129,16 @@ function prefersReducedMotion(): boolean {
   }
 }
 
+/** The baseline enemy-skin map: every kind with a ported skin set mapped to its
+ *  default (Common) skin. Un-ported kinds are simply absent (they always fall
+ *  back to the committed biomech draw, so they need no save entry). Fresh map
+ *  each call so callers never share a reference. */
+export function defaultSelectedSkins(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of PORTED_KINDS) out[k] = defaultSkinId(k);
+  return out;
+}
+
 export function defaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
@@ -141,6 +156,7 @@ export function defaultSave(): SaveData {
     selectedTheme: 'neon',
     unlockedTrails: ['pulse'],
     selectedTrail: 'pulse',
+    selectedSkins: defaultSelectedSkins(),
     lifeKills: 0,
     lifeBoss: 0,
     lifeShards: 0,

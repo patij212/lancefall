@@ -22,6 +22,9 @@ import { SHIPS, shipById } from './ships';
 import { drawShipSilhouette } from './shipModels';
 import { THEMES } from './themes';
 import { TRAILS } from './trails';
+import { PORTED_KINDS, skinsForKind, canUnlockSkin, skinUnlockHint } from './skins';
+import type { SkinDef } from './skins';
+import type { Enemy } from './types';
 import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import {
@@ -36,7 +39,7 @@ import {
   MAX_DAILY_ATTEMPTS,
 } from './modes';
 import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
-import { cityMemoryFill } from './renderMath';
+import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
 import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
 import { audioCredits } from './audioManifest';
@@ -74,6 +77,10 @@ export interface UICallbacks {
   onUnlockTheme: (id: string) => void;
   onSelectTrail: (id: string) => void;
   onUnlockTrail: (id: string) => void;
+  /** equip a ported enemy skin for a kind (cosmetic) */
+  onSelectSkin: (kind: string, id: string) => void;
+  /** tap a locked skin → explain the achievement gate (or equip if held) */
+  onUnlockSkin: (kind: string, id: string) => void;
   onBuyMeta: (id: string) => void;
   onUnlockLore: (id: string) => void;
   onToggleNgPlus: () => void;
@@ -298,6 +305,17 @@ function hexToRgb(hex: string): string {
   return `${r}, ${g}, ${b}`;
 }
 
+/** Multiply a #rrggbb toward black by `amt` (0..1). Mirrors render.ts shade() so a
+ *  skin preview's dark carapace fill matches the in-game look. */
+function darken(hex: string, amt: number): string {
+  const h = hex.replace('#', '');
+  const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const r = Math.round((parseInt(n.slice(0, 2), 16) || 0) * amt);
+  const g = Math.round((parseInt(n.slice(2, 4), 16) || 0) * amt);
+  const b = Math.round((parseInt(n.slice(4, 6), 16) || 0) * amt);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 /** Human-readable label for a bound key list (e.SPACE / J / ESC). */
 function keyLabel(keys: string[]): string {
   const one = (k: string) =>
@@ -334,6 +352,8 @@ export class UI {
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
+  private skinsPanel!: HTMLElement;
+  private skinsBody!: HTMLElement;
   private creditsPanel!: HTMLElement;
   private fallPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
@@ -495,6 +515,7 @@ export class UI {
     this.buildUpgrades();
     this.buildHowTo();
     this.buildCodex();
+    this.buildSkins();
     this.buildCredits();
     this.buildFall();
     this.buildHeat();
@@ -508,7 +529,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -543,6 +564,7 @@ export class UI {
       this.upgradesPanel,
       this.howtoPanel,
       this.codexPanel,
+      this.skinsPanel,
       this.creditsPanel,
       this.fallPanel,
       this.heatPanel,
@@ -895,6 +917,9 @@ export class UI {
     this.themeRow = el('div', { class: 'theme-row ck-cosm-grid' });
     this.trailRow = el('div', { class: 'theme-row ck-cosm-grid' });
     const customize = el('button', { class: 'ck-customize', type: 'button' }, 'CUSTOMIZE');
+    // BESTIARY SKINS — opens the per-kind enemy-skin picker modal (cosmetic).
+    const skinsBtn = el('button', { class: 'ck-customize', type: 'button' }, 'BESTIARY SKINS');
+    skinsBtn.addEventListener('click', () => this.openSkins());
     this.cosmPicker = el(
       'div',
       { class: 'ck-picker hidden' },
@@ -902,6 +927,8 @@ export class UI {
       this.themeRow,
       el('div', { class: 'ck-cosm-lbl', title: 'DASH TRAIL — the cosmetic streak left behind when you dash. Unlocked through play.' }, 'DASH TRAIL'),
       this.trailRow,
+      el('div', { class: 'ck-cosm-lbl', title: 'BESTIARY SKINS — restyle enemies you have ported skins for. Cosmetic; unlocked by achievements.' }, 'BESTIARY SKINS'),
+      skinsBtn,
     );
     customize.addEventListener('click', () => {
       const open = this.cosmPicker.classList.toggle('hidden');
@@ -1755,6 +1782,161 @@ export class UI {
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.codexPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+  }
+
+  // ── BESTIARY SKINS picker (cosmetic enemy reskins) ─────────────────────────
+  /** Build the per-kind enemy-skin picker modal. The grid itself is rebuilt every
+   *  open from the live save (refreshSkins) — this just lays out the shell. */
+  private buildSkins(): void {
+    const h = el('h2', {}, 'BESTIARY SKINS');
+    const intro = el(
+      'div',
+      { class: 'codex-frag' },
+      'Cosmetic enemy reskins — they change how a threat LOOKS, never how it plays. Each kind has four takes; rarer ones unlock through achievements. (Phase 1: the five heroes.)',
+    );
+    this.skinsBody = el('div', { class: 'codex-body' });
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.closeModal(this.skinsPanel));
+    const panel = el('div', { class: 'panel panel-wide' }, h, intro, this.skinsBody, close);
+    this.skinsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+  }
+
+  private openSkins(): void {
+    this.refreshSkins();
+    this.openModal(this.skinsPanel);
+  }
+
+  /** The in-game archetype colour for each ported kind, so a preview matches how
+   *  the skin actually reads in play (skins recolour nothing — they wear e.color). */
+  private static readonly SKIN_PREVIEW_COLOR: Record<string, string> = {
+    darter: '#ff3b6b',
+    orbiter: '#22d3ee',
+    lancer: '#ff8a3b',
+    seeker: '#e879f9',
+    warden: '#ff3b6b',
+  };
+
+  private static readonly KIND_LABEL: Record<string, string> = {
+    darter: 'DARTER',
+    orbiter: 'ORBITER',
+    lancer: 'LANCER',
+    seeker: 'SEEKER',
+    warden: 'THE WARDEN',
+  };
+
+  /** Rebuild the picker grid from the live save: one row per ported kind, four
+   *  take-cards each (locked = greyed + requirement, unlocked = selectable; the
+   *  equipped one highlighted). Keyboard-operable buttons; reduce-motion respected
+   *  by the preview painter (it draws a single frozen frame regardless). */
+  refreshSkins(): void {
+    const s = this.saveRef;
+    if (!this.skinsBody || !s) return;
+    this.skinsBody.replaceChildren();
+    for (const kind of PORTED_KINDS) {
+      const takes = skinsForKind(kind);
+      if (takes.length === 0) continue;
+      const selectedId = s.selectedSkins[kind] ?? takes[0].id;
+      this.skinsBody.append(el('div', { class: 'stats-label' }, UI.KIND_LABEL[kind] ?? kind.toUpperCase()));
+      const grid = el('div', { class: 'codex-grid skin-grid' });
+      const color = UI.SKIN_PREVIEW_COLOR[kind] ?? '#22d3ee';
+      for (const skin of takes) {
+        const unlocked = canUnlockSkin(skin, s.achievements);
+        const selected = selectedId === skin.id;
+        const card = el('button', {
+          class: 'codex-entry skin-card' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked'),
+          type: 'button',
+          'aria-pressed': String(selected),
+          'aria-label': `${UI.KIND_LABEL[kind] ?? kind} — ${skin.name} (${skin.rarity}${unlocked ? '' : ', locked'})`,
+        });
+        card.style.setProperty('--accent', color);
+        const canvas = el('canvas', { class: 'skin-preview' }) as HTMLCanvasElement;
+        this.paintSkinPreview(canvas, skin, color, unlocked);
+        card.append(
+          canvas,
+          el('div', { class: 'skin-name' }, skin.name),
+          el('div', { class: 'skin-rarity rarity-' + skin.rarity }, skin.rarity.toUpperCase()),
+          el('div', { class: 'skin-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : skinUnlockHint(skin)),
+        );
+        card.title = unlocked ? `${skin.name} — ${skin.rarity}` : `${skin.name} — locked: ${skinUnlockHint(skin)}`;
+        card.addEventListener('click', () => {
+          if (unlocked) this.cb.onSelectSkin(kind, skin.id);
+          else this.cb.onUnlockSkin(kind, skin.id);
+          // re-render the grid in place so EQUIPPED moves to the tapped card (or the
+          // locked toast already fired). saveRef is refreshed by refreshTitle first.
+          this.refreshSkins();
+        });
+        grid.append(card);
+      }
+      this.skinsBody.append(grid);
+    }
+  }
+
+  /** Paint a static preview frame of a skin into a small canvas. Builds a minimal
+   *  stub Enemy (the only fields a skin draw reads) and renders at 'full' LOD with
+   *  reduceMotion forced so the gallery is a calm, non-strobing single frame. */
+  private paintSkinPreview(canvas: HTMLCanvasElement, skin: SkinDef, color: string, unlocked: boolean): void {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const size = 96;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.translate(size / 2, size / 2);
+    // a stub enemy carrying only what a skin draw touches (cosmetic — no sim state)
+    const stub = {
+      kind: skin.kind,
+      x: 0,
+      y: 0,
+      vx: 1,
+      vy: 0,
+      color,
+      angle: 0,
+      telegraph: 0,
+      isBoss: false,
+      elite: false,
+      hitFlash: 0,
+      spawnTime: 0,
+    } as unknown as Enemy;
+    const rimColor = threatRim(color, 0.45);
+    ctx.strokeStyle = rimColor;
+    ctx.fillStyle = darken(color, 0.18);
+    ctx.lineWidth = 2;
+    const r = skin.kind === 'warden' ? 16 : 22; // warden is huge natively → preview smaller
+    ctx.save();
+    try {
+      skin.draw(ctx, stub, r, {
+        rimColor,
+        flash: false,
+        // a preview RenderOpts: reduceMotion ON (frozen frame), everything else off.
+        opts: {
+          reduceFlashing: false,
+          colorblind: false,
+          combo: 0,
+          caScale: 0,
+          reduceMotion: true,
+          clarity: false,
+          beatRing: false,
+          beatPhase: 0,
+          slingshot: false,
+          firstLight: 0,
+          cipherAssist: false,
+        },
+        lod: 'full',
+        t: 1.2,
+      });
+    } catch {
+      /* a preview should never break the picker */
+    }
+    ctx.restore();
+    if (!unlocked) {
+      // dim the locked preview (the card's .locked class also greys it via CSS, but
+      // dimming the canvas itself keeps the silhouette legible-yet-clearly-locked)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(8,10,16,0.62)';
+      ctx.fillRect(0, 0, size, size);
+    }
   }
 
   /** Render THE FALL · MEMORIES (fragment balance + lore unlocks). Public so the

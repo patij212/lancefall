@@ -42,6 +42,7 @@ import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
 import { TRAILS, trailById, trailParticleColor, canUnlockTrail } from './trails';
 import type { TrailDef } from './trails';
+import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
@@ -217,6 +218,8 @@ export class Game {
       onUnlockTheme: (id) => this.unlockTheme(id),
       onSelectTrail: (id) => this.selectTrail(id),
       onUnlockTrail: (id) => this.unlockTrail(id),
+      onSelectSkin: (kind, id) => this.selectSkin(kind, id),
+      onUnlockSkin: (kind, id) => this.unlockSkin(kind, id),
       onBuyMeta: (id) => this.buyMeta(id),
       onHeatChange: (level) => this.setHeat(level),
       onArchetypeChange: (id) => this.setArchetype(id),
@@ -250,6 +253,7 @@ export class Game {
     });
     this.applySettings(this.settings);
     this.applyTheme();
+    this.applySkins();
     this.ui.refreshTitle(this.save);
   }
 
@@ -263,6 +267,12 @@ export class Game {
   private applyTrail(): void {
     this.trail = trailById(this.save.selectedTrail);
     this.renderer.setTrail(this.trail);
+  }
+
+  /** Push the equipped enemy-skin selection to the renderer (cosmetic). Called on
+   *  boot and after any equip; the renderer resolves + caches per kind. */
+  private applySkins(): void {
+    this.renderer.setSkins(this.save.selectedSkins);
   }
 
   boot(): void {
@@ -937,6 +947,32 @@ export class Game {
     this.applyTrail();
     this.ui.toast(`${trail.name} trail unlocked!`);
     this.ui.refreshTitle(this.save);
+  }
+
+  /** Equip a ported enemy skin for a kind. Cosmetic; only equips an UNLOCKED skin
+   *  of that kind (the picker already restricts to unlocked, but we re-validate so
+   *  a stale click / hand-edit can never persist a locked id). */
+  private selectSkin(kind: string, id: string): void {
+    const def = skinById(id);
+    if (!def || def.kind !== kind) return;
+    if (!canUnlockSkin(def, this.save.achievements)) return;
+    this.save.selectedSkins[kind] = id;
+    saveSave(this.save);
+    this.applySkins();
+    this.ui.refreshTitle(this.save);
+  }
+
+  /** "Unlock" a skin from the picker. Skins are achievement-gated (earned in play),
+   *  so this is really "equip if the achievement is held, else explain the gate." */
+  private unlockSkin(kind: string, id: string): void {
+    const def = skinById(id);
+    if (!def || def.kind !== kind) return;
+    if (!canUnlockSkin(def, this.save.achievements)) {
+      this.ui.toast(skinLockToast(def.rarity));
+      return;
+    }
+    this.selectSkin(kind, id);
+    this.ui.toast(`${def.name} skin equipped!`);
   }
 
   private buyMeta(id: string): void {

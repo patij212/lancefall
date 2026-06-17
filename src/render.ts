@@ -7,10 +7,12 @@ import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
 import { clamp } from './vec';
 import type { World } from './world';
-import type { Enemy, Bullet } from './types';
+import type { Enemy, Bullet, EnemyKind } from './types';
 import type { ThemeDef } from './themes';
 import { trailById, trailGhostColor } from './trails';
 import type { TrailDef } from './trails';
+import { skinById, defaultSkinId } from './skins';
+import type { Lod, SkinDef } from './skins';
 import { themeById } from './themes';
 import { shipById } from './ships';
 import { shipModel, traceShipPath, drawShipSilhouette } from './shipModels';
@@ -80,6 +82,10 @@ export class Renderer {
   private bgT = 0;
   private theme: ThemeDef = themeById('neon');
   private trail: TrailDef = trailById('pulse');
+  // Equipped enemy SKINS, pre-resolved per kind to a SkinDef (cosmetic). null =
+  // use the committed biomech fallback for that kind. Set once per run/equip via
+  // setSkins() — the per-enemy draw path does a cheap map lookup, no string work.
+  private skins = new Map<string, SkinDef | null>();
   private biomeTint: [string, string, string] | null = null;
   // ── THE LAST LANCE one-bus (render half) — pushed each frame by setCoherence ──
   private coherence = 0;
@@ -104,6 +110,19 @@ export class Renderer {
 
   setTrail(t: TrailDef): void {
     this.trail = t;
+  }
+
+  /** Equip the player's enemy-skin selection (EnemyKind → skinId). Resolves each
+   *  to a SkinDef once; an unknown / un-ported / default id resolves to null so
+   *  drawEnemy falls back to the committed biomech draw. Cosmetic only. */
+  setSkins(selected: Record<string, string>): void {
+    this.skins.clear();
+    for (const kind of Object.keys(selected) as EnemyKind[]) {
+      const id = selected[kind];
+      // the kind's '<kind>-default' baseline IS the biomech fallback — store null
+      // so the hot path skips the skin draw entirely for an unmodified kind.
+      this.skins.set(kind, id === defaultSkinId(kind) ? null : skinById(id));
+    }
   }
 
   /** Override the nebula tint during a run (biome stage); null = use theme. */
@@ -554,22 +573,51 @@ export class Renderer {
   }
 
   private drawGems(world: World): void {
+    // Playtest (Nick): "XP looks like bullets." The old gem was a soft additive glow in
+    // #34d399 — the EXACT hue the Weaver fires — i.e. the same idiom AND colour as enemy
+    // fire. So XP is now the opposite of a bullet on every axis: a crisp SOURCE-OVER gold
+    // diamond with a hard white outline (legible through bloom), faceted, gently tumbling.
+    // Shape + render-mode + reserved loot-hue all read "collect me", not "dodge me". The
+    // halo is kept small + dim so it never reads as a round threat blob. Render-only,
+    // deterministic phase (no new gem state); motion is dropped under reduceMotion.
     const ctx = this.bctx;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
     world.gems.forEachActive((g) => {
-      const glow = this.getGlow('#34d399');
-      ctx.globalAlpha = 0.8;
-      ctx.drawImage(glow, g.x - 9, g.y - 9, 18, 18);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#9ff5cf';
+      const big = g.value >= 5; // elite/boss shards are chunkier + brighter
+      const r = big ? 7.5 : 5.5;
+      const fade = g.life < 1.5 ? Math.max(0.25, g.life / 1.5) : 1; // blink-out near despawn
+      const spin = this.reduceMotionR ? 0 : g.life * 1.6 + (g.x + g.y) * 0.05; // per-gem phase
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      // small dim halo — shine, not a bullet-sized bloom
+      ctx.globalCompositeOperation = 'lighter';
+      const glow = this.getGlow('#ffd24a');
+      ctx.globalAlpha = 0.45 * fade;
+      ctx.drawImage(glow, -r * 1.6, -r * 1.6, r * 3.2, r * 3.2);
+      // crisp faceted body — SOURCE-OVER hard edge, opaque, unmistakably not a glow dot
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.rotate(spin);
+      ctx.globalAlpha = fade;
       ctx.beginPath();
-      ctx.moveTo(g.x, g.y - 4);
-      ctx.lineTo(g.x + 4, g.y);
-      ctx.lineTo(g.x, g.y + 4);
-      ctx.lineTo(g.x - 4, g.y);
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r * 0.72, 0);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r * 0.72, 0);
       ctx.closePath();
+      ctx.fillStyle = big ? '#ffe07a' : '#ffd24a';
       ctx.fill();
+      ctx.strokeStyle = '#fffbe6'; // hard white-gold rim → silhouette survives bloom
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      // vertical facet seam — sells "gem", further separates it from a round bullet
+      ctx.globalAlpha = fade * 0.8;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.lineTo(0, r);
+      ctx.stroke();
+      ctx.restore();
     });
     ctx.restore();
   }
@@ -728,10 +776,21 @@ export class Renderer {
     ctx.strokeStyle = rimColor;
     ctx.fillStyle = flash ? '#ffffff' : shade(e.color, 0.18);
 
+    // COSMETIC SKIN dispatch — if the player has equipped a ported skin for this
+    // kind, draw it instead of the biomech detailing pass. The skin gets the same
+    // pre-state (translated, rimColor stroke, dark fill) PLUS an LOD tier + a time.
+    // It's wrapped in its own save/restore so its scale/rotate never leaks into the
+    // shield-arc pass below. Cosmetic only — silhouette + threat-rim preserved.
+    const skin = BIOMECH_ENEMIES ? this.skins.get(e.kind) : undefined;
+    if (skin) {
+      const lod = this.enemyLod(e, r);
+      ctx.save();
+      skin.draw(ctx, e, r, { rimColor, flash, opts, lod, t: this.bgT });
+      ctx.restore();
+    } else if (BIOMECH_ENEMIES) {
     // BIOMECH (Proposal B) — the living-machine detailing pass. Same shape-coded
     // silhouette (preserved per-case), enriched interior. When the flag is false the
     // legacy flat-neon switch below runs instead (kept reachable for A/B + rollback).
-    if (BIOMECH_ENEMIES) {
       this.drawEnemyBiomech(ctx, e, r, opts, shipId, flash, rimColor);
     } else {
     switch (e.kind) {
@@ -974,7 +1033,11 @@ export class Renderer {
 
     // shield arc
     if (e.shielded) {
-      ctx.rotate(-(Math.atan2(e.vy, e.vx) || 0)); // undo darter rotation if any
+      // The legacy/biomech darter leaves its heading rotation on the ctx (its case has no
+      // own save/restore), so undo it here for the world-space arc. A SKIN draw is wrapped
+      // in its own save/restore by the dispatch above, so its rotation is already gone —
+      // only undo when no skin drew, or we'd over-rotate the block cone by -heading.
+      if (!skin) ctx.rotate(-(Math.atan2(e.vy, e.vx) || 0)); // undo darter rotation if any
       ctx.strokeStyle = '#9ff';
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -982,6 +1045,22 @@ export class Renderer {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  /** LOD tier for a cosmetic enemy skin, from the on-screen radius + perf tier.
+   *  This is the headline perf lever: bloom-heavy skin draws × many enemies × 60fps.
+   *    'full' — bosses/elites, or a large body when perf is healthy: every flourish.
+   *    'mid'  — the common case (~24px among many): shadowBlur capped, motes dropped.
+   *    'far'  — tiny bodies, OR any body once the adaptive director steps quality
+   *             down under load: glyph only (silhouette + core, no glow/blur).
+   *  `r` is the post-scale render radius (already includes the pop tween). Thresholds
+   *  (px): ≥34 → full, ≥16 → mid, else far; bosses/elites always full; quality<0.7
+   *  demotes one tier (full→mid, mid→far) so the skin layer sheds with the renderer. */
+  private enemyLod(e: Enemy, r: number): Lod {
+    if (e.isBoss || e.elite) return 'full';
+    let lod: Lod = r >= 34 ? 'full' : r >= 16 ? 'mid' : 'far';
+    if (this.quality < 0.7) lod = lod === 'full' ? 'mid' : 'far';
+    return lod;
   }
 
   /** Resting bio-vein breath: a slow sin pulse around the vein alpha. Frozen at its
