@@ -46,7 +46,7 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
-import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt } from './modes';
+import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_MODE_IDS, modeUnlocked } from './modes';
 import type { RunConfig } from './modes';
 import { milestoneAt } from './milestones';
 import { MUTATORS, pickDailyMutators, pickWeeklyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
@@ -323,6 +323,7 @@ export class Game {
     this.world.particles.density = this.baseDensity * this.perfScale;
     // reduce-motion disables decorative UI animations/transitions (CSS)
     document.documentElement.classList.toggle('reduce-motion', s.reduceMotion);
+    document.documentElement.classList.toggle('clarity', s.clarity); // §5.4 a11y — high-contrast hook for the DOM UI (cockpit/sandbox/panels)
   }
 
   /** Adaptive perf: average frame time over ~0.5s windows and scale particle
@@ -1069,7 +1070,7 @@ export class Game {
       // always escapable. The dash keys (Space/J/click) drive the LESSON, so they must
       // NOT skip — we deliberately do not treat the start edge as a skip here. The
       // explicit on-screen SKIP button (onSkipSandbox) covers pointer-only players.
-      if (this.input.state.pausePressed) { this.finishSandbox(); return; }
+      if (this.input.state.pausePressed) { this.finishSandbox(); requestAnimationFrame((t) => this.frame(t)); return; }
       this.input.consumeStart(); // clear the start edge so it can't leak into the real run
       this.input.consumeConfirm();
       this.shake.update(realDt);
@@ -1263,7 +1264,13 @@ export class Game {
         this.ui.moveModeSelection(dir);
       } else {
         const idx = inp.selectIndex;
-        if (idx >= 0 && idx < MODES.length) this.selectMode(MODES[idx].id);
+        // digits 1-N jump along the VISIBLE rail (not the full MODES data array), and only to
+        // an UNLOCKED card — so a digit can't pick an off-rail/locked mode that would then
+        // bounce to CASUAL via the title coercion, and the rail's later cards stay reachable.
+        if (idx >= 0 && idx < RAIL_MODE_IDS.length) {
+          const id = RAIL_MODE_IDS[idx];
+          if (modeUnlocked(modeById(id), this.save.deepestWave)) this.selectMode(id);
+        }
       }
       if (this.input.consumeStart()) this.descend(modeById(this.save.selectedMode)); // launch the persisted mode (parity with PLAY)
     } else if (this.state === 'playing') {

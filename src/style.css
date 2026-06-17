@@ -13,6 +13,16 @@
   --hud-scale: 1;
 }
 
+/* §5.4 a11y — CLARITY (high contrast). The setting toggles a `.clarity` class on <html>
+   (game.ts); lift the muted-text ramp + strengthen separators so the DOM cockpit / sandbox /
+   panels read at higher contrast. Purely additive — it never lowers legibility. */
+.clarity {
+  --text-muted: #c3c8d6; /* mid-gray #8b8d99 → far higher contrast on the dark bg */
+  --border: #3c3f4e;
+}
+.clarity .sandbox-step { color: #f2f5fb; }
+.clarity .sandbox-tag { color: #cdd3e0; }
+
 * {
   box-sizing: border-box;
 }

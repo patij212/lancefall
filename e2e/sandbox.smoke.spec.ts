@@ -101,3 +101,28 @@ test('a returning player (seenSandbox=true) goes straight into the run — no sa
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('Esc to SKIP the sandbox starts a LIVE run — the loop must not freeze (regression)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await freshSave(page);
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /Descend/i }).click();
+  await expect(page.locator('.sandbox-overlay:not(.hidden)')).toBeVisible();
+
+  // Esc is the universal "get me out". REGRESSION: the skip branch in frame() must keep the
+  // requestAnimationFrame chain alive — it previously bare-returned before re-scheduling, so
+  // finishSandbox()→start() left NO pending rAF and the whole game froze on the first frame.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.sandbox-overlay')).toHaveClass(/hidden/);
+  await expect(page.locator('.hud')).not.toHaveClass(/hidden/);
+
+  // PROVE the loop is still ticking: the HUD (run clock + score) must change over ~1.2s.
+  // A frozen loop would leave it byte-identical.
+  const t0 = await page.locator('.hud').textContent();
+  await page.waitForTimeout(1200);
+  const t1 = await page.locator('.hud').textContent();
+  expect(t1, 'the run clock must advance after an Esc-skip — a frozen loop leaves the HUD unchanged').not.toBe(t0);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
