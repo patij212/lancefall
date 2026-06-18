@@ -155,6 +155,11 @@ const COH_CITY_SVG = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none
   <rect x="2" y="10" width="4" height="7"/><rect x="7" y="6" width="4" height="11"/><rect x="12" y="8" width="4" height="9"/>
 </svg>`;
 
+// loadout-row label glyphs (verbatim from the mock): HEAT semicircle, BUILD star, ARMOR trend.
+const LO_HEAT_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1C3 1 1 3 1 5.5 1 8 3 10 5.5 10" stroke="#f97316" stroke-width="1.1" stroke-linecap="round"/><circle cx="5.5" cy="5.5" r="1.8" fill="#f97316" opacity="0.5"/></svg>`;
+const LO_BUILD_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1l1.5 3H10L7.5 6.5 8.5 10 5.5 8 2.5 10 3.5 6.5 1 4h3Z" stroke="#a78bfa" stroke-width="0.9" fill="none"/></svg>`;
+const LO_ARMOR_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M1 5.5L3 3l2.5 2.5L8 2l2 1.5" stroke="#818cf8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
 // ── FIRST LIGHT run-end static art (ported from mock-choice-v2) ────────────────
 // The dawn sigil header mark (the tonal inverse of the cockpit's cyan logo: gold).
 const GO_SIGIL_SVG = `<svg viewBox="0 0 46 46" fill="none" aria-hidden="true">
@@ -495,15 +500,22 @@ export class UI {
   private infoBar!: HTMLElement;
   private rewardRow!: HTMLElement;
   private descendSub!: HTMLElement;
+  private descendModeLine!: HTMLElement; // §v7 the mode·ship·heat·mutator line under the kbd hints
+  private descendOverlay!: HTMLElement; // §v7 fixed "INITIATING DESCENT" takeover (mock sequence)
   private shipArt!: HTMLCanvasElement;
   private shipArtName!: HTMLElement;
   private shipArtDesc!: HTMLElement;
+  private ckShipRing!: HTMLElement; // §v7 loadout ship ring — carries the equipped hull accent (currentColor)
   private heatPipsWrap!: HTMLElement;
   private armorPipsWrap!: HTMLElement; // §v7 loadout ARMOR pips (effective shields for the selected Heat)
   private buildRowVal!: HTMLElement; // §v7 loadout BUILD row value (selected archetype name)
   private flavorBox!: HTMLElement; // §v7 mode-rail bottom flavour box (sinks the lower-left void)
   private shipPicker!: HTMLElement; // wraps this.shipRow; toggled by CHANGE SHIP
-  private cosmPicker!: HTMLElement; // wraps palette + trail rows; toggled by CUSTOMIZE
+  private cosmeticsPanel!: HTMLElement; // §v7 CUSTOMIZE modal — hosts the palette + trail pickers
+  private cosmThemeDot!: HTMLElement; // loadout summary card: current palette swatch
+  private cosmThemeName!: HTMLElement; // loadout summary card: current palette name
+  private cosmTrailDot!: HTMLElement; // loadout summary card: current dash-trail swatch
+  private cosmTrailName!: HTMLElement; // loadout summary card: current dash-trail name
   private mainPanel!: HTMLElement; // .cockpit-main — carries the mode accent for re-skin
   private heroEl!: HTMLElement; // .ck-hero — toggles .first-light during the idle teaser
   private heroContent!: HTMLElement; // .ck-hero-content — toggles .swap on re-skin
@@ -584,6 +596,7 @@ export class UI {
     this.buildHowTo();
     this.buildCodex();
     this.buildSkins();
+    this.buildCosmetics();
     this.buildCredits();
     this.buildFall();
     this.buildHeat();
@@ -597,7 +610,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -642,6 +655,7 @@ export class UI {
       [this.howtoPanel, 'How to play'],
       [this.codexPanel, 'Bestiary codex'],
       [this.skinsPanel, 'Bestiary skins'],
+      [this.cosmeticsPanel, 'Customize cosmetics'],
       [this.creditsPanel, 'Credits'],
       [this.fallPanel, 'The fall'],
       [this.heatPanel, 'Heat ascension'],
@@ -985,6 +999,10 @@ export class UI {
       el('div', { class: 'ck-hero-bg' }),
       iconEl('ck-hero-citywrap', CK_CITY_SVG), // the "city remembered" skyline (behind the glow)
       el('div', { class: 'ck-hero-glow' }),
+      // atmospheric depth (mock): a mid-ground fog gradient + a dark vignette framing the
+      // skyline. Pure decoration, aria-hidden; both sit under the hero content + firstlight.
+      el('div', { class: 'ck-hero-fog', 'aria-hidden': 'true' }),
+      el('div', { class: 'ck-hero-overlay', 'aria-hidden': 'true' }),
       el('div', { class: 'ck-hero-streak', 'aria-hidden': 'true' }),
       el('div', { class: 'ck-hero-firstlight', 'aria-hidden': 'true' }),
       iconEl('ck-hero-sparks', CK_SPARKS_HTML), // rising embers off the skyline
@@ -995,16 +1013,39 @@ export class UI {
     this.rewardRow = el('div', { class: 'ck-rewards' });
 
     // DESCEND = the renamed/restyled PLAY button. REUSE this.playBtn + its existing handler.
-    const play = el('button', { class: 'btn btn-primary btn-play ck-descend', 'aria-label': 'Descend — start the selected run' }, 'DESCEND');
+    // Flanking chevrons (mock) point into the hexagon button; aria-hidden so the label reads clean.
+    const play = el(
+      'button',
+      { class: 'btn btn-primary btn-play ck-descend', 'aria-label': 'Descend — start the selected run' },
+      el('span', { class: 'ck-descend-chev l', 'aria-hidden': 'true' }, '›› '),
+      'DESCEND',
+      el('span', { class: 'ck-descend-chev r', 'aria-hidden': 'true' }, ' ‹‹'),
+    );
     this.playBtn = play;
     play.addEventListener('click', () => {
-      // DESCEND cock-and-fire — a charge dip then a light-lance "dash into the run"
-      // feel, gated under reduce-motion. The actual launch is unchanged.
-      this.fireDescend();
+      // DESCEND commit: the cock-and-fire charge + light-lance + an INITIATING DESCENT
+      // takeover (the mock's full-screen sequence), then launch. The lance leads the bloom
+      // by a beat; under reduce-motion the flourish is skipped and the run starts at once.
       const s = this.saveRef;
-      this.cb.onStart(modeById(s ? s.selectedMode : 'endless'));
+      const mode = modeById(s ? s.selectedMode : 'endless');
+      this.fireDescend(mode.name);
+      const delay = this.motionOff() ? 0 : 130;
+      window.setTimeout(() => this.cb.onStart(mode), delay);
     });
-    this.descendSub = el('div', { class: 'ck-descend-sub' }, '');
+    // descend sub: keyboard-affordance row (ENTER / SPACE) above the live mode line.
+    this.descendModeLine = el('div', { class: 'ck-descend-mode-line' }, '');
+    this.descendSub = el(
+      'div',
+      { class: 'ck-descend-sub' },
+      el(
+        'div',
+        { class: 'ck-kbd-hint-row', 'aria-hidden': 'true' },
+        el('span', { class: 'ck-kbd-hint' }, '↵ ENTER'),
+        el('span', { class: 'ck-kbd-sep' }, '/'),
+        el('span', { class: 'ck-kbd-hint' }, 'SPACE'),
+      ),
+      this.descendModeLine,
+    );
     const centerCol = el(
       'div',
       { class: 'ck-col ck-col-center' },
@@ -1021,15 +1062,20 @@ export class UI {
     this.shipArtName = el('div', { class: 'ck-ship-name' }, '—');
     this.shipArtDesc = el('div', { class: 'ck-ship-desc' }, '');
     const changeShip = el('button', { class: 'ck-change-ship', type: 'button' }, 'CHANGE SHIP');
+    // the ring carries the equipped hull's accent as `color`, so the glow backdrop, orbit
+    // rings and hangar floor (all currentColor) tint to the hull. Set in refreshSelectedRun.
+    this.ckShipRing = el(
+      'div',
+      { class: 'ck-ship-ring' },
+      el('div', { class: 'ck-hangar-grid', 'aria-hidden': 'true' }, el('div', { class: 'ck-hangar-floor' })),
+      el('div', { class: 'ck-ship-orbit outer', 'aria-hidden': 'true' }),
+      el('div', { class: 'ck-ship-orbit inner', 'aria-hidden': 'true' }),
+      this.shipArt,
+    );
     const shipDisplay = el(
       'div',
       { class: 'ck-ship-display' },
-      el('div', { class: 'ck-ship-ring' },
-        el('div', { class: 'ck-hangar-floor', 'aria-hidden': 'true' }),
-        el('div', { class: 'ck-ship-orbit outer', 'aria-hidden': 'true' }),
-        el('div', { class: 'ck-ship-orbit inner', 'aria-hidden': 'true' }),
-        this.shipArt,
-      ),
+      this.ckShipRing,
       this.shipArtName,
       this.shipArtDesc,
       changeShip,
@@ -1044,16 +1090,16 @@ export class UI {
     const heatRow = el(
       'div',
       { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Higher Heat = tougher run, bigger score multiplier.' },
-      el('div', { class: 'ck-lo-key' }, 'HEAT'),
+      el('div', { class: 'ck-lo-key' }, iconEl('ck-lo-ico', LO_HEAT_SVG), 'HEAT'),
       el('div', { class: 'ck-lo-right' }, heatMinus, this.heatPipsWrap, heatPlus),
     );
 
     // BUILD — the selected archetype (draft bias); a quick-row into the archetype picker.
-    this.buildRowVal = el('div', { class: 'ck-lo-muted' }, 'Freestyle');
+    this.buildRowVal = el('div', { class: 'ck-lo-muted' }, 'None Equipped');
     const buildRow = el(
       'button',
       { class: 'ck-lo-row ck-lo-btn', type: 'button', title: 'BUILD — pick an archetype that biases your perk draft. Tap to choose.' },
-      el('div', { class: 'ck-lo-key' }, 'BUILD'),
+      el('div', { class: 'ck-lo-key' }, iconEl('ck-lo-ico', LO_BUILD_SVG), 'BUILD'),
       el('div', { class: 'ck-lo-right' }, this.buildRowVal, el('div', { class: 'ck-lo-chevron' }, '›')),
     );
     buildRow.addEventListener('click', () => this.openArchetype());
@@ -1064,7 +1110,7 @@ export class UI {
     const armorRow = el(
       'div',
       { class: 'ck-lo-row ck-lo-armor', title: 'ARMOR — shield pips that each soak a lethal hit before LAST BREATH. Higher Heat strips ARMOR.' },
-      el('div', { class: 'ck-lo-armor-top' }, el('div', { class: 'ck-lo-key' }, 'ARMOR'), this.armorPipsWrap),
+      el('div', { class: 'ck-lo-armor-top' }, el('div', { class: 'ck-lo-key' }, iconEl('ck-lo-ico', LO_ARMOR_SVG), 'ARMOR'), this.armorPipsWrap),
       el('div', { class: 'ck-armor-cap' }, 'LETHAL HIT ABSORPTION'),
     );
 
@@ -1076,27 +1122,27 @@ export class UI {
       changeShip.setAttribute('aria-expanded', String(!open));
     });
 
-    // cosmetics: PALETTE (this.themeRow) + DASH TRAIL (this.trailRow), revealed by CUSTOMIZE.
+    // cosmetics — the PALETTE + DASH-TRAIL pickers (this.themeRow / this.trailRow) now live in
+    // a CUSTOMIZE modal (built by buildCosmetics); the loadout shows two at-a-glance summary
+    // cards of the current selection, each (and the CUSTOMIZE button) opening that modal.
     this.themeRow = el('div', { class: 'theme-row ck-cosm-grid' });
     this.trailRow = el('div', { class: 'theme-row ck-cosm-grid' });
-    const customize = el('button', { class: 'ck-customize', type: 'button' }, 'CUSTOMIZE');
-    // BESTIARY SKINS — opens the per-kind enemy-skin picker modal (cosmetic).
-    const skinsBtn = el('button', { class: 'ck-customize', type: 'button' }, 'BESTIARY SKINS');
-    skinsBtn.addEventListener('click', () => this.openSkins());
-    this.cosmPicker = el(
-      'div',
-      { class: 'ck-picker hidden' },
-      el('div', { class: 'ck-cosm-lbl', title: 'PALETTE — a cosmetic colour theme for the whole game. No effect on gameplay.' }, 'PALETTE'),
-      this.themeRow,
-      el('div', { class: 'ck-cosm-lbl', title: 'DASH TRAIL — the cosmetic streak left behind when you dash. Unlocked through play.' }, 'DASH TRAIL'),
-      this.trailRow,
-      el('div', { class: 'ck-cosm-lbl', title: 'BESTIARY SKINS — restyle enemies you have ported skins for. Cosmetic; unlocked by achievements.' }, 'BESTIARY SKINS'),
-      skinsBtn,
-    );
-    customize.addEventListener('click', () => {
-      const open = this.cosmPicker.classList.toggle('hidden');
-      customize.setAttribute('aria-expanded', String(!open));
-    });
+    this.cosmThemeDot = el('div', { class: 'cosm-dot' });
+    this.cosmThemeName = el('div', { class: 'cosm-name' }, '—');
+    this.cosmTrailDot = el('div', { class: 'cosm-dot' });
+    this.cosmTrailName = el('div', { class: 'cosm-name' }, '—');
+    const cosmCard = (dot: HTMLElement, type: string, name: HTMLElement, title: string) => {
+      const card = el(
+        'button',
+        { class: 'cosm-card', type: 'button', title },
+        dot,
+        el('div', { class: 'cosm-info' }, el('div', { class: 'cosm-type' }, type), name),
+      );
+      card.addEventListener('click', () => this.openCosmetics());
+      return card;
+    };
+    const customize = el('button', { class: 'ck-customize cust-btn', type: 'button' }, 'CUSTOMIZE');
+    customize.addEventListener('click', () => this.openCosmetics());
     const loadoutCol = el(
       'div',
       { class: 'ck-col ck-col-right' },
@@ -1107,8 +1153,13 @@ export class UI {
       buildRow,
       armorRow,
       el('div', { class: 'ck-cosm-title' }, 'COSMETICS'),
+      el(
+        'div',
+        { class: 'cosm-cards' },
+        cosmCard(this.cosmThemeDot, 'PALETTE', this.cosmThemeName, 'PALETTE — a cosmetic colour theme for the whole game. Tap to customize.'),
+        cosmCard(this.cosmTrailDot, 'DASH TRAIL', this.cosmTrailName, 'DASH TRAIL — the cosmetic streak left when you dash. Tap to customize.'),
+      ),
       customize,
-      this.cosmPicker,
     );
 
     this.mainPanel = el(
@@ -1159,6 +1210,24 @@ export class UI {
     // visible). position:fixed, pointer-events:none; lives inside the title screen.
     this.lightLance = el('div', { class: 'ck-light-lance', 'aria-hidden': 'true' });
 
+    // "INITIATING DESCENT" takeover (mock): a fixed, pointer-events:none full-screen wash that
+    // plays the mode title + a pulsing bar trio as the run launches. Mounted on <body> so it
+    // floats above the screen swap into the game. Built once; the title gets repainted per launch.
+    this.descendOverlay = el(
+      'div',
+      { class: 'ck-descend-overlay', 'aria-hidden': 'true' },
+      el('div', { class: 'ck-do-title' }),
+      el('div', { class: 'ck-do-sub' }, 'INITIATING DESCENT'),
+      el(
+        'div',
+        { class: 'ck-do-bars' },
+        el('span', { style: 'animation-delay:0s' }),
+        el('span', { style: 'animation-delay:.13s' }),
+        el('span', { style: 'animation-delay:.26s' }),
+      ),
+    );
+    if (!this.descendOverlay.parentNode) document.body.appendChild(this.descendOverlay);
+
     this.title = el(
       'div',
       { class: 'screen screen-title screen-cockpit' },
@@ -1184,12 +1253,17 @@ export class UI {
     return this.settings.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
-  /** DESCEND cock-and-fire: a brief charge dip on the button + a light-lance streak.
-   *  No-op under reduce-motion (the launch itself still proceeds via the caller). */
-  private fireDescend(): void {
+  /** DESCEND cock-and-fire: a brief charge dip on the button + a light-lance streak + the
+   *  full-screen "INITIATING DESCENT" takeover stamped with the launching mode's name. The
+   *  flourish is skipped under reduce-motion (the launch itself still proceeds via the caller),
+   *  but the overlay title is always set so a follow-up frame reads correctly. */
+  private fireDescend(modeName: string): void {
+    (this.descendOverlay.firstElementChild as HTMLElement).textContent = modeName;
     if (this.motionOff()) return;
     this.replayAnim(this.playBtn, 'charging');
     this.replayAnim(this.lightLance, 'fire');
+    this.replayAnim(this.descendOverlay, 'show');
+    window.setTimeout(() => this.descendOverlay.classList.remove('show'), 1200);
   }
 
   /** FIRST LIGHT idle teaser: after ~8s of stillness on the title the hero blooms a
@@ -1979,6 +2053,37 @@ export class UI {
     this.openModal(this.skinsPanel);
   }
 
+  // ── CUSTOMIZE (cosmetics) modal — PALETTE + DASH TRAIL pickers ───────────────
+  /** Build the CUSTOMIZE modal shell. The palette + dash-trail swatch grids
+   *  (this.themeRow / this.trailRow) are populated live in refreshTitle and simply mounted
+   *  here; BESTIARY SKINS hops to its own modal. Cosmetics never touch how a run plays. */
+  private buildCosmetics(): void {
+    const h = el('h2', {}, 'CUSTOMIZE');
+    const eyebrow = el('div', { class: 'panel-eyebrow' }, 'LOADOUT · COSMETICS');
+    const skinsBtn = el('button', { class: 'btn btn-ghost' }, 'BESTIARY SKINS →');
+    skinsBtn.addEventListener('click', () => this.openSkins());
+    const note = el('div', { class: 'cosm-note' }, 'Cosmetics are visual-only — they never change how a run plays.');
+    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+    close.addEventListener('click', () => this.closeModal(this.cosmeticsPanel));
+    const panel = el(
+      'div',
+      { class: 'panel' },
+      eyebrow,
+      h,
+      el('div', { class: 'row-group-title' }, 'PALETTE'),
+      this.themeRow,
+      el('div', { class: 'row-group-title' }, 'DASH TRAIL'),
+      this.trailRow,
+      note,
+      el('div', { class: 'go-row' }, skinsBtn, close),
+    );
+    this.cosmeticsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+  }
+
+  private openCosmetics(): void {
+    this.openModal(this.cosmeticsPanel);
+  }
+
   /** The in-game archetype colour for each ported kind, so a preview matches how
    *  the skin actually reads in play (skins recolour nothing — they wear e.color). */
   private static readonly SKIN_PREVIEW_COLOR: Record<string, string> = {
@@ -2544,12 +2649,14 @@ export class UI {
     const ship = shipById(save.selectedShip);
     this.paintShipGlyph(this.shipArt, ship.id, ship.accent);
     this.shipArt.style.filter = `drop-shadow(0 0 12px ${ship.accent})`;
+    // tint the whole ring assembly (glow backdrop + orbit rings + hangar floor) to the hull.
+    this.ckShipRing.style.color = ship.accent;
     this.shipArtName.textContent = ship.name;
     this.shipArtName.style.color = ship.accent;
     this.shipArtDesc.textContent = ship.desc;
     this.paintHeatPips(save.selectedHeat);
     this.paintArmorPips(save);
-    this.buildRowVal.textContent = save.selectedArchetype === 'none' ? 'Freestyle' : archetypeById(save.selectedArchetype).name;
+    this.buildRowVal.textContent = save.selectedArchetype === 'none' ? 'None Equipped' : archetypeById(save.selectedArchetype).name;
 
     // per-hull comparison stat bars (mock-mainui) — derive each ship's profile via the
     // canonical deriveStats (ship apply only, no perks/meta) so the bars match the real
@@ -2637,6 +2744,15 @@ export class UI {
       });
       this.trailRow.append(sw);
     }
+
+    // loadout summary cards: the current palette + dash trail at a glance (open the CUSTOMIZE
+    // modal for the full pickers). Swatch dots mirror the in-game colours of each cosmetic.
+    const selTheme = THEMES.find((t) => t.id === save.selectedTheme) ?? THEMES[0];
+    this.cosmThemeName.textContent = selTheme.name;
+    this.cosmThemeDot.style.background = `conic-gradient(${selTheme.accent} 0%, ${selTheme.accent2} 50%, ${selTheme.accent} 100%)`;
+    const selTrail = TRAILS.find((t) => t.id === save.selectedTrail) ?? TRAILS[0];
+    this.cosmTrailName.textContent = selTrail.name;
+    this.cosmTrailDot.style.background = `linear-gradient(135deg, ${selTrail.combo ? '#22d3ee' : selTrail.base}, ${selTrail.bright})`;
 
     // ── LEFT: MODE RAIL (RAIL_MODE_IDS order; roving tabindex; locked = dimmed, not pickable) ──
     this.modeGrid.replaceChildren();
@@ -2765,7 +2881,7 @@ export class UI {
     const ship = shipById(save.selectedShip);
     const parts = [m.name, ship.name, save.selectedHeat > 0 ? `Heat ${save.selectedHeat}` : 'Heat 0'];
     if (muts.length) parts.push(muts.map((x) => x.name).join(' + '));
-    this.descendSub.textContent = parts.join('  ·  ');
+    this.descendModeLine.textContent = parts.join('  ·  ');
 
     // ── selection-accent spring: when the picked mode CHANGES, ease the center column
     //    to the new identity (a light hero swap) and pulse the whole panel once. Gated

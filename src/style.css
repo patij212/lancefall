@@ -2673,6 +2673,32 @@ body {
   transition: opacity 1.8s ease;
 }
 .ck-hero.first-light .ck-hero-firstlight { opacity: 1; }
+/* §v7 atmospheric depth (mock): a mid-ground fog that settles over the lower skyline, and a
+   dark vignette framing the whole hero. Both sit above the city/glow, below the content. */
+.ck-hero-fog {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(2, 8, 22, 0) 30%, rgba(7, 18, 42, 0.38) 65%, rgba(10, 22, 50, 0.55) 100%),
+    radial-gradient(ellipse 110% 8% at 50% 62%, rgba(129, 140, 248, 0.06) 0%, transparent 100%);
+}
+.ck-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(1, 4, 9, 0.7) 0%,
+    rgba(1, 4, 9, 0.3) 30%,
+    rgba(1, 4, 9, 0.1) 52%,
+    rgba(1, 4, 9, 0.5) 82%,
+    rgba(1, 4, 9, 0.88) 100%);
+}
 /* §v7 — the "city remembered" skyline behind the hero. Brightens with --coh (the city
    literally remembering); sits above the bg gradient, below the neon glow + content. */
 .ck-hero-citywrap { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -2689,7 +2715,7 @@ body {
 @keyframes ckSparkRise {
   0% { transform: translateY(0); opacity: 0; }
   18% { opacity: 0.85; }
-  100% { transform: translateY(-86px); opacity: 0; }
+  100% { transform: translateY(-55px); opacity: 0; }
 }
 /* CRT scanlines — static texture, no motion. */
 .ck-hero::after {
@@ -2837,7 +2863,25 @@ body {
 .ck-rc.board .ck-rc-val { color: var(--purple); }
 .ck-rc.board.off .ck-rc-val { color: #6d7890; }
 
-.ck-descend-wrap { margin-top: auto; }
+/* the breathing is a compositor-only opacity pulse on a backdrop behind the button (mock) —
+   no per-frame box-shadow repaint on the button itself. */
+.ck-descend-wrap { margin-top: auto; position: relative; isolation: isolate; }
+.ck-descend-wrap::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 6px;
+  bottom: 8px;
+  z-index: -1;
+  border-radius: 12px;
+  box-shadow: 0 0 46px 6px rgba(var(--accent-rgb, 34, 211, 238), 0.3);
+  opacity: 0.5;
+  will-change: opacity;
+  animation: ckGlowPulse 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ckGlowPulse { 0%, 100% { opacity: 0.34; } 50% { opacity: 0.86; } }
 .btn-play.ck-descend {
   width: 100%;
   margin-top: 0;
@@ -2847,22 +2891,34 @@ body {
   padding: 15px 20px;
   position: relative;
   overflow: hidden;
+  /* mock hexagon — chamfered ends that point into the flanking chevrons. */
+  clip-path: polygon(14px 0%, calc(100% - 14px) 0%, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0% 50%);
   background: linear-gradient(135deg, rgba(var(--accent-rgb, 34, 211, 238), 0.16) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.06) 50%, rgba(var(--accent-rgb, 34, 211, 238), 0.13) 100%);
   border: 2px solid var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 32px rgba(var(--accent-rgb, 34, 211, 238), 0.2);
-  animation: ckDescendBreath 2.4s ease-in-out infinite;
+  box-shadow:
+    0 0 32px rgba(var(--accent-rgb, 34, 211, 238), 0.2),
+    0 0 70px rgba(var(--accent-rgb, 34, 211, 238), 0.07),
+    inset 0 1px 0 rgba(var(--accent-rgb, 34, 211, 238), 0.12);
   transition: letter-spacing 0.18s cubic-bezier(0.22, 1, 0.36, 1), transform 0.12s ease;
 }
+/* flanking chevrons pointing into the hexagon (mock). */
+.ck-descend-chev {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(var(--accent-rgb, 34, 211, 238), 0.35);
+  font-size: 11px;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+.ck-descend-chev.l { left: 26px; }
+.ck-descend-chev.r { right: 26px; }
 /* the word opens up / draws breath as you commit — the one kinetic-type moment. */
 .btn-play.ck-descend:hover,
 .btn-play.ck-descend:focus-visible {
   letter-spacing: 0.3em;
   box-shadow: 0 0 42px rgba(var(--accent-rgb, 34, 211, 238), 0.36);
-}
-@keyframes ckDescendBreath {
-  0%, 100% { box-shadow: 0 0 28px rgba(var(--accent-rgb, 34, 211, 238), 0.18); }
-  50% { box-shadow: 0 0 44px rgba(var(--accent-rgb, 34, 211, 238), 0.34); }
 }
 /* a clean glint that sweeps the button on a beat boundary, then rests. */
 .btn-play.ck-descend::before {
@@ -2913,13 +2969,87 @@ body {
   100% { transform: translate(170%, -50%) scaleX(1.3); opacity: 0; }
 }
 .ck-descend-sub {
-  margin-top: 8px;
+  margin-top: 7px;
   text-align: center;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: rgba(var(--accent-rgb, 34, 211, 238), 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
 }
+/* keyboard affordance row (mock): ENTER / SPACE keycaps above the live mode line. */
+.ck-kbd-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.42);
+  font-family: 'JetBrains Mono', monospace;
+}
+.ck-kbd-hint {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+  padding: 1px 5px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.ck-kbd-sep { color: rgba(255, 255, 255, 0.18); }
+.ck-descend-mode-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: rgba(var(--accent-rgb, 34, 211, 238), 0.8);
+  transition: color 0.2s ease;
+}
+
+/* §v7 INITIATING DESCENT takeover (mock): a fixed full-screen wash that plays the launching
+   mode's name + a pulsing bar trio as the run starts. pointer-events:none so it never blocks
+   the run it's introducing; auto-clears after ~1.2s. */
+.ck-descend-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  pointer-events: none;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: radial-gradient(ellipse 60% 50% at 50% 58%, rgba(var(--accent-rgb, 34, 211, 238), 0.12), rgba(1, 3, 9, 0.94) 72%);
+}
+.ck-descend-overlay.show { animation: ckDescendSeq 1.15s ease forwards; }
+@keyframes ckDescendSeq { 0% { opacity: 0; } 16% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.ck-do-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: 30px;
+  letter-spacing: 0.26em;
+  color: var(--accent);
+  text-shadow: 0 0 44px rgba(var(--accent-rgb, 34, 211, 238), 0.6);
+}
+.ck-descend-overlay.show .ck-do-title { animation: ckTitleSlam 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes ckTitleSlam {
+  from { opacity: 0; transform: scale(1.4); letter-spacing: 0.5em; }
+  to { opacity: 1; transform: scale(1); letter-spacing: 0.26em; }
+}
+.ck-do-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.42em;
+  color: #7dd3fc;
+  opacity: 0.8;
+}
+.ck-do-bars { display: flex; gap: 6px; margin-top: 4px; }
+.ck-do-bars span {
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.25;
+  animation: ckDoBar 1.1s ease-in-out infinite;
+}
+@keyframes ckDoBar { 0%, 100% { opacity: 0.2; transform: scaleX(0.6); } 50% { opacity: 0.9; transform: scaleX(1); } }
 
 /* ── RIGHT: LOADOUT ── */
 .ck-ship-display {
@@ -2939,39 +3069,65 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.12) 0%, transparent 70%);
+  color: var(--cyan); /* equipped-hull accent; JS overrides per ship. rings/floor/glow inherit it */
 }
+/* breathing glow backdrop (mock): a soft currentColor halo that pulses behind the hull. */
 .ck-ship-ring::before {
   content: '';
   position: absolute;
-  width: 96px;
-  height: 96px;
-  border: 1px solid rgba(34, 211, 238, 0.12);
+  inset: -4px;
   border-radius: 50%;
+  background: radial-gradient(circle, currentColor 0%, transparent 64%);
+  opacity: 0.17;
+  animation: ckPulseGlow 2.6s ease-in-out infinite;
 }
+@keyframes ckPulseGlow { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.22; } }
 .ck-ship-art {
   width: 84px;
   height: 84px;
   display: block;
+  position: relative;
+  z-index: 1;
   animation: ckShipFloat 3.2s ease-in-out infinite;
 }
 @keyframes ckShipFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
-/* §v7 — hangar staging: a faint perspective floor + two slow counter-rotating orbit rings. */
-.ck-hangar-floor {
-  position: absolute; left: 50%; bottom: 4px; width: 116%; height: 40%; transform: translateX(-50%);
-  pointer-events: none; opacity: 0.45;
-  background-image: linear-gradient(rgba(34, 211, 238, 0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.1) 1px, transparent 1px);
-  background-size: 14px 9px;
-  -webkit-mask-image: radial-gradient(ellipse 58% 100% at 50% 100%, #000 0%, transparent 76%);
-  mask-image: radial-gradient(ellipse 58% 100% at 50% 100%, #000 0%, transparent 76%);
+/* §v7 — hangar staging (mock): a masked circular bay holding a 3D-perspective grid floor the
+   ship hovers over. currentColor-tinted to the equipped hull; static for perf. */
+.ck-hangar-grid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle at 50% 56%, #000 26%, transparent 74%);
+  mask-image: radial-gradient(circle at 50% 56%, #000 26%, transparent 74%);
 }
-.ck-ship-orbit { position: absolute; inset: 0; margin: auto; border-radius: 50%; pointer-events: none; }
-.ck-ship-orbit.outer { width: 104px; height: 104px; border: 1px dashed rgba(34, 211, 238, 0.18); animation: ckOrbit 18s linear infinite; }
-.ck-ship-orbit.inner { width: 88px; height: 88px; border: 1px solid rgba(129, 140, 248, 0.14); animation: ckOrbit 12s linear infinite reverse; }
-@keyframes ckOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ck-hangar-floor {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  width: 280%;
+  height: 66px;
+  transform: translateX(-50%) perspective(105px) rotateX(68deg);
+  transform-origin: bottom center;
+  background-image:
+    repeating-linear-gradient(to top, currentColor 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px 9px);
+  opacity: 0.4;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 92%);
+  mask-image: linear-gradient(to top, #000 0%, transparent 92%);
+}
+/* static orbit decay rings, tinted to the equipped hull (mock). */
+.ck-ship-orbit { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; }
+.ck-ship-orbit.outer { width: 96px; height: 96px; border: 1px solid currentColor; opacity: 0.16; }
+.ck-ship-orbit.inner { width: 86px; height: 86px; border: 1px dashed currentColor; opacity: 0.14; }
 .ck-ship-name {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
@@ -3005,6 +3161,56 @@ body {
   transition: border-color 0.12s ease, color 0.12s ease;
 }
 .ck-customize { width: 100%; }
+/* §v7 cosmetics summary cards (mock): the current palette + dash trail at a glance, each a
+   button that opens the CUSTOMIZE modal. */
+.cosm-cards { display: flex; gap: 7px; margin-top: 8px; }
+.cosm-card {
+  flex: 1;
+  padding: 8px 9px;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.1s ease;
+}
+.cosm-card:hover { border-color: rgba(34, 211, 238, 0.18); }
+.cosm-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(255, 255, 255, 0.1); }
+.cosm-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cosm-type { font-size: 8px; color: #6d89ab; letter-spacing: 0.1em; font-weight: 700; }
+.cosm-name { font-size: 10px; font-weight: 600; color: #93acc9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* CUSTOMIZE button gains the mock's flex layout + a trailing chevron. */
+.ck-customize.cust-btn { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.ck-customize.cust-btn::after { content: '›'; font-size: 12px; line-height: 1; }
+.ck-customize:hover { border-color: rgba(34, 211, 238, 0.3); color: #7dd3fc; }
+/* CUSTOMIZE modal chrome: an eyebrow over the title, section labels, and the visual-only note. */
+.panel-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+  color: rgba(34, 211, 238, 0.7);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.row-group-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: var(--accent, #22d3ee);
+  text-transform: uppercase;
+  margin: 14px 0 8px;
+}
+.cosm-note {
+  font-size: 10px;
+  color: var(--text-muted, #7a93b2);
+  font-style: italic;
+  margin-top: 12px;
+}
 .ck-change-ship:hover,
 .ck-customize:hover {
   border-color: rgba(34, 211, 238, 0.4);
@@ -3031,7 +3237,13 @@ body {
   color: #7dd3fc;
   letter-spacing: 0.1em;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
+/* loadout-row label glyph (mock) — sits flush before the key text. */
+.ck-lo-ico { display: inline-flex; align-items: center; }
+.ck-lo-ico svg { display: block; }
 .ck-lo-right { display: flex; align-items: center; gap: 6px; }
 /* §v7 — BUILD quick-row (archetype) + ARMOR pip row. */
 .ck-lo-muted { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #6a8aa6; }
@@ -3224,6 +3436,7 @@ body {
 .reduce-motion .screen-cockpit.boot-in .ck-coh-fill,
 .reduce-motion .ck-logo svg,
 .reduce-motion .ck-ship-art,
+.reduce-motion .ck-ship-ring::before,
 .reduce-motion .ck-ship-orbit,
 .reduce-motion .btn-play.ck-descend,
 .reduce-motion .btn-play.ck-descend::before,
@@ -3238,6 +3451,11 @@ body {
 .reduce-motion .spire-beacon,
 .reduce-motion .ck-hero-content.swap,
 .reduce-motion .ck-main.pulse,
+.reduce-motion .ck-descend-wrap::before,
+.reduce-motion .ck-descend-overlay,
+.reduce-motion .ck-descend-overlay.show,
+.reduce-motion .ck-descend-overlay.show .ck-do-title,
+.reduce-motion .ck-do-bars span,
 .reduce-motion .ck-light-lance {
   animation: none !important;
   transition: none !important;
@@ -3262,10 +3480,16 @@ body {
   .screen-cockpit.boot-in .ck-coh-fill,
   .ck-logo svg,
   .ck-ship-art,
+  .ck-ship-ring::before,
   .ck-ship-orbit,
   .btn-play.ck-descend,
   .btn-play.ck-descend::before,
   .btn-play.ck-descend.charging,
+  .ck-descend-wrap::before,
+  .ck-descend-overlay,
+  .ck-descend-overlay.show,
+  .ck-descend-overlay.show .ck-do-title,
+  .ck-do-bars span,
   .ck-mi,
   .ck-coh-fill,
   .ck-coh-fill::after,
