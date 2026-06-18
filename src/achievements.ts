@@ -17,6 +17,7 @@ export interface AchCtx {
   overdriveUses: number; // OVERDRIVE bursts fired this run
   lastBreathUses: number; // Last Breath clutch saves this run
   powerupsCollected: number; // power-ups grabbed this run
+  hitsTaken: number; // §4 M3 — would-be-fatal hits this run; 0 = a flawless (no-hit) run
   lifeRuns: number;
   lifeKills: number;
   lifeBoss: number;
@@ -59,6 +60,11 @@ export const ACHIEVEMENTS: Achievement[] = [
   // it then dying the same instant, which misfired on wave-1, 0-score deaths.
   { id: 'lastbreath', name: 'Cheating Death', desc: 'Survive a Last Breath bullet-time save.', check: (c) => c.lastBreathUses >= 1 && (c.won || c.wave >= 2) },
   { id: 'powerplayer', name: 'Power Player', desc: 'Collect 5 power-ups in one run.', check: (c) => c.powerupsCollected >= 5 },
+  // §3.4 CHALLENGE UNLOCKS — no-hit feats (hitsTaken is the would-be-fatal seam; 0 = flawless).
+  // The "one more run" goals: a clean clear is a different skill bar than a fast/high-score one.
+  { id: 'flawlessgauntlet', name: 'Flawless Gauntlet', desc: 'Win the Arena without taking a single hit.', check: (c) => c.won && c.modeId === 'arena' && c.hitsTaken === 0 },
+  { id: 'pristine', name: 'Pristine', desc: 'Clear Boss Rush without taking a single hit.', check: (c) => c.won && c.modeId === 'bossrush' && c.hitsTaken === 0 },
+  { id: 'flawlesskey', name: 'The Flawless Key', desc: 'Down the Sovereign without taking a single hit.', check: (c) => c.sovereignDown && c.hitsTaken === 0 },
 ];
 
 /** Returns the achievements newly satisfied by this context (not already in `unlocked`). */

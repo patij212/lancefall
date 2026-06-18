@@ -18,6 +18,7 @@ const base: AchCtx = {
   overdriveUses: 0,
   lastBreathUses: 0,
   powerupsCollected: 0,
+  hitsTaken: 1, // default = took a hit, so the flawless (no-hit) challenges don't fire unless a test sets it to 0
   lifeRuns: 0,
   lifeKills: 0,
   lifeBoss: 0,
@@ -97,5 +98,19 @@ describe('achievements', () => {
     expect(evaluate([], { ...base, lastBreathUses: 1, wave: 1 }).map((a) => a.id)).not.toContain('lastbreath'); // used it then died same wave → no misfire
     expect(evaluate([], { ...base, powerupsCollected: 5 }).map((a) => a.id)).toContain('powerplayer');
     expect(evaluate([], { ...base, powerupsCollected: 4 }).map((a) => a.id)).not.toContain('powerplayer');
+  });
+
+  it('§3.4 no-hit CHALLENGE unlocks need a clean (hitsTaken 0) clear in the right mode', () => {
+    // a normal win that took a hit does NOT grant the flawless variant
+    expect(evaluate([], { ...base, won: true, modeId: 'arena', hitsTaken: 2 }).map((a) => a.id)).not.toContain('flawlessgauntlet');
+    // a no-hit Arena win does — and still earns the base clear too
+    const arena = evaluate([], { ...base, won: true, modeId: 'arena', hitsTaken: 0 }).map((a) => a.id);
+    expect(arena).toContain('flawlessgauntlet');
+    expect(arena).toContain('gauntlet');
+    // a no-hit Boss Rush clear
+    expect(evaluate([], { ...base, won: true, modeId: 'bossrush', hitsTaken: 0 }).map((a) => a.id)).toContain('pristine');
+    // a flawless Sovereign kill — the ultimate, any mode
+    expect(evaluate([], { ...base, sovereignDown: true, hitsTaken: 0 }).map((a) => a.id)).toContain('flawlesskey');
+    expect(evaluate([], { ...base, sovereignDown: true, hitsTaken: 1 }).map((a) => a.id)).not.toContain('flawlesskey');
   });
 });

@@ -2569,6 +2569,7 @@ export class Game {
         overdriveUses: w.overdriveUses,
         lastBreathUses: w.clutch.lastBreathUses,
         powerupsCollected: w.powerupsCollected,
+        hitsTaken: w.hitsTaken,
         lifeRuns: this.save.totalRuns,
         lifeKills: this.save.lifeKills,
         lifeBoss: this.save.lifeBoss,
