@@ -4172,6 +4172,16 @@ body {
   max-height: none;
   overflow: hidden;
 }
+/* CODEX: FIX the body height too (not just cap it) — like .leader-body above — so the panel is
+   the same size on every tab and filter. Switching CODEX↔ACHIEVEMENTS or filtering (ALL 79 vs a
+   sparse UNLOCKED) no longer shrinks the body and re-centres the vertically-centred panel; the
+   active pane scrolls within the fixed body. Sized to sit inside the 90vh panel — the chrome
+   (head + tab bar + DONE + gaps) measured ~160px, so 180px leaves a safety margin and it never
+   nests a second scrollbar. (overflow-y: auto stays from the rule above.) */
+.screen-modal .codex-body {
+  height: clamp(300px, calc(90vh - 180px), 700px);
+  max-height: none;
+}
 /* §v7 — the polished .panel-head is a full-bleed header bar (like the legacy h2 header):
    it spans the whole card width with its own internal padding + border-bottom, and pins to
    the top while the body scrolls. It must be EXEMPT from the body inset below — otherwise the
