@@ -44,12 +44,19 @@ export interface RunConfig {
    *  gate — it never touches the sim, the seed, or scoring; a locked mode is simply not
    *  selectable in the rail. (Reserved alongside oneLife/biomeLock — no schema bump.) */
   unlockedAtWave?: number;
+  /** Title-rail flavour line shown in the mode-rail's bottom flavour box (the lower-left
+   *  "void filler" from the v7 cockpit mock). DISPLAY-ONLY — never touches sim/seed/scoring.
+   *  `flavorHead` is the small accent eyebrow (◇ MODE); `flavor` is the italic body and may
+   *  contain a single <br>. Absent fields fall back to the mode name + desc. */
+  flavorHead?: string;
+  flavor?: string;
 }
 
 const ENDLESS: RunConfig = {
   id: 'endless', name: 'ENDLESS', desc: 'Survive as long as you can. The classic.',
   seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
   shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
+  flavorHead: '◇ ENDLESS', flavor: 'Survive as long as you can.<br>No finish line — only the climb, and how far the light reaches.',
 };
 
 export const MODES: RunConfig[] = [
@@ -59,12 +66,14 @@ export const MODES: RunConfig[] = [
     seedKind: 'random', intensityMul: 1, spawnMul: 1, bossInterval: 45, speedBonus: 0,
     shieldStart: 70, shieldMax: 0.35, shardMul: 1.1, perks: true, canFail: true, arena: true, bossrush: false,
     rules: { scoreFrame: 'cleartime', events: 'none' }, // §4 M3 cleartime + M5 no mid-run events
+    flavorHead: '◇ ARENA', flavor: "Fifteen waves stand between you and the spire's light.",
   },
   {
     id: 'daily', name: 'ECHO OF THE FALL', desc: "One citizen's last memory of the fall — the same seed, the same echo, for everyone today.",
     seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
     rules: { events: 'curated' }, // §4 M5 — the Daily echo serves the high-risk pool
+    flavorHead: '◇ ECHO OF THE FALL', flavor: "One citizen's last memory of the fall.<br>The same seed, the same echo, for everyone today.",
   },
   {
     // WEEKLY CHALLENGE — a WEEK-STABLE seeded run (snaps to the week's Monday): the same
@@ -75,6 +84,7 @@ export const MODES: RunConfig[] = [
     seedKind: 'week', intensityMul: 1.05, spawnMul: 0.95, bossInterval: 62, speedBonus: 0.04,
     shieldStart: 100, shieldMax: 0.38, shardMul: 1.3, perks: true, canFail: true, arena: false, bossrush: false,
     rules: { events: 'curated' }, // serves the high-risk pool, like the Daily echo (one eventRng draw)
+    flavorHead: '◇ WEEKLY SIEGE', flavor: 'One seed for the whole world, all week.<br>A fresh siege every Monday — race the weekly board.',
   },
   {
     id: 'nightmare', name: 'NIGHTMARE', desc: 'Sudden death — the walls close in, no ARMOR. +75% shards.',
@@ -82,6 +92,7 @@ export const MODES: RunConfig[] = [
     shieldStart: 55, shieldMax: 0.5, shardMul: 1.75, perks: true, canFail: true, arena: false, bossrush: false,
     rules: { suddenDeath: { afterBoss: 1 }, events: 'curated' },
     unlockedAtWave: 5, // §1.1 progressive disclosure — earn NIGHTMARE by reaching wave 5
+    flavorHead: '◇ NIGHTMARE', flavor: 'The walls close. The city does not forgive hesitation.',
   },
   {
     id: 'bossrush', name: 'BOSS RUSH', desc: 'All six bosses, back to back. No chaff.',
@@ -96,6 +107,7 @@ export const MODES: RunConfig[] = [
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
     unlockedAtWave: 8, // §1.1 progressive disclosure — earn SOLSTICE PROTOCOL by reaching wave 8
+    flavorHead: '◇ SOLSTICE PROTOCOL', flavor: 'The cipher shifts. Only the worthy see the pattern.',
   },
   {
     // §7 — CASUAL/STORY. A gentler ENDLESS so anyone can SEE the content (bosses, biomes,
@@ -109,8 +121,19 @@ export const MODES: RunConfig[] = [
     seedKind: 'random', intensityMul: 0.62, spawnMul: 1.4, bossInterval: 75, speedBonus: 0,
     shieldStart: 180, shieldMax: 0.2, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
     rules: { ranked: false, casualShields: 6 }, // off-board + 6 extra absorbs
+    flavorHead: '◇ CASUAL', flavor: 'See it all — bosses, biomes, the story, the Sovereign.<br>Extra ARMOR, no pressure.',
   },
 ];
+
+/** Title-rail flavour line for a mode's bottom flavour box. DISPLAY-ONLY heuristic — falls back
+ *  to the mode name + desc when a mode hasn't been given explicit `flavorHead`/`flavor` copy.
+ *  Returns the `flavor` body which MAY contain a single <br> (the caller renders it as HTML). */
+export function modeFlavor(cfg: RunConfig): { head: string; body: string } {
+  return {
+    head: cfg.flavorHead ?? `◇ ${cfg.name}`,
+    body: cfg.flavor ?? cfg.desc,
+  };
+}
 
 export function modeById(id: string): RunConfig {
   return MODES.find((m) => m.id === id) ?? ENDLESS;

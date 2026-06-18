@@ -2245,6 +2245,9 @@ body {
   flex: 1;
   max-width: 400px;
   min-width: 220px;
+  /* mock: 40px breathing room either side of the dial (relaxes toward 20px on narrow headers,
+     keeping the fluid-layout philosophy rather than a hard 40px that crowds small screens). */
+  margin: 0 clamp(20px, 4vw, 40px);
 }
 .ck-coh-row {
   display: flex;
@@ -2269,6 +2272,7 @@ body {
 }
 .ck-coh-pct {
   font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
   font-size: 18px;
   font-weight: 700;
   color: var(--cyan);
@@ -2367,6 +2371,10 @@ body {
   line-height: 1;
   color: var(--text);
 }
+/* per-stat accent identity (mock): the run, the combo, the shard economy each own a hue. */
+.ck-hstat-val.run { color: #22d3ee; }
+.ck-hstat-val.combo { color: #a78bfa; }
+.ck-hstat-val.shards { color: #4ade80; }
 /* 4.2 — daily-streak retention chip (header). Lives left of the stat columns. */
 .ck-streak {
   display: flex;
@@ -2447,7 +2455,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 9px 10px 9px 8px; /* mock: tighter left gutter so the accent bar reads as the edge */
   border-radius: 8px;
   border: 1px solid transparent;
   border-top: 1px solid transparent;
@@ -2463,8 +2471,10 @@ body {
   border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.15);
 }
 .ck-mi.selected {
-  background: linear-gradient(90deg, rgba(var(--accent-rgb, 34, 211, 238), 0.14) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.04) 60%, transparent 100%);
+  /* mock 3-stop accent wash + square left corners (the accent bar owns that edge) */
+  background: linear-gradient(90deg, rgba(var(--accent-rgb, 34, 211, 238), 0.12) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.05) 38%, rgba(var(--accent-rgb, 34, 211, 238), 0.015) 100%);
   border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.32);
+  border-radius: 0 8px 8px 0;
   box-shadow: 0 0 22px rgba(var(--accent-rgb, 34, 211, 238), 0.08);
 }
 /* the accent bar springs to full height when a mode is chosen — the rail's whole
@@ -2484,7 +2494,7 @@ body {
   pointer-events: none;
   transition: height 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.ck-mi.selected::before { height: 80%; }
+.ck-mi.selected::before { height: 100%; }
 .ck-mi.locked {
   opacity: 0.5;
   cursor: not-allowed;
@@ -2509,25 +2519,24 @@ body {
 .ck-mi-icon svg {
   width: 20px;
   height: 20px;
-  opacity: 0.45;
+  opacity: 0.4; /* mock: dim idle → 0.65 hover → 1 selected, a 3-step reveal */
+  transition: opacity 0.18s ease;
 }
 .ck-mi.selected .ck-mi-icon {
   background: rgba(var(--accent-rgb, 34, 211, 238), 0.1);
   border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.3);
 }
-.ck-mi.selected .ck-mi-icon svg,
-.ck-mi:hover .ck-mi-icon svg {
-  opacity: 1;
-}
+.ck-mi:hover:not(.selected) .ck-mi-icon svg { opacity: 0.65; }
+.ck-mi.selected .ck-mi-icon svg { opacity: 1; }
 .ck-mi-text {
   flex: 1;
   min-width: 0;
 }
 .ck-mi-name {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   color: #7a95b4;
   line-height: 1.1;
 }
@@ -2538,18 +2547,23 @@ body {
   font-family: 'JetBrains Mono', monospace;
   font-size: 8px;
   color: #7a93b2;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   margin-top: 3px;
   font-weight: 600;
+  transition: color 0.18s ease;
 }
+.ck-mi:hover:not(.selected) .ck-mi-sub { color: #93acc9; }
+.ck-mi.selected .ck-mi-sub { color: rgba(var(--accent-rgb, 34, 211, 238), 0.72); }
 .ck-mi-pb {
   font-family: 'JetBrains Mono', monospace;
   font-size: 8px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.18em;
   font-weight: 600;
   margin-top: 4px;
   color: rgba(var(--accent-rgb, 34, 211, 238), 0.7);
 }
+/* mock: a dim "PB" label prefix so the value reads in the accent, the tag in shadow */
+.ck-mi-pb::before { content: 'PB  '; color: #2d4a62; }
 .ck-mi-badge {
   font-size: 7.5px;
   letter-spacing: 0.1em;
@@ -2563,6 +2577,31 @@ body {
 .ck-mi-badge.locked { background: rgba(248, 113, 113, 0.08); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.15); }
 .ck-mi-badge.start { background: rgba(34, 211, 238, 0.1); color: #67e8f9; border: 1px solid rgba(34, 211, 238, 0.3); }
 .ck-mi-badge.locked::before { content: '🔒 '; }
+
+/* §v7 — mode-rail flavour box: sinks flush to the rail bottom (margin-top:auto in the flex
+   column) to kill the lower-left void, and restates the selected mode's voice quietly. The
+   head carries the live mode accent; the body is italic shadow copy. */
+.mode-flavor {
+  margin-top: auto;
+  padding: 12px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0 0 8px 8px;
+  font-size: 10px;
+  color: #4a6076;
+  font-style: italic;
+  line-height: 1.6;
+  background: rgba(255, 255, 255, 0.015);
+  transition: opacity 0.15s ease;
+}
+.mode-flavor-head {
+  color: rgba(var(--accent-rgb, 34, 211, 238), 0.65);
+  font-style: normal;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  margin-bottom: 5px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+}
 
 /* ── CENTER: HERO + INFO + REWARDS + DESCEND ── */
 .ck-col-center .ck-sec { color: var(--accent); }

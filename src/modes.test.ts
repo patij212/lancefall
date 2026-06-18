@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_MODE_IDS } from './modes';
+import { MODES, modeById, modeBrief, modeFlavor, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_MODE_IDS } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -129,6 +129,29 @@ describe('modeBrief', () => {
     expect(modeBrief(modeById('weekly')).note).toBe('WEEKLY');
     expect(modeBrief(modeById('nightmare')).note).toBe('SUDDEN DEATH'); // headline rule visible on the card
     expect(modeBrief(modeById('endless')).note).toBe('');
+  });
+});
+
+describe('§v7 modeFlavor (mode-rail flavour box)', () => {
+  it('every RAIL mode has explicit flavour copy (head + non-empty body)', () => {
+    for (const id of RAIL_MODE_IDS) {
+      const fl = modeFlavor(modeById(id));
+      expect(fl.head.startsWith('◇')).toBe(true);
+      expect(fl.body.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('returns the authored head/body for a mode that defines them', () => {
+    const fl = modeFlavor(modeById('daily'));
+    expect(fl.head).toBe('◇ ECHO OF THE FALL');
+    expect(fl.body).toContain('last memory of the fall');
+  });
+
+  it('falls back to ◇ NAME + desc for a mode lacking explicit flavour copy', () => {
+    const bare = { ...modeById('endless'), flavorHead: undefined, flavor: undefined };
+    const fl = modeFlavor(bare);
+    expect(fl.head).toBe('◇ ENDLESS');
+    expect(fl.body).toBe(bare.desc);
   });
 });
 

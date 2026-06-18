@@ -33,6 +33,7 @@ import { GLOSSES, glossTriggers, type GlossId } from './gloss';
 import {
   modeById,
   modeBrief,
+  modeFlavor,
   modeRanked,
   modeSeeded,
   modeUnlocked,
@@ -500,6 +501,7 @@ export class UI {
   private heatPipsWrap!: HTMLElement;
   private armorPipsWrap!: HTMLElement; // §v7 loadout ARMOR pips (effective shields for the selected Heat)
   private buildRowVal!: HTMLElement; // §v7 loadout BUILD row value (selected archetype name)
+  private flavorBox!: HTMLElement; // §v7 mode-rail bottom flavour box (sinks the lower-left void)
   private shipPicker!: HTMLElement; // wraps this.shipRow; toggled by CHANGE SHIP
   private cosmPicker!: HTMLElement; // wraps palette + trail rows; toggled by CUSTOMIZE
   private mainPanel!: HTMLElement; // .cockpit-main — carries the mode accent for re-skin
@@ -916,10 +918,12 @@ export class UI {
     );
 
     // header stats — repurpose titleBest (BEST RUN) + shardLine (SHARDS); add BEST COMBO.
-    this.titleBest = el('div', { class: 'ck-hstat-val' }, '—');
+    // per-stat accent colours (mock): BEST RUN cyan · BEST COMBO lavender · SHARDS green —
+    // each column reads as its own identity instead of a wall of monochrome numerals.
+    this.titleBest = el('div', { class: 'ck-hstat-val run' }, '—');
     this.hsBest = this.titleBest;
-    this.hsCombo = el('div', { class: 'ck-hstat-val' }, '—');
-    this.shardLine = el('div', { class: 'ck-hstat-val' }, '—');
+    this.hsCombo = el('div', { class: 'ck-hstat-val combo' }, '—');
+    this.shardLine = el('div', { class: 'ck-hstat-val shards' }, '—');
     this.hsShards = this.shardLine;
     // 4.2 — daily-streak retention chip; hidden until the player has a 2+ day streak.
     this.hsStreak = el('div', { class: 'ck-streak hidden', title: 'Consecutive days played — keep it alive!' }, '');
@@ -944,7 +948,11 @@ export class UI {
 
     // ── LEFT: MODE RAIL (this.modeGrid, vertical) ──
     this.modeGrid = el('div', { class: 'mode-grid ck-rail', role: 'group', 'aria-label': 'Select game mode' });
-    const railCol = el('div', { class: 'ck-col ck-col-left' }, el('div', { class: 'ck-sec' }, 'SELECT MODE'), this.modeGrid);
+    // mode-flavour box — sinks flush to the rail bottom (kills the lower-left void); the head +
+    // italic body are repainted per selected mode in refreshSelectedRun. aria-hidden: it only
+    // restates the hero copy in a quieter voice, so it's decorative to the screen reader.
+    this.flavorBox = el('div', { class: 'mode-flavor', 'aria-hidden': 'true' });
+    const railCol = el('div', { class: 'ck-col ck-col-left' }, el('div', { class: 'ck-sec' }, 'SELECT MODE'), this.modeGrid, this.flavorBox);
 
     // ── CENTER: SELECTED RUN hero ──
     this.centerSec = el('div', { class: 'ck-sec' }, 'SELECTED RUN');
@@ -2656,7 +2664,9 @@ export class UI {
         const pb = m.seedKind === 'date'
           ? (save.dailyBest > 0 ? save.dailyBest.toLocaleString() : '—')
           : (save.highScore > 0 ? save.highScore.toLocaleString() : '—');
-        text.append(el('div', { class: 'ck-mi-pb' }, `PB ${pb}`));
+        // the "PB" label is a dim ::before prefix (see .ck-mi-pb::before) so the value reads
+        // in the accent and the tag in shadow — render the value only.
+        text.append(el('div', { class: 'ck-mi-pb' }, pb));
       }
       card.append(iconEl('ck-mi-icon', MODE_ICONS[m.id] ?? ''), text);
       if (!unlocked) {
@@ -2707,6 +2717,18 @@ export class UI {
     this.heroTitle.textContent = m.name;
     this.heroTags.textContent = [brief.tier, brief.note].filter(Boolean).join(' · ');
     this.heroDesc.textContent = m.desc;
+
+    // mode-rail flavour box — the accent eyebrow + italic body for the selected mode. The head
+    // carries the mode accent via the panel's --accent-rgb. The body is mode-authored copy whose
+    // only markup is a literal "<br>"; we split on it and build real <br> nodes (no innerHTML, so
+    // no XSS surface even though the source is a trusted constant). Falls back to name/desc.
+    const fl = modeFlavor(m);
+    const body = el('div', { class: 'mode-flavor-body' });
+    fl.body.split(/<br\s*\/?>/i).forEach((line, i) => {
+      if (i > 0) body.append(el('br'));
+      body.append(line);
+    });
+    this.flavorBox.replaceChildren(el('div', { class: 'mode-flavor-head' }, fl.head), body);
 
     // info bar: (Daily) ATTEMPT x/3 · SEED · MUTATOR chips
     this.infoBar.replaceChildren();
