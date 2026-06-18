@@ -2210,12 +2210,16 @@ body {
   justify-content: flex-start;
   padding: clamp(12px, 3vh, 36px) 16px 24px;
   overflow-y: auto;
+  /* §v7 cooler/brighter label ramp (mock --label-*): the mock's captions are a cool
+     steel-blue, not warm gray — lifts legibility + the "lit" mood across the cockpit
+     in one scoped lever. Only affects muted labels under .screen-cockpit. */
+  --text-muted: #8aa0bd;
   /* §v7 ambient (mock body::before): soft cyan/indigo edge-glow + a floor wash so the
      cockpit reads as a lit space, not a frame in flat black. Cheap (static radials). */
   background:
-    radial-gradient(ellipse 70% 55% at 12% 50%, rgba(34, 211, 238, 0.045) 0%, transparent 70%),
-    radial-gradient(ellipse 70% 55% at 88% 50%, rgba(129, 140, 248, 0.045) 0%, transparent 70%),
-    radial-gradient(ellipse 95% 55% at 50% 114%, rgba(34, 211, 238, 0.07) 0%, transparent 60%);
+    radial-gradient(ellipse 70% 55% at 12% 50%, rgba(34, 211, 238, 0.055) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 55% at 88% 50%, rgba(129, 140, 248, 0.055) 0%, transparent 70%),
+    radial-gradient(ellipse 95% 55% at 50% 114%, rgba(34, 211, 238, 0.085) 0%, transparent 60%);
   /* COHERENCE dial (0..1): authored at the 62% mid-bloom resting state; the
      .boot-in trigger lifts it from near-dark on title show. */
   --coh: 0.62;
