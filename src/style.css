@@ -883,14 +883,41 @@ body {
   max-height: 70vh;
   overflow-y: auto;
 }
-/* CODEX top tabs (CODEX | ACHIEVEMENTS) — sit between the sticky head and the scrolling body,
-   aligned to the body's 20px inset, so they stay put while either pane scrolls. */
-.codex-tabs { padding: 12px 20px 0; }
+/* CODEX primary tabs (CODEX · THE FALL · HOW TO · ACHIEVEMENTS) — an underline tab strip between
+   the sticky head and the scrolling body, so it stays put while a pane scrolls. Styled as PRIMARY
+   tabs (underline-active), deliberately distinct from the small pill .ach-filter sub-tabs inside
+   the ACHIEVEMENTS pane, so the two rows read as a clear hierarchy (tabs vs filters). */
+.codex-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 10px 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.codex-tabs .btn-sm {
+  margin: 0 0 -1px; /* overlap the strip's baseline so the active underline sits on it */
+  padding: 8px 15px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a93b2;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.codex-tabs .btn-sm:hover { color: #cfe0f5; }
+.codex-tabs .btn-sm.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.codex-tabs .btn-sm:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 /* each tab's content flows like the old codex-body did (column + 8px gap between sections). */
 .codex-pane { display: flex; flex-direction: column; gap: 8px; }
-/* THE FALL / HOW TO panes carry width-capped reading content (.howto-body / .fall-prose). Centre
-   it in the now-full-width codex pane so it reads as a column, not a left-shifted block. */
-.codex-pane .howto-body { margin-inline: auto; }
+/* THE FALL / HOW TO panes carry width-capped reading content. Give both the SAME centred reading
+   measure (the FALL body also has .howto-body, so one rule covers both) so the two text tabs match
+   each other and read as a column, not a left-shifted block, in the now-full-width pane. */
+.codex-pane .howto-body { max-width: 700px; margin-inline: auto; }
 /* The .btn-sm pills in an .ach-filter row (the CODEX tab bar + the ACHIEVEMENTS filter tabs)
    only inherit base padding — base .btn-sm sets no background/border (those live in the
    .leader-modes / .setting contexts), so without this they fall back to the default browser

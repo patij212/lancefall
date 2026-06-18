@@ -1315,14 +1315,13 @@ export class UI {
       navBtn('stats', 'STATS', () => this.openStats(), 'STATS — your lifetime numbers and achievements.'),
       el('div', { class: 'ck-nav-div' }),
       // BUILD is reached from the loadout BUILD row (this.openArchetype) — no duplicate nav entry.
-      navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — a bestiary of every enemy, boss, biome and relic, with lore.'),
-      navBtn('fall', 'THE FALL', () => this.showFall(), 'THE FALL — the story: six who let the City of Lancefall go dark.'),
+      // THE FALL (story) + HOW TO (manual) are tabs inside the CODEX hub now — no separate buttons.
+      navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — the bestiary + lore, THE FALL (the story), HOW TO PLAY, and your achievements.'),
       // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
       // backed list; the panel + openDuelWithCode deep-link stay in the code, just unadvertised.
       el('div', { class: 'ck-nav-div' }),
       navBtn('inspect', 'INSPECT', () => this.openInspect(), 'INSPECT — paste a BUILD DNA code to read back a run.'),
       navBtn('credits', 'CREDITS', () => this.showCredits(), 'CREDITS — the music, sounds and assets behind LANCEFALL.'),
-      navBtn('howto', 'HOW TO', () => this.showHowTo(), 'HOW TO PLAY — the controls and the core loop.'),
       navBtn('settings', 'SETTINGS', () => this.openSettings(), 'SETTINGS — audio, accessibility, key bindings.'),
       this.ngBtn,
     );
@@ -2146,11 +2145,6 @@ export class UI {
     return body;
   }
 
-  /** THE FALL nav shortcut → opens the CODEX on its story tab. */
-  private showFall(): void {
-    this.showCodex('fall');
-  }
-
   private buildDuel(): void {
     const h = el('h2', {}, '⚔ ACCEPT A DUEL');
     const blurb = el(
@@ -2284,7 +2278,7 @@ export class UI {
     const panes: Record<string, HTMLElement> = { codex: mainPane, fall: fallPane, howto: howtoPane, ach: this.codexAchPane };
     const tabDefs: [string, string][] = [['codex', 'CODEX'], ['fall', 'THE FALL'], ['howto', 'HOW TO'], ['ach', 'ACHIEVEMENTS']];
     const tabBtns = new Map<string, HTMLElement>();
-    const tabBar = el('div', { class: 'ach-filter codex-tabs' });
+    const tabBar = el('div', { class: 'codex-tabs', role: 'tablist' });
     this.codexShowTab = (key: string): void => {
       for (const k of Object.keys(panes)) panes[k].classList.toggle('hidden', k !== key);
       for (const [k, btn] of tabBtns) btn.classList.toggle('active', k === key);
@@ -2632,11 +2626,6 @@ export class UI {
     }
     this.codexShowTab?.(tab); // open on the requested tab (default: the CODEX bestiary)
     this.openModal(this.codexPanel);
-  }
-
-  /** HOW TO nav shortcut → opens the CODEX on its manual tab. */
-  private showHowTo(): void {
-    this.showCodex('howto');
   }
 
   /** HOW TO PLAY — controls, core loop + the EVOLUTIONS catalog. Rendered as a CODEX tab. */
