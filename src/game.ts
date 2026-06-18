@@ -736,7 +736,12 @@ export class Game {
 
   private pause(): void {
     this.state = 'paused';
-    this.ui.setPauseBuild(this.buildLine(), shipById(this.save.selectedShip).name, this.runHeat);
+    this.ui.setPauseBuild(this.buildLine(), shipById(this.save.selectedShip).name, this.runHeat, {
+      score: this.world.score,
+      combo: this.world.combo,
+      wave: this.director.wave,
+      time: this.world.time,
+    });
     this.ui.show('paused');
     this.audio.endCharge(); // don't let the charge tone drone through the menu
     this.audio.duckMusic(true);

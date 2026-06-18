@@ -395,6 +395,7 @@ export class UI {
   private title!: HTMLElement;
   private pause!: HTMLElement;
   private pauseBuild!: HTMLElement;
+  private pauseStatsEl!: HTMLElement;
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
   private eventPanel!: HTMLElement;
@@ -1390,8 +1391,11 @@ export class UI {
   }
 
   private buildPause(): void {
-    const h = el('h2', {}, 'PAUSED');
+    const eyebrow = el('div', { class: 'pause-eyebrow' }, 'THE DESCENT HOLDS');
+    const h = el('h2', { class: 'pause-title' }, 'PAUSED');
     this.pauseBuild = el('div', { class: 'go-build pause-build' }, '');
+    // live run snapshot grid (mock .pause-stats) — populated by setPauseBuild.
+    this.pauseStatsEl = el('div', { class: 'pause-stats' });
     const resume = el('button', { class: 'btn btn-primary' }, 'RESUME');
     resume.addEventListener('click', () => this.cb.onResume());
     const settingsBtn = el('button', { class: 'btn btn-ghost' }, 'SETTINGS');
@@ -1413,17 +1417,43 @@ export class UI {
     });
     const quit = el('button', { class: 'btn btn-ghost' }, 'QUIT TO MENU');
     quit.addEventListener('click', () => this.cb.onQuit());
-    const panel = el('div', { class: 'panel' }, h, this.pauseBuild, resume, settingsBtn, restart, quit);
+    const hint = (b: string, rest: string) => el('span', {}, el('b', {}, b), ' ' + rest);
+    const controls = el(
+      'div',
+      { class: 'controls-hint' },
+      hint('HOLD', 'charge dash'),
+      hint('RELEASE', 'spear'),
+      hint('F', 'daybreak'),
+      hint('GRAZE', 'to refuel'),
+    );
+    const panel = el('div', { class: 'panel' }, eyebrow, h, this.pauseBuild, this.pauseStatsEl, resume, settingsBtn, restart, quit, controls);
     this.pause = el('div', { class: 'screen screen-dim' }, panel);
   }
 
-  /** Populate the pause screen's current-build summary (called when pausing). */
-  setPauseBuild(buildLine: string, ship: string, heat: number): void {
+  /** Populate the pause screen's current-build summary + live run snapshot (on pause). */
+  setPauseBuild(
+    buildLine: string,
+    ship: string,
+    heat: number,
+    stats?: { score: number; combo: number; wave: number; time: number },
+  ): void {
     const heatStr = heat > 0 ? ` · HEAT ${heat}` : '';
     this.pauseBuild.replaceChildren(
       el('span', { class: 'go-ship' }, `${ship}${heatStr}`),
       el('span', { class: 'go-perks' }, buildLine ? ` · ${buildLine}` : ' · no perks yet'),
     );
+    if (stats) {
+      const cell = (k: string, v: string) => el('div', { class: 'pause-stat' }, el('div', { class: 'pst-k' }, k), el('div', { class: 'pst-v' }, v));
+      this.pauseStatsEl.replaceChildren(
+        cell('SCORE', stats.score.toLocaleString()),
+        cell('COMBO', `×${stats.combo}`),
+        cell('WAVE', String(stats.wave)),
+        cell('TIME', formatTime(stats.time)),
+      );
+      this.pauseStatsEl.style.display = '';
+    } else {
+      this.pauseStatsEl.style.display = 'none';
+    }
   }
 
   // ── FIRST LIGHT run-end (mock-choice-v2) ───────────────────────────────────
