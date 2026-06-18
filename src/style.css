@@ -883,6 +883,11 @@ body {
   max-height: 70vh;
   overflow-y: auto;
 }
+/* CODEX top tabs (CODEX | ACHIEVEMENTS) — sit between the sticky head and the scrolling body,
+   aligned to the body's 20px inset, so they stay put while either pane scrolls. */
+.codex-tabs { padding: 12px 20px 0; }
+/* each tab's content flows like the old codex-body did (column + 8px gap between sections). */
+.codex-pane { display: flex; flex-direction: column; gap: 8px; }
 .codex-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr); /* mock: a denser 3-up bestiary grid */

@@ -20,6 +20,7 @@ import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchLeaderboard, fetchAchievementRarity, type AchRarity } from './api';
 import { renderStats } from './panels/stats';
+import { renderAchievements } from './panels/achievements';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
 import { SHIPS, shipById } from './ships';
@@ -440,6 +441,8 @@ export class UI {
   private codexMemGrid?: HTMLElement; // reconciled memories grid (built once, morphed on decrypt)
   private codexMemFrag?: HTMLElement; // fragment-balance line (text updated in place)
   private codexBestiary!: HTMLElement; // §v7 — bestiary grids, re-rendered per open (live kill counts)
+  private codexAchPane!: HTMLElement; // CODEX achievements tab — the grid moved here from STATS
+  private codexShowTab?: (ach: boolean) => void; // switch the CODEX top tabs (false = bestiary, true = achievements)
   private skinsPanel!: HTMLElement;
   private skinsBody!: HTMLElement;
   private creditsPanel!: HTMLElement;
@@ -2008,20 +2011,8 @@ export class UI {
     const s = this.saveRef;
     if (!s) return;
     const body = this.statsPanel.querySelector('#stats-body')!;
-    const stats = renderStats(s, this.statsRarity);
-    body.replaceChildren(...stats.nodes);
+    body.replaceChildren(...renderStats(s)); // lifetime dossier; the achievement grid lives in CODEX now
     this.openModal(this.statsPanel);
-    // §v7 — fetch the global achievement-rarity aggregate once (cache it on the UI), then morph
-    // the rarity lines onto the existing cards if it resolves while the panel is still open
-    // (setRarity, not a body rebuild). Offline / no-backend → null → lines stay hidden. Never
-    // blocks the open.
-    if (!this.statsRarity && leaderboardEnabled()) {
-      void fetchAchievementRarity().then((r) => {
-        if (!r) return;
-        this.statsRarity = r;
-        if (this.openStack.includes(this.statsPanel)) stats.setRarity(r);
-      });
-    }
   }
 
   private buildUpgrades(): void {
@@ -2265,11 +2256,26 @@ export class UI {
       el('div', { class: 'row-group-title' }, 'READ THE KEY · THE CIPHER'),
       renderCipherLegend(),
     );
+    // ── top-level tabs: CODEX (bestiary + cipher + lore) | ACHIEVEMENTS (the grid, moved from
+    // STATS). The tab bar sits between the sticky head and the scrolling body so it stays put. ──
     // enemy-lead order (mock): bestiary first, then cipher, then the lore memories.
-    body.append(lead, this.codexBestiary, cipher, this.codexMemories);
+    const mainPane = el('div', { class: 'codex-pane' }, lead, this.codexBestiary, cipher, this.codexMemories);
+    this.codexAchPane = el('div', { class: 'codex-pane hidden' }); // filled per open by renderAchievements
+    const tabMain = el('button', { class: 'btn-sm active', type: 'button' }, 'CODEX');
+    const tabAch = el('button', { class: 'btn-sm', type: 'button' }, 'ACHIEVEMENTS');
+    const tabBar = el('div', { class: 'ach-filter codex-tabs' }, tabMain, tabAch);
+    this.codexShowTab = (ach: boolean): void => {
+      mainPane.classList.toggle('hidden', ach);
+      this.codexAchPane.classList.toggle('hidden', !ach);
+      tabMain.classList.toggle('active', !ach);
+      tabAch.classList.toggle('active', ach);
+    };
+    tabMain.addEventListener('click', () => this.codexShowTab!(false));
+    tabAch.addEventListener('click', () => this.codexShowTab!(true));
+    body.append(mainPane, this.codexAchPane);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, tabBar, body, close);
     this.codexPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
@@ -2584,7 +2590,24 @@ export class UI {
 
   private showCodex(): void {
     this.refreshMemories();
-    if (this.saveRef) this.codexBestiary.replaceChildren(...renderBestiary(this.saveRef.killsByKind));
+    const s = this.saveRef;
+    if (s) {
+      this.codexBestiary.replaceChildren(...renderBestiary(s.killsByKind));
+      // ACHIEVEMENTS tab — rebuilt per open for live got/total + unlock state.
+      const ach = renderAchievements(s, this.statsRarity);
+      this.codexAchPane.replaceChildren(...ach.nodes);
+      // fetch the global achievement-rarity aggregate once (cached on the UI); if it resolves
+      // while the codex is still open, morph the per-card rarity lines in (no body reflash).
+      // Offline / no-backend → null → lines stay hidden. Never blocks the open.
+      if (!this.statsRarity && leaderboardEnabled()) {
+        void fetchAchievementRarity().then((r) => {
+          if (!r) return;
+          this.statsRarity = r;
+          if (this.openStack.includes(this.codexPanel)) ach.setRarity(r);
+        });
+      }
+    }
+    this.codexShowTab?.(false); // default to the CODEX (bestiary) tab on each open
     this.openModal(this.codexPanel);
   }
 

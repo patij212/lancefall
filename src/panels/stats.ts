@@ -1,23 +1,17 @@
-// STATS dossier content — the lifetime numbers + achievements grid. Extracted from ui.ts
-// (the monolith split) and enriched to the v7 mock: a win-rate hero cell, a COMBAT·LIFETIME
-// cell grid, achievement filter tabs (ALL / UNLOCKED / LOCKED), and the global rarity line
-// ("X% of players have this") whenever the backend aggregate is available (else omitted).
-//
-// Returns the section nodes plus a `setRarity` updater: the caller mounts `nodes` once and,
-// when the async global-rarity aggregate resolves, calls `setRarity(r)` to morph the rarity
-// lines onto the existing achievement cards in place (no STATS body reflash).
+// STATS dossier content — the lifetime numbers. Extracted from ui.ts (the monolith split) and
+// enriched to the v7 mock: an achievement-completion donut + win-rate hero, a RECORDS grid, BEST
+// BY MODE and NEMESIS bars, and a COMBAT·LIFETIME cell grid. The achievement GRID itself now lives
+// in the CODEX (its own tab — see panels/achievements.ts); STATS keeps only the completion donut.
 
-import { el, stat, reconcile } from './dom';
+import { el, stat } from './dom';
 import type { SaveData } from '../save';
 import type { Enemy } from '../types';
-import type { AchRarity } from '../api';
 import { ACHIEVEMENTS } from '../achievements';
 import { bossName } from '../boss';
 import { modeById } from '../modes';
 import { heatLevel } from '../heat';
 
 const BOSS_KINDS = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
-type AchFilter = 'all' | 'got' | 'lock' | 'skin';
 
 // per-row bar accents (mock parity). MODE_COLOR mirrors ui.ts RAIL_ACCENTS; BOSS_COLOR is the
 // mock's nemesis palette (beacon filled in). Kept local so this panel module stays decoupled.
@@ -75,9 +69,8 @@ function barChart(rows: [string, number, string][], fmt: (n: number) => string):
   return wrap;
 }
 
-export function renderStats(s: SaveData, rarity: AchRarity | null): { nodes: HTMLElement[]; setRarity: (r: AchRarity | null) => void } {
+export function renderStats(s: SaveData): HTMLElement[] {
   const out: HTMLElement[] = [];
-  let curRarity = rarity; // mutable so a late-arriving aggregate can morph the grid in place
   const got = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
   const total = ACHIEVEMENTS.length;
 
@@ -153,73 +146,7 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): { nodes: HTM
     ),
   );
 
-  // ACHIEVEMENTS — filter tabs (ALL / UNLOCKED / LOCKED) + grid. The grid re-renders in
-  // place on a tab change; the rarity line shows only when the aggregate is loaded.
-  out.push(el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${got}/${total}`));
-  const tabs = el('div', { class: 'ach-filter' });
-  const grid = el('div', { class: 'ach-grid' });
-  let filter: AchFilter = 'all';
-  const skinTotal = ACHIEVEMENTS.filter((a) => a.category === 'skin').length;
-  const tabDefs: [AchFilter, string][] = [
-    ['all', `ALL · ${total}`],
-    ['got', `UNLOCKED · ${got}`],
-    ['lock', `LOCKED · ${total - got}`],
-    ['skin', `SKINS · ${skinTotal}`],
-  ];
-  const rarLine = (id: string): HTMLElement | null => {
-    if (!curRarity || curRarity.players <= 0) return null;
-    const pct = ((curRarity.holders[id] ?? 0) / curRarity.players) * 100;
-    const txt = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? '<1%' : '0%';
-    return el('div', { class: 'ach-rar' }, `${txt} of players have this`);
-  };
-  // grid morphs in place on a filter change: cards that stay visible keep their node (no flash);
-  // filtered-out cards are removed, re-added on widening. Keyed by achievement id.
-  const renderGrid = () => {
-    const list = ACHIEVEMENTS.filter((a) => {
-      if (filter === 'all') return true;
-      if (filter === 'skin') return a.category === 'skin';
-      const g = s.achievements.includes(a.id);
-      return filter === 'got' ? g : !g;
-    });
-    reconcile(
-      grid,
-      list,
-      (a) => a.id,
-      (a) => el('div', { class: 'ach' },
-        // mock: a horizontal card — trophy/lock glyph in its own icon cell, text column beside.
-        el('div', { class: 'ach-ico' }),
-        el('div', { class: 'ach-text' }, el('div', { class: 'ach-name' }, a.name), el('div', { class: 'ach-desc' }, a.desc)),
-      ),
-      (node, a) => {
-        const g = s.achievements.includes(a.id);
-        node.className = 'ach' + (g ? ' got' : '');
-        (node.querySelector('.ach-ico') as HTMLElement).textContent = g ? '🏆' : '🔒';
-        // rarity line — add/refresh/remove in place as the aggregate becomes available.
-        const text = node.querySelector('.ach-text') as HTMLElement;
-        let rar = text.querySelector('.ach-rar') as HTMLElement | null;
-        const r = rarLine(a.id);
-        if (r) {
-          if (!rar) { rar = el('div', { class: 'ach-rar' }); text.append(rar); }
-          rar.textContent = r.textContent;
-        } else if (rar) {
-          rar.remove();
-        }
-      },
-    );
-  };
-  // tabs built once; a click toggles .active in place (no rebuild) and re-filters the grid.
-  const tabButtons = tabDefs.map(([f, lbl]) => {
-    const b = el('button', { class: 'btn-sm', type: 'button' }, lbl);
-    b.addEventListener('click', () => { filter = f; syncTabs(); renderGrid(); });
-    return b;
-  });
-  const syncTabs = () => tabButtons.forEach((b, i) => b.classList.toggle('active', tabDefs[i][0] === filter));
-  tabs.append(...tabButtons);
-  syncTabs();
-  renderGrid();
-  out.push(tabs, grid);
-  // when the aggregate arrives, update the closure rarity + re-run the (reconciling) grid so
-  // the per-card rarity lines morph in — the rest of the dossier never re-renders.
-  const setRarity = (r: AchRarity | null): void => { curRarity = r; renderGrid(); };
-  return { nodes: out, setRarity };
+  // (The achievement GRID lives in the CODEX now — see panels/achievements.ts. STATS keeps the
+  // completion donut in the hero above.)
+  return out;
 }
