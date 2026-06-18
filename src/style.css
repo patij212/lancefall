@@ -2586,6 +2586,24 @@ body {
   transition: opacity 1.8s ease;
 }
 .ck-hero.first-light .ck-hero-firstlight { opacity: 1; }
+/* §v7 — the "city remembered" skyline behind the hero. Brightens with --coh (the city
+   literally remembering); sits above the bg gradient, below the neon glow + content. */
+.ck-hero-citywrap { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.ck-hero-city { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 78%; display: block; opacity: calc(0.5 + var(--coh) * 0.5); transition: opacity 0.4s ease; }
+/* the returning-light halo over the central spire — the narrative focal point; grows with
+   coherence and breathes. */
+.spire-halo { opacity: calc(0.04 + var(--coh) * 0.16); filter: blur(7px); transform-box: fill-box; transform-origin: 50% 100%; animation: ckHaloBreath 5.5s ease-in-out infinite; }
+@keyframes ckHaloBreath { 0%, 100% { transform: scaleY(0.9); } 50% { transform: scaleY(1.08); } }
+.spire-beacon { transform-box: fill-box; transform-origin: center; animation: ckBeaconPulse 2.8s ease-in-out infinite; }
+@keyframes ckBeaconPulse { 0%, 100% { opacity: 0.45; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.35); } }
+/* rising embers off the skyline — the city stirring back to life. */
+.ck-hero-sparks { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.ck-hero-spark { position: absolute; bottom: 10%; width: 2px; height: 2px; border-radius: 50%; opacity: 0; animation: ckSparkRise linear infinite; }
+@keyframes ckSparkRise {
+  0% { transform: translateY(0); opacity: 0; }
+  18% { opacity: 0.85; }
+  100% { transform: translateY(-86px); opacity: 0; }
+}
 /* CRT scanlines — static texture, no motion. */
 .ck-hero::after {
   content: '';
@@ -3103,12 +3121,16 @@ body {
 .reduce-motion .ck-coh-icon svg rect,
 .reduce-motion .ck-hero-glow,
 .reduce-motion .ck-hero-streak,
+.reduce-motion .spire-halo,
+.reduce-motion .spire-beacon,
 .reduce-motion .ck-hero-content.swap,
 .reduce-motion .ck-main.pulse,
 .reduce-motion .ck-light-lance {
   animation: none !important;
   transition: none !important;
 }
+/* reduce-motion: the rising embers don't animate — hide them rather than freeze mid-air. */
+.reduce-motion .ck-hero-spark { display: none; }
 /* held remembered state; the city stays half-bloomed and legible */
 .reduce-motion .screen-cockpit { --coh: 0.62; }
 .reduce-motion .ck-coh-fill { width: 62%; }
@@ -3136,12 +3158,15 @@ body {
   .ck-coh-icon svg rect,
   .ck-hero-glow,
   .ck-hero-streak,
+  .spire-halo,
+  .spire-beacon,
   .ck-hero-content.swap,
   .ck-main.pulse,
   .ck-light-lance {
     animation: none !important;
     transition: none !important;
   }
+  .ck-hero-spark { display: none; }
   .screen-cockpit { --coh: 0.62; }
   .ck-coh-fill { width: 62%; }
   .ck-mi::before { transition: none !important; }

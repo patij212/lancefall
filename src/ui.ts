@@ -206,6 +206,69 @@ const GO_CITY_SVG = `<svg viewBox="0 0 680 138" preserveAspectRatio="xMidYMax sl
   <line x1="0" y1="137" x2="680" y2="137" stroke="rgba(255,216,132,0.5)" stroke-width="0.8"/>
 </svg>`;
 
+// The cockpit "SELECTED RUN" skyline — the COOL "city remembered" night (cyan/lavender
+// stars + a central spire whose returning-light halo grows with --coh), distinct from the
+// warm-dawn GO_CITY_SVG. Verbatim from the mock; aria-hidden (pure decoration).
+const CK_CITY_SVG = `<svg class="ck-hero-city" viewBox="0 0 680 140" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <ellipse cx="340" cy="22" rx="80" ry="4" fill="rgba(129,140,248,0.018)"/>
+  <circle cx="18" cy="12" r="0.8" fill="rgba(255,255,255,0.65)"/><circle cx="56" cy="7" r="0.6" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="92" cy="17" r="1" fill="rgba(255,255,255,0.6)"/><circle cx="148" cy="9" r="0.7" fill="rgba(255,255,255,0.4)"/>
+  <circle cx="213" cy="14" r="0.6" fill="rgba(255,255,255,0.55)"/><circle cx="286" cy="6" r="0.9" fill="rgba(255,255,255,0.45)"/>
+  <circle cx="352" cy="11" r="0.6" fill="rgba(167,139,250,0.7)"/><circle cx="418" cy="8" r="1.4" fill="rgba(34,211,238,0.75)"/>
+  <circle cx="487" cy="15" r="0.6" fill="rgba(255,255,255,0.5)"/><circle cx="544" cy="5" r="1" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="601" cy="13" r="1.2" fill="rgba(200,180,255,0.6)"/><circle cx="648" cy="8" r="0.6" fill="rgba(34,211,238,0.5)"/>
+  <circle cx="34" cy="22" r="0.6" fill="rgba(180,220,255,0.55)"/><circle cx="115" cy="19" r="0.7" fill="rgba(180,220,255,0.5)"/>
+  <circle cx="195" cy="8" r="0.5" fill="rgba(255,255,255,0.6)"/><circle cx="240" cy="20" r="0.8" fill="rgba(180,220,255,0.45)"/>
+  <circle cx="310" cy="15" r="0.6" fill="rgba(255,255,255,0.5)"/><circle cx="404" cy="18" r="0.7" fill="rgba(255,255,255,0.55)"/>
+  <circle cx="468" cy="10" r="0.5" fill="rgba(180,220,255,0.5)"/><circle cx="512" cy="23" r="0.8" fill="rgba(255,255,255,0.45)"/>
+  <circle cx="563" cy="16" r="0.6" fill="rgba(180,220,255,0.5)"/><circle cx="618" cy="20" r="0.7" fill="rgba(255,255,255,0.55)"/>
+  <circle cx="670" cy="15" r="0.6" fill="rgba(255,255,255,0.5)"/>
+  <g fill="#071326" opacity="0.55">
+    <rect x="0" y="88" width="26" height="52"/><rect x="30" y="72" width="20" height="68"/><rect x="54" y="94" width="32" height="46"/>
+    <rect x="90" y="78" width="24" height="62"/><rect x="118" y="100" width="40" height="40"/><rect x="562" y="78" width="24" height="62"/>
+    <rect x="590" y="94" width="32" height="46"/><rect x="626" y="72" width="20" height="68"/><rect x="650" y="88" width="30" height="52"/>
+  </g>
+  <g fill="#030b18">
+    <rect x="0" y="75" width="34" height="65"/><rect x="38" y="56" width="28" height="84"/><rect x="70" y="82" width="44" height="58"/>
+    <rect x="118" y="62" width="32" height="78"/><rect x="154" y="78" width="50" height="62"/><rect x="208" y="50" width="28" height="90"/>
+    <rect x="240" y="74" width="56" height="66"/><rect x="302" y="86" width="76" height="54"/><rect x="480" y="86" width="76" height="54"/>
+    <rect x="560" y="74" width="56" height="66"/><rect x="620" y="50" width="28" height="90"/><rect x="474" y="78" width="50" height="62"/>
+    <rect x="430" y="62" width="32" height="78"/><rect x="568" y="82" width="44" height="58"/><rect x="614" y="56" width="28" height="84"/>
+    <rect x="648" y="75" width="34" height="65"/>
+  </g>
+  <ellipse class="spire-halo" cx="333" cy="74" rx="24" ry="76" fill="#22d3ee"/>
+  <g fill="#030d1f"><rect x="326" y="30" width="14" height="110"/><rect x="332" y="10" width="2" height="24"/><rect x="322" y="46" width="22" height="6" rx="1"/><rect x="320" y="60" width="26" height="4" rx="1"/></g>
+  <rect x="332" y="10" width="2" height="24" fill="#22d3ee" opacity="0.7"/>
+  <circle class="spire-beacon" cx="333" cy="10" r="2" fill="#22d3ee" opacity="0.9"/>
+  <circle cx="333" cy="36" r="0.9" fill="#22d3ee" opacity="0.6"/><circle cx="333" cy="44" r="0.9" fill="#22d3ee" opacity="0.6"/>
+  <circle cx="333" cy="52" r="0.9" fill="#22d3ee" opacity="0.55"/><circle cx="333" cy="60" r="0.9" fill="#22d3ee" opacity="0.5"/>
+  <circle cx="333" cy="68" r="0.9" fill="#22d3ee" opacity="0.45"/><circle cx="333" cy="76" r="0.9" fill="#22d3ee" opacity="0.4"/>
+  <g fill="#010810"><rect x="160" y="42" width="36" height="98"/><rect x="200" y="58" width="44" height="82"/><rect x="436" y="58" width="44" height="82"/><rect x="484" y="42" width="36" height="98"/></g>
+  <g opacity="0.9">
+    <circle cx="176" cy="58" r="1.2" fill="#22d3ee" opacity="0.9"/><circle cx="180" cy="64" r="1.2" fill="#22d3ee" opacity="0.7"/>
+    <circle cx="176" cy="70" r="1.2" fill="#22d3ee" opacity="0.85"/><circle cx="183" cy="76" r="1.2" fill="#818cf8" opacity="0.8"/>
+    <circle cx="176" cy="82" r="1.2" fill="#22d3ee" opacity="0.6"/><circle cx="182" cy="88" r="1.2" fill="rgba(251,146,60,0.55)"/>
+    <circle cx="215" cy="72" r="1.2" fill="#22d3ee" opacity="0.85"/><circle cx="222" cy="68" r="1.2" fill="#818cf8" opacity="0.75"/>
+    <circle cx="218" cy="80" r="1.2" fill="#22d3ee" opacity="0.7"/><circle cx="225" cy="86" r="1.2" fill="#22d3ee" opacity="0.6"/>
+    <circle cx="504" cy="58" r="1.2" fill="#22d3ee" opacity="0.9"/><circle cx="500" cy="64" r="1.2" fill="#22d3ee" opacity="0.7"/>
+    <circle cx="504" cy="70" r="1.2" fill="#22d3ee" opacity="0.85"/><circle cx="497" cy="76" r="1.2" fill="#818cf8" opacity="0.8"/>
+    <circle cx="498" cy="88" r="1.2" fill="rgba(251,146,60,0.55)"/><circle cx="462" cy="72" r="1.2" fill="#22d3ee" opacity="0.85"/>
+    <circle cx="455" cy="68" r="1.2" fill="#818cf8" opacity="0.75"/><circle cx="459" cy="80" r="1.2" fill="#22d3ee" opacity="0.7"/>
+    <circle cx="50" cy="66" r="1" fill="#22d3ee" opacity="0.7"/><circle cx="102" cy="88" r="1" fill="#22d3ee" opacity="0.65"/>
+    <circle cx="630" cy="66" r="1" fill="#22d3ee" opacity="0.7"/><circle cx="575" cy="88" r="1" fill="#22d3ee" opacity="0.65"/>
+    <circle cx="620" cy="88" r="1.2" fill="rgba(251,146,60,0.5)"/>
+  </g>
+  <line x1="0" y1="139" x2="680" y2="139" stroke="rgba(251,191,36,0.22)" stroke-width="0.8"/>
+  <line x1="0" y1="140" x2="680" y2="140" stroke="#22d3ee" stroke-width="0.4" opacity="0.12"/>
+</svg>`;
+
+// Rising embers off the cockpit skyline (CSS animates; gated under reduce-motion).
+const CK_SPARKS_HTML = `<span class="ck-hero-spark" style="left:15%;background:rgba(34,211,238,0.7);animation-duration:2.6s;animation-delay:0s"></span>
+<span class="ck-hero-spark" style="left:28%;background:rgba(129,140,248,0.55);animation-duration:3.4s;animation-delay:0.7s"></span>
+<span class="ck-hero-spark" style="left:50%;background:rgba(34,211,238,0.65);animation-duration:2.2s;animation-delay:1.4s"></span>
+<span class="ck-hero-spark" style="left:67%;background:rgba(34,211,238,0.7);animation-duration:3.8s;animation-delay:0.3s"></span>
+<span class="ck-hero-spark" style="left:82%;background:rgba(129,140,248,0.55);animation-duration:2.9s;animation-delay:2.1s"></span>`;
+
 // Rising motes over the skyline (CSS animates them; gated under reduce-motion).
 const GO_MOTES_HTML = `<span class="go-mote" style="left:16%;animation-duration:5.5s;animation-delay:0s"></span>
 <span class="go-mote" style="left:33%;animation-duration:6.8s;animation-delay:1.4s;background:rgba(255,210,140,0.7)"></span>
@@ -909,9 +972,11 @@ export class UI {
       'div',
       { class: 'ck-hero' },
       el('div', { class: 'ck-hero-bg' }),
+      iconEl('ck-hero-citywrap', CK_CITY_SVG), // the "city remembered" skyline (behind the glow)
       el('div', { class: 'ck-hero-glow' }),
       el('div', { class: 'ck-hero-streak', 'aria-hidden': 'true' }),
       el('div', { class: 'ck-hero-firstlight', 'aria-hidden': 'true' }),
+      iconEl('ck-hero-sparks', CK_SPARKS_HTML), // rising embers off the skyline
       this.heroContent,
     );
     this.heroEl = hero;
