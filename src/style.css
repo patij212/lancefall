@@ -3616,18 +3616,57 @@ body {
    (was a cramped vertical column forced into the narrow loadout col, which overflowed). */
 .ck-picker { margin-top: 8px; }
 .ship-row.ck-ship-row {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  max-height: 62vh;
+  max-height: 64vh;
   overflow-y: auto;
   padding: 4px 2px;
 }
 .theme-row.ck-cosm-grid {
   justify-content: flex-start;
 }
+
+/* §v7 — shared .p-card tile (mock): hull/cosmetic cards. Ship cards lead with a portrait. */
+.p-card {
+  --ca: var(--cyan);
+  --ca-rgb: 34, 211, 238;
+  position: relative;
+  padding: 13px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: border-color 0.14s, transform 0.14s, background 0.14s;
+}
+.p-card:hover { border-color: rgba(var(--ca-rgb), 0.4); transform: translateY(-2px); background: rgba(var(--ca-rgb), 0.05); }
+.p-card:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+.p-card.sel { border-color: var(--ca); background: linear-gradient(160deg, rgba(var(--ca-rgb), 0.12), rgba(255, 255, 255, 0.02)); box-shadow: inset 0 0 0 1px rgba(var(--ca-rgb), 0.3), 0 0 24px -8px rgba(var(--ca-rgb), 0.5); }
+.p-card.locked { opacity: 0.62; }
+.p-card.locked:hover { transform: translateY(-2px); }
+.p-card-name { font-family: 'Rajdhani', sans-serif; font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; color: #dbe6f7; line-height: 1; }
+.p-card.sel .p-card-name { color: var(--ca); }
+.p-card-desc { font-size: 10px; line-height: 1.5; color: var(--text-muted); }
+.p-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
+.p-state { font-family: 'Rajdhani', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; }
+.p-state.eq { color: var(--ca); background: rgba(var(--ca-rgb), 0.12); border: 1px solid rgba(var(--ca-rgb), 0.3); }
+.p-state.lock { color: #f0a868; background: rgba(240, 168, 104, 0.08); border: 1px solid rgba(240, 168, 104, 0.2); }
+.p-state.tap { color: var(--text-muted); }
+/* portrait stage + segmented stat bars (mock .glyph-stage / .sbars) */
+.glyph-stage { width: 100%; height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; color: var(--ca); }
+.ship-glyph { width: 66px; height: 66px; display: block; filter: drop-shadow(0 0 6px currentColor); }
+.sbars { margin-top: 9px; display: flex; flex-direction: column; gap: 5px; }
+.sbar { display: grid; grid-template-columns: 50px 1fr; gap: 9px; align-items: center; }
+.sbar-k { font-family: 'Rajdhani', sans-serif; font-size: 8px; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+.sbar-track { display: flex; gap: 3px; }
+.sbar-seg { flex: 1; height: 5px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); }
+.sbar-seg.on { background: var(--ca); box-shadow: 0 0 6px -1px var(--ca); }
+/* ship cards center name/desc/foot (mock pShip inline styles) */
+.ship-card .p-card-name, .ship-card .p-card-desc { text-align: center; }
+.ship-card .p-card-desc { min-height: 50px; margin: 5px 0 2px; }
+.ship-card .p-card-foot { justify-content: center; margin-top: 11px; }
 
 /* ── BOTTOM NAV ── */
 .ck-nav {

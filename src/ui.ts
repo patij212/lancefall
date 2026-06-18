@@ -397,6 +397,7 @@ export class UI {
   private pauseBuild!: HTMLElement;
   private pauseStatsEl!: HTMLElement;
   private upgBalanceEl!: HTMLElement;
+  private shipBalanceEl!: HTMLElement;
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
   private eventPanel!: HTMLElement;
@@ -1160,14 +1161,15 @@ export class UI {
     this.shipRow = el('div', { class: 'ship-row ck-ship-row' });
     const shipClose = el('button', { class: 'btn btn-primary' }, 'DONE');
     shipClose.addEventListener('click', () => this.closeModal(this.shipPicker));
-    const shipPanel = el(
-      'div',
-      { class: 'panel panel-wide' },
-      el('div', { class: 'panel-eyebrow' }, 'LOADOUT · HULL'),
-      el('h2', {}, 'SELECT SHIP'),
-      this.shipRow,
-      shipClose,
+    const shipIcon = el('div', { class: 'panel-head-icon' });
+    shipIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2l4 11-4 3-4-3Z" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 16l4 6 4-6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>';
+    this.shipBalanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
+    const shipHead = el('div', { class: 'panel-head' },
+      shipIcon,
+      el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LOADOUT · HULL'), el('h2', { class: 'panel-head-title' }, 'CHANGE SHIP')),
+      this.shipBalanceEl,
     );
+    const shipPanel = el('div', { class: 'panel panel-wide' }, shipHead, this.shipRow, shipClose);
     this.shipPicker = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, shipPanel);
     changeShip.addEventListener('click', () => this.openModal(this.shipPicker));
 
@@ -2862,45 +2864,45 @@ export class UI {
       const vals = SHIPS.map((sh) => m.get(shipStats.get(sh.id)!));
       return { min: Math.min(...vals), max: Math.max(...vals) };
     });
+    this.shipBalanceEl.textContent = `◆ ${save.shards.toLocaleString()} shards`;
     this.shipRow.replaceChildren();
     for (const ship of SHIPS) {
       const unlocked = save.unlockedShips.includes(ship.id);
       const selected = save.selectedShip === ship.id;
-      const chip = el('button', { class: 'ship-chip' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
-      chip.style.setProperty('--accent', ship.accent);
-      const glyph = el('canvas', { class: 'ship-glyph' }) as HTMLCanvasElement;
+      // mock .p-card hull tile: portrait stage on top, centered name/desc, segmented stat
+      // bars, a state chip foot. --ca drives accent (border/glow/bars) per hull.
+      const card = el('button', { class: 'p-card ship-card' + (selected ? ' sel' : '') + (unlocked ? '' : ' locked'), title: ship.desc, type: 'button' });
+      card.style.setProperty('--ca', ship.accent);
+      const hx = ship.accent.replace('#', '');
+      const n = parseInt(hx.length === 3 ? hx.split('').map((c) => c + c).join('') : hx, 16);
+      card.style.setProperty('--ca-rgb', `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`);
+
+      const glyph = el('canvas', { class: 'ship-glyph', 'aria-hidden': 'true' }) as HTMLCanvasElement;
       this.paintShipGlyph(glyph, ship.id, ship.accent);
+      const stage = el('div', { class: 'glyph-stage' }, glyph);
+
       const st = shipStats.get(ship.id)!;
-      const statBars = el('div', { class: 'ship-stats' });
+      const bars = el('div', { class: 'sbars' });
       SHIP_STAT_KEYS.forEach((m, i) => {
         const r = statRanges[i];
         const norm = r.max > r.min ? (m.get(st) - r.min) / (r.max - r.min) : 0.5;
         // mock: 5 discrete segments lit to the normalised stat (≥1 so the weakest hull reads).
         const lit = Math.max(1, Math.round(norm * 5));
-        const track = el('div', { class: 'ship-stat-track' });
-        for (let sg = 0; sg < 5; sg++) track.append(el('div', { class: 'ship-stat-seg' + (sg < lit ? ' on' : '') }));
-        statBars.append(el('div', { class: 'ship-stat' },
-          el('span', { class: 'ship-stat-k' }, m.key),
-          track,
-        ));
+        const track = el('div', { class: 'sbar-track' });
+        for (let sg = 0; sg < 5; sg++) track.append(el('div', { class: 'sbar-seg' + (sg < lit ? ' on' : '') }));
+        bars.append(el('div', { class: 'sbar' }, el('div', { class: 'sbar-k' }, m.key), track));
       });
-      chip.append(
-        el(
-          'div',
-          { class: 'ship-info' },
-          el('div', { class: 'ship-name' }, ship.name),
-          el('div', { class: 'ship-desc' }, ship.desc),
-          statBars,
-          el('div', { class: 'ship-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : `◆ ${ship.unlockShards.toLocaleString()}`),
-        ),
-        el('div', { class: 'ship-preview' }, glyph), // hidden by default; reveals big below the text on hover
-      );
-      chip.title = ship.desc;
-      chip.addEventListener('click', () => {
+
+      const stateCls = selected ? 'eq' : unlocked ? 'tap' : 'lock';
+      const stateTxt = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : `◆ ${ship.unlockShards.toLocaleString()}`;
+      const foot = el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state ' + stateCls }, stateTxt));
+
+      card.append(stage, el('div', { class: 'p-card-name' }, ship.name), el('div', { class: 'p-card-desc' }, ship.desc), bars, foot);
+      card.addEventListener('click', () => {
         if (unlocked) this.cb.onSelectShip(ship.id);
         else this.cb.onUnlockShip(ship.id);
       });
-      this.shipRow.append(chip);
+      this.shipRow.append(card);
     }
 
     this.themeRow.replaceChildren();
