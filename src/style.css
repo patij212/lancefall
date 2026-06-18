@@ -1487,6 +1487,14 @@ body {
 .nem-track { height: 9px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; }
 .nem-fill { height: 100%; background: linear-gradient(90deg, #f472b6, #fb7185); border-radius: 999px; }
 .nem-v { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fb7185; text-align: right; }
+/* COMBAT · LIFETIME — a compact cell grid of cumulative totals. */
+.stat-cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-cell { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; text-align: center; }
+.stat-cell-v { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px; color: var(--text); }
+.stat-cell-k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
+/* ACHIEVEMENTS filter tabs (ALL / UNLOCKED / LOCKED) + per-card global rarity line. */
+.ach-filter { display: flex; gap: 6px; margin-bottom: 12px; }
+.ach-rar { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 5px; opacity: 0.8; }
 /* BEST BY MODE reuses the bar layout but reads positive — cyan "your bests", and a wider
    value column because the score (toLocaleString) is far longer than a nemesis ✕-count. */
 .mode-row { grid-template-columns: 130px 1fr 76px; }
@@ -1496,6 +1504,7 @@ body {
   .stats-hero { flex-direction: column; align-items: stretch; }
   .stats-hero-grid { grid-template-columns: repeat(2, 1fr); }
   .rec-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-cells { grid-template-columns: repeat(2, 1fr); }
   .nem-row { grid-template-columns: 96px 1fr 36px; }
   .mode-row { grid-template-columns: 96px 1fr 64px; }
 }

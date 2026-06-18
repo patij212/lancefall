@@ -3,6 +3,7 @@
 // innerHTML churn) so the 60fps loop stays clean.
 
 import type { World } from './world';
+import { el, iconEl, stat } from './panels/dom';
 import type { Settings, SaveData } from './save';
 import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
@@ -17,7 +18,8 @@ import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
 import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
-import { leaderboardEnabled, fetchLeaderboard } from './api';
+import { leaderboardEnabled, fetchLeaderboard, fetchAchievementRarity, type AchRarity } from './api';
+import { renderStats } from './panels/stats';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
 import { SHIPS, shipById } from './ships';
@@ -28,7 +30,6 @@ import { PORTED_KINDS, skinsForKind, canUnlockSkin, skinUnlockHint } from './ski
 import type { SkinDef } from './skins';
 import type { Enemy } from './types';
 import { GLOSSES, glossTriggers, type GlossId } from './gloss';
-import { ACHIEVEMENTS } from './achievements';
 import { META_NODES, nodeCost } from './meta';
 import {
   modeById,
@@ -60,7 +61,6 @@ import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
-import { bossName } from './boss';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -134,29 +134,7 @@ export interface GameOverInfo {
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft' | 'event';
 
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  attrs: Record<string, string> = {},
-  ...children: (Node | string)[]
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') node.className = v;
-    else node.setAttribute(k, v);
-  }
-  for (const c of children) node.append(typeof c === 'string' ? document.createTextNode(c) : c);
-  return node;
-}
-
-/** Build an element from a raw inline-SVG (or any) markup string. Used for the cockpit's
- *  decorative mode/nav icons (lifted verbatim from the mock) so we don't re-author every
- *  path by hand. The markup is author-controlled (never user input), so innerHTML is safe. */
-function iconEl(cls: string, markup: string): HTMLElement {
-  const span = document.createElement('span');
-  span.className = cls;
-  span.innerHTML = markup;
-  return span;
-}
+// el / iconEl / stat now live in ./panels/dom (shared with the per-panel modules).
 
 // ── Cockpit static art (verbatim from mock-v6) ─────────────────────────────────
 // All `currentColor` so each rail icon picks up its card's accent for free.
@@ -386,6 +364,8 @@ export class UI {
   private shareUrl = '';
   private announceTimer = 0;
   private saveRef: SaveData | null = null;
+  /** §v7 — cached global achievement-rarity aggregate (fetched lazily on first STATS open) */
+  private statsRarity: AchRarity | null = null;
 
   // §1.7 — first-appearance jargon gloss callout. One shown at a time (a queue drains
   // FIFO); each id shows once ever (persisted in save.glossSeen via onMarkGloss). The
@@ -1609,103 +1589,18 @@ export class UI {
     const s = this.saveRef;
     if (!s) return;
     const body = this.statsPanel.querySelector('#stats-body')!;
-
-    // HERO — an achievement-completion DONUT (the dossier's headline) beside the
-    // top-line lifetime stats. The ring is a static SVG stroke-dash arc (no animation).
-    const got = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
-    const total = ACHIEVEMENTS.length;
-    const pct = Math.round((got / total) * 100);
-    const R = 40;
-    const C = 2 * Math.PI * R;
-    const off = (C * (1 - got / total)).toFixed(1);
-    const donut = el('div', { class: 'st-ring' });
-    donut.innerHTML =
-      `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${R}" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="8"/>` +
-      `<circle cx="50" cy="50" r="${R}" fill="none" stroke="#fde047" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}"/></svg>` +
-      `<div class="st-ring-c"><div class="st-ring-pct">${pct}%</div><div class="st-ring-lbl">${got}/${total}</div></div>`;
-    const heroStats = el('div', { class: 'stats-hero-grid' },
-      stat('high score', s.highScore.toLocaleString()),
-      stat('best combo', `x${s.bestCombo}`),
-      stat('runs', String(s.totalRuns)),
-      stat('total kills', s.lifeKills.toLocaleString()),
-    );
-    const hero = el('div', { class: 'stats-hero' }, donut, heroStats);
-
-    // RECORDS — personal bests, every value from existing SaveData (no new capture).
-    const rec = (k: string, v: string) => el('div', { class: 'rec' }, el('div', { class: 'rec-k' }, k), el('div', { class: 'rec-v' }, v));
-    const records = el('div', { class: 'rec-grid' },
-      rec('Deepest Wave', s.deepestWave > 0 ? String(s.deepestWave) : '—'),
-      rec('Best Wave', s.bestWave > 0 ? String(s.bestWave) : '—'),
-      rec('Highest Heat', s.maxHeat > 0 ? `H${s.maxHeat}` : 'OFF'),
-      rec('Day Streak', s.playStreak > 0 ? `${s.playStreak}d` : '—'),
-      rec('Bosses Down', String(s.lifeBoss)),
-      rec('Shards Earned', s.lifeShards.toLocaleString()),
-    );
-
-    // NEMESIS — the bosses that end your runs most (save.nemesis: boss-kind → death count),
-    // as normalized bars. Filtered to the real boss kinds so a stray old prose key can't show.
-    const BOSS_KINDS = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
-    const nem = Object.entries(s.nemesis)
-      .filter(([k, n]) => n > 0 && BOSS_KINDS.includes(k))
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-    const nemSection: HTMLElement[] = [];
-    if (nem.length) {
-      const maxN = Math.max(...nem.map(([, n]) => n));
-      const bars = el('div', { class: 'nem-bars' });
-      for (const [kind, n] of nem) {
-        const fill = el('div', { class: 'nem-fill' });
-        fill.style.width = `${(n / maxN) * 100}%`;
-        bars.append(el('div', { class: 'nem-row' },
-          el('div', { class: 'nem-k' }, bossName(kind as Enemy['kind'])),
-          el('div', { class: 'nem-track' }, fill),
-          el('div', { class: 'nem-v' }, `${n}✕`),
-        ));
-      }
-      nemSection.push(el('div', { class: 'stats-label' }, 'NEMESIS · who ends your runs'), bars);
-    }
-
-    // BEST BY MODE (§3.4) — your top SCORE in each mode (save.bestByMode), normalized bars.
-    // Filtered to real mode ids so a removed/old id can't mislabel via modeById's fallback.
-    const modeBests = Object.entries(s.bestByMode)
-      .filter(([id, v]) => v > 0 && modeById(id).id === id)
-      .sort((a, b) => b[1] - a[1]);
-    const modeSection: HTMLElement[] = [];
-    if (modeBests.length) {
-      const maxV = Math.max(...modeBests.map(([, v]) => v));
-      const bars = el('div', { class: 'nem-bars' });
-      for (const [id, v] of modeBests) {
-        const fill = el('div', { class: 'nem-fill mode-fill' });
-        fill.style.width = `${Math.max(8, (v / maxV) * 100)}%`;
-        bars.append(el('div', { class: 'nem-row mode-row' },
-          el('div', { class: 'nem-k' }, modeById(id).name),
-          el('div', { class: 'nem-track' }, fill),
-          el('div', { class: 'nem-v mode-v' }, v.toLocaleString()),
-        ));
-      }
-      modeSection.push(el('div', { class: 'stats-label' }, 'BEST BY MODE'), bars);
-    }
-
-    const achWrap = el('div', { class: 'ach-grid' });
-    for (const a of ACHIEVEMENTS) {
-      const g = s.achievements.includes(a.id);
-      achWrap.append(
-        el('div', { class: 'ach' + (g ? ' got' : '') },
-          el('div', { class: 'ach-name' }, (g ? '🏆 ' : '🔒 ') + a.name),
-          el('div', { class: 'ach-desc' }, a.desc),
-        ),
-      );
-    }
-    body.replaceChildren(
-      hero,
-      el('div', { class: 'stats-label' }, 'RECORDS'),
-      records,
-      ...modeSection,
-      ...nemSection,
-      el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${got}/${total}`),
-      achWrap,
-    );
+    body.replaceChildren(...renderStats(s, this.statsRarity));
     this.openModal(this.statsPanel);
+    // §v7 — fetch the global achievement-rarity aggregate once (cache it on the UI), then
+    // re-render the dossier in place if it resolves while the panel is still open. Offline /
+    // no-backend → null → the rarity line simply stays hidden. Never blocks the open.
+    if (!this.statsRarity && leaderboardEnabled()) {
+      void fetchAchievementRarity().then((r) => {
+        if (!r) return;
+        this.statsRarity = r;
+        if (this.openStack.includes(this.statsPanel)) body.replaceChildren(...renderStats(s, this.statsRarity));
+      });
+    }
   }
 
   private buildUpgrades(): void {
@@ -3368,9 +3263,6 @@ export class UI {
   }
 }
 
-function stat(label: string, value: string): HTMLElement {
-  return el('div', { class: 'go-stat' }, el('span', { class: 'go-stat-v' }, value), el('span', { class: 'go-stat-l' }, label));
-}
 
 /** Render a decoded Build DNA into readable label/value rows. Defensive: unknown
  *  ids (from an older/edited code) are skipped, never looked up blindly. */
