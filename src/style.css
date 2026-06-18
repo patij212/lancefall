@@ -1772,7 +1772,10 @@ body {
 .reduce-motion .tnode.afford .tnode-badge::before { animation: none; }
 .tnode.locked { opacity: 0.42; }
 .tnode.locked .tnode-face { color: #6a7a8a; }
-.tnode.maxed .tnode-face { background: rgba(var(--bc-rgb), 0.16); }
+/* maxed: the ring is fully branch-coloured and shows through the translucent face, so a
+   branch-coloured icon (currentColor = --bc) would vanish into the fill. Invert it to the
+   panel's near-black so the glyph reads as a dark stamp on the completed node. */
+.tnode.maxed .tnode-face { background: rgba(var(--bc-rgb), 0.16); color: #0a1020; }
 .tnode-root .tnode-badge { width: 60px; height: 60px; }
 .tnode-root .tnode-face { background: radial-gradient(circle, #0d1832, #070b16); border-color: rgba(34, 211, 238, 0.45); color: #22d3ee; }
 .tnode-root .tnode-name { color: #7dd3fc; font-size: 9.5px; letter-spacing: 0.14em; }
