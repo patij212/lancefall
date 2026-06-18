@@ -46,6 +46,7 @@ import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
 import { renderBestiary } from './panels/codex';
 import { renderUpgrades } from './panels/upgrades';
+import { renderTheSix } from './panels/fall';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
@@ -1805,6 +1806,8 @@ export class UI {
       'To decrypt is to remember. To remember is to relight.',
     ];
     for (const p of paras) body.append(el('p', { class: 'fall-para' }, p));
+    // §v7 — THE SIX WHO LET IT FALL: the six bosses as a numbered confession timeline.
+    body.append(el('div', { class: 'stats-label' }, 'THE SIX WHO LET IT FALL'), renderTheSix());
     const close = el('button', { class: 'btn btn-primary' }, 'DESCEND');
     close.addEventListener('click', () => this.closeModal(this.fallPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
