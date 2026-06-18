@@ -1452,12 +1452,13 @@ export class UI {
 
   private buildSettings(): void {
     const h = el('h2', {}, 'SETTINGS');
-    const body = el('div', { class: 'settings-body' });
+    const s = this.settings;
 
+    // slider returns { row, input } so a PRESET can re-sync the displayed value
     const slider = (label: string, min: number, max: number, step: number, val: number, on: (v: number) => void) => {
       const input = el('input', { type: 'range', min: String(min), max: String(max), step: String(step), value: String(val) }) as HTMLInputElement;
       input.addEventListener('input', () => on(parseFloat(input.value)));
-      return el('label', { class: 'setting' }, el('span', {}, label), input);
+      return { row: el('label', { class: 'setting' }, el('span', {}, label), input), input };
     };
     const toggle = (label: string, val: boolean, on: (v: boolean) => void) => {
       const input = el('input', { type: 'checkbox' }) as HTMLInputElement;
@@ -1466,54 +1467,47 @@ export class UI {
       return el('label', { class: 'setting setting-toggle' }, el('span', {}, label), input);
     };
 
-    const s = this.settings;
-    // City-memory is backed by SaveData (not Settings), and buildSettings() runs once in
-    // the constructor when saveRef is still null — so capture this checkbox and refresh it
-    // from the live save each time the panel opens (see openSettings()).
-    const cityMemRow = toggle('City memory meter', this.saveRef?.cityMemoryMeter ?? true, (v) =>
-      this.cb.onToggleCityMemory(v),
-    );
-    this.cityMemToggle = cityMemRow.querySelector('input');
-    body.append(
-      slider('Master volume', 0, 1, 0.05, s.master, (v) => this.patch({ master: v })),
-      slider('SFX volume', 0, 1, 0.05, s.sfx, (v) => this.patch({ sfx: v })),
-      slider('Music volume', 0, 1, 0.05, s.music, (v) => this.patch({ music: v })),
-      slider('Screen shake', 0, 1.5, 0.05, s.shake, (v) => this.patch({ shake: v })),
-      slider('HUD scale', 0.8, 1.4, 0.05, s.hudScale, (v) => this.patch({ hudScale: v })),
-      slider('Chromatic aberration', 0, 1, 0.05, s.chromAberration, (v) => this.patch({ chromAberration: v })),
-      toggle('Controller rumble', s.rumble, (v) => this.patch({ rumble: v })),
-      toggle('Reduce flashing', s.reduceFlashing, (v) => this.patch({ reduceFlashing: v })),
-      toggle('Reduce motion', s.reduceMotion, (v) => this.patch({ reduceMotion: v })),
-      toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
-      toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
-      toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v })),
-      cityMemRow,
-      toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) =>
-        this.patch({ dashStyle: v ? 'slingshot' : 'lance' }),
-      ),
-    );
-
+    // ── the perf/fidelity dials the PRESETS drive (kept as refs so a preset re-syncs them) ──
+    const shakeS = slider('Screen shake', 0, 1.5, 0.05, s.shake, (v) => this.patch({ shake: v }));
+    const chromaS = slider('Chromatic aberration', 0, 1, 0.05, s.chromAberration, (v) => this.patch({ chromAberration: v }));
     const densityWrap = el('div', { class: 'setting' }, el('span', {}, 'Particle density'));
+    const densityBtns: Partial<Record<'low' | 'med' | 'high', HTMLElement>> = {};
+    const setDensity = (d: 'low' | 'med' | 'high') => {
+      for (const k of ['low', 'med', 'high'] as const) densityBtns[k]?.classList.toggle('active', k === d);
+    };
     for (const d of ['low', 'med', 'high'] as const) {
-      const b = el('button', { class: 'btn btn-ghost btn-sm' + (s.particleDensity === d ? ' active' : '') }, d.toUpperCase());
-      b.addEventListener('click', () => {
-        this.patch({ particleDensity: d });
-        densityWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
-        b.classList.add('active');
-      });
+      const b = el('button', { class: 'btn btn-ghost btn-sm' }, d.toUpperCase());
+      densityBtns[d] = b;
+      b.addEventListener('click', () => { this.patch({ particleDensity: d }); setDensity(d); });
       densityWrap.append(b);
     }
-    body.append(densityWrap);
+    setDensity(s.particleDensity);
+
+    // ── PRESETS (mock-mainui) — one tap sets the perf/fidelity dials + re-syncs the controls ──
+    const PRESETS: Record<string, { particleDensity: 'low' | 'med' | 'high'; chromAberration: number; shake: number }> = {
+      PERFORMANCE: { particleDensity: 'low', chromAberration: 0, shake: 0.6 },
+      BALANCED: { particleDensity: 'med', chromAberration: 0.6, shake: 1 },
+      QUALITY: { particleDensity: 'high', chromAberration: 1, shake: 1 },
+    };
+    const presetRow = el('div', { class: 'set-presets' });
+    for (const [name, p] of Object.entries(PRESETS)) {
+      const b = el('button', { class: 'btn btn-ghost btn-sm' }, name);
+      b.addEventListener('click', () => {
+        this.patch(p);
+        chromaS.input.value = String(p.chromAberration);
+        shakeS.input.value = String(p.shake);
+        setDensity(p.particleDensity);
+        presetRow.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+        b.classList.add('active');
+      });
+      presetRow.append(b);
+    }
 
     // soundtrack picker — AURORA (dreamy) vs SURGE (aggressive)
     const trackWrap = el('div', { class: 'setting' }, el('span', {}, 'Soundtrack'));
     for (const id of ['aurora', 'surge'] as SoundtrackId[]) {
       const prof = TRACKS[id];
-      const b = el(
-        'button',
-        { class: 'btn btn-ghost btn-sm' + (s.soundtrack === id ? ' active' : ''), title: prof.blurb },
-        prof.name,
-      );
+      const b = el('button', { class: 'btn btn-ghost btn-sm' + (s.soundtrack === id ? ' active' : ''), title: prof.blurb }, prof.name);
       b.addEventListener('click', () => {
         this.patch({ soundtrack: id });
         trackWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
@@ -1521,10 +1515,12 @@ export class UI {
       });
       trackWrap.append(b);
     }
-    body.append(trackWrap);
 
-    // ── key rebinding for the core actions (keyboard only; gamepad/touch unchanged) ──
-    body.append(el('div', { class: 'setting setting-section' }, el('span', {}, 'KEY BINDINGS')));
+    // City-memory is backed by SaveData (not Settings); re-synced on open (see openSettings()).
+    const cityMemRow = toggle('City memory meter', this.saveRef?.cityMemoryMeter ?? true, (v) => this.cb.onToggleCityMemory(v));
+    this.cityMemToggle = cityMemRow.querySelector('input');
+
+    // ── key rebinding (keyboard only; gamepad/touch unchanged) ──
     const rebindBtns: Array<{ action: 'dash' | 'overdrive' | 'pause'; btn: HTMLButtonElement }> = [];
     const refreshKeyLabels = () => {
       for (const { action, btn } of rebindBtns) btn.textContent = keyLabel(this.settings.keymap[action]);
@@ -1544,32 +1540,59 @@ export class UI {
           this.rebinding = null;
           btn.classList.remove('active');
           const k = e.key.toLowerCase();
-          // Escape cancels the capture; anything else binds (single key — the default's
-          // extra alias is dropped on an explicit rebind).
           if (k !== 'escape') this.patch({ keymap: { ...this.settings.keymap, [action]: [k] } });
           refreshKeyLabels();
         };
-        // capture phase so we intercept BEFORE the global game keydown handler reacts
         window.addEventListener('keydown', onKey, true);
       });
       return el('label', { class: 'setting' }, el('span', {}, label), btn);
     };
-    body.append(
-      rebindRow('Dash', 'dash'),
-      rebindRow('Overdrive', 'overdrive'),
-      rebindRow('Pause', 'pause'),
-    );
     const resetKeys = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Reset keys to default');
-    resetKeys.addEventListener('click', () => {
-      this.patch({ keymap: defaultKeyBindings() });
-      refreshKeyLabels();
-    });
-    body.append(el('div', { class: 'setting' }, resetKeys));
+    resetKeys.addEventListener('click', () => { this.patch({ keymap: defaultKeyBindings() }); refreshKeyLabels(); });
 
+    // ── tabbed SECTIONS (mock-mainui) — group related settings; one section visible at a time ──
+    const sect = (id: string, ...kids: HTMLElement[]) => el('div', { class: 'set-sect', 'data-sect': id }, ...kids);
+    const sections: { id: string; name: string; el: HTMLElement }[] = [
+      { id: 'audio', name: 'AUDIO', el: sect('audio',
+        slider('Master volume', 0, 1, 0.05, s.master, (v) => this.patch({ master: v })).row,
+        slider('SFX volume', 0, 1, 0.05, s.sfx, (v) => this.patch({ sfx: v })).row,
+        slider('Music volume', 0, 1, 0.05, s.music, (v) => this.patch({ music: v })).row,
+        trackWrap) },
+      { id: 'visuals', name: 'VISUALS', el: sect('visuals',
+        shakeS.row,
+        slider('HUD scale', 0.8, 1.4, 0.05, s.hudScale, (v) => this.patch({ hudScale: v })).row,
+        chromaS.row, densityWrap) },
+      { id: 'gameplay', name: 'GAMEPLAY', el: sect('gameplay',
+        toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) => this.patch({ dashStyle: v ? 'slingshot' : 'lance' })),
+        cityMemRow) },
+      { id: 'access', name: 'ACCESS', el: sect('access',
+        toggle('Reduce flashing', s.reduceFlashing, (v) => this.patch({ reduceFlashing: v })),
+        toggle('Reduce motion', s.reduceMotion, (v) => this.patch({ reduceMotion: v })),
+        toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
+        toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
+        toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v }))) },
+      { id: 'controls', name: 'CONTROLS', el: sect('controls',
+        toggle('Controller rumble', s.rumble, (v) => this.patch({ rumble: v })),
+        rebindRow('Dash', 'dash'), rebindRow('Overdrive', 'overdrive'), rebindRow('Pause', 'pause'),
+        el('div', { class: 'setting' }, resetKeys)) },
+    ];
+    const tabRow = el('div', { class: 'set-tabs' });
+    const showSect = (id: string) => {
+      for (const x of sections) x.el.classList.toggle('hidden', x.id !== id);
+      tabRow.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.getAttribute('data-sect') === id));
+    };
+    for (const x of sections) {
+      const b = el('button', { class: 'btn btn-ghost btn-sm', 'data-sect': x.id }, x.name);
+      b.addEventListener('click', () => showSect(x.id));
+      tabRow.append(b);
+    }
+
+    const body = el('div', { class: 'settings-body' }, ...sections.map((x) => x.el));
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeSettings());
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, h, presetRow, tabRow, body, close);
     this.settingsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    showSect('audio'); // default to the AUDIO tab
   }
 
   private buildStats(): void {
