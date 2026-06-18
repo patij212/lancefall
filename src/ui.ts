@@ -381,6 +381,18 @@ function darken(hex: string, amt: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+/** "#rrggbb" or "#rgb" → "r,g,b" (no spaces) for rgba() interpolation in cosmetic tiles. */
+function rgbOf(hex: string): string {
+  const h = hex.replace('#', '');
+  const v = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return `${(v >> 16) & 255},${(v >> 8) & 255},${v & 255}`;
+}
+
+/** Cosmetic rarity label by shard cost (★ for achievement-locked). */
+function rarLabel(cost: number, star: boolean): string {
+  return star ? '★ Achievement' : cost === 0 ? 'Free' : cost <= 800 ? 'Common' : cost <= 1200 ? 'Rare' : 'Epic';
+}
+
 /** Human-readable label for a bound key list (e.SPACE / J / ESC). */
 function keyLabel(keys: string[]): string {
   const one = (k: string) =>
@@ -2983,59 +2995,89 @@ export class UI {
 
     // ── COSMETICS: palette + dash-trail preview tiles (mock pCosmetics .p-card) ──
     this.cosmBalanceEl.textContent = `◆ ${save.shards.toLocaleString()} shards`;
-    const rgbOf = (hex: string) => { const h = hex.replace('#', ''); const v = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16); return `${(v >> 16) & 255},${(v >> 8) & 255},${v & 255}`; };
-    const rarLabel = (cost: number, star: boolean) => (star ? '★ Achievement' : cost === 0 ? 'Free' : cost <= 800 ? 'Common' : cost <= 1200 ? 'Rare' : 'Epic');
-    const cosState = (selected: boolean, unlocked: boolean, txtLocked: string) =>
-      el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state ' + (selected ? 'eq' : unlocked ? 'tap' : 'lock') }, selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : txtLocked));
+    // palette tiles morph in place — EQUIPPED chip / sel glow toggle on the stable node.
+    reconcile(
+      this.themeRow,
+      THEMES,
+      (t) => t.id,
+      (theme) => {
+        const card = el('button', { class: 'p-card cos-card', type: 'button', title: theme.name });
+        card.style.setProperty('--ca', theme.accent);
+        card.style.setProperty('--ca-rgb', rgbOf(theme.accent));
+        const prev = el('div', { class: 'cos-prev' });
+        prev.style.background = `linear-gradient(120deg, ${theme.accent}, ${theme.accent2})`;
+        const dot = el('span', { class: 'p-dot' });
+        dot.style.background = `linear-gradient(135deg, ${theme.accent}, ${theme.accent2})`;
+        dot.style.color = theme.accent;
+        const foot = el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state' }));
+        card.append(
+          prev,
+          el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, theme.name)),
+          el('div', { class: 'cos-rar' }, rarLabel(theme.unlockShards, false)),
+          foot,
+        );
+        card.addEventListener('click', () => {
+          if (card.dataset.unlocked === '1') this.cb.onSelectTheme(theme.id);
+          else this.cb.onUnlockTheme(theme.id);
+        });
+        return card;
+      },
+      (card, theme) => {
+        const s = this.saveRef!;
+        const unlocked = s.unlockedThemes.includes(theme.id);
+        const selected = s.selectedTheme === theme.id;
+        card.dataset.unlocked = unlocked ? '1' : '0';
+        card.classList.toggle('sel', selected);
+        card.classList.toggle('locked', !unlocked);
+        const st = card.querySelector('.p-state') as HTMLElement;
+        st.className = 'p-state ' + (selected ? 'eq' : unlocked ? 'tap' : 'lock');
+        st.textContent = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : `◆ ${theme.unlockShards.toLocaleString()}`;
+      },
+    );
 
-    this.themeRow.replaceChildren();
-    for (const theme of THEMES) {
-      const unlocked = save.unlockedThemes.includes(theme.id);
-      const selected = save.selectedTheme === theme.id;
-      const card = el('button', { class: 'p-card cos-card' + (selected ? ' sel' : '') + (unlocked ? '' : ' locked'), type: 'button', title: theme.name });
-      card.style.setProperty('--ca', theme.accent);
-      card.style.setProperty('--ca-rgb', rgbOf(theme.accent));
-      const prev = el('div', { class: 'cos-prev' });
-      prev.style.background = `linear-gradient(120deg, ${theme.accent}, ${theme.accent2})`;
-      const dot = el('span', { class: 'p-dot' });
-      dot.style.background = `linear-gradient(135deg, ${theme.accent}, ${theme.accent2})`;
-      dot.style.color = theme.accent;
-      card.append(
-        prev,
-        el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, theme.name)),
-        el('div', { class: 'cos-rar' }, rarLabel(theme.unlockShards, false)),
-        cosState(selected, unlocked, `◆ ${theme.unlockShards.toLocaleString()}`),
-      );
-      card.addEventListener('click', () => { if (unlocked) this.cb.onSelectTheme(theme.id); else this.cb.onUnlockTheme(theme.id); });
-      this.themeRow.append(card);
-    }
-
-    this.trailRow.replaceChildren();
-    for (const trail of TRAILS) {
-      const unlocked = save.unlockedTrails.includes(trail.id);
-      const selected = save.selectedTrail === trail.id;
-      const acc = trail.combo ? '#22d3ee' : trail.base;
-      const star = !!trail.unlockAch;
-      const card = el('button', { class: 'p-card cos-card' + (selected ? ' sel' : '') + (unlocked ? '' : ' locked'), type: 'button', title: trail.name });
-      card.style.setProperty('--ca', acc);
-      card.style.setProperty('--ca-rgb', rgbOf(acc));
-      const prev = el('div', { class: 'cos-prev' });
-      prev.style.background = `radial-gradient(ellipse at 50% 130%, rgba(${rgbOf(acc)}, 0.25), transparent 70%)`;
-      const streak = el('span', { class: 'streak' });
-      streak.style.background = `linear-gradient(90deg, transparent, ${acc} 60%, ${trail.bright})`;
-      prev.append(streak);
-      const dot = el('span', { class: 'p-dot' });
-      dot.style.background = `linear-gradient(90deg, ${acc}, ${trail.bright})`;
-      dot.style.color = acc;
-      card.append(
-        prev,
-        el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, trail.name)),
-        el('div', { class: 'cos-rar' }, rarLabel(trail.unlockShards, star)),
-        cosState(selected, unlocked, star ? '★ ACHIEVEMENT' : `◆ ${trail.unlockShards.toLocaleString()}`),
-      );
-      card.addEventListener('click', () => { if (unlocked) this.cb.onSelectTrail(trail.id); else this.cb.onUnlockTrail(trail.id); });
-      this.trailRow.append(card);
-    }
+    reconcile(
+      this.trailRow,
+      TRAILS,
+      (t) => t.id,
+      (trail) => {
+        const acc = trail.combo ? '#22d3ee' : trail.base;
+        const card = el('button', { class: 'p-card cos-card', type: 'button', title: trail.name });
+        card.style.setProperty('--ca', acc);
+        card.style.setProperty('--ca-rgb', rgbOf(acc));
+        const prev = el('div', { class: 'cos-prev' });
+        prev.style.background = `radial-gradient(ellipse at 50% 130%, rgba(${rgbOf(acc)}, 0.25), transparent 70%)`;
+        const streak = el('span', { class: 'streak' });
+        streak.style.background = `linear-gradient(90deg, transparent, ${acc} 60%, ${trail.bright})`;
+        prev.append(streak);
+        const dot = el('span', { class: 'p-dot' });
+        dot.style.background = `linear-gradient(90deg, ${acc}, ${trail.bright})`;
+        dot.style.color = acc;
+        const foot = el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state' }));
+        card.append(
+          prev,
+          el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, trail.name)),
+          el('div', { class: 'cos-rar' }, rarLabel(trail.unlockShards, !!trail.unlockAch)),
+          foot,
+        );
+        card.addEventListener('click', () => {
+          if (card.dataset.unlocked === '1') this.cb.onSelectTrail(trail.id);
+          else this.cb.onUnlockTrail(trail.id);
+        });
+        return card;
+      },
+      (card, trail) => {
+        const s = this.saveRef!;
+        const unlocked = s.unlockedTrails.includes(trail.id);
+        const selected = s.selectedTrail === trail.id;
+        const star = !!trail.unlockAch;
+        card.dataset.unlocked = unlocked ? '1' : '0';
+        card.classList.toggle('sel', selected);
+        card.classList.toggle('locked', !unlocked);
+        const st = card.querySelector('.p-state') as HTMLElement;
+        st.className = 'p-state ' + (selected ? 'eq' : unlocked ? 'tap' : 'lock');
+        st.textContent = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : (star ? '★ ACHIEVEMENT' : `◆ ${trail.unlockShards.toLocaleString()}`);
+      },
+    );
 
     // loadout summary cards: the current palette + dash trail at a glance (open the CUSTOMIZE
     // modal for the full pickers). Swatch dots mirror the in-game colours of each cosmetic.
