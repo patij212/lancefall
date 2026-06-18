@@ -1038,7 +1038,8 @@ export class UI {
       navBtn('build', 'BUILD', () => this.openArchetype(), 'BUILD — pick a starting archetype that biases your perk draft.'),
       navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — a bestiary of every enemy, boss, biome and relic, with lore.'),
       navBtn('fall', 'THE FALL', () => this.showFall(), 'THE FALL — the story: six who let the City of Lancefall go dark.'),
-      navBtn('duel', 'DUEL', () => this.openDuel(), 'DUEL — async 1v1: you and a friend race the same fixed seed.'),
+      // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
+      // backed list; the panel + openDuelWithCode deep-link stay in the code, just unadvertised.
       el('div', { class: 'ck-nav-div' }),
       navBtn('inspect', 'INSPECT', () => this.openInspect(), 'INSPECT — paste a BUILD DNA code to read back a run.'),
       navBtn('credits', 'CREDITS', () => this.showCredits(), 'CREDITS — the music, sounds and assets behind LANCEFALL.'),
@@ -1781,12 +1782,6 @@ export class UI {
       el('div', { class: 'go-row' }, dev),
     );
     this.duelPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
-  }
-
-  private openDuel(): void {
-    this.openModal(this.duelPanel);
-    const input = this.duelPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
-    input?.focus();
   }
 
   /** 4.4 — open the DUEL panel pre-filled with a code arriving from a shared `#duel=` link.
