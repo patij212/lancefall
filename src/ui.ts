@@ -45,7 +45,7 @@ import {
 import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
-import { BESTIARY, CODEX_CATEGORIES } from './bestiary';
+import { renderBestiary } from './panels/codex';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
@@ -336,6 +336,7 @@ export class UI {
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
+  private codexBestiary!: HTMLElement; // §v7 — bestiary grids, re-rendered per open (live kill counts)
   private skinsPanel!: HTMLElement;
   private skinsBody!: HTMLElement;
   private creditsPanel!: HTMLElement;
@@ -1843,21 +1844,10 @@ export class UI {
     const h = el('h2', {}, 'CODEX');
     const body = el('div', { class: 'codex-body' });
     this.codexMemories = el('div', { class: 'codex-memories' });
-    body.append(this.codexMemories);
-    for (const { cat, label } of CODEX_CATEGORIES) {
-      body.append(el('div', { class: 'stats-label' }, label));
-      const grid = el('div', { class: 'codex-grid' });
-      for (const e of BESTIARY.filter((x) => x.cat === cat)) {
-        const card = el('div', { class: 'codex-entry' });
-        card.style.setProperty('--accent', e.accent);
-        card.append(
-          el('div', { class: 'codex-name' }, e.name),
-          el('div', { class: 'codex-blurb' }, e.blurb),
-        );
-        grid.append(card);
-      }
-      body.append(grid);
-    }
+    // the bestiary grids are rebuilt every open (renderBestiary) so the per-kind kill
+    // counts + boss VANQUISHED states reflect the live save.
+    this.codexBestiary = el('div');
+    body.append(this.codexMemories, this.codexBestiary);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
@@ -2097,6 +2087,7 @@ export class UI {
 
   private showCodex(): void {
     this.refreshMemories();
+    if (this.saveRef) this.codexBestiary.replaceChildren(...renderBestiary(this.saveRef.killsByKind));
     this.openModal(this.codexPanel);
   }
 
