@@ -1,6 +1,7 @@
 import './fonts'; // self-hosted webfonts (no Google Fonts CDN — see fonts.ts)
 import './style.css';
 import { Game } from './game';
+import { startCockpitCipher } from './cockpitCipher';
 
 /** Last-resort overlay shown if boot throws or an uncaught error/rejection escapes the
  *  game loop, so a player (or a jam judge) never meets a blank/frozen black page. Inline-
@@ -51,6 +52,10 @@ try {
 
   const game = new Game(canvas, uiRoot);
   game.boot();
+
+  // CIPHER STORM — animated Turing-decode backdrop on the cockpit title (self-mounting,
+  // title-only, reduce-motion-safe). Defensive internally so it can never break boot.
+  startCockpitCipher();
 
   // Dev-only debug hook for automated playtesting.
   if (import.meta.env.DEV) {
