@@ -6,7 +6,7 @@
 // Returns an array of sections so the caller drops them straight into the scroll body
 // (body.replaceChildren(...renderStats(...))) — no transparent wrapper box.
 
-import { el, stat } from './dom';
+import { el, stat, reconcile } from './dom';
 import type { SaveData } from '../save';
 import type { Enemy } from '../types';
 import type { AchRarity } from '../api';
@@ -136,43 +136,49 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): HTMLElement[
     const txt = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? '<1%' : '0%';
     return el('div', { class: 'ach-rar' }, `${txt} of players have this`);
   };
+  // grid morphs in place on a filter change: cards that stay visible keep their node (no flash);
+  // filtered-out cards are removed, re-added on widening. Keyed by achievement id.
   const renderGrid = () => {
     const list = ACHIEVEMENTS.filter((a) => {
       if (filter === 'all') return true;
       const g = s.achievements.includes(a.id);
       return filter === 'got' ? g : !g;
     });
-    grid.replaceChildren(
-      ...list.map((a) => {
-        const g = s.achievements.includes(a.id);
+    reconcile(
+      grid,
+      list,
+      (a) => a.id,
+      (a) => el('div', { class: 'ach' },
         // mock: a horizontal card — trophy/lock glyph in its own icon cell, text column beside.
-        const text = el('div', { class: 'ach-text' },
-          el('div', { class: 'ach-name' }, a.name),
-          el('div', { class: 'ach-desc' }, a.desc),
-        );
+        el('div', { class: 'ach-ico' }),
+        el('div', { class: 'ach-text' }, el('div', { class: 'ach-name' }, a.name), el('div', { class: 'ach-desc' }, a.desc)),
+      ),
+      (node, a) => {
+        const g = s.achievements.includes(a.id);
+        node.className = 'ach' + (g ? ' got' : '');
+        (node.querySelector('.ach-ico') as HTMLElement).textContent = g ? '🏆' : '🔒';
+        // rarity line — add/refresh/remove in place as the aggregate becomes available.
+        const text = node.querySelector('.ach-text') as HTMLElement;
+        let rar = text.querySelector('.ach-rar') as HTMLElement | null;
         const r = rarLine(a.id);
-        if (r) text.append(r);
-        return el('div', { class: 'ach' + (g ? ' got' : '') },
-          el('div', { class: 'ach-ico' }, g ? '🏆' : '🔒'),
-          text,
-        );
-      }),
+        if (r) {
+          if (!rar) { rar = el('div', { class: 'ach-rar' }); text.append(rar); }
+          rar.textContent = r.textContent;
+        } else if (rar) {
+          rar.remove();
+        }
+      },
     );
   };
-  const renderTabs = () => {
-    tabs.replaceChildren(
-      ...tabDefs.map(([f, lbl]) => {
-        const b = el('button', { class: 'btn-sm' + (f === filter ? ' active' : '') }, lbl);
-        b.addEventListener('click', () => {
-          filter = f;
-          renderTabs();
-          renderGrid();
-        });
-        return b;
-      }),
-    );
-  };
-  renderTabs();
+  // tabs built once; a click toggles .active in place (no rebuild) and re-filters the grid.
+  const tabButtons = tabDefs.map(([f, lbl]) => {
+    const b = el('button', { class: 'btn-sm', type: 'button' }, lbl);
+    b.addEventListener('click', () => { filter = f; syncTabs(); renderGrid(); });
+    return b;
+  });
+  const syncTabs = () => tabButtons.forEach((b, i) => b.classList.toggle('active', tabDefs[i][0] === filter));
+  tabs.append(...tabButtons);
+  syncTabs();
   renderGrid();
   out.push(tabs, grid);
   return out;
