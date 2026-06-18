@@ -10,6 +10,35 @@ import { BESTIARY, CODEX_CATEGORIES } from '../bestiary';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
+// The CIPHER teaching crib (mock): a fixed glyph→letter legend that spells TURING — the
+// thematic key behind the real per-seed cipher ("an ode to Alan Turing", see cipher.ts). The
+// live boss cipher is a deterministic per-seed permutation; this legend teaches HOW to read it.
+const CIPHER_CRIB: ReadonlyArray<readonly [string, string]> = [
+  ['T', '▯'], ['U', '◈'], ['R', '⬡'], ['I', '◇'], ['N', '⬢'], ['G', '✦'],
+];
+
+/** The "READ THE KEY · THE CIPHER" explainer + 6-glyph legend for the CODEX panel. */
+export function renderCipherLegend(): HTMLElement {
+  const box = el('div', { class: 'cipher-box' });
+  box.append(
+    el(
+      'div',
+      { class: 'cipher-explain' },
+      'Each boss locks its core behind a substitution cipher. A crib is pre-lit; ',
+      el('b', {}, 'derive the next glyph'),
+      " and dash its core to decrypt it — a wrong dash strikes the glyph from the legend. Break all six to read the Sovereign's last key.",
+    ),
+  );
+  const legend = el('div', { class: 'cipher-legend' });
+  for (const [letter, glyph] of CIPHER_CRIB) {
+    legend.append(
+      el('div', { class: 'cipher-pair' }, el('div', { class: 'gl' }, glyph), el('div', { class: 'ar' }, '↓'), el('div', { class: 'lt' }, letter)),
+    );
+  }
+  box.append(legend);
+  return box;
+}
+
 export function renderBestiary(kills: Record<string, number>): HTMLElement[] {
   const out: HTMLElement[] = [];
   for (const { cat, label } of CODEX_CATEGORIES) {

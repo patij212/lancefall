@@ -45,7 +45,7 @@ import {
 import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
-import { renderBestiary } from './panels/codex';
+import { renderBestiary, renderCipherLegend } from './panels/codex';
 import { renderUpgrades } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
 import { audioCredits } from './audioManifest';
@@ -2067,11 +2067,27 @@ export class UI {
   private buildCodex(): void {
     const h = el('h2', {}, 'CODEX');
     const body = el('div', { class: 'codex-body' });
+    // intro lead (mock): the creature portraits are still in the render pipeline; entries
+    // surface behaviour / role / lore today.
+    const lead = el(
+      'div',
+      { class: 'panel-lead' },
+      '⧗ ',
+      el('b', {}, 'Biomechanical creature art is in progress'),
+      ' — entries show behaviour, role & lore now; the living-machine portraits land with the render pass.',
+    );
     this.codexMemories = el('div', { class: 'codex-memories' });
     // the bestiary grids are rebuilt every open (renderBestiary) so the per-kind kill
     // counts + boss VANQUISHED states reflect the live save.
     this.codexBestiary = el('div');
-    body.append(this.codexMemories, this.codexBestiary);
+    // READ THE KEY · THE CIPHER (mock): the substitution-cipher explainer + TURING crib legend.
+    const cipher = el(
+      'div',
+      {},
+      el('div', { class: 'row-group-title' }, 'READ THE KEY · THE CIPHER'),
+      renderCipherLegend(),
+    );
+    body.append(lead, this.codexMemories, this.codexBestiary, cipher);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
     const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
@@ -2564,9 +2580,30 @@ export class UI {
           el('div', { class: 'podium-medal' }, medals[i]),
           el('div', { class: 'podium-name' }, e.name || '—'),
           el('div', { class: 'podium-score' }, e.score.toLocaleString()),
+          // wave/heat meta under each podium score (mock pod-w).
+          el('div', { class: 'podium-wave' }, `w${e.wave}${e.heat ? ` · H${e.heat}` : ''}`),
         ));
       }
       listWrap.append(podium);
+
+      // STANDING (mock): the player's own position on this board. The backend serves only the
+      // top entries (no global rank/percentile), so this is HONEST + board-relative — it shows
+      // when your handle appears in the visible board, otherwise a keep-climbing nudge. No
+      // fabricated "top X%". A non-ANON handle is required to disambiguate your row.
+      const myHandle = sanitizeHandle(s.handle);
+      const mine = myHandle ? entries.find((e) => e.name === myHandle) : undefined;
+      if (mine) {
+        listWrap.append(el('div', { class: 'leader-standing' },
+          el('div', { class: 'standing-rank' }, `#${mine.rank ?? entries.indexOf(mine) + 1}`),
+          el('div', { class: 'standing-txt' }, 'Your best — ', el('b', {}, mine.score.toLocaleString())),
+          el('div', { class: 'standing-pct' }, `of ${entries.length}+ shown`),
+        ));
+      } else if (myHandle) {
+        listWrap.append(el('div', { class: 'leader-standing unranked' },
+          el('div', { class: 'standing-txt' }, "You're not on the top board for this mode yet — post a higher run to claim a spot."),
+        ));
+      }
+
       entries.forEach((e, i) => {
         listWrap.append(el('div', { class: 'leader-row' },
           el('span', { class: 'leader-rank' }, `#${e.rank ?? i + 1}`),
