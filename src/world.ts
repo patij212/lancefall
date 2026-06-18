@@ -133,6 +133,7 @@ export class World {
   shards = 0;
   grazeCount = 0;
   killCount = 0;
+  killsByKind: Record<string, number> = {}; // per-EnemyKind kills this run → merged into save.killsByKind (CODEX). No rng.
   hitsTaken = 0; // §4 M3 — every would-be-fatal hit (armor / last-breath / revive / death) for no-hit scoring
   clearTime = 0; // §4 M3 — sim time at victory (cleartime scoring)
   maxDashChain = 0; // most kills in a single dash this run
@@ -239,6 +240,7 @@ export class World {
     this.shards = 0;
     this.grazeCount = 0;
     this.killCount = 0;
+    this.killsByKind = {};
     this.hitsTaken = 0;
     this.clearTime = 0;
     this.cipher = null;

@@ -110,6 +110,28 @@ describe('save migration', () => {
     expect(migrateSave({ version: 6, bestByMode: [1, 2] }, defaultSave()).bestByMode).toEqual({});
   });
 
+  // ── v7 cockpit stats — lifeWins (number) + killsByKind ({string:number}) ride the
+  //    generic per-field coerce loop (number-default-fill + coerceNumberRecord). ──
+  it('default-fills lifeWins to 0 and killsByKind to {} for an old save', () => {
+    const out = migrateSave({ version: 6, highScore: 1 }, defaultSave());
+    expect(out.lifeWins).toBe(0);
+    expect(out.killsByKind).toEqual({});
+  });
+
+  it('coerces a non-number lifeWins back to 0', () => {
+    expect(migrateSave({ version: 6, lifeWins: 'lots' }, defaultSave()).lifeWins).toBe(0);
+    expect(migrateSave({ version: 6, lifeWins: NaN }, defaultSave()).lifeWins).toBe(0);
+    expect(migrateSave({ version: 6, lifeWins: 12 }, defaultSave()).lifeWins).toBe(12);
+  });
+
+  it('keeps finite-number killsByKind entries and drops string/NaN/null values', () => {
+    const out = migrateSave(
+      { version: 6, killsByKind: { darter: 412, orbiter: 'many', warden: NaN, sovereign: 3, broken: null } },
+      defaultSave(),
+    );
+    expect(out.killsByKind).toEqual({ darter: 412, sovereign: 3 });
+  });
+
   it('round-trips a full default save unchanged', () => {
     const s = defaultSave();
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);

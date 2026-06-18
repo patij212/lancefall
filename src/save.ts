@@ -45,6 +45,8 @@ export interface SaveData {
   lifeKills: number;
   lifeBoss: number;
   lifeShards: number;
+  /** lifetime WON runs (win rate = lifeWins / totalRuns; the STATS hero stat) */
+  lifeWins: number;
   /** unlocked achievement ids */
   achievements: string[];
   /** permanent meta-upgrade levels (node id → level) */
@@ -78,6 +80,9 @@ export interface SaveData {
   /** best run SCORE per mode id (personal record; the STATS "best by mode" chart). A
    *  {string:number} record like meta/nemesis → the migrate loop coerces it value-by-value. */
   bestByMode: Record<string, number>;
+  /** lifetime kills per EnemyKind (the CODEX "N ✕" counts + boss "vanquished" read).
+   *  A {string:number} record like nemesis/bestByMode → coerced value-by-value on migrate. */
+  killsByKind: Record<string, number>;
   /** deepest descent (wave) reached — the hub run-state line */
   deepestWave: number;
   // ── v6 "THE FULL PASS" — reserved by the single 5→6 bump. All additive;
@@ -176,6 +181,7 @@ export function defaultSave(): SaveData {
     lifeKills: 0,
     lifeBoss: 0,
     lifeShards: 0,
+    lifeWins: 0,
     achievements: [],
     meta: {},
     dailyMutators: [],
@@ -191,6 +197,7 @@ export function defaultSave(): SaveData {
     ngPlusActive: false,
     nemesis: {},
     bestByMode: {},
+    killsByKind: {},
     deepestWave: 0,
     selectedMode: 'endless',
     dailyAttempts: 0,

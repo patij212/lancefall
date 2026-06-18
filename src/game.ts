@@ -1710,6 +1710,7 @@ export class Game {
     const y = e.y;
     const color = e.color;
     w.killCount++;
+    w.killsByKind[e.kind] = (w.killsByKind[e.kind] ?? 0) + 1; // CODEX per-kind tally (no rng)
     this.tryHint('kill');
     if (fromDash) {
       w.player.killsThisDash++;
@@ -1812,6 +1813,7 @@ export class Game {
     const x = e.x;
     const y = e.y;
     w.killCount++;
+    w.killsByKind[e.kind] = (w.killsByKind[e.kind] ?? 0) + 1; // CODEX per-kind tally (no rng)
     if (fromDash) {
       w.player.killsThisDash++;
       if (w.player.killsThisDash > w.maxDashChain) w.maxDashChain = w.player.killsThisDash;
@@ -2058,6 +2060,7 @@ export class Game {
     for (let i = 0; i < 8; i++) w.spawnGem(e.x, e.y, 5);
     w.spawnPowerup(e.x, e.y, rollPowerup(w.dropRng)); // bosses always drop a power-up (separate rng)
     w.bossKills++;
+    w.killsByKind[e.kind] = (w.killsByKind[e.kind] ?? 0) + 1; // CODEX per-boss "vanquished" tally (no rng)
     if (e.kind === 'hollow') cleanupHollowEchoes(w); // clear lingering echo clones
     if (e.kind === 'sovereign') {
       cleanupSovereignCores(w); // clear orbiting cores
@@ -2554,6 +2557,9 @@ export class Game {
       this.save.lifeKills += w.killCount;
       this.save.lifeBoss += w.bossKills;
       this.save.lifeShards += banked;
+      if (won) this.save.lifeWins++; // win rate = lifeWins / totalRuns (STATS hero stat)
+      // CODEX — fold this run's per-kind kills into the lifetime map (mirrors lifeKills)
+      for (const k in w.killsByKind) this.save.killsByKind[k] = (this.save.killsByKind[k] ?? 0) + w.killsByKind[k];
       // achievements (evaluate against updated lifetime totals)
       newAch = evalAchievements(this.save.achievements, {
         score: w.score,
