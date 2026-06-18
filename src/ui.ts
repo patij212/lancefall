@@ -2354,44 +2354,59 @@ export class UI {
   refreshSkins(): void {
     const s = this.saveRef;
     if (!this.skinsBody || !s) return;
-    this.skinsBody.replaceChildren();
-    for (const kind of PORTED_KINDS) {
-      const takes = skinsForKind(kind);
-      if (takes.length === 0) continue;
-      const selectedId = s.selectedSkins[kind] ?? takes[0].id;
-      this.skinsBody.append(el('div', { class: 'stats-label' }, UI.KIND_LABEL[kind] ?? kind.toUpperCase()));
-      const grid = el('div', { class: 'codex-grid skin-grid' });
-      const color = UI.SKIN_PREVIEW_COLOR[kind] ?? '#22d3ee';
-      for (const skin of takes) {
-        const unlocked = canUnlockSkin(skin, s.achievements);
-        const selected = selectedId === skin.id;
-        const card = el('button', {
-          class: 'codex-entry skin-card' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked'),
-          type: 'button',
-          'aria-pressed': String(selected),
-          'aria-label': `${UI.KIND_LABEL[kind] ?? kind} — ${skin.name} (${skin.rarity}${unlocked ? '' : ', locked'})`,
-        });
-        card.style.setProperty('--accent', color);
-        const canvas = el('canvas', { class: 'skin-preview' }) as HTMLCanvasElement;
-        this.paintSkinPreview(canvas, skin, color, unlocked);
-        card.append(
-          canvas,
-          el('div', { class: 'skin-name' }, skin.name),
-          el('div', { class: 'skin-rarity rarity-' + skin.rarity }, skin.rarity.toUpperCase()),
-          el('div', { class: 'skin-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : skinUnlockHint(skin)),
+    const kinds = PORTED_KINDS.filter((k) => skinsForKind(k).length > 0);
+    // outer reconcile: one [label + grid] wrap per kind, so kinds never rebuild. inner
+    // reconcile: skin cards keyed by id — a tap toggles EQUIPPED in place (preview canvas
+    // painted once). refreshSkins() is re-called by the click handler (selectSkin runs
+    // refreshTitle, not refreshSkins) — with reconcile that now morphs instead of reflashing.
+    reconcile(
+      this.skinsBody,
+      kinds,
+      (kind) => `k:${kind}`,
+      (kind) => el('div', { class: 'skin-kind' },
+        el('div', { class: 'stats-label' }, UI.KIND_LABEL[kind] ?? kind.toUpperCase()),
+        el('div', { class: 'codex-grid skin-grid' }),
+      ),
+      (wrap, kind) => {
+        const grid = wrap.querySelector('.skin-grid') as HTMLElement;
+        const takes = skinsForKind(kind);
+        const color = UI.SKIN_PREVIEW_COLOR[kind] ?? '#22d3ee';
+        reconcile(
+          grid,
+          takes,
+          (skin) => skin.id,
+          (skin) => {
+            const card = el('button', { class: 'codex-entry skin-card', type: 'button' });
+            card.style.setProperty('--accent', color);
+            const canvas = el('canvas', { class: 'skin-preview' }) as HTMLCanvasElement;
+            this.paintSkinPreview(canvas, skin, color, canUnlockSkin(skin, s.achievements));
+            card.append(
+              canvas,
+              el('div', { class: 'skin-name' }, skin.name),
+              el('div', { class: 'skin-rarity rarity-' + skin.rarity }, skin.rarity.toUpperCase()),
+              el('div', { class: 'skin-status' }),
+            );
+            card.addEventListener('click', () => {
+              if (card.dataset.unlocked === '1') this.cb.onSelectSkin(kind, skin.id);
+              else this.cb.onUnlockSkin(kind, skin.id);
+              this.refreshSkins(); // morph EQUIPPED onto the tapped card (selectSkin → refreshTitle only)
+            });
+            return card;
+          },
+          (card, skin) => {
+            const unlocked = canUnlockSkin(skin, s.achievements);
+            const selected = (s.selectedSkins[kind] ?? takes[0].id) === skin.id;
+            card.dataset.unlocked = unlocked ? '1' : '0';
+            card.classList.toggle('selected', selected);
+            card.classList.toggle('locked', !unlocked);
+            card.setAttribute('aria-pressed', String(selected));
+            card.setAttribute('aria-label', `${UI.KIND_LABEL[kind] ?? kind} — ${skin.name} (${skin.rarity}${unlocked ? '' : ', locked'})`);
+            card.title = unlocked ? `${skin.name} — ${skin.rarity}` : `${skin.name} — locked: ${skinUnlockHint(skin)}`;
+            (card.querySelector('.skin-status') as HTMLElement).textContent = unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : skinUnlockHint(skin);
+          },
         );
-        card.title = unlocked ? `${skin.name} — ${skin.rarity}` : `${skin.name} — locked: ${skinUnlockHint(skin)}`;
-        card.addEventListener('click', () => {
-          if (unlocked) this.cb.onSelectSkin(kind, skin.id);
-          else this.cb.onUnlockSkin(kind, skin.id);
-          // re-render the grid in place so EQUIPPED moves to the tapped card (or the
-          // locked toast already fired). saveRef is refreshed by refreshTitle first.
-          this.refreshSkins();
-        });
-        grid.append(card);
-      }
-      this.skinsBody.append(grid);
-    }
+      },
+    );
   }
 
   /** Paint a static preview frame of a skin into a small canvas. Builds a minimal

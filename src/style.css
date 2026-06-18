@@ -924,6 +924,9 @@ body {
 }
 
 /* ── BESTIARY SKINS picker (cosmetic enemy reskins) ── */
+/* per-kind reconcile wrapper — transparent to the .codex-body flex flow so the label/grid
+   keep the original 8px column gap (each kind groups one [label, grid] pair). */
+.skin-kind { display: contents; }
 .skin-grid { grid-template-columns: repeat(4, 1fr); }
 .skin-card {
   display: flex;
