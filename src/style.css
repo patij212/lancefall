@@ -3684,6 +3684,17 @@ body {
 .arch-uniform { margin-top: 10px; font-size: 10px; color: #7a93b2; font-style: italic; line-height: 1.5; }
 .arch-foot-k { font-family: 'Rajdhani', sans-serif; font-size: 8.5px; letter-spacing: 0.12em; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
 
+/* §v7 — shared card grid (mock .p-grid). */
+.p-grid { display: grid; gap: 12px; }
+.p-grid.cols2 { grid-template-columns: repeat(2, 1fr); }
+.p-grid.cols3 { grid-template-columns: repeat(3, 1fr); }
+/* COSMETICS — palette/trail preview tiles (mock pCosmetics). */
+.cos-prev { height: 40px; border-radius: 8px 8px 0 0; margin: -13px -14px 10px; position: relative; overflow: hidden; }
+.cos-prev .streak { position: absolute; top: 50%; left: 8%; right: 8%; height: 4px; border-radius: 3px; transform: translateY(-50%); }
+.cos-rar { font-family: 'Rajdhani', sans-serif; font-size: 8px; letter-spacing: 0.1em; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; }
+.cosm-body { padding: 8px 20px 18px; overflow-y: auto; max-height: 78vh; }
+.cosm-body .row-group-title:first-child { margin-top: 4px; }
+
 /* ── BOTTOM NAV ── */
 .ck-nav {
   display: flex;

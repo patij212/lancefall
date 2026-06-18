@@ -398,6 +398,7 @@ export class UI {
   private pauseStatsEl!: HTMLElement;
   private upgBalanceEl!: HTMLElement;
   private shipBalanceEl!: HTMLElement;
+  private cosmBalanceEl!: HTMLElement;
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
   private eventPanel!: HTMLElement;
@@ -1176,8 +1177,8 @@ export class UI {
     // cosmetics — the PALETTE + DASH-TRAIL pickers (this.themeRow / this.trailRow) now live in
     // a CUSTOMIZE modal (built by buildCosmetics); the loadout shows two at-a-glance summary
     // cards of the current selection, each (and the CUSTOMIZE button) opening that modal.
-    this.themeRow = el('div', { class: 'theme-row ck-cosm-grid' });
-    this.trailRow = el('div', { class: 'theme-row ck-cosm-grid' });
+    this.themeRow = el('div', { class: 'p-grid cols3 cosm-grid' });
+    this.trailRow = el('div', { class: 'p-grid cols3 cosm-grid' });
     this.cosmThemeDot = el('div', { class: 'cosm-dot' });
     this.cosmThemeName = el('div', { class: 'cosm-name' }, '—');
     this.cosmTrailDot = el('div', { class: 'cosm-dot' });
@@ -2216,8 +2217,10 @@ export class UI {
    *  (this.themeRow / this.trailRow) are populated live in refreshTitle and simply mounted
    *  here; BESTIARY SKINS hops to its own modal. Cosmetics never touch how a run plays. */
   private buildCosmetics(): void {
-    const h = el('h2', {}, 'CUSTOMIZE');
-    const eyebrow = el('div', { class: 'panel-eyebrow' }, 'LOADOUT · COSMETICS');
+    const cosmIcon = el('div', { class: 'panel-head-icon' });
+    cosmIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.4 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.6-.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    this.cosmBalanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
+    const head = el('div', { class: 'panel-head' }, cosmIcon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LOADOUT · COSMETICS'), el('h2', { class: 'panel-head-title' }, 'CUSTOMIZE')), this.cosmBalanceEl);
     const skinsBtn = el('button', { class: 'btn btn-ghost' }, 'BESTIARY SKINS →');
     skinsBtn.addEventListener('click', () => this.openSkins());
     // BESTIARY (codex) — a way into the enemy/lore gallery from cosmetics (requested; not in mock).
@@ -2226,11 +2229,9 @@ export class UI {
     const note = el('div', { class: 'cosm-note' }, 'Cosmetics are visual-only — they never change how a run plays.');
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.cosmeticsPanel));
-    const panel = el(
+    const body = el(
       'div',
-      { class: 'panel' },
-      eyebrow,
-      h,
+      { class: 'cosm-body' },
       el('div', { class: 'row-group-title' }, 'PALETTE'),
       this.themeRow,
       el('div', { class: 'row-group-title' }, 'DASH TRAIL'),
@@ -2238,6 +2239,7 @@ export class UI {
       note,
       el('div', { class: 'go-row' }, skinsBtn, bestiaryBtn, close),
     );
+    const panel = el('div', { class: 'panel panel-wide' }, head, body);
     this.cosmeticsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
@@ -2940,37 +2942,60 @@ export class UI {
       this.shipRow.append(card);
     }
 
+    // ── COSMETICS: palette + dash-trail preview tiles (mock pCosmetics .p-card) ──
+    this.cosmBalanceEl.textContent = `◆ ${save.shards.toLocaleString()} shards`;
+    const rgbOf = (hex: string) => { const h = hex.replace('#', ''); const v = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16); return `${(v >> 16) & 255},${(v >> 8) & 255},${v & 255}`; };
+    const rarLabel = (cost: number, star: boolean) => (star ? '★ Achievement' : cost === 0 ? 'Free' : cost <= 800 ? 'Common' : cost <= 1200 ? 'Rare' : 'Epic');
+    const cosState = (selected: boolean, unlocked: boolean, txtLocked: string) =>
+      el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state ' + (selected ? 'eq' : unlocked ? 'tap' : 'lock') }, selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : txtLocked));
+
     this.themeRow.replaceChildren();
     for (const theme of THEMES) {
       const unlocked = save.unlockedThemes.includes(theme.id);
       const selected = save.selectedTheme === theme.id;
-      const sw = el('button', { class: 'theme-sw' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
-      sw.style.setProperty('--a', theme.accent);
-      sw.style.setProperty('--b', theme.accent2);
-      sw.title = unlocked ? theme.name : `${theme.name} — ◆ ${theme.unlockShards}`;
-      sw.append(el('span', { class: 'theme-name' }, unlocked ? theme.name : `◆${theme.unlockShards}`));
-      sw.addEventListener('click', () => {
-        if (unlocked) this.cb.onSelectTheme(theme.id);
-        else this.cb.onUnlockTheme(theme.id);
-      });
-      this.themeRow.append(sw);
+      const card = el('button', { class: 'p-card cos-card' + (selected ? ' sel' : '') + (unlocked ? '' : ' locked'), type: 'button', title: theme.name });
+      card.style.setProperty('--ca', theme.accent);
+      card.style.setProperty('--ca-rgb', rgbOf(theme.accent));
+      const prev = el('div', { class: 'cos-prev' });
+      prev.style.background = `linear-gradient(120deg, ${theme.accent}, ${theme.accent2})`;
+      const dot = el('span', { class: 'p-dot' });
+      dot.style.background = `linear-gradient(135deg, ${theme.accent}, ${theme.accent2})`;
+      dot.style.color = theme.accent;
+      card.append(
+        prev,
+        el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, theme.name)),
+        el('div', { class: 'cos-rar' }, rarLabel(theme.unlockShards, false)),
+        cosState(selected, unlocked, `◆ ${theme.unlockShards.toLocaleString()}`),
+      );
+      card.addEventListener('click', () => { if (unlocked) this.cb.onSelectTheme(theme.id); else this.cb.onUnlockTheme(theme.id); });
+      this.themeRow.append(card);
     }
 
     this.trailRow.replaceChildren();
     for (const trail of TRAILS) {
       const unlocked = save.unlockedTrails.includes(trail.id);
       const selected = save.selectedTrail === trail.id;
-      const sw = el('button', { class: 'theme-sw' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked') });
-      sw.style.setProperty('--a', trail.combo ? '#22d3ee' : trail.base);
-      sw.style.setProperty('--b', trail.bright);
-      const req = trail.unlockAch ? '★' : `◆${trail.unlockShards}`;
-      sw.title = unlocked ? trail.name : `${trail.name} — ${trail.unlockAch ? 'beat the Sovereign' : `◆ ${trail.unlockShards}`}`;
-      sw.append(el('span', { class: 'theme-name' }, unlocked ? trail.name : req));
-      sw.addEventListener('click', () => {
-        if (unlocked) this.cb.onSelectTrail(trail.id);
-        else this.cb.onUnlockTrail(trail.id);
-      });
-      this.trailRow.append(sw);
+      const acc = trail.combo ? '#22d3ee' : trail.base;
+      const star = !!trail.unlockAch;
+      const card = el('button', { class: 'p-card cos-card' + (selected ? ' sel' : '') + (unlocked ? '' : ' locked'), type: 'button', title: trail.name });
+      card.style.setProperty('--ca', acc);
+      card.style.setProperty('--ca-rgb', rgbOf(acc));
+      const prev = el('div', { class: 'cos-prev' });
+      prev.style.background = `radial-gradient(ellipse at 50% 130%, rgba(${rgbOf(acc)}, 0.25), transparent 70%)`;
+      const streak = el('span', { class: 'streak' });
+      streak.style.background = `linear-gradient(90deg, transparent, ${acc} 60%, ${trail.bright})`;
+      prev.append(streak);
+      const dot = el('span', { class: 'p-dot' });
+      dot.style.background = `linear-gradient(90deg, ${acc}, ${trail.bright})`;
+      dot.style.color = acc;
+      card.append(
+        prev,
+        el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, trail.name)),
+        el('div', { class: 'cos-rar' }, rarLabel(trail.unlockShards, star)),
+        cosState(selected, unlocked, star ? '★ ACHIEVEMENT' : `◆ ${trail.unlockShards.toLocaleString()}`),
+      );
+      card.addEventListener('click', () => { if (unlocked) this.cb.onSelectTrail(trail.id); else this.cb.onUnlockTrail(trail.id); });
+      this.trailRow.append(card);
     }
 
     // loadout summary cards: the current palette + dash trail at a glance (open the CUSTOMIZE
