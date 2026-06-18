@@ -30,7 +30,6 @@ import { PORTED_KINDS, skinsForKind, canUnlockSkin, skinUnlockHint } from './ski
 import type { SkinDef } from './skins';
 import type { Enemy } from './types';
 import { GLOSSES, glossTriggers, type GlossId } from './gloss';
-import { META_NODES, nodeCost } from './meta';
 import {
   modeById,
   modeBrief,
@@ -46,6 +45,7 @@ import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
 import { renderBestiary } from './panels/codex';
+import { renderUpgrades } from './panels/upgrades';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
@@ -1672,51 +1672,21 @@ export class UI {
 
   private buildUpgrades(): void {
     const h = el('h2', {}, 'UPGRADES');
-    const bal = el('div', { class: 'upg-balance' }, '');
-    bal.id = 'upg-balance';
     const body = el('div', { class: 'upg-body' });
     body.id = 'upg-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.upgradesPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, bal, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
     this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   openUpgrades(): void {
     const s = this.saveRef;
     if (!s) return;
-    // summary header (mock-mainui) — shards + progress across the 12 nodes
-    const nodesOwned = META_NODES.filter((n) => (s.meta?.[n.id] ?? 0) > 0).length;
-    const totalLevels = META_NODES.reduce((sum, n) => sum + Math.min(s.meta?.[n.id] ?? 0, n.maxLevel), 0);
-    const maxLevels = META_NODES.reduce((sum, n) => sum + n.maxLevel, 0);
-    const sumCard = (k: string, v: string) => el('div', { class: 'upg-sum' }, el('div', { class: 'upg-sum-v' }, v), el('div', { class: 'upg-sum-k' }, k));
-    this.upgradesPanel.querySelector('#upg-balance')!.replaceChildren(
-      sumCard('Shards', `◆ ${s.shards.toLocaleString()}`),
-      sumCard('Nodes Owned', `${nodesOwned}/${META_NODES.length}`),
-      sumCard('Total Levels', `${totalLevels}/${maxLevels}`),
-    );
+    // the meta-tree (panels/upgrades) — rebuilt from the live save each open; buyMeta
+    // re-calls this method, so a purchase re-renders for free.
     const body = this.upgradesPanel.querySelector('#upg-body')!;
-    body.replaceChildren();
-    for (const node of META_NODES) {
-      const lvl = s.meta?.[node.id] ?? 0;
-      const maxed = lvl >= node.maxLevel;
-      const cost = nodeCost(node, lvl);
-      const affordable = !maxed && s.shards >= cost;
-      const pips = el('div', { class: 'upg-pips' });
-      for (let i = 0; i < node.maxLevel; i++) pips.append(el('span', { class: 'pip' + (i < lvl ? ' on' : '') }));
-      const btn = el('button', { class: 'btn btn-sm' + (affordable ? ' btn-primary' : '') }, maxed ? 'MAX' : `◆ ${cost}`);
-      if (maxed) btn.setAttribute('disabled', 'true');
-      btn.addEventListener('click', () => this.cb.onBuyMeta(node.id));
-      const card = el('div', { class: 'upg-node' + (maxed ? ' maxed' : '') },
-        el('div', { class: 'upg-info' },
-          el('div', { class: 'upg-name' }, `${node.name}  ${lvl}/${node.maxLevel}`),
-          el('div', { class: 'upg-desc' }, node.desc),
-          pips,
-        ),
-        btn,
-      );
-      body.append(card);
-    }
+    body.replaceChildren(renderUpgrades(s, (id) => this.cb.onBuyMeta(id)));
     this.openModal(this.upgradesPanel);
   }
 
