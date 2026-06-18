@@ -3080,10 +3080,12 @@ export class UI {
       if (multi) {
         const pill = el('div', { class: 'ck-mi-pill', role: 'group', 'aria-label': 'Variant' });
         for (const vid of variants) {
-          const seg = el('button', {
+          // a SPAN (role=button), not a <button> — a nested <button> inside the card's own
+          // <button> is invalid HTML and double-activates (the click bubbles into the card and
+          // re-selects its active variant). stopPropagation below keeps the card from re-selecting.
+          const seg = el('span', {
             class: 'ck-mi-pill-seg' + (vid === activeId ? ' on' : ''),
-            type: 'button',
-            tabindex: '-1',
+            role: 'button',
             'aria-pressed': String(vid === activeId),
           }, VARIANT_LABEL[vid] ?? modeById(vid).name);
           seg.addEventListener('click', (ev) => {
@@ -3106,7 +3108,11 @@ export class UI {
         card.append(el('div', { class: 'ck-mi-badge daily' }, 'DAILY'));
       }
       card.title = unlocked ? m.desc : `Locked — reach wave ${modeById(primary).unlockedAtWave} to unlock ${title}.`;
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (ev) => {
+        // a click on the variant pill is handled by the segment itself — skip the card's own
+        // select so it can't re-pick its (stale) active variant on the same click. The segment's
+        // onSelectMode re-renders synchronously, which makes stopPropagation alone unreliable.
+        if ((ev.target as HTMLElement).closest('.ck-mi-pill')) return;
         if (unlocked) this.cb.onSelectMode(activeId);
       });
       this.modeGrid.append(card);
