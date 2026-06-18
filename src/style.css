@@ -2896,6 +2896,19 @@ body {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
+/* §v7 — hangar staging: a faint perspective floor + two slow counter-rotating orbit rings. */
+.ck-hangar-floor {
+  position: absolute; left: 50%; bottom: 4px; width: 116%; height: 40%; transform: translateX(-50%);
+  pointer-events: none; opacity: 0.45;
+  background-image: linear-gradient(rgba(34, 211, 238, 0.13) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.1) 1px, transparent 1px);
+  background-size: 14px 9px;
+  -webkit-mask-image: radial-gradient(ellipse 58% 100% at 50% 100%, #000 0%, transparent 76%);
+  mask-image: radial-gradient(ellipse 58% 100% at 50% 100%, #000 0%, transparent 76%);
+}
+.ck-ship-orbit { position: absolute; inset: 0; margin: auto; border-radius: 50%; pointer-events: none; }
+.ck-ship-orbit.outer { width: 104px; height: 104px; border: 1px dashed rgba(34, 211, 238, 0.18); animation: ckOrbit 18s linear infinite; }
+.ck-ship-orbit.inner { width: 88px; height: 88px; border: 1px solid rgba(129, 140, 248, 0.14); animation: ckOrbit 12s linear infinite reverse; }
+@keyframes ckOrbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .ck-ship-name {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
@@ -2957,6 +2970,18 @@ body {
   font-weight: 700;
 }
 .ck-lo-right { display: flex; align-items: center; gap: 6px; }
+/* §v7 — BUILD quick-row (archetype) + ARMOR pip row. */
+.ck-lo-muted { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #6a8aa6; }
+.ck-lo-chevron { color: #5b86a8; font-size: 14px; line-height: 1; }
+.ck-lo-btn { width: 100%; background: none; cursor: pointer; font: inherit; text-align: left; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.035); }
+.ck-lo-btn:hover .ck-lo-muted,
+.ck-lo-btn:hover .ck-lo-chevron { color: #7dd3fc; }
+.ck-lo-armor { flex-direction: column; align-items: stretch; gap: 4px; }
+.ck-lo-armor-top { display: flex; align-items: center; justify-content: space-between; }
+.ck-armor-pips { display: flex; gap: 4px; }
+.ck-armor-pip { width: 9px; height: 9px; border-radius: 2px; background: rgba(129, 140, 248, 0.6); border: 1px solid rgba(129, 140, 248, 0.4); box-shadow: 0 0 4px rgba(129, 140, 248, 0.3); }
+.ck-armor-none { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; letter-spacing: 0.08em; color: #ef4444; }
+.ck-armor-cap { font-family: 'JetBrains Mono', monospace; font-size: 7.5px; letter-spacing: 0.1em; color: #5b86a8; text-align: right; text-transform: uppercase; }
 .ck-step {
   width: 28px;
   height: 28px;
@@ -3136,6 +3161,7 @@ body {
 .reduce-motion .screen-cockpit.boot-in .ck-coh-fill,
 .reduce-motion .ck-logo svg,
 .reduce-motion .ck-ship-art,
+.reduce-motion .ck-ship-orbit,
 .reduce-motion .btn-play.ck-descend,
 .reduce-motion .btn-play.ck-descend::before,
 .reduce-motion .btn-play.ck-descend.charging,
@@ -3173,6 +3199,7 @@ body {
   .screen-cockpit.boot-in .ck-coh-fill,
   .ck-logo svg,
   .ck-ship-art,
+  .ck-ship-orbit,
   .btn-play.ck-descend,
   .btn-play.ck-descend::before,
   .btn-play.ck-descend.charging,

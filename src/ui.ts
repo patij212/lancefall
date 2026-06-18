@@ -497,6 +497,8 @@ export class UI {
   private shipArtName!: HTMLElement;
   private shipArtDesc!: HTMLElement;
   private heatPipsWrap!: HTMLElement;
+  private armorPipsWrap!: HTMLElement; // §v7 loadout ARMOR pips (effective shields for the selected Heat)
+  private buildRowVal!: HTMLElement; // §v7 loadout BUILD row value (selected archetype name)
   private shipPicker!: HTMLElement; // wraps this.shipRow; toggled by CHANGE SHIP
   private cosmPicker!: HTMLElement; // wraps palette + trail rows; toggled by CUSTOMIZE
   private mainPanel!: HTMLElement; // .cockpit-main — carries the mode accent for re-skin
@@ -1013,7 +1015,12 @@ export class UI {
     const shipDisplay = el(
       'div',
       { class: 'ck-ship-display' },
-      el('div', { class: 'ck-ship-ring' }, this.shipArt),
+      el('div', { class: 'ck-ship-ring' },
+        el('div', { class: 'ck-hangar-floor', 'aria-hidden': 'true' }),
+        el('div', { class: 'ck-ship-orbit outer', 'aria-hidden': 'true' }),
+        el('div', { class: 'ck-ship-orbit inner', 'aria-hidden': 'true' }),
+        this.shipArt,
+      ),
       this.shipArtName,
       this.shipArtDesc,
       changeShip,
@@ -1030,6 +1037,26 @@ export class UI {
       { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Higher Heat = tougher run, bigger score multiplier.' },
       el('div', { class: 'ck-lo-key' }, 'HEAT'),
       el('div', { class: 'ck-lo-right' }, heatMinus, this.heatPipsWrap, heatPlus),
+    );
+
+    // BUILD — the selected archetype (draft bias); a quick-row into the archetype picker.
+    this.buildRowVal = el('div', { class: 'ck-lo-muted' }, 'Freestyle');
+    const buildRow = el(
+      'button',
+      { class: 'ck-lo-row ck-lo-btn', type: 'button', title: 'BUILD — pick an archetype that biases your perk draft. Tap to choose.' },
+      el('div', { class: 'ck-lo-key' }, 'BUILD'),
+      el('div', { class: 'ck-lo-right' }, this.buildRowVal, el('div', { class: 'ck-lo-chevron' }, '›')),
+    );
+    buildRow.addEventListener('click', () => this.openArchetype());
+
+    // ARMOR — effective shield pips for the selected Heat (each absorbs one lethal hit
+    // before LAST BREATH); higher Heat strips ARMOR, so this re-paints with HEAT.
+    this.armorPipsWrap = el('div', { class: 'ck-armor-pips' });
+    const armorRow = el(
+      'div',
+      { class: 'ck-lo-row ck-lo-armor', title: 'ARMOR — shield pips that each soak a lethal hit before LAST BREATH. Higher Heat strips ARMOR.' },
+      el('div', { class: 'ck-lo-armor-top' }, el('div', { class: 'ck-lo-key' }, 'ARMOR'), this.armorPipsWrap),
+      el('div', { class: 'ck-armor-cap' }, 'LETHAL HIT ABSORPTION'),
     );
 
     // ship picker (reuse this.shipRow), hidden until CHANGE SHIP.
@@ -1068,6 +1095,8 @@ export class UI {
       shipDisplay,
       this.shipPicker,
       heatRow,
+      buildRow,
+      armorRow,
       el('div', { class: 'ck-cosm-title' }, 'COSMETICS'),
       customize,
       this.cosmPicker,
@@ -1192,6 +1221,19 @@ export class UI {
     for (let i = 1; i <= MAX_HEAT; i++) {
       this.heatPipsWrap.append(el('div', { class: 'ck-heat-pip' + (i <= level ? ' on' : '') }));
     }
+  }
+
+  /** Paint the loadout ARMOR pips — effective shields for the selected Heat (baseShields
+   *  minus that level's shieldsLost; floor 0). Higher Heat strips ARMOR, so this re-paints
+   *  alongside the HEAT pips whenever refreshTitle runs. */
+  private paintArmorPips(save: SaveData): void {
+    const eff = Math.max(0, save.baseShields - (HEAT_LEVELS[save.selectedHeat]?.shieldsLost ?? 0));
+    this.armorPipsWrap.replaceChildren();
+    if (eff <= 0) {
+      this.armorPipsWrap.append(el('div', { class: 'ck-armor-none' }, 'STRIPPED'));
+      return;
+    }
+    for (let i = 0; i < eff; i++) this.armorPipsWrap.append(el('div', { class: 'ck-armor-pip' }));
   }
 
   private buildPause(): void {
@@ -2475,6 +2517,8 @@ export class UI {
     this.shipArtName.style.color = ship.accent;
     this.shipArtDesc.textContent = ship.desc;
     this.paintHeatPips(save.selectedHeat);
+    this.paintArmorPips(save);
+    this.buildRowVal.textContent = save.selectedArchetype === 'none' ? 'Freestyle' : archetypeById(save.selectedArchetype).name;
 
     // per-hull comparison stat bars (mock-mainui) — derive each ship's profile via the
     // canonical deriveStats (ship apply only, no perks/meta) so the bars match the real
