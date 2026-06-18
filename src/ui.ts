@@ -2192,28 +2192,55 @@ export class UI {
   private buildHeat(): void {
     const h = el('h2', {}, 'HEAT ASCENSION');
     const sub = el('div', { class: 'event-flavor' }, 'Crank the difficulty for a bigger score multiplier. Your call — every run.');
+    const curve = el('div', { class: 'heat-curve' });
+    curve.id = 'heat-curve';
     const grid = el('div', { class: 'heat-grid' });
     grid.id = 'heat-grid';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.heatPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, sub, grid, close);
+    const panel = el('div', { class: 'panel panel-wide' }, h, sub, curve, grid, close);
     this.heatPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   openHeat(): void {
     const s = this.saveRef;
     if (!s) return;
+    const maxMul = HEAT_LEVELS[HEAT_LEVELS.length - 1].scoreMul;
+    // score-multiplier CURVE (mock-mainui) — the difficulty → reward trade at a glance,
+    // the selected level lit. A static bar row; the cards below are the selectors.
+    const curve = this.heatPanel.querySelector('#heat-curve')!;
+    curve.replaceChildren();
+    for (const lvl of HEAT_LEVELS) {
+      const bar = el('div', { class: 'heat-cbar' + (s.selectedHeat === lvl.level ? ' selected' : '') });
+      bar.style.setProperty('--accent', lvl.accent);
+      bar.title = `H${lvl.level} ${lvl.name} — ×${lvl.scoreMul.toFixed(2)} score`;
+      const fill = el('div', { class: 'heat-cbar-fill' });
+      fill.style.height = `${Math.round((lvl.scoreMul / maxMul) * 100)}%`;
+      bar.append(fill, el('div', { class: 'heat-cbar-lbl' }, String(lvl.level)));
+      curve.append(bar);
+    }
     const grid = this.heatPanel.querySelector('#heat-grid')!;
     grid.replaceChildren();
     for (const lvl of HEAT_LEVELS) {
       const selected = s.selectedHeat === lvl.level;
       const card = el('button', { class: 'heat-card' + (selected ? ' selected' : '') });
       card.style.setProperty('--accent', lvl.accent);
+      // structured MODIFIER chips — the mechanical COST behind the prose desc (penalties
+      // in red). Only the active modifiers show, so H0 (COLD) stays clean.
+      const chips: HTMLElement[] = [];
+      const chip = (t: string, danger = false) => el('span', { class: 'heat-mod' + (danger ? ' danger' : '') }, t);
+      if (lvl.enemySpeedAdd > 0) chips.push(chip(`SPD +${Math.round(lvl.enemySpeedAdd * 100)}%`));
+      if (lvl.spawnMulMod < 1) chips.push(chip(`DENSE +${Math.round((1 - lvl.spawnMulMod) * 100)}%`));
+      if (lvl.bossIntervalMod < 1) chips.push(chip(`BOSS +${Math.round((1 - lvl.bossIntervalMod) * 100)}%`));
+      if (lvl.grazeRadiusMod < 1) chips.push(chip(`GRAZE −${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`));
+      if (lvl.revivesLost > 0) chips.push(chip(`−${lvl.revivesLost} REVIVE`, true));
+      if (lvl.shieldsLost > 0) chips.push(chip(`−${lvl.shieldsLost} ARMOR`, true));
       card.append(
         el('div', { class: 'heat-num' }, lvl.level === 0 ? 'OFF' : `H${lvl.level}`),
         el('div', { class: 'heat-name' }, lvl.name),
         el('div', { class: 'heat-desc' }, lvl.desc),
-        el('div', { class: 'heat-mul' }, `×${lvl.scoreMul.toFixed(2)} score`),
+        ...(chips.length ? [el('div', { class: 'heat-mods' }, ...chips)] : []),
+        el('div', { class: 'heat-mul' }, `×${lvl.scoreMul.toFixed(2)} score · ×${lvl.shardMul.toFixed(2)} shards`),
       );
       card.addEventListener('click', () => {
         this.cb.onHeatChange(lvl.level);
