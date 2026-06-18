@@ -8,7 +8,7 @@ function mkBoss(over: Partial<Enemy> = {}): Enemy {
     active: true, kind: 'sovereign', x: 0, y: 0, vx: 0, vy: 0, hp: 30, maxHp: 30, radius: 50,
     color: '#fde047', baseScore: 0, timer: 0, phase: 0, telegraph: 0, angle: 0, spawnTime: 0,
     hitFlash: 0, lastDashId: -1, shielded: false, shieldAngle: 0, elite: false, speedMul: 1,
-    bulletMul: 1, isBoss: true, bossWave: 6, scale: 1, fireTimer: 0, subPhase: 0, ...over,
+    bulletMul: 1, isBoss: true, bossWave: 6, scale: 1, fireTimer: 0, subPhase: 0, fireCount: 0, ...over,
   };
 }
 

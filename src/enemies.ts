@@ -185,7 +185,14 @@ function bloomer(e: Enemy, world: World, dt: number): void {
     const n = BLOOMER.ringCount;
     const off = world.rng.range(0, Math.PI * 2);
     const sp = BLOOMER.bulletSpeed * e.bulletMul;
+    // VERB (§3.3): every brokenEvery-th bloom OMITS a contiguous arc of brokenArc bullets,
+    // leaving an obvious safe WEDGE to stand in — a breather in the turret's ring spam.
+    // subPhase counts blooms → deterministic; the wedge START rides it (no extra rng draw).
+    e.subPhase++;
+    const broken = e.subPhase % BLOOMER.brokenEvery === 0;
+    const wedge = broken ? e.subPhase % n : -1; // first omitted slot
     for (let i = 0; i < n; i++) {
+      if (broken && (i - wedge + n) % n < BLOOMER.brokenArc) continue; // the safe wedge
       const a = off + (i / n) * Math.PI * 2;
       world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#ffd23b', false);
     }
@@ -232,14 +239,14 @@ export interface WallShot {
  *  one clear safe lane (gap) centred at perpendicular offset `gapOffset`. Pure
  *  geometry — every shot flies along `angle` at `speed`; the gap is simply the
  *  band of omitted positions. Shared by the sim (spawn) and the test. */
-export function heraldWall(ex: number, ey: number, angle: number, gapOffset: number, speed: number): WallShot[] {
+export function heraldWall(ex: number, ey: number, angle: number, gapOffset: number, speed: number, gapHalf: number = HERALD.gapHalf): WallShot[] {
   const px = Math.cos(angle + Math.PI / 2);
   const py = Math.sin(angle + Math.PI / 2);
   const vx = Math.cos(angle) * speed;
   const vy = Math.sin(angle) * speed;
   const out: WallShot[] = [];
   for (let off = -HERALD.wallHalf; off <= HERALD.wallHalf + 1e-6; off += HERALD.spacing) {
-    if (Math.abs(off - gapOffset) < HERALD.gapHalf) continue; // the safe lane
+    if (Math.abs(off - gapOffset) < gapHalf) continue; // the safe lane (wider on a wide-gate cycle)
     out.push({ x: ex + px * off, y: ey + py * off, vx, vy });
   }
   return out;
@@ -265,11 +272,15 @@ function herald(e: Enemy, world: World, dt: number): void {
       e.phase = 1;
       e.timer = HERALD.lockTime;
       e.angle = Math.atan2(dy, dx); // LOCK the aim now — frozen during the telegraph
-      // seeded gap offset, kept fully inside the wall. This draw is cadence-timed
-      // (the timer is director-seeded + ticks on sim dt), exactly like the bloomer
-      // ring offset, so a seeded Daily stays bit-identical. NEVER draw rng on a
-      // player-kill-timed path — that would desync the stream.
-      const maxOff = HERALD.wallHalf - HERALD.gapHalf;
+      // VERB (§3.3): every wideGateEvery-th wall opens a DOUBLED safe lane — a telegraphed
+      // reprieve. fireCount drives the cadence (subPhase holds the gap OFFSET, set below).
+      e.fireCount++;
+      const gapHalf = e.fireCount % HERALD.wideGateEvery === 0 ? HERALD.gapHalf * HERALD.wideGateMul : HERALD.gapHalf;
+      // seeded gap offset, kept fully inside the (possibly wider) gap. Cadence-timed (the
+      // timer is director-seeded + ticks on sim dt), like the bloomer ring offset, so a
+      // seeded Daily stays valid — the rng.range draw COUNT is unchanged, only its range
+      // narrows on a wide cycle. NEVER draw rng on a player-kill-timed path (would desync).
+      const maxOff = Math.max(0, HERALD.wallHalf - gapHalf);
       e.subPhase = world.rng.range(-maxOff, maxOff);
     }
   } else {
@@ -280,7 +291,9 @@ function herald(e: Enemy, world: World, dt: number): void {
     e.telegraph = clamp(1 - e.timer / HERALD.lockTime, 0, 1);
     if (e.timer <= 0) {
       const base = HERALD.bulletSpeed * e.bulletMul;
-      const shots = heraldWall(e.x, e.y, e.angle, e.subPhase, base);
+      // the same wide-gate cadence as the lock above (fireCount is stable within a cycle)
+      const gapHalf = e.fireCount % HERALD.wideGateEvery === 0 ? HERALD.gapHalf * HERALD.wideGateMul : HERALD.gapHalf;
+      const shots = heraldWall(e.x, e.y, e.angle, e.subPhase, base, gapHalf);
       for (const s of shots) world.spawnBullet(s.x, s.y, s.vx, s.vy, 6, '#bef264', false, 'dart');
       e.phase = 0;
       e.timer = HERALD.repositionTime;
@@ -339,9 +352,14 @@ function seeker(e: Enemy, world: World, dt: number): void {
     e.timer -= dt;
     e.telegraph = clamp(1 - e.timer / SEEKER_TUNE.lockTime, 0, 1);
     if (e.timer <= 0) {
-      const bs = SEEKER_TUNE.bulletSpeed * e.bulletMul;
-      const b = world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#f5d0fe', false);
-      if (b) b.homing = SEEKER_TUNE.homeTime; // the bolt curves toward you, then flies straight
+      // VERB (§3.3): every feintEvery-th shot is a FEINT — a fast STRAIGHT bolt, no homing.
+      // A fake-out that hands back a breather (no chaser this cycle). subPhase counts shots →
+      // deterministic, zero world.rng (Daily-safe).
+      e.subPhase++;
+      const feint = e.subPhase % SEEKER_TUNE.feintEvery === 0;
+      const bs = SEEKER_TUNE.bulletSpeed * e.bulletMul * (feint ? SEEKER_TUNE.feintSpeedMul : 1);
+      const b = world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, feint ? '#fbcfe8' : '#f5d0fe', false);
+      if (b && !feint) b.homing = SEEKER_TUNE.homeTime; // the HOMER curves toward you; the feint flies straight
       e.phase = 0;
       e.timer = SEEKER_TUNE.fireCadence;
       e.telegraph = 0;

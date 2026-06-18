@@ -263,6 +263,10 @@ export const BLOOMER = {
   windup: 0.4,
   bulletSpeed: 180,
   driftSpeed: 30,
+  // VERB (§3.3): every brokenEvery-th bloom OMITS a contiguous arc of brokenArc bullets,
+  // leaving an obvious safe WEDGE to stand in — a readable breather in the ring spam.
+  brokenEvery: 3,
+  brokenArc: 3, // bullets dropped (of ringCount) → a ~quarter-ring opening
 };
 
 // Lancer — a long-range sniper. Its distinct VERB: a DOUBLE-TAP — after the first
@@ -336,6 +340,12 @@ export const HERALD = {
   // when multiple walls overlap. Determinism-safe: the gap-offset rng.range draw count is
   // unchanged (only its range narrows by wallHalf-gapHalf), so a seeded Daily stays valid.
   bulletSpeed: 150,
+  // VERB (§3.3): every wideGateEvery-th wall opens a DOUBLED safe lane — a telegraphed
+  // reprieve (a free, obvious gate to breathe + reposition). The cadence rides e.fireCount
+  // (subPhase already holds the gap OFFSET); the rng.range draw COUNT is unchanged, only its
+  // range narrows on a wide cycle (the same determinism note as gapHalf above) — Daily valid.
+  wideGateEvery: 3,
+  wideGateMul: 2, // gap half-width ×2 on a wide cycle
 } as const;
 
 // Seeker — the roster's first TRACKER. A mid-range zoner that fires a single SLOW
@@ -352,6 +362,11 @@ export const SEEKER_TUNE = {
   bulletSpeed: 150, // slow → dash-through-able / jukeable
   turnRate: 1.7, // rad/s — gentle curve; can't out-turn a committed dodge
   homeTime: 1.8, // s the bolt tracks, then it flies straight (escapable)
+  // VERB (§3.3): every feintEvery-th shot is a FEINT — a fast STRAIGHT bolt with NO homing.
+  // It punishes a reflexive break-dash (you braced for a chaser that won't come) and, by
+  // dropping the homing that cycle, hands the player a beat to breathe. subPhase-counted → no rng.
+  feintEvery: 3,
+  feintSpeedMul: 1.3, // the feint snaps in faster than the slow homer (a distinct read)
 } as const;
 
 // Shade — a teleporting ambusher. Chases, then blinks to a fresh edge angle.

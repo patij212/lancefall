@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
-import { updateEnemy, applyEdgePull } from './enemies';
-import { ORBITER, LANCER, ZONER, DRIFTER_TUNE } from './tune';
+import { updateEnemy, applyEdgePull, heraldWall } from './enemies';
+import { ORBITER, LANCER, ZONER, DRIFTER_TUNE, SEEKER_TUNE, BLOOMER, HERALD } from './tune';
 import type { Enemy } from './types';
 
 // Two overlapping ZONER enemies gain a DISTINCT mechanical verb beyond "fire a bolt":
@@ -23,9 +23,9 @@ function freshWorld(seed = 1): World {
 }
 
 /** Drive one enemy for `seconds`, collecting a snapshot of every NEW bullet. */
-function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: number; vy: number; color: string; life: number }[] {
+function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: number; vy: number; color: string; life: number; homing: number }[] {
   const seen = new Set<number>();
-  const shots: { x: number; y: number; vx: number; vy: number; color: string; life: number }[] = [];
+  const shots: { x: number; y: number; vx: number; vy: number; color: string; life: number; homing: number }[] = [];
   const steps = Math.round(seconds / DT);
   for (let i = 0; i < steps; i++) {
     updateEnemy(e, w, DT);
@@ -34,11 +34,29 @@ function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: n
       const idx = w.bullets.items.indexOf(b);
       if (!seen.has(idx)) {
         seen.add(idx);
-        shots.push({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, color: b.color, life: b.life });
+        shots.push({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, color: b.color, life: b.life, homing: b.homing });
       }
     });
   }
   return shots;
+}
+
+/** Drive one enemy and record the size of each fire VOLLEY (count of bullets that went
+ *  active in the same frame) — for verbs whose bullet COUNT varies per shot. */
+function wallVolleys(w: World, e: Enemy, seconds: number): number[] {
+  const seen = new Set<number>();
+  const volleys: number[] = [];
+  const steps = Math.round(seconds / DT);
+  for (let i = 0; i < steps; i++) {
+    let fresh = 0;
+    updateEnemy(e, w, DT);
+    w.bullets.forEachActive((b) => {
+      const idx = w.bullets.items.indexOf(b);
+      if (!seen.has(idx)) { seen.add(idx); fresh++; }
+    });
+    if (fresh > 0) volleys.push(fresh);
+  }
+  return volleys;
 }
 
 describe('ORBITER verb — drops a parked mine every Nth shot', () => {
@@ -160,12 +178,51 @@ describe('DRIFTER verb — alternates the arc fan with a wide scatter spray', ()
   });
 });
 
+describe('SEEKER feint — every Nth shot is a straight non-homing fake-out (a breather)', () => {
+  it('most shots home; every feintEvery-th is a faster STRAIGHT bolt with no homing', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('seeker', 900, 360, 1, 1, false, false, 0)!;
+    const per = SEEKER_TUNE.fireCadence + SEEKER_TUNE.lockTime;
+    const shots = run(w, e, SEEKER_TUNE.repositionTime + per * (SEEKER_TUNE.feintEvery + 1) + 0.5);
+    // the test loop drives only updateEnemy (not the bullet homing pass), so a bolt is
+    // captured at its spawn velocity: the HOMER carries homing>0, the FEINT carries 0.
+    const homers = shots.filter((s) => s.homing > 0);
+    const feints = shots.filter((s) => s.homing === 0);
+    expect(homers.length).toBeGreaterThanOrEqual(1); // still fires the slow homer
+    expect(feints.length).toBeGreaterThanOrEqual(1); // and at least one straight feint
+    // the feint snaps in faster than the homer (a distinct read), and never homes
+    expect(Math.hypot(feints[0].vx, feints[0].vy)).toBeGreaterThan(Math.hypot(homers[0].vx, homers[0].vy));
+  });
+});
+
+describe('HERALD wide gate — every Nth wall opens a doubled safe lane (a breather)', () => {
+  it('a wide-gate wall fires fewer bullets / a bigger opening than a normal wall', () => {
+    // same centred gap, only the lane width differs → the wide gate omits more bullets
+    const normal = heraldWall(0, 0, 0, 0, HERALD.bulletSpeed, HERALD.gapHalf);
+    const wide = heraldWall(0, 0, 0, 0, HERALD.bulletSpeed, HERALD.gapHalf * HERALD.wideGateMul);
+    expect(normal.length).toBeGreaterThan(0);
+    expect(wide.length).toBeLessThan(normal.length); // a wider safe lane = fewer wall bullets
+  });
+});
+
+describe('BLOOMER broken ring — every Nth bloom drops an arc, leaving a safe wedge', () => {
+  it('every brokenEvery-th bloom fires brokenArc fewer bullets than a full ring', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('bloomer', 640, 360, 1, 1, false, false, 0)!;
+    const volleys = wallVolleys(w, e, BLOOMER.ringCadence * (BLOOMER.brokenEvery + 1) + 0.6);
+    expect(volleys.length).toBeGreaterThanOrEqual(BLOOMER.brokenEvery); // bloomed several times
+    expect(volleys).toContain(BLOOMER.ringCount); // a full ring
+    expect(volleys).toContain(BLOOMER.ringCount - BLOOMER.brokenArc); // a broken ring (the wedge)
+  });
+});
+
 describe('zoner verbs are world.rng-free (Daily stays bit-identical)', () => {
-  it('driving an orbiter + lancer + drifter for seconds consumes ZERO world.rng draws', () => {
+  it('driving an orbiter + lancer + drifter + seeker for seconds consumes ZERO world.rng draws', () => {
     const w = freshWorld(7);
     const orb = w.spawnEnemy('orbiter', 800, 360, 1, 1, false, false, 0)!;
     const lan = w.spawnEnemy('lancer', 900, 360, 1, 1, false, false, 0)!;
     const dri = w.spawnEnemy('drifter', 700, 360, 1, 1, false, false, 0)!;
+    const see = w.spawnEnemy('seeker', 950, 360, 1, 1, false, false, 0)!;
     // a clean twin with the same seed, no enemy ticks, is the reference rng state
     const ref = createRng(7);
     // advance both worlds' rng identically up to here? No — instead: capture the
@@ -178,6 +235,7 @@ describe('zoner verbs are world.rng-free (Daily stays bit-identical)', () => {
       updateEnemy(orb, w, DT);
       updateEnemy(lan, w, DT);
       updateEnemy(dri, w, DT); // includes the spray verb — bullet count varies, rng must not
+      updateEnemy(see, w, DT); // includes the feint verb — counter-based, zero rng
     }
     // the very next world.rng draw must match the twin's next draw — i.e. the enemy
     // verbs advanced world.rng ZERO times over 10s of fire

@@ -98,6 +98,7 @@ export interface Enemy {
   scale: number; // render pop scale (juice tween target)
   fireTimer: number; // boss: time to next shot
   subPhase: number; // generic sub-state: boss fan-counter / brooder hatch-count / herald gap-offset px
+  fireCount: number; // generic per-enemy fire/cycle counter for VERB cadence (HERALD wide-gate; subPhase is taken there)
   cipherExposed?: number; // generic ring-cipher boss: >0 = punish window open (THE LONGEST DAY)
   facing?: number; // WARDEN: bounded-turn heading toward the player; its REAR arc is the weak-point
 }

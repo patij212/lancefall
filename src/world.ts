@@ -49,6 +49,7 @@ function makeEnemy(): Enemy {
     scale: 1,
     fireTimer: 0,
     subPhase: 0,
+    fireCount: 0,
     cipherExposed: 0,
     facing: 0,
   };
@@ -331,6 +332,7 @@ export class World {
     e.telegraph = 0;
     e.subPhase = 0; // CRITICAL: the pool recycles slots — a stale subPhase (from a
     // prior brooder/boss) would otherwise make a fresh brooder hatch nothing
+    e.fireCount = 0; // verb-cadence counter — reset so a recycled slot starts its cadence fresh
     e.angle = angle ?? this.rng.range(0, Math.PI * 2);
     e.spawnTime = 0;
     e.hitFlash = 0;
