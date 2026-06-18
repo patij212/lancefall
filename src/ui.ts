@@ -1560,10 +1560,28 @@ export class UI {
     // ── the perf/fidelity dials the PRESETS drive (kept as refs so a preset re-syncs them) ──
     const shakeS = slider('Screen shake', 0, 1.5, 0.05, s.shake, (v) => this.patch({ shake: v }));
     const chromaS = slider('Chromatic aberration', 0, 1, 0.05, s.chromAberration, (v) => this.patch({ chromAberration: v }));
-    const densityWrap = el('div', { class: 'setting' }, el('span', {}, 'Particle density'));
+    // live preview chips (mock flourish): the chromatic split widens with the value; the
+    // shake box jitters at the chosen amplitude. Both update on drag + on a preset.
+    const chromaPrev = el('span', { class: 'chroma-prev' }, 'LANCE');
+    const setChromaPrev = (v: number) => {
+      const o = (v * 1.6).toFixed(2);
+      chromaPrev.style.textShadow = `-${o}px 0 #ff004c, ${o}px 0 #00e1ff`;
+    };
+    setChromaPrev(s.chromAberration);
+    chromaS.input.addEventListener('input', () => setChromaPrev(parseFloat(chromaS.input.value)));
+    chromaS.row.insertBefore(chromaPrev, chromaS.input);
+    const shakePrev = el('span', { class: 'shake-prev' });
+    const setShakePrev = (v: number) => shakePrev.style.setProperty('--amp', `${(v * 1.8).toFixed(2)}px`);
+    setShakePrev(s.shake);
+    shakeS.input.addEventListener('input', () => setShakePrev(parseFloat(shakeS.input.value)));
+    shakeS.row.insertBefore(shakePrev, shakeS.input);
+    const partPrev = el('span', { class: 'part-prev' });
+    for (let i = 0; i < 4; i++) partPrev.append(el('i'));
+    const densityWrap = el('div', { class: 'setting' }, el('span', {}, 'Particle density'), partPrev);
     const densityBtns: Partial<Record<'low' | 'med' | 'high', HTMLElement>> = {};
     const setDensity = (d: 'low' | 'med' | 'high') => {
       for (const k of ['low', 'med', 'high'] as const) densityBtns[k]?.classList.toggle('active', k === d);
+      partPrev.dataset.d = d; // CSS lights 1 / 2 / 4 dots
     };
     for (const d of ['low', 'med', 'high'] as const) {
       const b = el('button', { class: 'btn btn-ghost btn-sm' }, d.toUpperCase());
@@ -1586,6 +1604,8 @@ export class UI {
         this.patch(p);
         chromaS.input.value = String(p.chromAberration);
         shakeS.input.value = String(p.shake);
+        setChromaPrev(p.chromAberration);
+        setShakePrev(p.shake);
         setDensity(p.particleDensity);
         presetRow.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
         b.classList.add('active');

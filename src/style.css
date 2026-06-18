@@ -1414,6 +1414,21 @@ body {
   height: 18px;
   accent-color: var(--cyan);
 }
+/* §v7 — settings live-preview chips: chromatic split widens with the value, the shake
+   box jitters at the chosen amplitude, particle dots fill by density. */
+.chroma-prev { font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; color: #e8eefc; }
+.shake-prev { --amp: 0px; width: 15px; height: 15px; border-radius: 4px; background: linear-gradient(135deg, #22d3ee, #818cf8); animation: ckShakePrev 0.16s steps(2) infinite; }
+@keyframes ckShakePrev {
+  0% { transform: translate(calc(var(--amp) * -1), var(--amp)); }
+  50% { transform: translate(var(--amp), calc(var(--amp) * -1)); }
+  100% { transform: translate(calc(var(--amp) * -1), 0); }
+}
+.part-prev { display: inline-flex; gap: 3px; align-items: center; }
+.part-prev i { width: 5px; height: 5px; border-radius: 50%; background: var(--cyan); opacity: 0.2; }
+.part-prev[data-d='low'] i:nth-child(-n + 1),
+.part-prev[data-d='med'] i:nth-child(-n + 2),
+.part-prev[data-d='high'] i { opacity: 1; }
+.reduce-motion .shake-prev { animation: none; }
 .setting.setting-section {
   margin-top: 10px;
   padding-top: 8px;
