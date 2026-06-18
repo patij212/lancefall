@@ -8,6 +8,7 @@ import {
   choiceCoherence,
   beatEnvelope,
   parseAccentRgb,
+  audioBands,
 } from './cockpitCipher';
 
 // Pure logic behind the cockpit CIPHER STORM overlay (Turing decode). The canvas/DOM
@@ -145,5 +146,41 @@ describe('parseAccentRgb — per-mode accent tint', () => {
     expect(parseAccentRgb('')).toEqual([34, 211, 238]);
     expect(parseAccentRgb('not-a-color')).toEqual([34, 211, 238]);
     expect(parseAccentRgb('1,2')).toEqual([34, 211, 238]);
+  });
+});
+
+describe('audioBands — split the FFT into bass/mid/treble/level (music reactivity)', () => {
+  it('returns zeros for empty input', () => {
+    expect(audioBands(new Uint8Array(0))).toEqual({ bass: 0, mid: 0, treble: 0, level: 0 });
+  });
+  it('normalizes a full-scale spectrum to ~1 across the board', () => {
+    const b = audioBands(new Uint8Array(128).fill(255));
+    expect(b.bass).toBeCloseTo(1, 5);
+    expect(b.mid).toBeCloseTo(1, 5);
+    expect(b.treble).toBeCloseTo(1, 5);
+    expect(b.level).toBeCloseTo(1, 5);
+  });
+  it('isolates bass when only the low bins are hot', () => {
+    const a = new Uint8Array(128);
+    for (let i = 0; i < 10; i++) a[i] = 255;
+    const b = audioBands(a);
+    expect(b.bass).toBeGreaterThan(0.5);
+    expect(b.treble).toBeLessThan(0.05);
+  });
+  it('isolates treble when only the high bins are hot', () => {
+    const a = new Uint8Array(128);
+    for (let i = 64; i < 128; i++) a[i] = 255;
+    const b = audioBands(a);
+    expect(b.treble).toBeGreaterThan(0.5);
+    expect(b.bass).toBe(0);
+  });
+  it('keeps every band within [0, 1]', () => {
+    const a = new Uint8Array(128);
+    for (let i = 0; i < 128; i++) a[i] = (i * 2) % 256;
+    const b = audioBands(a);
+    for (const v of [b.bass, b.mid, b.treble, b.level]) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
   });
 });

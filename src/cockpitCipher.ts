@@ -58,6 +58,24 @@ export function parseAccentRgb(value: string): [number, number, number] {
   return [parts[0], parts[1], parts[2]];
 }
 
+/** Split an FFT magnitude array (0..255 per bin) into normalized bass/mid/treble/level (0..1) —
+ *  the drivers behind the music reactivity. Pure so it's testable without an AudioContext. */
+export function audioBands(
+  freq: Uint8Array | number[],
+): { bass: number; mid: number; treble: number; level: number } {
+  const n = freq.length;
+  if (!n) return { bass: 0, mid: 0, treble: 0, level: 0 };
+  const avg = (lo: number, hi: number): number => {
+    const a = Math.max(0, Math.floor(lo * n));
+    const b = Math.min(n, Math.ceil(hi * n));
+    if (b <= a) return 0;
+    let s = 0;
+    for (let i = a; i < b; i++) s += freq[i];
+    return s / (b - a) / 255;
+  };
+  return { bass: avg(0, 0.08), mid: avg(0.08, 0.4), treble: avg(0.4, 1), level: avg(0, 1) };
+}
+
 // ── THE CIPHER STORM overlay (Turing decode) ─────────────────────────────────
 // A self-contained animated backdrop layer for the COCKPIT title screen: falling cipher
 // glyphs, a faint machine lattice + Enigma-rotor core, and a decode scanline where noise
@@ -92,6 +110,9 @@ const BEAT_GLOW = 0.12; // gentle beat "breath" brightness (kept low — flashin
 const CENTER_FALLOFF = 0.82; // fade the cipher away from the central content column (0 = even)
 const PARALLAX = 16; // px of pointer parallax on the rotor; lattice uses half
 const CYAN_RGB: [number, number, number] = [34, 211, 238];
+const BASS_GLOW = 0.6; // how hard the kick/bass pumps the whole field's brightness
+const SKYLINE_H = 0.17; // neon city band height (fraction of viewport, anchored to the bottom)
+const NEON = ['#22d3ee', '#818cf8', '#fbbf24']; // window palette (cyan / indigo / amber)
 
 interface Column {
   head: number; // current head row (fractional)
@@ -108,6 +129,64 @@ interface Node2 {
   ph: number;
   sp: number;
 }
+
+interface Win {
+  x: number; // px within building
+  y: number; // px within building
+  w: number;
+  h: number;
+  ph: number; // flicker phase
+  base: number; // base brightness
+  col: string;
+}
+interface Building {
+  x: number; // px
+  w: number;
+  h: number; // px (height above the bottom)
+  windows: Win[];
+}
+
+// ── Music reactivity: a read-only master tap ─────────────────────────────────
+// We patch AudioNode.connect ONCE so whatever the engine routes to ctx.destination is ALSO fed
+// into our AnalyserNode (the same non-destructive trick audio.ts's getAnalyser uses, reached
+// without importing the shared audio/game modules). Installed at module load — before main.ts
+// constructs the Game — so it's in place when the engine builds its graph.
+let sharedAnalyser: AnalyserNode | null = null;
+let freqData: Uint8Array<ArrayBuffer> | null = null;
+let tapInstalled = false;
+
+function installAudioTap(): void {
+  if (tapInstalled || typeof AudioNode === 'undefined' || typeof AudioDestinationNode === 'undefined') return;
+  tapInstalled = true;
+  const proto = AudioNode.prototype as unknown as { connect: (...args: unknown[]) => unknown };
+  const orig = proto.connect;
+  proto.connect = function (this: AudioNode, ...args: unknown[]): unknown {
+    const ret = orig.apply(this, args);
+    try {
+      if (args[0] instanceof AudioDestinationNode) {
+        if (!sharedAnalyser) {
+          sharedAnalyser = this.context.createAnalyser();
+          sharedAnalyser.fftSize = 256;
+          sharedAnalyser.smoothingTimeConstant = 0.55;
+          freqData = new Uint8Array(sharedAnalyser.frequencyBinCount);
+        }
+        orig.call(this, sharedAnalyser); // tap (output dropped; analyser still reads its input)
+      }
+    } catch {
+      /* a tap must never break audio */
+    }
+    return ret;
+  };
+}
+
+/** Live spectrum → normalized bands (all zeros until audio is actually flowing). */
+function readBands(): { bass: number; mid: number; treble: number; level: number } {
+  if (!sharedAnalyser || !freqData) return { bass: 0, mid: 0, treble: 0, level: 0 };
+  sharedAnalyser.getByteFrequencyData(freqData);
+  return audioBands(freqData);
+}
+
+installAudioTap();
 
 let started = false;
 
@@ -160,6 +239,11 @@ function mountCipher(): { stop(): void } {
   let choice = 'none'; // THE CHOICE from the save → coherence floor
   let burst = 0; // decode-burst envelope (0..1), spiked on DESCEND
   const mouse = { x: 0.5, y: 0.5 }; // normalized pointer (parallax)
+  let buildings: Building[] = []; // neon skyline
+  let rBass = 0; // smoothed reactive bands (the music made visible)
+  let rMid = 0;
+  let rTreble = 0;
+  let rLevel = 0;
 
   const cockpitEl = (): HTMLElement | null =>
     document.querySelector<HTMLElement>('.screen-cockpit');
@@ -234,6 +318,38 @@ function mountCipher(): { stop(): void } {
     nodes = [];
     for (let i = 0; i < 30; i++)
       nodes.push({ x: Math.random(), y: Math.random(), ph: Math.random() * 6.28, sp: 0.4 + Math.random() });
+    buildSkyline();
+  };
+
+  /** A neon City-of-Lancefall skyline along the bottom — silhouettes with windows that ignite
+   *  and pulse with the bass. Rebuilt on resize. */
+  const buildSkyline = (): void => {
+    buildings = [];
+    const skyH = H * SKYLINE_H;
+    let x = -10;
+    while (x < W + 10) {
+      const w = 22 + Math.random() * 64;
+      const h = skyH * (0.32 + Math.random() * 0.68);
+      const windows: Win[] = [];
+      const cols = Math.max(1, Math.floor(w / 13));
+      const rows = Math.max(1, Math.floor(h / 13));
+      for (let c = 0; c < cols; c++)
+        for (let ro = 0; ro < rows; ro++) {
+          if (Math.random() > 0.5) continue;
+          const hue = Math.random();
+          windows.push({
+            x: 5 + (c * (w - 8)) / cols,
+            y: 5 + (ro * (h - 8)) / rows,
+            w: 2 + Math.random() * 2,
+            h: 3 + Math.random() * 2,
+            ph: Math.random() * 6.28,
+            base: 0.4 + Math.random() * 0.6,
+            col: hue < 0.5 ? NEON[0] : hue < 0.8 ? NEON[1] : NEON[2],
+          });
+        }
+      buildings.push({ x, w, h, windows });
+      x += w + 1 + Math.random() * 7;
+    }
   };
 
   const ensureSize = (): void => {
@@ -282,7 +398,7 @@ function mountCipher(): { stop(): void } {
     const cy = H * 0.5 + (mouse.y - 0.5) * -PARALLAX;
     ctx.globalCompositeOperation = 'lighter';
     for (let ri = 0; ri < 3; ri++) {
-      const rad = Math.min(W, H) * (0.15 + ri * 0.09);
+      const rad = Math.min(W, H) * (0.15 + ri * 0.09) * (1 + rBass * 0.12); // rings breathe on the kick
       const ticks = 24 + ri * 12;
       const rot = t * (0.05 - ri * 0.012) * (ri % 2 ? -1 : 1);
       ctx.strokeStyle = rgba(ri === 1 ? '#818cf8' : '#22d3ee', (0.03 + coh * 0.06) * glow);
@@ -329,7 +445,7 @@ function mountCipher(): { stop(): void } {
     for (let i = 0; i < pts.length; i++) {
       const n = nodes[i];
       const pul = 0.5 + 0.5 * Math.sin(t * n.sp + n.ph);
-      ctx.fillStyle = rgba('#bdf3ff', (0.12 + coh * 0.4) * pul * glow);
+      ctx.fillStyle = rgba('#bdf3ff', (0.12 + coh * 0.4) * pul * glow * (1 + rMid * 0.7)); // mids light the nodes
       ctx.beginPath();
       ctx.arc(pts[i].x, pts[i].y, 1.2 + pul * 1.3, 0, 6.28);
       ctx.fill();
@@ -390,7 +506,7 @@ function mountCipher(): { stop(): void } {
         let a: number;
         if (k === 0) {
           color = '#eafdff';
-          a = 0.7 * (0.45 + coh * 0.55) * glow;
+          a = 0.7 * (0.45 + coh * 0.55) * glow * (1 + rTreble * 0.6); // heads shimmer on treble
         } else {
           color = c.hue ? '#818cf8' : '#22d3ee';
           a = f * f * (0.12 + coh * 0.4);
@@ -400,6 +516,39 @@ function mountCipher(): { stop(): void } {
         ctx.fillText(CIPHER_CHARS[c.glyphs[row]], x, row * CELL);
       }
     }
+  };
+
+  /** The neon City of Lancefall along the bottom — dark silhouettes whose windows ignite and
+   *  pump with the bass (the city "springing to life" with the music). */
+  const drawSkyline = (coh: number, glow: number): void => {
+    if (!buildings.length) return;
+    // silhouettes + accent-lit rooftops
+    for (const b of buildings) {
+      ctx.fillStyle = rgba('#060a14', 0.9);
+      ctx.fillRect(b.x, H - b.h, b.w, b.h);
+      ctx.fillStyle = rgbaT(accentRgb, 0.1 + coh * 0.18 + rBass * 0.25);
+      ctx.fillRect(b.x, H - b.h, b.w, 1.2);
+    }
+    // window neon — additive; collective flare on the kick + per-window flicker
+    ctx.globalCompositeOperation = 'lighter';
+    const pump = 0.45 + rBass * 1.9 + beatEnvelope(t, BEAT) * 0.18 * (1 - Math.min(1, rLevel * 3));
+    for (const b of buildings) {
+      for (const wn of b.windows) {
+        const flick = 0.6 + 0.4 * Math.sin(t * 2.2 + wn.ph);
+        const a = wn.base * flick * (0.16 + coh * 0.4) * pump * glow;
+        if (a < 0.02) continue;
+        ctx.fillStyle = rgba(wn.col, Math.min(0.95, a));
+        ctx.fillRect(b.x + wn.x, H - b.h + wn.y, wn.w, wn.h);
+      }
+    }
+    // a ground bloom rising off the skyline, brightening with the bass
+    const gy = H - H * SKYLINE_H;
+    const gg = ctx.createLinearGradient(0, H, 0, gy);
+    gg.addColorStop(0, rgbaT(accentRgb, 0.06 + coh * 0.06 + rBass * 0.12));
+    gg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gg;
+    ctx.fillRect(0, gy, W, H - gy);
+    ctx.globalCompositeOperation = 'source-over';
   };
 
   /** #1 — fade the cipher away from the central content column so it FRAMES the hero/title/
@@ -431,9 +580,12 @@ function mountCipher(): { stop(): void } {
     // #3 — DESCEND decode burst: a quick spike that forces the field to fully resolve + flash.
     if (burst > 0) burst = Math.max(0, burst - dt / 0.55);
     const effCoh = clamp01(coh + burst * (1 - coh));
-    // #3 — free-running ~120bpm beat breath (gentle) + the burst flash.
-    const glow = 1 + beatEnvelope(t, BEAT) * BEAT_GLOW + burst * 0.9;
+    // Brightness throb: the free-running beat carries it when silent, but FADES OUT once real
+    // audio is flowing — then the live bass takes over (that's the "reaction to the music").
+    const freeRun = beatEnvelope(t, BEAT) * BEAT_GLOW * (1 - Math.min(1, rLevel * 3));
+    const glow = 1 + freeRun + rBass * BASS_GLOW + burst * 0.9;
     drawBase(effCoh);
+    drawSkyline(effCoh, glow);
     drawRotor(effCoh, glow);
     drawRain(dt, effCoh, glow);
     drawScanline(effCoh, glow);
@@ -447,6 +599,7 @@ function mountCipher(): { stop(): void } {
     accentRgb = readAccent();
     const coh = clamp01(targetCoh());
     drawBase(coh);
+    drawSkyline(coh, 1); // the neon city, lit and held (no pump under reduce-motion)
     drawLattice(coh, 1);
     // a settled field of already-decoded lore — the city remembering, held still
     ctx.font = `700 ${CELL - 4}px 'JetBrains Mono', ui-monospace, monospace`;
@@ -475,6 +628,14 @@ function mountCipher(): { stop(): void } {
         accentRgb = readAccent();
       }
       cohEased = easeToward(cohEased, cohTarget, dt, 3);
+      // music reactivity: punchy attack + smooth release on the kick, gentler on the rest
+      const bands = readBands();
+      rBass = bands.bass > rBass ? easeToward(rBass, bands.bass, dt, 22) : easeToward(rBass, bands.bass, dt, 6);
+      rMid = easeToward(rMid, bands.mid, dt, 9);
+      rTreble = easeToward(rTreble, bands.treble, dt, 12);
+      rLevel = easeToward(rLevel, bands.level, dt, 5);
+      if (import.meta.env.DEV)
+        (window as unknown as { __cipherBands?: unknown }).__cipherBands = { bass: rBass, mid: rMid, treble: rTreble, level: rLevel };
       drawFrame(dt, cohEased);
     }
     rafId = requestAnimationFrame(loop);
