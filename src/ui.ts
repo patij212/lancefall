@@ -396,6 +396,7 @@ export class UI {
   private pause!: HTMLElement;
   private pauseBuild!: HTMLElement;
   private pauseStatsEl!: HTMLElement;
+  private upgBalanceEl!: HTMLElement;
   private gameover!: HTMLElement;
   private draft!: HTMLElement;
   private eventPanel!: HTMLElement;
@@ -1946,13 +1947,20 @@ export class UI {
   }
 
   private buildUpgrades(): void {
-    const eyebrow = el('div', { class: 'panel-eyebrow' }, 'PERMANENT META-TREE');
-    const h = el('h2', {}, 'UPGRADES');
+    // polished head (mock .modal-head): icon + eyebrow/title + a live shard balance pill.
+    const icon = el('div', { class: 'panel-head-icon' });
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const titles = el('div', { class: 'panel-head-titles' },
+      el('div', { class: 'panel-eyebrow' }, 'PERMANENT META-TREE'),
+      el('h2', { class: 'panel-head-title' }, 'UPGRADES'),
+    );
+    this.upgBalanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
+    const head = el('div', { class: 'panel-head' }, icon, titles, this.upgBalanceEl);
     const body = el('div', { class: 'upg-body' });
     body.id = 'upg-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.upgradesPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, eyebrow, h, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
     this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
@@ -1962,6 +1970,7 @@ export class UI {
     // the meta-tree (panels/upgrades) — rebuilt from the live save each open; buyMeta
     // re-calls this method, so a purchase re-renders for free.
     const body = this.upgradesPanel.querySelector('#upg-body')!;
+    this.upgBalanceEl.textContent = `◆ ${s.shards.toLocaleString()} shards`;
     body.replaceChildren(renderUpgrades(s, (id) => this.cb.onBuyMeta(id)));
     this.openModal(this.upgradesPanel);
   }
