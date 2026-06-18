@@ -712,11 +712,13 @@ export class UI {
     if (!this.openStack.includes(panel)) this.openStack.push(panel);
     // move focus into the panel (first focusable, else the panel itself) so the trap has
     // somewhere to hold and screen-reader/keyboard users land inside the dialog.
+    // preventScroll: focusing the first control must NOT scroll the body — a deep first
+    // button (e.g. stats' achievement tabs) otherwise scrolls the panel's hero off-screen.
     const focusable = this.focusables(panel);
-    if (focusable.length) focusable[0].focus();
+    if (focusable.length) focusable[0].focus({ preventScroll: true });
     else {
       this.modalContent(panel).setAttribute('tabindex', '-1');
-      this.modalContent(panel).focus();
+      this.modalContent(panel).focus({ preventScroll: true });
     }
   }
 
@@ -1922,12 +1924,14 @@ export class UI {
   }
 
   private buildStats(): void {
-    const h = el('h2', {}, 'STATS');
+    const icon = el('div', { class: 'panel-head-icon' });
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V11M10 20V5M16 20v-8M22 20H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LIFETIME DOSSIER'), el('h2', { class: 'panel-head-title' }, 'STATS')));
     const body = el('div', { class: 'stats-body' });
     body.id = 'stats-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.statsPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
     this.statsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
