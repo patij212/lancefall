@@ -132,6 +132,30 @@ describe('save migration', () => {
     expect(out.killsByKind).toEqual({ darter: 412, sovereign: 3 });
   });
 
+  // ── v7 RECORDS — longestRunSec / fastestArenaSec / mostBossesOneRun (numbers,
+  //    non-negative integers; clamped after the generic finite-number coerce). ──
+  it('default-fills the v7 records to 0 for a v6 save', () => {
+    const out = migrateSave({ version: 6, highScore: 1 }, defaultSave());
+    expect(out.version).toBe(SAVE_VERSION); // 7
+    expect(out.longestRunSec).toBe(0);
+    expect(out.fastestArenaSec).toBe(0);
+    expect(out.mostBossesOneRun).toBe(0);
+  });
+
+  it('preserves real v7 record values', () => {
+    const out = migrateSave({ version: 7, longestRunSec: 1334, fastestArenaSec: 408, mostBossesOneRun: 6 }, defaultSave());
+    expect(out.longestRunSec).toBe(1334);
+    expect(out.fastestArenaSec).toBe(408);
+    expect(out.mostBossesOneRun).toBe(6);
+  });
+
+  it('coerces a non-number v7 record to 0 and clamps a negative/fractional one to a non-negative int', () => {
+    expect(migrateSave({ version: 7, longestRunSec: 'lots' }, defaultSave()).longestRunSec).toBe(0);
+    expect(migrateSave({ version: 7, fastestArenaSec: NaN }, defaultSave()).fastestArenaSec).toBe(0);
+    expect(migrateSave({ version: 7, mostBossesOneRun: -3 }, defaultSave()).mostBossesOneRun).toBe(0);
+    expect(migrateSave({ version: 7, longestRunSec: 22.9 }, defaultSave()).longestRunSec).toBe(22);
+  });
+
   it('round-trips a full default save unchanged', () => {
     const s = defaultSave();
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);

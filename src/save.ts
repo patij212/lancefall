@@ -112,6 +112,14 @@ export interface SaveData {
    *  (graze / overdrive / armor / coherence / fusion). Sanitized to known GlossId
    *  strings; an unknown id is dropped. Default []. */
   glossSeen: string[];
+  // ── v7 RECORDS — peak single-run bests for the STATS dossier. Additive; written only at
+  //    run-end via max/min. 0 = never set (rendered as "—" / "OFF"). ──
+  /** longest single run, whole seconds (STATS "Longest Run") */
+  longestRunSec: number;
+  /** fastest ARENA clear, whole seconds; 0 = no arena clear yet (STATS "Fastest Arena") */
+  fastestArenaSec: number;
+  /** most bosses felled in one run (STATS "Bosses · One Run") */
+  mostBossesOneRun: number;
 }
 
 export interface Settings {
@@ -209,6 +217,9 @@ export function defaultSave(): SaveData {
     playStreak: 0,
     seenSandbox: false,
     glossSeen: [],
+    longestRunSec: 0,
+    fastestArenaSec: 0,
+    mostBossesOneRun: 0,
   };
 }
 

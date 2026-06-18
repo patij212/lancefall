@@ -12,7 +12,7 @@ import { MODES } from './modes';
 import { PORTED_KINDS, defaultSkinId, skinById, canUnlockSkin } from './skins';
 import { GLOSS_IDS } from './gloss';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -38,6 +38,11 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          below coerces a hand-edited non-boolean seenSandbox back to false,
   //          and resets a hand-edited lastPlayedDate ('' default) / playStreak (≥0
   //          number) to its default. No explicit transform / no version bump needed.
+  // v6 → v7: added the STATS v7 RECORDS (longestRunSec, fastestArenaSec,
+  //          mostBossesOneRun). Purely additive → an older save missing them
+  //          default-fills to 0 via the spread; the per-field loop resets a
+  //          non-finite hand-edit, and the clamp below forces a non-negative
+  //          integer. No explicit transform needed.
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
   const out: SaveData = { ...base, ...data, version: SAVE_VERSION };
@@ -78,6 +83,11 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // 4.2 — playStreak is a count: clamp a hand-edited negative/fractional value to a
   // safe non-negative integer (the generic loop above only checks it's a finite number).
   if (typeof o.playStreak === 'number') o.playStreak = Math.max(0, Math.floor(o.playStreak));
+  // v7 RECORDS — non-negative integers (whole seconds / counts); the generic loop above only
+  // ensured they're finite numbers, so clamp a hand-edited negative/fractional value here.
+  for (const k of ['longestRunSec', 'fastestArenaSec', 'mostBossesOneRun']) {
+    if (typeof o[k] === 'number') o[k] = Math.max(0, Math.floor(o[k] as number));
+  }
   // enemy SKINS — a {kind:skinId} record. Build a fresh map: every PORTED kind gets
   // a validated id (a known + UNLOCKED skin for that kind, else the kind's default);
   // unknown kinds in the stored blob are dropped (never added). Old saves missing the
