@@ -73,6 +73,15 @@ export function milestoneAt(wave: number): Milestone | null {
   return { wave, ordinal, title, line: slot.line, accent: slot.accent };
 }
 
+/** The SHARD cache a milestone wave pays (§3.5) — a depth-scaling META reward, the "one
+ *  more run" pull. Pure fn of the 1-based ordinal: base + step per milestone past the first.
+ *  Zero rng, no World — like the rest of this module. Shards are META currency, NEVER the run
+ *  SCORE, so this can't touch the seeded scoring/leaderboard stream. */
+export function milestoneShardReward(ordinal: number): number {
+  const d = TUNE.director;
+  return d.milestoneShardBase + Math.max(0, ordinal - 1) * d.milestoneShardStep;
+}
+
 /** The wave number of the NEXT milestone strictly AFTER the given wave (for a "next goal"
  *  HUD nudge). Pure; total for any wave >= 0. */
 export function nextMilestoneWave(wave: number): number {

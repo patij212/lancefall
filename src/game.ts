@@ -49,7 +49,7 @@ import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_MODE_IDS, modeUnlocked } from './modes';
 import type { RunConfig } from './modes';
-import { milestoneAt } from './milestones';
+import { milestoneAt, milestoneShardReward } from './milestones';
 import { MUTATORS, pickDailyMutators, pickWeeklyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
 import type { MutatorId } from './mutators';
 import { HEAT_LEVELS, MAX_HEAT, applyHeatStats, applyHeatConfig } from './heat';
@@ -2854,6 +2854,15 @@ export class Game {
     this.narrateOne('toast', `WAVE ${wave} — ${m.line}`);
     // a static color fade only when flashing is allowed (mirrors the biome banner)
     if (!this.settings.reduceFlashing) this.renderer.flash(m.accent, 0.1);
+    // REWARD (§3.5) — a milestone is a felt CHECKPOINT, not just a callout: bank a depth-
+    // scaling shard CACHE (the "one more run" pull) and top stamina back up — a breather beat
+    // to reset before the next push. Pure fn of the ordinal → no rng; shards are META currency
+    // (never the run score), so the seeded scoring/leaderboard stream is untouched.
+    const w = this.world;
+    const cache = milestoneShardReward(m.ordinal);
+    w.shards += cache;
+    w.player.stamina = w.stats.staminaSegments * TUNE.stamina.perSegment; // full refill — the breather
+    w.particles.floatText(w.player.x, w.player.y - 40, `+${cache} ◆`, m.accent, 1.1);
   }
 
   private setBiome(index: number, announce: boolean): void {

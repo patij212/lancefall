@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isMilestoneWave, milestoneAt, nextMilestoneWave, romanize } from './milestones';
+import { isMilestoneWave, milestoneAt, nextMilestoneWave, romanize, milestoneShardReward } from './milestones';
 import { TUNE } from './tune';
 
 const N = TUNE.director.milestoneInterval;
@@ -80,5 +80,24 @@ describe('romanize', () => {
   it('falls back to the plain number below 1 (total)', () => {
     expect(romanize(0)).toBe('0');
     expect(romanize(-3)).toBe('-3');
+  });
+});
+
+describe('milestoneShardReward (§3.5)', () => {
+  const base = TUNE.director.milestoneShardBase;
+  const step = TUNE.director.milestoneShardStep;
+
+  it('pays the base at the first milestone and scales with depth', () => {
+    expect(milestoneShardReward(1)).toBe(base);
+    expect(milestoneShardReward(2)).toBe(base + step);
+    expect(milestoneShardReward(5)).toBe(base + 4 * step);
+    expect(milestoneShardReward(10)).toBeGreaterThan(milestoneShardReward(3)); // deeper pays more
+  });
+
+  it('is a pure fn (same ordinal → same reward) and never negative', () => {
+    expect(milestoneShardReward(3)).toBe(milestoneShardReward(3));
+    expect(milestoneShardReward(0)).toBeGreaterThanOrEqual(0);
+    expect(base).toBeGreaterThan(0);
+    expect(step).toBeGreaterThan(0);
   });
 });
