@@ -1249,7 +1249,7 @@ export class UI {
       navBtn('ranks', 'RANKS', () => this.openLeaderboard(), 'RANKS — online leaderboards (daily, weekly and all-time) if you opt in.'),
       navBtn('stats', 'STATS', () => this.openStats(), 'STATS — your lifetime numbers and achievements.'),
       el('div', { class: 'ck-nav-div' }),
-      navBtn('build', 'BUILD', () => this.openArchetype(), 'BUILD — pick a starting archetype that biases your perk draft.'),
+      // BUILD is reached from the loadout BUILD row (this.openArchetype) — no duplicate nav entry.
       navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — a bestiary of every enemy, boss, biome and relic, with lore.'),
       navBtn('fall', 'THE FALL', () => this.showFall(), 'THE FALL — the story: six who let the City of Lancefall go dark.'),
       // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
