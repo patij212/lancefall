@@ -2953,45 +2953,50 @@ export class UI {
       return { min: Math.min(...vals), max: Math.max(...vals) };
     });
     this.shipBalanceEl.textContent = `◆ ${save.shards.toLocaleString()} shards`;
-    this.shipRow.replaceChildren();
-    for (const ship of SHIPS) {
-      const unlocked = save.unlockedShips.includes(ship.id);
-      const selected = save.selectedShip === ship.id;
-      // mock .p-card hull tile: portrait stage on top, centered name/desc, segmented stat
-      // bars, a state chip foot. --ca drives accent (border/glow/bars) per hull.
-      const card = el('button', { class: 'p-card ship-card' + (selected ? ' sel' : '') + (unlocked ? '' : ' locked'), title: ship.desc, type: 'button' });
-      card.style.setProperty('--ca', ship.accent);
-      const hx = ship.accent.replace('#', '');
-      const n = parseInt(hx.length === 3 ? hx.split('').map((c) => c + c).join('') : hx, 16);
-      card.style.setProperty('--ca-rgb', `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`);
-
-      const glyph = el('canvas', { class: 'ship-glyph', 'aria-hidden': 'true' }) as HTMLCanvasElement;
-      this.paintShipGlyph(glyph, ship.id, ship.accent);
-      const stage = el('div', { class: 'glyph-stage' }, glyph);
-
-      const st = shipStats.get(ship.id)!;
-      const bars = el('div', { class: 'sbars' });
-      SHIP_STAT_KEYS.forEach((m, i) => {
-        const r = statRanges[i];
-        const norm = r.max > r.min ? (m.get(st) - r.min) / (r.max - r.min) : 0.5;
-        // mock: 5 discrete segments lit to the normalised stat (≥1 so the weakest hull reads).
-        const lit = Math.max(1, Math.round(norm * 5));
-        const track = el('div', { class: 'sbar-track' });
-        for (let sg = 0; sg < 5; sg++) track.append(el('div', { class: 'sbar-seg' + (sg < lit ? ' on' : '') }));
-        bars.append(el('div', { class: 'sbar' }, el('div', { class: 'sbar-k' }, m.key), track));
-      });
-
-      const stateCls = selected ? 'eq' : unlocked ? 'tap' : 'lock';
-      const stateTxt = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : `◆ ${ship.unlockShards.toLocaleString()}`;
-      const foot = el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state ' + stateCls }, stateTxt));
-
-      card.append(stage, el('div', { class: 'p-card-name' }, ship.name), el('div', { class: 'p-card-desc' }, ship.desc), bars, foot);
-      card.addEventListener('click', () => {
-        if (unlocked) this.cb.onSelectShip(ship.id);
-        else this.cb.onUnlockShip(ship.id);
-      });
-      this.shipRow.append(card);
-    }
+    // hull tiles morph in place — glyph canvas + stat bars are roster-constant (built once);
+    // only the EQUIPPED chip / sel glow toggle per refresh.
+    reconcile(
+      this.shipRow,
+      SHIPS,
+      (ship) => ship.id,
+      (ship) => {
+        const card = el('button', { class: 'p-card ship-card', title: ship.desc, type: 'button' });
+        card.style.setProperty('--ca', ship.accent);
+        card.style.setProperty('--ca-rgb', rgbOf(ship.accent));
+        const glyph = el('canvas', { class: 'ship-glyph', 'aria-hidden': 'true' }) as HTMLCanvasElement;
+        this.paintShipGlyph(glyph, ship.id, ship.accent);
+        const stage = el('div', { class: 'glyph-stage' }, glyph);
+        const st = shipStats.get(ship.id)!;
+        const bars = el('div', { class: 'sbars' });
+        SHIP_STAT_KEYS.forEach((m, i) => {
+          const r = statRanges[i];
+          const norm = r.max > r.min ? (m.get(st) - r.min) / (r.max - r.min) : 0.5;
+          // mock: 5 discrete segments lit to the normalised stat (≥1 so the weakest hull reads).
+          const lit = Math.max(1, Math.round(norm * 5));
+          const track = el('div', { class: 'sbar-track' });
+          for (let sg = 0; sg < 5; sg++) track.append(el('div', { class: 'sbar-seg' + (sg < lit ? ' on' : '') }));
+          bars.append(el('div', { class: 'sbar' }, el('div', { class: 'sbar-k' }, m.key), track));
+        });
+        const foot = el('div', { class: 'p-card-foot' }, el('span', { class: 'p-state' }));
+        card.append(stage, el('div', { class: 'p-card-name' }, ship.name), el('div', { class: 'p-card-desc' }, ship.desc), bars, foot);
+        card.addEventListener('click', () => {
+          if (card.dataset.unlocked === '1') this.cb.onSelectShip(ship.id);
+          else this.cb.onUnlockShip(ship.id);
+        });
+        return card;
+      },
+      (card, ship) => {
+        const s = this.saveRef!;
+        const unlocked = s.unlockedShips.includes(ship.id);
+        const selected = s.selectedShip === ship.id;
+        card.dataset.unlocked = unlocked ? '1' : '0';
+        card.classList.toggle('sel', selected);
+        card.classList.toggle('locked', !unlocked);
+        const st = card.querySelector('.p-state') as HTMLElement;
+        st.className = 'p-state ' + (selected ? 'eq' : unlocked ? 'tap' : 'lock');
+        st.textContent = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : `◆ ${ship.unlockShards.toLocaleString()}`;
+      },
+    );
 
     // ── COSMETICS: palette + dash-trail preview tiles (mock pCosmetics .p-card) ──
     this.cosmBalanceEl.textContent = `◆ ${save.shards.toLocaleString()} shards`;
