@@ -2772,7 +2772,9 @@ body {
   text-align: left;
   position: relative;
   min-height: 56px;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  /* morph-in-place: cards persist across refresh, so selection cross-fades (incl. the
+     box-shadow glow + hover lift) instead of snapping on a rebuilt node. */
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, color 0.18s ease;
 }
 .ck-mi:hover:not(.selected):not(.locked) {
   background: linear-gradient(90deg, rgba(var(--accent-rgb, 34, 211, 238), 0.06) 0%, transparent 80%);
@@ -3601,6 +3603,8 @@ body {
   border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
+  /* morph-in-place: pips persist across refresh, so lighting/dimming cross-fades. */
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .ck-heat-pip.on {
   background: rgba(251, 146, 60, 0.75);
@@ -3650,18 +3654,19 @@ body {
   text-align: left;
   background: rgba(255, 255, 255, 0.018);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  transition: border-color 0.14s, transform 0.14s, background 0.14s;
+  /* morph-in-place: include box-shadow (the .sel glow) + color so equip cross-fades. */
+  transition: border-color 0.14s, transform 0.14s, background 0.14s, box-shadow 0.14s, color 0.14s;
 }
 .p-card:hover { border-color: rgba(var(--ca-rgb), 0.4); transform: translateY(-2px); background: rgba(var(--ca-rgb), 0.05); }
 .p-card:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
 .p-card.sel { border-color: var(--ca); background: linear-gradient(160deg, rgba(var(--ca-rgb), 0.12), rgba(255, 255, 255, 0.02)); box-shadow: inset 0 0 0 1px rgba(var(--ca-rgb), 0.3), 0 0 24px -8px rgba(var(--ca-rgb), 0.5); }
 .p-card.locked { opacity: 0.62; }
 .p-card.locked:hover { transform: translateY(-2px); }
-.p-card-name { font-family: 'Rajdhani', sans-serif; font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; color: #dbe6f7; line-height: 1; }
+.p-card-name { font-family: 'Rajdhani', sans-serif; font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; color: #dbe6f7; line-height: 1; transition: color 0.14s; }
 .p-card.sel .p-card-name { color: var(--ca); }
 .p-card-desc { font-size: 10px; line-height: 1.5; color: var(--text-muted); }
 .p-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
-.p-state { font-family: 'Rajdhani', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; }
+.p-state { font-family: 'Rajdhani', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; transition: background 0.14s, color 0.14s, border-color 0.14s; }
 .p-state.eq { color: var(--ca); background: rgba(var(--ca-rgb), 0.12); border: 1px solid rgba(var(--ca-rgb), 0.3); }
 .p-state.lock { color: #f0a868; background: rgba(240, 168, 104, 0.08); border: 1px solid rgba(240, 168, 104, 0.2); }
 .p-state.tap { color: var(--text-muted); }
@@ -3876,6 +3881,12 @@ body {
 .reduce-motion .screen-cockpit { --coh: 0.62; }
 .reduce-motion .ck-coh-fill { width: 62%; }
 .reduce-motion .ck-mi::before { transition: none !important; }
+/* morph cross-fades (reconciled cards/pips) are instant under reduced motion */
+.reduce-motion .ck-mi,
+.reduce-motion .p-card,
+.reduce-motion .p-card-name,
+.reduce-motion .p-state,
+.reduce-motion .ck-heat-pip { transition: none !important; }
 .reduce-motion .btn-play.ck-descend:hover,
 .reduce-motion .btn-play.ck-descend:focus-visible { letter-spacing: 0.22em; } /* no kinetic tracking */
 
@@ -3918,6 +3929,8 @@ body {
   .screen-cockpit { --coh: 0.62; }
   .ck-coh-fill { width: 62%; }
   .ck-mi::before { transition: none !important; }
+  /* morph cross-fades (reconciled cards/pips) are instant under reduced motion */
+  .p-card, .p-card-name, .p-state, .ck-heat-pip { transition: none !important; }
   .btn-play.ck-descend:hover,
   .btn-play.ck-descend:focus-visible { letter-spacing: 0.22em; }
 }
