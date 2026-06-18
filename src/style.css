@@ -3330,9 +3330,9 @@ body {
   margin-bottom: 13px;
 }
 .ck-ship-ring {
-  width: 100px;
-  height: 100px;
-  margin-bottom: 8px;
+  width: 146px;
+  height: 146px;
+  margin-bottom: 10px;
   position: relative;
   display: flex;
   align-items: center;
@@ -3346,14 +3346,14 @@ body {
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  background: radial-gradient(circle, currentColor 0%, transparent 64%);
-  opacity: 0.17;
+  background: radial-gradient(circle, currentColor 0%, transparent 66%);
+  opacity: 0.42;
   animation: ckPulseGlow 2.6s ease-in-out infinite;
 }
-@keyframes ckPulseGlow { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.22; } }
+@keyframes ckPulseGlow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.55; } }
 .ck-ship-art {
-  width: 84px;
-  height: 84px;
+  width: 116px;
+  height: 116px;
   display: block;
   position: relative;
   z-index: 1;
@@ -3369,8 +3369,8 @@ body {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 100px;
-  height: 100px;
+  width: 146px;
+  height: 146px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   overflow: hidden;
@@ -3389,14 +3389,14 @@ body {
   background-image:
     repeating-linear-gradient(to top, currentColor 0 1px, transparent 1px 9px),
     repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px 9px);
-  opacity: 0.4;
+  opacity: 0.52;
   -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 92%);
   mask-image: linear-gradient(to top, #000 0%, transparent 92%);
 }
 /* static orbit decay rings, tinted to the equipped hull (mock). */
 .ck-ship-orbit { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; }
-.ck-ship-orbit.outer { width: 96px; height: 96px; border: 1px solid currentColor; opacity: 0.16; }
-.ck-ship-orbit.inner { width: 86px; height: 86px; border: 1px dashed currentColor; opacity: 0.14; }
+.ck-ship-orbit.outer { width: 140px; height: 140px; border: 1px solid currentColor; opacity: 0.42; box-shadow: 0 0 16px -2px currentColor; }
+.ck-ship-orbit.inner { width: 122px; height: 122px; border: 1px dashed currentColor; opacity: 0.34; }
 .ck-ship-name {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
