@@ -199,7 +199,7 @@ export function defaultSave(): SaveData {
     bestByMode: {},
     killsByKind: {},
     deepestWave: 0,
-    selectedMode: 'endless',
+    selectedMode: 'casual', // fresh saves start on the suggested first-run mode (gentle, off-board)
     dailyAttempts: 0,
     dailyAttemptDate: '',
     baseShields: TUNE.player.baseShields,

@@ -58,7 +58,7 @@ describe('save migration', () => {
     const out = migrateSave(v5, defaultSave());
     expect(out.version).toBe(SAVE_VERSION); // 6
     expect(out.highScore).toBe(46472); // pre-existing data preserved
-    expect(out.selectedMode).toBe('endless');
+    expect(out.selectedMode).toBe('casual'); // fresh-save default = the suggested first-run mode
     expect(out.dailyAttempts).toBe(0);
     expect(out.dailyAttemptDate).toBe('');
     expect(out.baseShields).toBe(TUNE.player.baseShields);
@@ -138,7 +138,7 @@ describe('save migration', () => {
   });
 
   it('domain-guards a corrupted selectedMode back to the default, preserves a real one', () => {
-    expect(migrateSave({ version: 6, selectedMode: 'garbage-not-a-mode' }, defaultSave()).selectedMode).toBe('endless');
+    expect(migrateSave({ version: 6, selectedMode: 'garbage-not-a-mode' }, defaultSave()).selectedMode).toBe('casual');
     expect(migrateSave({ version: 6, selectedMode: 'nightmare' }, defaultSave()).selectedMode).toBe('nightmare');
   });
 
