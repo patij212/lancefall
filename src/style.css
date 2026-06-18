@@ -3633,6 +3633,12 @@ body {
 .ck-lo-btn { width: 100%; background: none; cursor: pointer; font: inherit; text-align: left; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.035); }
 .ck-lo-btn:hover .ck-lo-muted,
 .ck-lo-btn:hover .ck-lo-chevron { color: #7dd3fc; }
+/* the HEAT key label is itself a button that opens the ascension ladder modal */
+.ck-lo-keybtn { background: none; border: none; padding: 0; margin: 0; cursor: pointer; }
+.ck-lo-keybtn .ck-lo-chevron { font-size: 13px; }
+.ck-lo-keybtn:hover,
+.ck-lo-keybtn:hover .ck-lo-chevron { color: #aef2ff; }
+.ck-lo-keybtn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 4px; }
 .ck-lo-armor { flex-direction: column; align-items: stretch; gap: 4px; }
 .ck-lo-armor-top { display: flex; align-items: center; justify-content: space-between; }
 .ck-armor-pips { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }

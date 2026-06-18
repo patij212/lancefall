@@ -1186,10 +1186,18 @@ export class UI {
     const heatPlus = el('button', { class: 'ck-step', type: 'button', 'aria-label': 'Raise Heat' }, '+');
     heatMinus.addEventListener('click', () => this.stepHeat(-1));
     heatPlus.addEventListener('click', () => this.stepHeat(1));
+    // the HEAT label doubles as a button that opens the full ascension LADDER (a modal listing
+    // every level's score multiplier + modifiers); the −/+/pips beside it stay for quick select.
+    const heatLadderBtn = el(
+      'button',
+      { class: 'ck-lo-key ck-lo-keybtn', type: 'button', title: 'Open the HEAT ladder — every level’s score multiplier and modifiers' },
+      iconEl('ck-lo-ico', LO_HEAT_SVG), 'HEAT', el('span', { class: 'ck-lo-chevron' }, '›'),
+    );
+    heatLadderBtn.addEventListener('click', () => this.openHeat());
     const heatRow = el(
       'div',
-      { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Higher Heat = tougher run, bigger score multiplier. Click a square to jump to that level (hover one for its modifiers).' },
-      el('div', { class: 'ck-lo-key' }, iconEl('ck-lo-ico', LO_HEAT_SVG), 'HEAT'),
+      { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Click a square to jump to that level; click HEAT to see the full ladder.' },
+      heatLadderBtn,
       el('div', { class: 'ck-lo-right' }, heatMinus, this.heatPipsWrap, heatPlus),
     );
 
