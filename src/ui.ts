@@ -1678,7 +1678,16 @@ export class UI {
   openUpgrades(): void {
     const s = this.saveRef;
     if (!s) return;
-    (this.upgradesPanel.querySelector('#upg-balance')!).textContent = `◆ ${s.shards.toLocaleString()} shards`;
+    // summary header (mock-mainui) — shards + progress across the 12 nodes
+    const nodesOwned = META_NODES.filter((n) => (s.meta?.[n.id] ?? 0) > 0).length;
+    const totalLevels = META_NODES.reduce((sum, n) => sum + Math.min(s.meta?.[n.id] ?? 0, n.maxLevel), 0);
+    const maxLevels = META_NODES.reduce((sum, n) => sum + n.maxLevel, 0);
+    const sumCard = (k: string, v: string) => el('div', { class: 'upg-sum' }, el('div', { class: 'upg-sum-v' }, v), el('div', { class: 'upg-sum-k' }, k));
+    this.upgradesPanel.querySelector('#upg-balance')!.replaceChildren(
+      sumCard('Shards', `◆ ${s.shards.toLocaleString()}`),
+      sumCard('Nodes Owned', `${nodesOwned}/${META_NODES.length}`),
+      sumCard('Total Levels', `${totalLevels}/${maxLevels}`),
+    );
     const body = this.upgradesPanel.querySelector('#upg-body')!;
     body.replaceChildren();
     for (const node of META_NODES) {
@@ -2358,6 +2367,20 @@ export class UI {
         listWrap.append(el('div', { class: 'event-flavor' }, weekly ? 'No scores this week yet — be the first.' : 'No scores yet — be the first.'));
         return;
       }
+      // PODIUM (mock-mainui) — the top 3 as a medal podium, gold centered + tallest.
+      const top = entries.slice(0, 3);
+      const medals = ['🥇', '🥈', '🥉'];
+      const order = top.length >= 3 ? [1, 0, 2] : top.map((_, i) => i); // silver · gold · bronze
+      const podium = el('div', { class: 'leader-podium' });
+      for (const i of order) {
+        const e = top[i];
+        podium.append(el('div', { class: `podium-spot podium-${i + 1}` },
+          el('div', { class: 'podium-medal' }, medals[i]),
+          el('div', { class: 'podium-name' }, e.name || '—'),
+          el('div', { class: 'podium-score' }, e.score.toLocaleString()),
+        ));
+      }
+      listWrap.append(podium);
       entries.forEach((e, i) => {
         listWrap.append(el('div', { class: 'leader-row' },
           el('span', { class: 'leader-rank' }, `#${e.rank ?? i + 1}`),

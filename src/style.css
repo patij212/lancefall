@@ -973,6 +973,26 @@ body {
 }
 .leader-modes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
 .leader-list { display: flex; flex-direction: column; gap: 3px; min-height: 120px; }
+/* RANKS podium (mock-mainui port) — top 3, gold centered + tallest */
+.leader-podium { display: flex; align-items: flex-end; justify-content: center; gap: 10px; margin: 4px 0 12px; }
+.podium-spot {
+  flex: 1;
+  max-width: 150px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--text-muted);
+  border-radius: 10px 10px 6px 6px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.podium-medal { font-size: 22px; line-height: 1; }
+.podium-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; color: var(--text); margin: 5px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.podium-score { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-muted); }
+.podium-1 { padding-top: 18px; border-top-color: #ffd54a; box-shadow: 0 0 0 1px rgba(255, 213, 74, 0.4), 0 6px 22px rgba(255, 213, 74, 0.18); }
+.podium-1 .podium-medal { font-size: 28px; }
+.podium-1 .podium-score { color: #ffd54a; }
+.podium-2 { border-top-color: #cbd5e1; }
+.podium-3 { border-top-color: #d8a05a; }
 .leader-row {
   display: grid; grid-template-columns: 44px 1fr auto auto; gap: 10px; align-items: baseline;
   padding: 5px 10px; border-radius: 7px; background: var(--bg-raised); font-size: 14px;
@@ -1477,11 +1497,20 @@ body {
 
 /* ── Upgrades (meta shop) ── */
 .upg-balance {
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--green);
-  font-size: 15px;
-  margin: 2px 0 10px;
+  display: flex;
+  gap: 10px;
+  margin: 2px 0 12px;
 }
+.upg-sum {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 12px;
+  text-align: center;
+}
+.upg-sum-v { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 17px; color: var(--green); }
+.upg-sum-k { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
 .upg-body {
   width: 100%;
   max-height: 58vh;
