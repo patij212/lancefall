@@ -1385,6 +1385,40 @@ body {
   color: var(--text-muted);
   margin-top: 2px;
 }
+/* ── STATS dossier (mock-mainui port): completion donut · records · nemesis bars ── */
+.stats-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+.st-ring { width: 92px; height: 92px; flex-shrink: 0; position: relative; }
+.st-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.st-ring-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.st-ring-pct { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 19px; color: var(--amber, #fbbf24); line-height: 1; }
+.st-ring-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.12em; color: var(--text-muted); font-weight: 700; margin-top: 4px; }
+.stats-hero-grid { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stats-hero-grid .go-stat { background: none; border: none; padding: 0; }
+.rec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.rec { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; }
+.rec-k { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+.rec-v { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; color: var(--text); }
+.nem-bars { display: flex; flex-direction: column; gap: 7px; }
+.nem-row { display: grid; grid-template-columns: 130px 1fr 40px; align-items: center; gap: 10px; }
+.nem-k { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
+.nem-track { height: 9px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; }
+.nem-fill { height: 100%; background: linear-gradient(90deg, #f472b6, #fb7185); border-radius: 999px; }
+.nem-v { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fb7185; text-align: right; }
+@media (max-width: 700px) {
+  .stats-hero { flex-direction: column; align-items: stretch; }
+  .stats-hero-grid { grid-template-columns: repeat(2, 1fr); }
+  .rec-grid { grid-template-columns: repeat(2, 1fr); }
+  .nem-row { grid-template-columns: 96px 1fr 36px; }
+}
 @media (max-width: 700px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);

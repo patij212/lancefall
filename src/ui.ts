@@ -60,6 +60,7 @@ import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
+import { bossName } from './boss';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -1585,31 +1586,78 @@ export class UI {
     const s = this.saveRef;
     if (!s) return;
     const body = this.statsPanel.querySelector('#stats-body')!;
-    // stat(label, value) — label-first, matching the helper + the game-over panel
-    // (the value is the big/bold .go-stat-v; the label is the small .go-stat-l)
-    const lifetime = el('div', { class: 'stats-grid' },
+
+    // HERO — an achievement-completion DONUT (the dossier's headline) beside the
+    // top-line lifetime stats. The ring is a static SVG stroke-dash arc (no animation).
+    const got = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
+    const total = ACHIEVEMENTS.length;
+    const pct = Math.round((got / total) * 100);
+    const R = 40;
+    const C = 2 * Math.PI * R;
+    const off = (C * (1 - got / total)).toFixed(1);
+    const donut = el('div', { class: 'st-ring' });
+    donut.innerHTML =
+      `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="${R}" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="8"/>` +
+      `<circle cx="50" cy="50" r="${R}" fill="none" stroke="#fde047" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off}"/></svg>` +
+      `<div class="st-ring-c"><div class="st-ring-pct">${pct}%</div><div class="st-ring-lbl">${got}/${total}</div></div>`;
+    const heroStats = el('div', { class: 'stats-hero-grid' },
       stat('high score', s.highScore.toLocaleString()),
       stat('best combo', `x${s.bestCombo}`),
       stat('runs', String(s.totalRuns)),
       stat('total kills', s.lifeKills.toLocaleString()),
-      stat('bosses down', String(s.lifeBoss)),
-      stat('shards earned', s.lifeShards.toLocaleString()),
     );
+    const hero = el('div', { class: 'stats-hero' }, donut, heroStats);
+
+    // RECORDS — personal bests, every value from existing SaveData (no new capture).
+    const rec = (k: string, v: string) => el('div', { class: 'rec' }, el('div', { class: 'rec-k' }, k), el('div', { class: 'rec-v' }, v));
+    const records = el('div', { class: 'rec-grid' },
+      rec('Deepest Wave', s.deepestWave > 0 ? String(s.deepestWave) : '—'),
+      rec('Best Wave', s.bestWave > 0 ? String(s.bestWave) : '—'),
+      rec('Highest Heat', s.maxHeat > 0 ? `H${s.maxHeat}` : 'OFF'),
+      rec('Day Streak', s.playStreak > 0 ? `${s.playStreak}d` : '—'),
+      rec('Bosses Down', String(s.lifeBoss)),
+      rec('Shards Earned', s.lifeShards.toLocaleString()),
+    );
+
+    // NEMESIS — the bosses that end your runs most (save.nemesis: boss-kind → death count),
+    // as normalized bars. Filtered to the real boss kinds so a stray old prose key can't show.
+    const BOSS_KINDS = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
+    const nem = Object.entries(s.nemesis)
+      .filter(([k, n]) => n > 0 && BOSS_KINDS.includes(k))
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    const nemSection: HTMLElement[] = [];
+    if (nem.length) {
+      const maxN = Math.max(...nem.map(([, n]) => n));
+      const bars = el('div', { class: 'nem-bars' });
+      for (const [kind, n] of nem) {
+        const fill = el('div', { class: 'nem-fill' });
+        fill.style.width = `${(n / maxN) * 100}%`;
+        bars.append(el('div', { class: 'nem-row' },
+          el('div', { class: 'nem-k' }, bossName(kind as Enemy['kind'])),
+          el('div', { class: 'nem-track' }, fill),
+          el('div', { class: 'nem-v' }, `${n}✕`),
+        ));
+      }
+      nemSection.push(el('div', { class: 'stats-label' }, 'NEMESIS · who ends your runs'), bars);
+    }
+
     const achWrap = el('div', { class: 'ach-grid' });
-    const unlockedCount = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
     for (const a of ACHIEVEMENTS) {
-      const got = s.achievements.includes(a.id);
+      const g = s.achievements.includes(a.id);
       achWrap.append(
-        el('div', { class: 'ach' + (got ? ' got' : '') },
-          el('div', { class: 'ach-name' }, (got ? '🏆 ' : '🔒 ') + a.name),
+        el('div', { class: 'ach' + (g ? ' got' : '') },
+          el('div', { class: 'ach-name' }, (g ? '🏆 ' : '🔒 ') + a.name),
           el('div', { class: 'ach-desc' }, a.desc),
         ),
       );
     }
     body.replaceChildren(
-      el('div', { class: 'stats-label' }, 'LIFETIME'),
-      lifetime,
-      el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${unlockedCount}/${ACHIEVEMENTS.length}`),
+      hero,
+      el('div', { class: 'stats-label' }, 'RECORDS'),
+      records,
+      ...nemSection,
+      el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${got}/${total}`),
       achWrap,
     );
     this.openModal(this.statsPanel);
