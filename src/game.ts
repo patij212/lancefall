@@ -47,7 +47,7 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
-import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_MODE_IDS, modeUnlocked } from './modes';
+import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
 import type { RunConfig } from './modes';
 import { milestoneAt, milestoneShardReward } from './milestones';
 import { MUTATORS, pickDailyMutators, pickWeeklyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
@@ -1318,8 +1318,8 @@ export class Game {
         // digits 1-N jump along the VISIBLE rail (not the full MODES data array), and only to
         // an UNLOCKED card — so a digit can't pick an off-rail/locked mode that would then
         // bounce to CASUAL via the title coercion, and the rail's later cards stay reachable.
-        if (idx >= 0 && idx < RAIL_MODE_IDS.length) {
-          const id = RAIL_MODE_IDS[idx];
+        if (idx >= 0 && idx < RAIL_CARD_IDS.length) {
+          const id = RAIL_CARD_IDS[idx];
           if (modeUnlocked(modeById(id), this.save.deepestWave)) this.selectMode(id);
         }
       }

@@ -243,10 +243,6 @@ export function nextRailMode(currentId: string, dir: number, deepestWave: number
   return currentId;
 }
 
-/** @deprecated transitional alias = RAIL_CARD_IDS so the UI/game consumers compile until they
- *  migrate to RAIL_CARDS (removed in Task 4). */
-export const RAIL_MODE_IDS: readonly string[] = RAIL_CARD_IDS;
-
 export type ArenaWave =
   | { kind: 'wave'; budget: number; enemies: EnemyKind[] }
   | { kind: 'boss'; boss: EnemyKind };
