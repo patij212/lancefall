@@ -2730,21 +2730,46 @@ export class UI {
       dot.style.color = lvl.accent;
       const mult = el('span', { class: 'heat-card-mult' }, `×${lvl.scoreMul.toFixed(2)}`);
       const top = el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, `HEAT ${lvl.level} · ${lvl.name}`), mult);
-      // k/v modifier grid — the mechanical cost behind the prose (mock .heat-mods).
-      const mods: [string, string][] = [];
-      if (lvl.enemySpeedAdd > 0) mods.push(['SPEED', `+${Math.round(lvl.enemySpeedAdd * 100)}%`]);
-      if (lvl.spawnMulMod < 1) mods.push(['DENSITY', `+${Math.round((1 - lvl.spawnMulMod) * 100)}%`]);
-      if (lvl.bossIntervalMod < 1) mods.push(['BOSSES', `+${Math.round((1 - lvl.bossIntervalMod) * 100)}%`]);
-      if (lvl.revivesLost > 0) mods.push(['REVIVES', `−${lvl.revivesLost}`]);
-      if (lvl.shieldsLost > 0) mods.push(['ARMOR', `−${lvl.shieldsLost}`]);
-      if (lvl.grazeRadiusMod < 1) mods.push(['GRAZE', `−${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`]);
-      if (!mods.length) mods.push(['MODIFIERS', 'none']);
-      const modGrid = el('div', { class: 'heat-mods' });
-      modGrid.style.gridTemplateColumns = `repeat(${Math.min(3, mods.length)}, 1fr)`;
-      for (const [k, v] of mods) {
-        modGrid.append(el('div', { class: 'heat-mod' }, el('div', { class: 'k' }, k), el('div', { class: 'v ' + (v === 'none' ? 'neutral' : 'bad') }, v)));
+      if (lvl.level === 0) {
+        // HEAT 0 has no modifiers, so it spends that slot as the LEGEND: WHAT the ladder turns
+        // up (the other cards show by HOW MUCH). Heat applies identically in every mode — stacked
+        // on that mode's own rules — so this key is mode-agnostic. Spans both columns to read as a
+        // banner rather than a stunted card next to HEAT 1.
+        card.style.gridColumn = '1 / -1';
+        const dims: [string, string][] = [
+          ['SPEED', 'Enemies & bullets move faster'],
+          ['DENSITY', 'More enemies on screen'],
+          ['BOSSES', 'Bosses arrive sooner'],
+          ['REVIVES', 'Fewer second-wind revives'],
+          ['ARMOR', 'Fewer shield pips — each soaks one lethal hit'],
+          ['GRAZE', 'Tighter near-miss reward window'],
+        ];
+        const legend = el('div', { class: 'heat-legend' });
+        for (const [k, meaning] of dims) {
+          legend.append(el('div', { class: 'heat-legend-row' }, el('span', { class: 'heat-legend-k' }, k), el('span', { class: 'heat-legend-d' }, meaning)));
+        }
+        card.append(
+          top,
+          el('div', { class: 'p-card-desc' }, 'The baseline — every dial at standard. Raising Heat trades safety for more score & shards. What each level turns up:'),
+          legend,
+          el('div', { class: 'heat-legend-foot' }, 'Same modifiers in every mode — they stack on top of that mode’s own rules.'),
+        );
+      } else {
+        // k/v modifier grid — the mechanical cost behind the prose (mock .heat-mods).
+        const mods: [string, string][] = [];
+        if (lvl.enemySpeedAdd > 0) mods.push(['SPEED', `+${Math.round(lvl.enemySpeedAdd * 100)}%`]);
+        if (lvl.spawnMulMod < 1) mods.push(['DENSITY', `+${Math.round((1 - lvl.spawnMulMod) * 100)}%`]);
+        if (lvl.bossIntervalMod < 1) mods.push(['BOSSES', `+${Math.round((1 - lvl.bossIntervalMod) * 100)}%`]);
+        if (lvl.revivesLost > 0) mods.push(['REVIVES', `−${lvl.revivesLost}`]);
+        if (lvl.shieldsLost > 0) mods.push(['ARMOR', `−${lvl.shieldsLost}`]);
+        if (lvl.grazeRadiusMod < 1) mods.push(['GRAZE', `−${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`]);
+        const modGrid = el('div', { class: 'heat-mods' });
+        modGrid.style.gridTemplateColumns = `repeat(${Math.min(3, mods.length)}, 1fr)`;
+        for (const [k, v] of mods) {
+          modGrid.append(el('div', { class: 'heat-mod' }, el('div', { class: 'k' }, k), el('div', { class: 'v bad' }, v)));
+        }
+        card.append(top, el('div', { class: 'p-card-desc' }, lvl.desc), modGrid);
       }
-      card.append(top, el('div', { class: 'p-card-desc' }, lvl.desc), modGrid);
       card.addEventListener('click', () => {
         this.cb.onHeatChange(lvl.level);
         this.openHeat(); // re-render selection
