@@ -502,6 +502,8 @@ export class UI {
   private descendSub!: HTMLElement;
   private descendModeLine!: HTMLElement; // §v7 the mode·ship·heat·mutator line under the kbd hints
   private descendOverlay!: HTMLElement; // §v7 fixed "INITIATING DESCENT" takeover (mock sequence)
+  private fitRaf: number | null = null; // §v7 scale-to-fit cockpit fitter rAF handle
+  private quietReskin = false; // §v7 arrow-nav re-skin suppresses the heavy panel pulse
   private shipArt!: HTMLCanvasElement;
   private shipArtName!: HTMLElement;
   private shipArtDesc!: HTMLElement;
@@ -632,6 +634,9 @@ export class UI {
     }
     this.toastLayer.setAttribute('aria-live', 'polite');
     this.registerModals();
+    // re-fit the scaled cockpit composition on viewport changes (desktop layout only).
+    window.addEventListener('resize', () => this.scheduleFit());
+    window.addEventListener('orientationchange', () => this.scheduleFit());
     this.show('title');
   }
 
@@ -1177,15 +1182,22 @@ export class UI {
     // ── BOTTOM NAV ── icon buttons → existing modal openers. Every entry point kept.
     this.ngBtn = el('button', { class: 'ck-nav-btn ck-nav-ng hidden', type: 'button' }, 'NG+') as HTMLButtonElement;
     this.ngBtn.addEventListener('click', () => this.cb.onToggleNgPlus());
-    const navBtn = (icon: string, label: string, on: () => void, title: string) => {
-      const b = el('button', { class: 'ck-nav-btn', type: 'button', title }, iconEl('ck-nav-ico', NAV_ICONS[icon]), el('span', {}, label));
+    // each nav button carries a small indicator pip (mock); UPGRADES gets the gold pip.
+    const navBtn = (icon: string, label: string, on: () => void, title: string, pip = '') => {
+      const b = el(
+        'button',
+        { class: 'ck-nav-btn', type: 'button', title },
+        el('div', { class: 'ck-nav-pip' + (pip ? ' ' + pip : ''), 'aria-hidden': 'true' }),
+        iconEl('ck-nav-ico', NAV_ICONS[icon]),
+        el('span', {}, label),
+      );
       b.addEventListener('click', on);
       return b;
     };
     const bottomNav = el(
       'div',
       { class: 'ck-nav', role: 'group', 'aria-label': 'Menus' },
-      navBtn('upgrades', 'UPGRADES', () => this.openUpgrades(), 'UPGRADES — spend shards on a permanent meta-tree that carries between runs.'),
+      navBtn('upgrades', 'UPGRADES', () => this.openUpgrades(), 'UPGRADES — spend shards on a permanent meta-tree that carries between runs.', 'gold'),
       navBtn('ranks', 'RANKS', () => this.openLeaderboard(), 'RANKS — online leaderboards (daily, weekly and all-time) if you opt in.'),
       navBtn('stats', 'STATS', () => this.openStats(), 'STATS — your lifetime numbers and achievements.'),
       el('div', { class: 'ck-nav-div' }),
@@ -1264,6 +1276,41 @@ export class UI {
     this.replayAnim(this.lightLance, 'fire');
     this.replayAnim(this.descendOverlay, 'show');
     window.setTimeout(() => this.descendOverlay.classList.remove('show'), 1200);
+  }
+
+  /** Scale-to-fit cockpit fitter (mock): on the desktop layout (≥1040px) the cockpit is a
+   *  fixed composition scaled to fill the viewport (clamped 0.55–1.85), centred, never
+   *  scrolling. Below 1040px we hand off to the CSS breakpoints (fluid reflow) by dropping the
+   *  `fitted` class. Only ever active on the 'title' screen. */
+  private fitCockpit(): void {
+    const frame = this.title.querySelector('.ck-frame') as HTMLElement | null;
+    if (!frame) return;
+    const DESKTOP_MIN_W = 1040;
+    const MAX_SCALE = 1.85;
+    const MIN_SCALE = 0.55;
+    const MARGIN = 30; // breathing room around the scaled frame
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    if (this.current !== 'title' || vw < DESKTOP_MIN_W) {
+      this.title.classList.remove('fitted');
+      frame.style.transform = '';
+      return;
+    }
+    this.title.classList.add('fitted');
+    frame.style.transform = 'translate(-50%, -50%) scale(1)'; // neutral, to measure natural size
+    const w = frame.offsetWidth;
+    const h = frame.offsetHeight;
+    const s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.min((vw - MARGIN) / w, (vh - MARGIN) / h)));
+    frame.style.transform = `translate(-50%, -50%) scale(${s.toFixed(4)})`;
+  }
+
+  /** Coalesce fitter runs to one per frame (resize fires in bursts). */
+  private scheduleFit(): void {
+    if (this.fitRaf !== null) return;
+    this.fitRaf = window.requestAnimationFrame(() => {
+      this.fitRaf = null;
+      this.fitCockpit();
+    });
   }
 
   /** FIRST LIGHT idle teaser: after ~8s of stillness on the title the hero blooms a
@@ -2555,10 +2602,15 @@ export class UI {
       this.replayAnim(this.title, 'boot-in');
       this.prevSelectedMode = null; // the reveal subsumes the first swap; don't double up
       this.startFirstLightIdle();
+      this.scheduleFit(); // scale the cockpit composition to the viewport (desktop layout)
     } else {
       this.title.classList.remove('boot-in');
       this.stopFirstLightIdle();
       this.heroEl?.classList.remove('first-light');
+      // leaving the cockpit: drop the fixed scaled composition so other screens flow normally.
+      this.title.classList.remove('fitted');
+      const frame = this.title.querySelector('.ck-frame') as HTMLElement | null;
+      if (frame) frame.style.transform = '';
     }
     this.pause.classList.toggle('hidden', s !== 'paused');
     this.gameover.classList.toggle('hidden', s !== 'gameover');
@@ -2889,8 +2941,10 @@ export class UI {
     //    so the bootIn reveal owns the entrance, not a swap on top of it. ──
     if (this.prevSelectedMode !== null && this.prevSelectedMode !== m.id && !this.motionOff()) {
       this.replayAnim(this.heroContent, 'swap');
-      this.replayAnim(this.mainPanel, 'pulse');
+      // arrow-nav re-skins quietly (hero swap only); a click/commit gets the full panel pulse.
+      if (!this.quietReskin) this.replayAnim(this.mainPanel, 'pulse');
     }
+    this.quietReskin = false;
     this.prevSelectedMode = m.id;
   }
 
@@ -2930,6 +2984,7 @@ export class UI {
   moveModeSelection(dir: number): void {
     const s = this.saveRef;
     if (!s) return;
+    this.quietReskin = true; // arrow-nav: light hero swap only, skip the heavy panel pulse (mock)
     this.cb.onSelectMode(nextRailMode(s.selectedMode, dir, s.deepestWave)); // persists → refreshTitle rebuilds the rail
     (this.modeGrid.querySelector('.mode-card.selected') as HTMLElement | null)?.focus();
   }
