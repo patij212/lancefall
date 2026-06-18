@@ -2645,12 +2645,14 @@ export class UI {
   }
 
   private buildLeaderboard(): void {
-    const h = el('h2', {}, 'LEADERBOARD');
+    const icon = el('div', { class: 'panel-head-icon' });
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M9 8h6v13H9zM3 13h6v8H3zM15 5h6v16h-6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LEADERBOARDS'), el('h2', { class: 'panel-head-title' }, 'RANKS')));
     const body = el('div', { class: 'leader-body' });
     body.id = 'leader-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.leaderPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
     this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
