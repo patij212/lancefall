@@ -75,6 +75,9 @@ export interface SaveData {
   ngPlusActive: boolean;
   /** killer-kind → death count (the hub's nemesis read; JSON-safe like meta) */
   nemesis: Record<string, number>;
+  /** best run SCORE per mode id (personal record; the STATS "best by mode" chart). A
+   *  {string:number} record like meta/nemesis → the migrate loop coerces it value-by-value. */
+  bestByMode: Record<string, number>;
   /** deepest descent (wave) reached — the hub run-state line */
   deepestWave: number;
   // ── v6 "THE FULL PASS" — reserved by the single 5→6 bump. All additive;
@@ -187,6 +190,7 @@ export function defaultSave(): SaveData {
     ngPlusLevel: 0,
     ngPlusActive: false,
     nemesis: {},
+    bestByMode: {},
     deepestWave: 0,
     selectedMode: 'endless',
     dailyAttempts: 0,

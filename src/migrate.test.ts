@@ -91,6 +91,25 @@ describe('save migration', () => {
     expect(migrateSave({ version: 6, glossSeen: 42 }, defaultSave()).glossSeen).toEqual([]);
   });
 
+  // ── §3.4 per-mode best SCORE — bestByMode is a {string:number} record (like meta/nemesis),
+  //    so the generic coerceNumberRecord pass keeps only finite-number values. ──
+  it('default-fills bestByMode to {} for an old save', () => {
+    expect(migrateSave({ version: 5, highScore: 1 }, defaultSave()).bestByMode).toEqual({});
+  });
+
+  it('keeps finite-number bestByMode entries and drops string/NaN/null values', () => {
+    const out = migrateSave(
+      { version: 6, bestByMode: { endless: 46472, arena: 'lots', nightmare: NaN, bossrush: 9001, broken: null } },
+      defaultSave(),
+    );
+    expect(out.bestByMode).toEqual({ endless: 46472, bossrush: 9001 });
+  });
+
+  it('coerces a non-object bestByMode (string or array) to {}', () => {
+    expect(migrateSave({ version: 6, bestByMode: 'corrupt' }, defaultSave()).bestByMode).toEqual({});
+    expect(migrateSave({ version: 6, bestByMode: [1, 2] }, defaultSave()).bestByMode).toEqual({});
+  });
+
   it('round-trips a full default save unchanged', () => {
     const s = defaultSave();
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);

@@ -1487,11 +1487,17 @@ body {
 .nem-track { height: 9px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; }
 .nem-fill { height: 100%; background: linear-gradient(90deg, #f472b6, #fb7185); border-radius: 999px; }
 .nem-v { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fb7185; text-align: right; }
+/* BEST BY MODE reuses the bar layout but reads positive — cyan "your bests", and a wider
+   value column because the score (toLocaleString) is far longer than a nemesis ✕-count. */
+.mode-row { grid-template-columns: 130px 1fr 76px; }
+.mode-fill { background: linear-gradient(90deg, #22d3ee, #38bdf8); }
+.mode-v { color: #38bdf8; }
 @media (max-width: 700px) {
   .stats-hero { flex-direction: column; align-items: stretch; }
   .stats-hero-grid { grid-template-columns: repeat(2, 1fr); }
   .rec-grid { grid-template-columns: repeat(2, 1fr); }
   .nem-row { grid-template-columns: 96px 1fr 36px; }
+  .mode-row { grid-template-columns: 96px 1fr 64px; }
 }
 @media (max-width: 700px) {
   .stats-grid {

@@ -1665,6 +1665,27 @@ export class UI {
       nemSection.push(el('div', { class: 'stats-label' }, 'NEMESIS · who ends your runs'), bars);
     }
 
+    // BEST BY MODE (§3.4) — your top SCORE in each mode (save.bestByMode), normalized bars.
+    // Filtered to real mode ids so a removed/old id can't mislabel via modeById's fallback.
+    const modeBests = Object.entries(s.bestByMode)
+      .filter(([id, v]) => v > 0 && modeById(id).id === id)
+      .sort((a, b) => b[1] - a[1]);
+    const modeSection: HTMLElement[] = [];
+    if (modeBests.length) {
+      const maxV = Math.max(...modeBests.map(([, v]) => v));
+      const bars = el('div', { class: 'nem-bars' });
+      for (const [id, v] of modeBests) {
+        const fill = el('div', { class: 'nem-fill mode-fill' });
+        fill.style.width = `${Math.max(8, (v / maxV) * 100)}%`;
+        bars.append(el('div', { class: 'nem-row mode-row' },
+          el('div', { class: 'nem-k' }, modeById(id).name),
+          el('div', { class: 'nem-track' }, fill),
+          el('div', { class: 'nem-v mode-v' }, v.toLocaleString()),
+        ));
+      }
+      modeSection.push(el('div', { class: 'stats-label' }, 'BEST BY MODE'), bars);
+    }
+
     const achWrap = el('div', { class: 'ach-grid' });
     for (const a of ACHIEVEMENTS) {
       const g = s.achievements.includes(a.id);
@@ -1679,6 +1700,7 @@ export class UI {
       hero,
       el('div', { class: 'stats-label' }, 'RECORDS'),
       records,
+      ...modeSection,
       ...nemSection,
       el('div', { class: 'stats-label' }, `ACHIEVEMENTS · ${got}/${total}`),
       achWrap,

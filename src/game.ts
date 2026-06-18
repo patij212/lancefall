@@ -2514,6 +2514,8 @@ export class Game {
       this.save.bestCombo = Math.max(this.save.bestCombo, w.bestComboRun);
       this.save.bestWave = Math.max(this.save.bestWave, wave);
       this.save.deepestWave = Math.max(this.save.deepestWave, wave);
+      // §3.4 per-mode best SCORE — a personal record for the STATS "best by mode" chart
+      this.save.bestByMode[this.mode.id] = Math.max(this.save.bestByMode[this.mode.id] ?? 0, w.score);
       // nemesis = the BOSS bearing down when you fell (one boss at a time), keyed by
       // EnemyKind so nemesisOf + bossName can name it. Falling to chaff doesn't count —
       // a nemesis is a boss you keep losing to. (Old prose-keyed entries are harmless.)
