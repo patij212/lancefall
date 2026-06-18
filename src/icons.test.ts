@@ -24,7 +24,7 @@ describe('icons — cockpit inline-SVG glyph set', () => {
       expect(svg).toContain('viewBox="0 0 24 24"');
       expect(svg).toContain('stroke="currentColor"');
       expect(svg).toContain('fill="none"');
-      expect(svg).not.toContain('#'); // no hex → the card's --accent tints it
+      expect(svg).not.toMatch(/(?:fill|stroke|stop-color)="#/); // colours are currentColor, never hex (url(#id) gradient refs are fine)
       expect(svg.trimEnd().endsWith('</svg>')).toBe(true);
     }
   });
