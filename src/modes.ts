@@ -195,10 +195,31 @@ export function nextModeId(currentId: string, dir: number): string {
   return MODES[(cur + step + n) % n].id;
 }
 
-/** §1.1 — the curated title-screen mode RAIL (the consolidation + ENDLESS), in display order.
- *  WEEKLY SIEGE stays as data (reachable as the Daily/Echo card's weekly variant) but is not
- *  its own rail card. The rail is a UI concern; MODES stays the full data set. */
-export const RAIL_MODE_IDS: readonly string[] = ['casual', 'endless', 'arena', 'bossrush', 'daily', 'nightmare', 'longestday'];
+/** §1.1 — the curated title-screen mode CARDS, in display order. A "card" is a UI grouping
+ *  over one or two mode ids; `variants[0]` is the card's DEFAULT landed-on variant. Two cards
+ *  carry a second variant surfaced via an on-card pill: ENDLESS owns [casual, endless]
+ *  (CASUAL·STANDARD difficulty) and ECHO owns [daily, weekly] (DAILY·WEEKLY seed cadence).
+ *  The rail is a pure UI concern; MODES stays the full 8-mode data set. */
+export const RAIL_CARDS: readonly (readonly string[])[] = [
+  ['casual', 'endless'],
+  ['arena'],
+  ['bossrush'],
+  ['daily', 'weekly'],
+  ['nightmare'],
+  ['longestday'],
+];
+
+/** The default (primary) mode id per card, in rail order — digit-jump + nav landing target. */
+export const RAIL_CARD_IDS: readonly string[] = RAIL_CARDS.map((c) => c[0]);
+
+/** Every mode id reachable from the rail (all variants, flattened) — the reachability set the
+ *  modes test guards against to keep a fully-built mode from being stranded (see WEEKLY). */
+export const RAIL_VARIANT_IDS: readonly string[] = RAIL_CARDS.flat();
+
+/** The rail card (variant list) that owns `id`; falls back to the first card for a junk id. */
+export function cardForMode(id: string): readonly string[] {
+  return RAIL_CARDS.find((c) => c.includes(id)) ?? RAIL_CARDS[0];
+}
 
 /** §1.1 progressive disclosure — is this mode unlocked at the player's best-ever wave? A pure
  *  display gate (absent unlockedAtWave = always unlocked). Never touches sim/seed/scoring. */
@@ -206,20 +227,25 @@ export function modeUnlocked(cfg: RunConfig, deepestWave: number): boolean {
   return (cfg.unlockedAtWave ?? 0) <= deepestWave;
 }
 
-/** §1.1 — step the selected mode along the RAIL (dir<0 left / dir>=0 right), wrapping and
- *  SKIPPING locked modes so keyboard/d-pad nav never lands on an unplayable card. Falls back
- *  to the current id if nothing else is unlocked. Pure. */
+/** §1.1 — step the selected mode along the rail CARDS (dir<0 left / dir>=0 right), wrapping and
+ *  SKIPPING locked cards so keyboard/d-pad nav never lands on an unplayable card. Returns the
+ *  landing card's PRIMARY id (variants[0]); the UI layer resolves that to the card's remembered
+ *  variant. Falls back to the current id if nothing else is unlocked. Pure. */
 export function nextRailMode(currentId: string, dir: number, deepestWave: number): string {
-  const ids = RAIL_MODE_IDS;
-  const n = ids.length;
-  const start = Math.max(0, ids.indexOf(currentId));
+  const n = RAIL_CARDS.length;
+  const cur = cardForMode(currentId);
+  const start = Math.max(0, RAIL_CARDS.indexOf(cur));
   const step = dir < 0 ? -1 : 1;
   for (let k = 1; k <= n; k++) {
-    const id = ids[(((start + step * k) % n) + n) % n];
-    if (modeUnlocked(modeById(id), deepestWave)) return id;
+    const card = RAIL_CARDS[(((start + step * k) % n) + n) % n];
+    if (modeUnlocked(modeById(card[0]), deepestWave)) return card[0];
   }
   return currentId;
 }
+
+/** @deprecated transitional alias = RAIL_CARD_IDS so the UI/game consumers compile until they
+ *  migrate to RAIL_CARDS (removed in Task 4). */
+export const RAIL_MODE_IDS: readonly string[] = RAIL_CARD_IDS;
 
 export type ArenaWave =
   | { kind: 'wave'; budget: number; enemies: EnemyKind[] }

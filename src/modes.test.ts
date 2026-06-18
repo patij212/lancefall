@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, modeFlavor, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_MODE_IDS } from './modes';
+import { MODES, modeById, modeBrief, modeFlavor, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_CARDS, RAIL_CARD_IDS, RAIL_VARIANT_IDS, cardForMode } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -133,8 +133,8 @@ describe('modeBrief', () => {
 });
 
 describe('§v7 modeFlavor (mode-rail flavour box)', () => {
-  it('every RAIL mode has explicit flavour copy (head + non-empty body)', () => {
-    for (const id of RAIL_MODE_IDS) {
+  it('every rail-reachable mode has explicit flavour copy (head + non-empty body)', () => {
+    for (const id of RAIL_VARIANT_IDS) {
       const fl = modeFlavor(modeById(id));
       expect(fl.head.startsWith('◇')).toBe(true);
       expect(fl.body.length).toBeGreaterThan(0);
@@ -172,23 +172,41 @@ describe('§1.1 progressive disclosure (rail unlock gates)', () => {
     expect(modeUnlocked(modeById('endless'), 0)).toBe(true); // never gated
   });
 
-  it('the RAIL is the 7 curated cards (Weekly stays data-only, folded into the Daily/Echo card)', () => {
-    expect([...RAIL_MODE_IDS]).toEqual(['casual', 'endless', 'arena', 'bossrush', 'daily', 'nightmare', 'longestday']);
-    expect(RAIL_MODE_IDS).not.toContain('weekly');
-    for (const id of RAIL_MODE_IDS) expect(modeById(id).id).toBe(id); // every rail id resolves to a real mode
+  it('the RAIL is 6 cards; Endless owns casual+endless, Echo owns daily+weekly', () => {
+    expect(RAIL_CARDS.length).toBe(6);
+    expect(RAIL_CARDS[0]).toEqual(['casual', 'endless']);
+    expect(RAIL_CARDS[3]).toEqual(['daily', 'weekly']);
+    // every other card is single-variant
+    for (const i of [1, 2, 4, 5]) expect(RAIL_CARDS[i].length).toBe(1);
+    expect([...RAIL_CARD_IDS]).toEqual(['casual', 'arena', 'bossrush', 'daily', 'nightmare', 'longestday']);
   });
 
-  it('nextRailMode walks the rail, wraps, and SKIPS locked modes', () => {
-    // a brand-new player (deepestWave 0): nightmare + longestday are locked and skipped
-    expect(nextRailMode('casual', 1, 0)).toBe('endless');
-    expect(nextRailMode('daily', 1, 0)).toBe('casual'); // skips locked nightmare+longestday, wraps to casual
-    expect(nextRailMode('casual', -1, 0)).toBe('daily'); // left wraps back past the locked tail to daily
-    // a veteran (deepestWave 99): everything unlocked, plain wrap-around
+  it('every mode in MODES is reachable from the rail (no stranded modes)', () => {
+    // the regression that stranded WEEKLY: a mode with config but no card is unplayable
+    for (const m of MODES) expect(RAIL_VARIANT_IDS).toContain(m.id);
+    expect([...RAIL_VARIANT_IDS].sort()).toEqual(MODES.map((m) => m.id).sort());
+  });
+
+  it('cardForMode finds the owning card for any variant; junk → first card', () => {
+    expect(cardForMode('endless')).toEqual(['casual', 'endless']);
+    expect(cardForMode('weekly')).toEqual(['daily', 'weekly']);
+    expect(cardForMode('arena')).toEqual(['arena']);
+    expect(cardForMode('bogus')).toEqual(RAIL_CARDS[0]);
+  });
+
+  it('nextRailMode walks cards, returns the landing card primary, wraps, and SKIPS locked', () => {
+    // brand-new player (deepestWave 0): nightmare(5) + longestday(8) locked & skipped
+    expect(nextRailMode('casual', 1, 0)).toBe('arena');   // card0 -> card1
+    expect(nextRailMode('endless', 1, 0)).toBe('arena');  // a non-primary variant resolves to its card too
+    expect(nextRailMode('daily', 1, 0)).toBe('casual');   // card3 -> skip locked 4,5 -> wrap card0
+    expect(nextRailMode('weekly', -1, 0)).toBe('bossrush'); // card3 -> card2
+    expect(nextRailMode('casual', -1, 0)).toBe('daily');  // wrap left past the locked tail
+    // veteran (deepestWave 99): all unlocked, plain wrap
     expect(nextRailMode('daily', 1, 99)).toBe('nightmare');
     expect(nextRailMode('longestday', 1, 99)).toBe('casual');
   });
 
   it('nextRailMode returns the current id when nothing else is reachable', () => {
-    expect(nextRailMode('casual', 1, -1)).toBe('casual'); // deepestWave -1 locks even wave-0 modes → stays put
+    expect(nextRailMode('casual', 1, -1)).toBe('casual'); // deepestWave -1 locks all
   });
 });
