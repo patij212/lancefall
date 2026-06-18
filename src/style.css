@@ -1652,19 +1652,38 @@ body {
 .upg-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 .upg-tree { position: relative; width: 100%; height: 400px; margin: 2px 0 4px; }
 .upg-link-layer, .upg-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.tnode { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 98px; text-align: center; }
+.tnode { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 98px; text-align: center; transition: transform 0.12s ease; }
 .tnode-badge {
   --bc: #22d3ee;
+  position: relative;
   width: 30px; height: 30px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text);
   border: 1.5px solid color-mix(in srgb, var(--bc) 50%, var(--border));
   background: color-mix(in srgb, var(--bc) 10%, rgba(255, 255, 255, 0.02));
 }
+/* mock: a conic-gradient progress RING around the badge, filled to the node's level (--fill). */
+.tnode:not(.tnode-root) .tnode-badge::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(var(--bc) var(--fill, 0%), rgba(255, 255, 255, 0.07) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  pointer-events: none;
+}
 .tnode-root .tnode-badge { color: var(--bc); border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.05); font-size: 13px; }
 .tnode.owned .tnode-badge,
 .tnode.maxed .tnode-badge { background: color-mix(in srgb, var(--bc) 28%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--bc) 55%, transparent); }
-.tnode.afford .tnode-badge { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 42%, transparent); }
+/* an affordable node breathes a soft accent glow + lifts on hover (mock). */
+.tnode.afford .tnode-badge { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 42%, transparent); animation: tnodeAfford 2.4s ease-in-out infinite; }
+@keyframes tnodeAfford {
+  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 40%, transparent), 0 0 8px color-mix(in srgb, var(--bc) 25%, transparent); }
+  50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 62%, transparent), 0 0 18px color-mix(in srgb, var(--bc) 52%, transparent); }
+}
+.tnode.afford:hover { transform: translate(-50%, -50%) scale(1.09); }
+.reduce-motion .tnode.afford .tnode-badge { animation: none; }
 .tnode-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 10.5px; line-height: 1.15; color: var(--text); }
 .tnode.maxed .tnode-name { color: var(--green); }
 .tnode-cost { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.03); color: var(--text-muted); cursor: pointer; }

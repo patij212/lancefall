@@ -1741,6 +1741,14 @@ export class UI {
       });
       presetRow.append(b);
     }
+    // reflect the active preset on open (mock: a preset reads lit) — light whichever preset the
+    // current dials already match, so the row isn't blank. Defaults land on BALANCED.
+    const presetNames = Object.keys(PRESETS);
+    const activeIdx = presetNames.findIndex((name) => {
+      const p = PRESETS[name];
+      return p.particleDensity === s.particleDensity && p.chromAberration === s.chromAberration && p.shake === s.shake;
+    });
+    if (activeIdx >= 0) (presetRow.children[activeIdx] as HTMLElement | undefined)?.classList.add('active');
 
     // soundtrack picker — AURORA (dreamy) vs SURGE (aggressive)
     const trackWrap = el('div', { class: 'setting' }, el('span', {}, 'Soundtrack'));
@@ -1863,12 +1871,13 @@ export class UI {
   }
 
   private buildUpgrades(): void {
+    const eyebrow = el('div', { class: 'panel-eyebrow' }, 'PERMANENT META-TREE');
     const h = el('h2', {}, 'UPGRADES');
     const body = el('div', { class: 'upg-body' });
     body.id = 'upg-body';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.upgradesPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, eyebrow, h, body, close);
     this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
