@@ -167,6 +167,24 @@ const LO_HEAT_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"
 const LO_BUILD_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M5.5 1l1.5 3H10L7.5 6.5 8.5 10 5.5 8 2.5 10 3.5 6.5 1 4h3Z" stroke="#a78bfa" stroke-width="0.9" fill="none"/></svg>`;
 const LO_ARMOR_SVG = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M1 5.5L3 3l2.5 2.5L8 2l2 1.5" stroke="#818cf8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+/** Plain-language summary of what a HEAT level does — name, score/shard multipliers, and the
+ *  concrete modifiers it applies — for the loadout pip tooltips so hovering a square explains
+ *  exactly what selecting that level changes (not just "Heat 3"). */
+function heatTooltip(level: number): string {
+  const lvl = HEAT_LEVELS[level];
+  if (!lvl) return '';
+  const mods: string[] = [];
+  if (lvl.enemySpeedAdd > 0) mods.push(`Enemy speed +${Math.round(lvl.enemySpeedAdd * 100)}%`);
+  if (lvl.spawnMulMod < 1) mods.push(`Spawn density +${Math.round((1 - lvl.spawnMulMod) * 100)}%`);
+  if (lvl.bossIntervalMod < 1) mods.push(`Bosses ${Math.round((1 - lvl.bossIntervalMod) * 100)}% sooner`);
+  if (lvl.revivesLost > 0) mods.push(`−${lvl.revivesLost} revive${lvl.revivesLost > 1 ? 's' : ''}`);
+  if (lvl.shieldsLost > 0) mods.push(`−${lvl.shieldsLost} ARMOR`);
+  if (lvl.grazeRadiusMod < 1) mods.push(`Graze window −${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`);
+  const shardPct = Math.round((lvl.shardMul - 1) * 100);
+  const head = `HEAT ${lvl.level} · ${lvl.name} — ×${lvl.scoreMul.toFixed(2)} score${shardPct > 0 ? `, +${shardPct}% shards` : ''}`;
+  return mods.length ? `${head}\n${mods.join(' · ')}` : `${head}\nStandard rules — no penalties.`;
+}
+
 // ── FIRST LIGHT run-end static art (ported from mock-choice-v2) ────────────────
 // The dawn sigil header mark (the tonal inverse of the cockpit's cyan logo: gold).
 const GO_SIGIL_SVG = `<svg viewBox="0 0 46 46" fill="none" aria-hidden="true">
@@ -1170,7 +1188,7 @@ export class UI {
     heatPlus.addEventListener('click', () => this.stepHeat(1));
     const heatRow = el(
       'div',
-      { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Higher Heat = tougher run, bigger score multiplier.' },
+      { class: 'ck-lo-row', title: 'HEAT — optional difficulty ladder. Higher Heat = tougher run, bigger score multiplier. Click a square to jump to that level (hover one for its modifiers).' },
       el('div', { class: 'ck-lo-key' }, iconEl('ck-lo-ico', LO_HEAT_SVG), 'HEAT'),
       el('div', { class: 'ck-lo-right' }, heatMinus, this.heatPipsWrap, heatPlus),
     );
@@ -1446,7 +1464,14 @@ export class UI {
       this.heatPipsWrap,
       pips,
       (n) => `h${n}`,
-      () => el('div', { class: 'ck-heat-pip' }),
+      (n) => {
+        // each pip is a real button: click jumps Heat straight to that level (the −/+ steppers
+        // stay for fine control + Heat 0), and the tooltip explains that level's modifiers.
+        const tip = heatTooltip(n);
+        const pip = el('button', { class: 'ck-heat-pip', type: 'button', title: tip, 'aria-label': `Set ${tip.replace(/\n/g, ' — ')}` });
+        pip.addEventListener('click', () => this.cb.onHeatChange(n)); // same callback as the steppers → persists + re-paints
+        return pip;
+      },
       (node, n) => node.classList.toggle('on', n <= level),
     );
   }
