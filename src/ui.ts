@@ -453,18 +453,16 @@ export class UI {
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
   private upgShell?: { root: HTMLElement; update: (s: SaveData) => void }; // meta-tree shell, built once
-  private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
   private codexMemGrid?: HTMLElement; // reconciled memories grid (built once, morphed on decrypt)
   private codexMemFrag?: HTMLElement; // fragment-balance line (text updated in place)
   private codexBestiary!: HTMLElement; // §v7 — bestiary grids, re-rendered per open (live kill counts)
   private codexAchPane!: HTMLElement; // CODEX achievements tab — the grid moved here from STATS
-  private codexShowTab?: (ach: boolean) => void; // switch the CODEX top tabs (false = bestiary, true = achievements)
+  private codexShowTab?: (key: string) => void; // switch the CODEX top tabs ('codex' | 'fall' | 'howto' | 'ach')
   private skinsPanel!: HTMLElement;
   private skinsBody!: HTMLElement;
   private creditsPanel!: HTMLElement;
-  private fallPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
@@ -653,12 +651,10 @@ export class UI {
     this.buildSettings();
     this.buildStats();
     this.buildUpgrades();
-    this.buildHowTo();
-    this.buildCodex();
+    this.buildCodex(); // hosts the bestiary/lore, THE FALL + HOW TO (tabs), and ACHIEVEMENTS
     this.buildSkins();
     this.buildCosmetics();
     this.buildCredits();
-    this.buildFall();
     this.buildHeat();
     this.buildArchetype();
     this.buildLeaderboard();
@@ -670,7 +666,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -715,12 +711,10 @@ export class UI {
       [this.settingsPanel, 'Settings'],
       [this.statsPanel, 'Lifetime stats'],
       [this.upgradesPanel, 'Upgrades'],
-      [this.howtoPanel, 'How to play'],
       [this.codexPanel, 'Bestiary codex'],
       [this.skinsPanel, 'Bestiary skins'],
       [this.cosmeticsPanel, 'Customize cosmetics'],
       [this.creditsPanel, 'Credits'],
-      [this.fallPanel, 'The fall'],
       [this.heatPanel, 'Heat ascension'],
       [this.archetypePanel, 'Build archetype'],
       [this.leaderPanel, 'Leaderboard'],
@@ -2102,16 +2096,6 @@ export class UI {
     this.closeModal(this.settingsPanel);
   }
 
-  private buildHowTo(): void {
-    const h = el('h2', {}, 'HOW TO PLAY');
-    const body = el('div', { class: 'howto-body' });
-    body.id = 'howto-body';
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.howtoPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.howtoPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
-  }
-
   /** CREDITS — the player-facing audio attribution surface (CC BY 3.0 requires visible credit). */
   private buildCredits(): void {
     const c = audioCredits();
@@ -2146,10 +2130,9 @@ export class UI {
     this.openModal(this.creditsPanel);
   }
 
-  /** THE FALL — the premise card (the encryption story). Diegetic; sets the
-   *  Turing×solstice frame for new players and the jam judges. */
-  private buildFall(): void {
-    const h = el('h2', {}, 'THE FALL');
+  /** THE FALL — the premise/story (the encryption story). Diegetic; sets the Turing×solstice
+   *  frame for new players + the jam judges. Rendered as a CODEX tab (the lore hub). */
+  private renderFallContent(): HTMLElement {
     const body = el('div', { class: 'howto-body fall-prose' });
     const paras = [
       'Lancefall was a kingdom whose memory was kept as living light — every name, every bell, every street written in code, so the dark would always have somewhere to fail.',
@@ -2160,14 +2143,12 @@ export class UI {
     for (const p of paras) body.append(el('p', { class: 'fall-para' }, p));
     // §v7 — THE SIX WHO LET IT FALL: the six bosses as a numbered confession timeline.
     body.append(el('div', { class: 'stats-label' }, 'THE SIX WHO LET IT FALL'), renderTheSix());
-    const close = el('button', { class: 'btn btn-primary' }, 'DESCEND');
-    close.addEventListener('click', () => this.closeModal(this.fallPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.fallPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    return body;
   }
 
+  /** THE FALL nav shortcut → opens the CODEX on its story tab. */
   private showFall(): void {
-    this.openModal(this.fallPanel);
+    this.showCodex('fall');
   }
 
   private buildDuel(): void {
@@ -2270,7 +2251,7 @@ export class UI {
   private buildCodex(): void {
     const icon = el('div', { class: 'panel-head-icon' });
     icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M20 18v3H6.5A2.5 2.5 0 0 1 4 18.5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
-    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'BESTIARY · LORE · CIPHER'), el('h2', { class: 'panel-head-title' }, 'CODEX')));
+    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'BESTIARY · STORY · MANUAL'), el('h2', { class: 'panel-head-title' }, 'CODEX')));
     const body = el('div', { class: 'codex-body' });
     // intro lead (mock): the creature portraits are still in the render pipeline; entries
     // surface behaviour / role / lore today.
@@ -2292,23 +2273,29 @@ export class UI {
       el('div', { class: 'row-group-title' }, 'READ THE KEY · THE CIPHER'),
       renderCipherLegend(),
     );
-    // ── top-level tabs: CODEX (bestiary + cipher + lore) | ACHIEVEMENTS (the grid, moved from
-    // STATS). The tab bar sits between the sticky head and the scrolling body so it stays put. ──
+    // ── top-level tabs — the LORE/REFERENCE hub: CODEX (bestiary + cipher + lore) · THE FALL
+    // (the story) · HOW TO (controls + evolutions) · ACHIEVEMENTS (the grid). The tab bar sits
+    // between the sticky head and the scrolling body so it stays put while a pane scrolls. ──
     // enemy-lead order (mock): bestiary first, then cipher, then the lore memories.
     const mainPane = el('div', { class: 'codex-pane' }, lead, this.codexBestiary, cipher, this.codexMemories);
+    const fallPane = el('div', { class: 'codex-pane hidden' }, this.renderFallContent());
+    const howtoPane = el('div', { class: 'codex-pane hidden' }, this.renderHowToContent());
     this.codexAchPane = el('div', { class: 'codex-pane hidden' }); // filled per open by renderAchievements
-    const tabMain = el('button', { class: 'btn-sm active', type: 'button' }, 'CODEX');
-    const tabAch = el('button', { class: 'btn-sm', type: 'button' }, 'ACHIEVEMENTS');
-    const tabBar = el('div', { class: 'ach-filter codex-tabs' }, tabMain, tabAch);
-    this.codexShowTab = (ach: boolean): void => {
-      mainPane.classList.toggle('hidden', ach);
-      this.codexAchPane.classList.toggle('hidden', !ach);
-      tabMain.classList.toggle('active', !ach);
-      tabAch.classList.toggle('active', ach);
+    const panes: Record<string, HTMLElement> = { codex: mainPane, fall: fallPane, howto: howtoPane, ach: this.codexAchPane };
+    const tabDefs: [string, string][] = [['codex', 'CODEX'], ['fall', 'THE FALL'], ['howto', 'HOW TO'], ['ach', 'ACHIEVEMENTS']];
+    const tabBtns = new Map<string, HTMLElement>();
+    const tabBar = el('div', { class: 'ach-filter codex-tabs' });
+    this.codexShowTab = (key: string): void => {
+      for (const k of Object.keys(panes)) panes[k].classList.toggle('hidden', k !== key);
+      for (const [k, btn] of tabBtns) btn.classList.toggle('active', k === key);
     };
-    tabMain.addEventListener('click', () => this.codexShowTab!(false));
-    tabAch.addEventListener('click', () => this.codexShowTab!(true));
-    body.append(mainPane, this.codexAchPane);
+    for (const [key, label] of tabDefs) {
+      const btn = el('button', { class: 'btn-sm', type: 'button' }, label);
+      btn.addEventListener('click', () => this.codexShowTab!(key));
+      tabBtns.set(key, btn);
+      tabBar.append(btn);
+    }
+    body.append(mainPane, fallPane, howtoPane, this.codexAchPane);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
     const panel = el('div', { class: 'panel panel-wide' }, head, tabBar, body, close);
@@ -2624,7 +2611,7 @@ export class UI {
     );
   }
 
-  private showCodex(): void {
+  private showCodex(tab = 'codex'): void {
     this.refreshMemories();
     const s = this.saveRef;
     if (s) {
@@ -2643,12 +2630,17 @@ export class UI {
         });
       }
     }
-    this.codexShowTab?.(false); // default to the CODEX (bestiary) tab on each open
+    this.codexShowTab?.(tab); // open on the requested tab (default: the CODEX bestiary)
     this.openModal(this.codexPanel);
   }
 
+  /** HOW TO nav shortcut → opens the CODEX on its manual tab. */
   private showHowTo(): void {
-    const body = this.howtoPanel.querySelector('#howto-body')!;
+    this.showCodex('howto');
+  }
+
+  /** HOW TO PLAY — controls, core loop + the EVOLUTIONS catalog. Rendered as a CODEX tab. */
+  private renderHowToContent(): HTMLElement {
     const rule = (k: string, v: string) => el('div', { class: 'howto-rule' }, el('b', {}, k), el('span', {}, v));
     const basics = el('div', { class: 'howto-rules' },
       rule('Move', 'WASD / arrows / left stick'),
@@ -2677,12 +2669,13 @@ export class UI {
       );
       evoCards.append(card);
     }
-    body.replaceChildren(
+    return el(
+      'div',
+      { class: 'howto-body' },
       basics,
       el('div', { class: 'stats-label' }, 'EVOLUTIONS · stack the recipe to unlock a fusion'),
       evoCards,
     );
-    this.openModal(this.howtoPanel);
   }
 
   private buildHeat(): void {

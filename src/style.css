@@ -888,6 +888,9 @@ body {
 .codex-tabs { padding: 12px 20px 0; }
 /* each tab's content flows like the old codex-body did (column + 8px gap between sections). */
 .codex-pane { display: flex; flex-direction: column; gap: 8px; }
+/* THE FALL / HOW TO panes carry width-capped reading content (.howto-body / .fall-prose). Centre
+   it in the now-full-width codex pane so it reads as a column, not a left-shifted block. */
+.codex-pane .howto-body { margin-inline: auto; }
 /* The .btn-sm pills in an .ach-filter row (the CODEX tab bar + the ACHIEVEMENTS filter tabs)
    only inherit base padding — base .btn-sm sets no background/border (those live in the
    .leader-modes / .setting contexts), so without this they fall back to the default browser
