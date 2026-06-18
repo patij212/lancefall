@@ -613,7 +613,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.howtoPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.fallPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -1143,13 +1143,21 @@ export class UI {
       el('div', { class: 'ck-armor-cap' }, 'LETHAL HIT ABSORPTION'),
     );
 
-    // ship picker (reuse this.shipRow), hidden until CHANGE SHIP.
+    // ship picker — a proper modal (was a cramped inline column in the narrow loadout that
+    // overflowed the screen and read as "missing"). CHANGE SHIP opens it; chips grid inside.
     this.shipRow = el('div', { class: 'ship-row ck-ship-row' });
-    this.shipPicker = el('div', { class: 'ck-picker hidden' }, this.shipRow);
-    changeShip.addEventListener('click', () => {
-      const open = this.shipPicker.classList.toggle('hidden');
-      changeShip.setAttribute('aria-expanded', String(!open));
-    });
+    const shipClose = el('button', { class: 'btn btn-primary' }, 'DONE');
+    shipClose.addEventListener('click', () => this.closeModal(this.shipPicker));
+    const shipPanel = el(
+      'div',
+      { class: 'panel panel-wide' },
+      el('div', { class: 'panel-eyebrow' }, 'LOADOUT · HULL'),
+      el('h2', {}, 'SELECT SHIP'),
+      this.shipRow,
+      shipClose,
+    );
+    this.shipPicker = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, shipPanel);
+    changeShip.addEventListener('click', () => this.openModal(this.shipPicker));
 
     // cosmetics — the PALETTE + DASH-TRAIL pickers (this.themeRow / this.trailRow) now live in
     // a CUSTOMIZE modal (built by buildCosmetics); the loadout shows two at-a-glance summary
@@ -1177,7 +1185,6 @@ export class UI {
       { class: 'ck-col ck-col-right' },
       el('div', { class: 'ck-sec' }, 'LOADOUT'),
       shipDisplay,
-      this.shipPicker,
       heatRow,
       buildRow,
       armorRow,
@@ -2191,6 +2198,9 @@ export class UI {
     const eyebrow = el('div', { class: 'panel-eyebrow' }, 'LOADOUT · COSMETICS');
     const skinsBtn = el('button', { class: 'btn btn-ghost' }, 'BESTIARY SKINS →');
     skinsBtn.addEventListener('click', () => this.openSkins());
+    // BESTIARY (codex) — a way into the enemy/lore gallery from cosmetics (requested; not in mock).
+    const bestiaryBtn = el('button', { class: 'btn btn-ghost' }, 'BESTIARY');
+    bestiaryBtn.addEventListener('click', () => { this.closeModal(this.cosmeticsPanel); this.showCodex(); });
     const note = el('div', { class: 'cosm-note' }, 'Cosmetics are visual-only — they never change how a run plays.');
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.cosmeticsPanel));
@@ -2204,7 +2214,7 @@ export class UI {
       el('div', { class: 'row-group-title' }, 'DASH TRAIL'),
       this.trailRow,
       note,
-      el('div', { class: 'go-row' }, skinsBtn, close),
+      el('div', { class: 'go-row' }, skinsBtn, bestiaryBtn, close),
     );
     this.cosmeticsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }

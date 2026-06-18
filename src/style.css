@@ -3574,18 +3574,18 @@ body {
   margin: 8px 0 6px;
 }
 
-/* the loadout pickers (ship / cosmetics) reuse the existing .ship-row / .theme-row tiles
-   but compacted to fit the narrow loadout column. */
+/* ship picker is its own modal now — lay the hull tiles out as a centered wrapping grid
+   (was a cramped vertical column forced into the narrow loadout col, which overflowed). */
 .ck-picker { margin-top: 8px; }
 .ship-row.ck-ship-row {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: 6px;
-}
-.ship-row.ck-ship-row .ship-chip {
-  width: 100%;
-  min-height: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: 4px 2px;
 }
 .theme-row.ck-cosm-grid {
   justify-content: flex-start;
