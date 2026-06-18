@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES, boardCacheKey, BOARD_CACHE_TTL } from '../worker/src/validate';
+import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from '../worker/src/validate';
 
 // The leaderboard worker's security-relevant logic was previously untested. These cover the
 // pure validators it relies on, so the only network-facing component has a regression net.
@@ -80,6 +80,30 @@ describe('worker — boardCacheKey edge-cache key', () => {
   it('TTL is a sane positive, sub-2-minute window', () => {
     expect(BOARD_CACHE_TTL).toBeGreaterThan(0);
     expect(BOARD_CACHE_TTL).toBeLessThanOrEqual(120);
+  });
+});
+
+describe('worker — §v7 achievement rarity validators', () => {
+  it('sanitizeDevice accepts a clean token, lowercases, rejects junk/length', () => {
+    expect(sanitizeDevice('abc123def456')).toBe('abc123def456');
+    expect(sanitizeDevice('ABC123DEF456')).toBe('abc123def456'); // lowercased
+    expect(sanitizeDevice('short')).toBeNull(); // < 8
+    expect(sanitizeDevice('a'.repeat(41))).toBeNull(); // > 40
+    expect(sanitizeDevice('has spaces!!')).toBeNull(); // non-alphanumeric
+    expect(sanitizeDevice(null)).toBeNull();
+    expect(sanitizeDevice(12345678)).toBe('12345678'); // numbers stringify fine
+  });
+
+  it('sanitizeAchIds filters non-ids, dedupes, caps at 64', () => {
+    expect(sanitizeAchIds(['firstblood', 'skewer', 'firstblood'])).toEqual(['firstblood', 'skewer']);
+    expect(sanitizeAchIds(['ok_id', 7, null, '', 'has space', 'BadCaps'])).toEqual(['ok_id']);
+    expect(sanitizeAchIds('not-an-array')).toEqual([]);
+    expect(sanitizeAchIds(Array.from({ length: 100 }, (_, i) => 'a' + i)).length).toBe(64);
+  });
+
+  it('ACH_CACHE_TTL is a sane positive window (slower than the board)', () => {
+    expect(ACH_CACHE_TTL).toBeGreaterThanOrEqual(BOARD_CACHE_TTL);
+    expect(ACH_CACHE_TTL).toBeLessThanOrEqual(3600);
   });
 });
 

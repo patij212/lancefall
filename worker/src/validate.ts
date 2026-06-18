@@ -48,6 +48,35 @@ export function capsOk(score: number, wave: number, combo: number, heat: number)
   return score <= plausibleMax;
 }
 
+// ── §v7 achievement-rarity aggregate ──────────────────────────────────────────────
+// An anonymous "% of players who have this" stat. To make rarity = holders / players
+// count UNIQUE reporters (not raw POSTs), the client sends a stable random device token;
+// the worker stores one (device, achievement) row each, append-only (achievements never
+// un-unlock). The token is not PII — a random base36 string scoped to the rarity endpoint.
+
+/** A client-generated device token used ONLY to dedupe rarity reports. Accept 8–40 chars
+ *  of [a-z0-9] (lowercased); reject anything else. Returns the clean token or null. */
+export function sanitizeDevice(d: unknown): string | null {
+  const s = String(d ?? '').toLowerCase();
+  return /^[a-z0-9]{8,40}$/.test(s) ? s : null;
+}
+
+/** Sanitize a reported achievement-id set: keep [a-z0-9_]{1,40} ids, dedupe, cap to 64
+ *  (the roster is ~28; the cap is a hard anti-bloat ceiling). Pure + total. */
+export function sanitizeAchIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  for (const x of raw) {
+    if (typeof x === 'string' && /^[a-z0-9_]{1,40}$/.test(x)) seen.add(x);
+    if (seen.size >= 64) break;
+  }
+  return [...seen];
+}
+
+/** Edge-cache TTL (seconds) for GET /ach — rarity drifts slowly, so cache it far longer
+ *  than a live board; 5 minutes keeps the GROUP BY scan off D1 under any read spike. */
+export const ACH_CACHE_TTL = 300;
+
 /** Edge-cache TTL (seconds) for GET /leaderboard. Repeated board reads serve from the
  *  Cloudflare edge instead of re-running the GROUP BY scan over D1 — D1's free-tier
  *  rows-read budget is the first ceiling, so this is the single biggest cheap win for

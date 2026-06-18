@@ -2,13 +2,15 @@
 // Endpoints (JSON, CORS scoped to the LANCEFALL origins):
 //   POST /score        { mode, name, score, wave, combo, heat, daily? }  -> { ok }
 //   GET  /leaderboard?mode=<m>[&daily=YYYY-MM-DD][&scope=weekly]         -> { entries }
+//   POST /ach          { device, ids: string[] }                        -> { ok }
+//   GET  /ach                                                           -> { players, holders }
 //   GET  /daily                                                          -> { seed, date }
 //
 // The game is client-authoritative, so this is a COMMUNITY (unverified) board: scores
 // can't be cryptographically trusted on a zero-friction casual board. We apply pragmatic
 // sanity + plausibility caps (validate.ts) and per-handle best-only aggregation rather than
 // full replay verification (which is infeasible — the ghost is a position trace, not inputs).
-import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, boardCacheKey, BOARD_CACHE_TTL } from './validate';
+import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from './validate';
 
 export interface Env {
   DB: D1Database;
@@ -132,6 +134,63 @@ export default {
       const cacheable = new Response(body, {
         status: 200,
         headers: { 'content-type': 'application/json', 'Cache-Control': `public, s-maxage=${BOARD_CACHE_TTL}` },
+      });
+      ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
+      return new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'x-cache': 'MISS', ...cors },
+      });
+    }
+
+    // ── §v7 report unlocked achievements (anonymous rarity aggregate) ──
+    // Append-only: one (device, achievement) row each. INSERT OR IGNORE means re-reporting
+    // the same set is a cheap no-op, and a player who plays 100 runs still counts once per
+    // achievement. The device token only dedupes — it's a random client string, not PII.
+    if (req.method === 'POST' && url.pathname === '/ach') {
+      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429, cors);
+      let b: Record<string, unknown>;
+      try {
+        b = (await req.json()) as Record<string, unknown>;
+      } catch {
+        return json({ error: 'bad json' }, 400, cors);
+      }
+      const device = sanitizeDevice(b.device);
+      if (!device) return json({ error: 'bad device' }, 400, cors);
+      const ids = sanitizeAchIds(b.ids);
+      if (ids.length) {
+        const now = Date.now();
+        await env.DB.batch(
+          ids.map((id) =>
+            env.DB.prepare('INSERT OR IGNORE INTO ach_unlocks (device, id, ts) VALUES (?, ?, ?)').bind(device, id, now),
+          ),
+        );
+      }
+      return json({ ok: true }, 200, cors);
+    }
+
+    // ── §v7 achievement rarity: { players, holders: { id: count } } ──
+    // holders[id] = # of DISTINCT devices with that achievement (PRIMARY KEY (device,id) ⇒
+    // COUNT(*) per id IS the distinct-device count). Edge-cached like the board.
+    if (req.method === 'GET' && url.pathname === '/ach') {
+      const cache = caches.default;
+      const cacheKey = new Request(`${url.origin}/ach`, { method: 'GET' });
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return new Response(cached.body, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'x-cache': 'HIT', ...cors },
+        });
+      }
+      if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429, cors);
+      const pr = await env.DB.prepare('SELECT COUNT(DISTINCT device) AS n FROM ach_unlocks').first<{ n: number }>();
+      const players = Math.max(0, Math.floor(Number(pr?.n ?? 0)));
+      const rs = await env.DB.prepare('SELECT id, COUNT(*) AS c FROM ach_unlocks GROUP BY id').all<{ id: string; c: number }>();
+      const holders: Record<string, number> = {};
+      for (const r of rs.results ?? []) holders[r.id] = Math.max(0, Math.floor(Number(r.c)));
+      const body = JSON.stringify({ players, holders });
+      const cacheable = new Response(body, {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'Cache-Control': `public, s-maxage=${ACH_CACHE_TTL}` },
       });
       ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
       return new Response(body, {

@@ -29,7 +29,7 @@ import { rollDraftCards, isEvolution, isRelic, availableEvolutions, describeEvol
 import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
-import { submitScore } from './api';
+import { submitScore, submitAchievements } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
@@ -144,6 +144,8 @@ export class Game {
   private inChallenge = false;
   private challengeTarget = 0;
   private challengeName = '';
+  /** §v7 — posted the achievement set to the rarity aggregate at least once this session */
+  private achReported = false;
 
   private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
@@ -2615,6 +2617,13 @@ export class Game {
         clearTime: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.clearTime : undefined,
         hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
       });
+    }
+    // §v7 — contribute to the anonymous achievement-rarity aggregate. Post the full set on
+    // the first finish of the session (seeds players who earned theirs before this shipped)
+    // and whenever a new one unlocked this run. Fire-and-forget; no-op offline.
+    if (this.save.achievements.length > 0 && (newAch.length > 0 || !this.achReported)) {
+      this.achReported = true;
+      void submitAchievements(this.save.achievements.slice());
     }
     const info: GameOverInfo = {
       score: w.score,
