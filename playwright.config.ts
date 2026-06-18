@@ -6,6 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  // Serial: these smoke tests share ONE `vite preview` server and each drives a full Web-Audio +
+  // canvas run. Under parallel workers they contend on that single server and flake intermittently
+  // (transient asset 404s, timing-sensitive run-clock/overlay assertions). One worker = one browser
+  // at a time = no contention; the suite is small (~10 tests) so the serial cost is minor.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',

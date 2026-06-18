@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 // §1.2 DASH SANDBOX onboarding smoke. Verifies the first-run-only no-fail teach in a real
 // headless Chromium against the production bundle: a FRESH save shows the sandbox on DESCEND,
