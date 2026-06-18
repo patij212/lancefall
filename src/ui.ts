@@ -434,6 +434,8 @@ export class UI {
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
+  private codexMemGrid?: HTMLElement; // reconciled memories grid (built once, morphed on decrypt)
+  private codexMemFrag?: HTMLElement; // fragment-balance line (text updated in place)
   private codexBestiary!: HTMLElement; // §v7 — bestiary grids, re-rendered per open (live kill counts)
   private skinsPanel!: HTMLElement;
   private skinsBody!: HTMLElement;
@@ -2488,37 +2490,57 @@ export class UI {
   refreshMemories(): void {
     const s = this.saveRef;
     if (!this.codexMemories) return;
-    this.codexMemories.replaceChildren();
-    if (!s) return;
+    if (!s) { this.codexMemories.replaceChildren(); this.codexMemGrid = undefined; return; }
     const bal = fragmentBalance(s);
-    this.codexMemories.append(
-      el('div', { class: 'stats-label' }, 'THE FALL · MEMORIES'),
-      el(
-        'div',
-        { class: 'codex-frag' },
-        `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'} — one is carried out of every descent. Spend them to decrypt what was lost.`,
-      ),
-    );
-    const grid = el('div', { class: 'codex-grid' });
-    for (const e of LORE) {
-      const unlocked = loreUnlocked(s, e.id);
-      const card = el('div', { class: 'codex-entry' + (unlocked ? '' : ' codex-forgotten') });
-      if (unlocked) {
-        card.append(el('div', { class: 'codex-name' }, e.title), el('div', { class: 'codex-blurb' }, e.text));
-      } else {
-        const affordable = bal >= e.cost;
-        const btn = el('button', { class: 'btn btn-sm' + (affordable ? ' btn-primary' : '') }, `DECRYPT ◆${e.cost}`);
-        if (!affordable) btn.setAttribute('disabled', 'true');
-        btn.addEventListener('click', () => this.cb.onUnlockLore(e.id));
-        card.append(
-          el('div', { class: 'codex-name codex-locked' }, '— enciphered —'),
-          el('div', { class: 'codex-blurb codex-locked' }, `A memory of the fall, enciphered. ◆${e.cost} to decrypt it.`),
-          btn,
-        );
-      }
-      grid.append(card);
+    // shell (label + frag line + grid) built once; decrypting (onUnlockLore → refreshMemories)
+    // then morphs only the affected card in place + re-prices the rest, no grid reflash.
+    if (!this.codexMemGrid) {
+      this.codexMemFrag = el('div', { class: 'codex-frag' });
+      this.codexMemGrid = el('div', { class: 'codex-grid' });
+      this.codexMemories.replaceChildren(
+        el('div', { class: 'stats-label' }, 'THE FALL · MEMORIES'),
+        this.codexMemFrag,
+        this.codexMemGrid,
+      );
     }
-    this.codexMemories.append(grid);
+    this.codexMemFrag!.textContent = `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'} — one is carried out of every descent. Spend them to decrypt what was lost.`;
+    reconcile(
+      this.codexMemGrid,
+      LORE,
+      (e) => e.id,
+      (e) => {
+        const card = el('div', { class: 'codex-entry' },
+          el('div', { class: 'codex-name' }),
+          el('div', { class: 'codex-blurb' }),
+          el('button', { class: 'btn btn-sm' }, `DECRYPT ◆${e.cost}`),
+        );
+        (card.querySelector('button') as HTMLButtonElement).addEventListener('click', () => this.cb.onUnlockLore(e.id));
+        return card;
+      },
+      (card, e) => {
+        const unlocked = loreUnlocked(s, e.id);
+        const name = card.querySelector('.codex-name') as HTMLElement;
+        const blurb = card.querySelector('.codex-blurb') as HTMLElement;
+        const btn = card.querySelector('button') as HTMLButtonElement;
+        card.className = 'codex-entry' + (unlocked ? '' : ' codex-forgotten');
+        if (unlocked) {
+          name.className = 'codex-name';
+          name.textContent = e.title;
+          blurb.className = 'codex-blurb';
+          blurb.textContent = e.text;
+          btn.classList.add('hidden');
+        } else {
+          const affordable = bal >= e.cost;
+          name.className = 'codex-name codex-locked';
+          name.textContent = '— enciphered —';
+          blurb.className = 'codex-blurb codex-locked';
+          blurb.textContent = `A memory of the fall, enciphered. ◆${e.cost} to decrypt it.`;
+          btn.classList.remove('hidden');
+          btn.className = 'btn btn-sm' + (affordable ? ' btn-primary' : '');
+          btn.disabled = !affordable;
+        }
+      },
+    );
   }
 
   private showCodex(): void {
