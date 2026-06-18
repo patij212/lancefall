@@ -888,6 +888,27 @@ body {
 .codex-tabs { padding: 12px 20px 0; }
 /* each tab's content flows like the old codex-body did (column + 8px gap between sections). */
 .codex-pane { display: flex; flex-direction: column; gap: 8px; }
+/* The .btn-sm pills in an .ach-filter row (the CODEX tab bar + the ACHIEVEMENTS filter tabs)
+   only inherit base padding — base .btn-sm sets no background/border (those live in the
+   .leader-modes / .setting contexts), so without this they fall back to the default browser
+   button: a white block. Style them as the game's dark mono pills; .active gets the cyan accent. */
+.screen-modal .ach-filter .btn-sm {
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7a93b2;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.screen-modal .ach-filter .btn-sm:hover { color: #9fc7e8; border-color: rgba(34, 211, 238, 0.3); background: rgba(255, 255, 255, 0.06); }
+.screen-modal .ach-filter .btn-sm.active { border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, 0.1); }
 .codex-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr); /* mock: a denser 3-up bestiary grid */
