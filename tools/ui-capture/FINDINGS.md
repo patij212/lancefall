@@ -38,16 +38,43 @@ feedback loop above + transcribing values, not nudging by eye.
 
 Every change was tsc-clean and verified in the harness before commit.
 
-## Remaining (minor cosmetics — deferred, not blocking)
+## Session 3 — what owner feedback corrected, and what was fixed
 
-- **Panel close-X**: panels close via the working DONE button; the mock's top-right X would
-  need adding to ~12 separate panel builders (low ROI vs risk).
-- **Settings slider fill colour**: live cyan vs mock amber (functional; accent only).
-- **Pause per-button key badges** (ESC/R/O/Q) and HUD-behind: the restart button's dynamic
-  confirm-text made inline key badges fiddly; skipped.
-- **Upgrades tree node prominence**: live nodes are a touch smaller/flatter than the mock's.
-- **HUD top-center wave/boss banner**: the live HUD doesn't wire a wave-number/boss banner
-  (it surfaces wave via narrator/announcements); only the cipher sits top-center.
+Owner (3rd session): "still far from parity, you left out a lot more." Correct. Sessions 1–2
+(and my first pass) over-claimed parity by judging downscaled full-screen thumbnails. Built
+`compare.mjs` + `panels.mjs` (element-level crops + computed-style diffs) to see real detail.
 
-Re-run the harness after any further change — the number that matters is "does it match the
-panel on the right."
+Fixed + verified this session:
+- **Ship selector** was a broken inline column overflowing the loadout → now a proper SELECT
+  SHIP modal (grid of hull tiles). `5bcc89d`
+- **BESTIARY button** added to the cosmetics modal (→ codex). `5bcc89d`
+- **Ship display** ring/grid scaled to the mock's showpiece (146px ring + bright orbit/grid). `ff498e6`
+- **Close-X** on every modal (injected via openModal). `31d9131`
+
+## Remaining — NOT minor; these are the real "far from parity" gaps (deep per-panel work)
+
+The panel CHROME matches (`.screen-modal .panel` already transcribes the mock card). The gap is
+panel CONTENT/STRUCTURE — verified via `panels.mjs` crops:
+
+- **UPGRADES tree — structural mismatch.** Live = a 4×3 GRID under "THE LANCE" with 4 categories
+  (MOBILITY/OFFENSE/SUSTAIN/FORTUNE). Mock = 3 VERTICAL BRANCHES (MOMENTUM/THE EDGE/FORTUNE),
+  each a column of big glowing ring-nodes linked top→bottom. Matching means reworking the
+  meta-tree layout + likely the category model in `meta.ts` (touches save data + balance) — a
+  design decision, not a transcribe. **Biggest single gap.**
+- **STATS — different sections.** Mock has PERSONAL BEST BY MODE (horizontal bar chart) + NEMESIS
+  (who-ends-your-runs bar chart). Live shows an achievements grid instead. Need to build the two
+  bar-chart components and add them.
+- **CODEX — different lead/layout.** Mock leads with the ENEMIES grid (+ per-enemy kill counts);
+  live leads with THE FALL · MEMORIES decrypt fragments. Reorder + add kill counts to enemy cards.
+- **Cockpit density/scale.** Live cockpit is taller than the mock (12 nav buttons incl.
+  INSPECT/CREDITS/HOWTO the mock lacks), so the scale-to-fit fitter (min of w/h ratio, clamped
+  1.85) shrinks it — the whole cockpit reads smaller/insettier than the mock. Fix = tighten
+  vertical density or rethink the nav, carefully (risk of layout breakage).
+- **Cosmetics content** populates from save (palette/trail swatches); empty on a fresh save —
+  confirm whether owner wants locked options shown.
+- Minor: settings slider fill cyan vs mock amber; pause per-button key badges; hero missing the
+  "DAILY" tag + "YOUR TRAIL IS THE LANCE" verb line. GHOST header stat = intentionally deferred
+  (duels parked) — do NOT add.
+
+Method for the next pass: open the target on both sides with `panels.mjs`/`compare.mjs`, read the
+crop + style diff, transcribe to exact values, re-shoot. Do NOT judge from full-screen thumbnails.
