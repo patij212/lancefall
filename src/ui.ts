@@ -8,8 +8,9 @@ import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
 import { PERKS } from './perks';
 import type { PerkDef } from './perks';
+import { glyphArt, hasGlyphArt, relicGlyphArt, powerupGlyphArt } from './glyphArt';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
-import { RELICS } from './relics';
+import { RELICS, type RelicId } from './relics';
 import { decodeBuildDna } from './buildDna';
 import type { BuildDna } from './buildDna';
 import type { DraftCard, EvolutionDef } from './evolutions';
@@ -408,6 +409,8 @@ export class UI {
   private puWrap!: HTMLElement;
   private puFill!: HTMLElement;
   private puLabel!: HTMLElement;
+  private puIcon!: HTMLElement;
+  private puPrevPu: string | null = null; // re-render the badge glyph only when the active buff changes
   private dailyCaption!: HTMLElement;
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
@@ -732,7 +735,8 @@ export class UI {
     // active POWER-UP badge (hidden unless one is active)
     this.puLabel = el('div', { class: 'hud-pu-label' }, '');
     this.puFill = el('div', { class: 'hud-pu-fill' });
-    this.puWrap = el('div', { class: 'hud-powerup' }, this.puLabel, el('div', { class: 'hud-pu-track' }, this.puFill));
+    this.puIcon = el('span', { class: 'hud-pu-icon' });
+    this.puWrap = el('div', { class: 'hud-powerup' }, this.puIcon, this.puLabel, el('div', { class: 'hud-pu-track' }, this.puFill));
 
     // CIPHER-LOCK readout — the code to break, in required dash order (boss fights)
     this.cipherEl = el('div', { class: 'hud-cipher' });
@@ -1420,8 +1424,11 @@ export class UI {
     this.eventPanel = el('div', { class: 'screen screen-dim' }, panel);
   }
 
-  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[]): void {
-    this.eventHead.textContent = name;
+  showEvent(name: string, flavor: string, accent: string, choices: EventChoice[], headGlyph?: string): void {
+    // the event's maximalist glyph art sits above the title (currentColor → tinted by the accent set below)
+    this.eventHead.replaceChildren();
+    if (headGlyph) this.eventHead.append(iconEl('event-glyph', headGlyph));
+    this.eventHead.append(document.createTextNode(name));
     this.eventHead.style.color = accent;
     this.eventFlavor.textContent = flavor;
     const wrap = this.eventPanel.querySelector('#event-cards')!;
@@ -2717,11 +2724,21 @@ export class UI {
       const cls = evo ? 'perk-card perk-card-evo' : relic ? 'perk-card perk-card-relic' : 'perk-card';
       const card = el('button', { class: cls });
       card.style.setProperty('--accent', c.accent);
-      const glyph = relic ? (c as { glyph: string }).glyph : perkGlyph((c as PerkDef).glyph);
+      // perks/evolutions render the maximalist inline-SVG glyph art (currentColor → --accent
+      // tints the whole piece, via innerHTML — static author-controlled markup). Relics keep
+      // their cursed emoji; any uncovered key falls back to the old emoji glyph.
+      const glyphDiv = el('div', { class: 'perk-glyph' });
+      if (relic) {
+        glyphDiv.innerHTML = relicGlyphArt((c as { id: RelicId }).id);
+      } else {
+        const gk = (c as PerkDef).glyph;
+        if (hasGlyphArt(gk)) glyphDiv.innerHTML = glyphArt(gk);
+        else glyphDiv.textContent = perkGlyph(gk);
+      }
       card.append(
         ...(evo ? [el('div', { class: 'perk-tag' }, 'EVOLUTION')] : []),
         ...(relic ? [el('div', { class: 'perk-tag' }, 'CURSED RELIC')] : []),
-        el('div', { class: 'perk-glyph' }, glyph),
+        glyphDiv,
         el('div', { class: 'perk-name' }, c.name),
         el('div', { class: 'perk-desc' }, c.desc),
         ...(evo ? [el('div', { class: 'perk-from' }, (c as EvolutionDef).from)] : []),
@@ -3165,6 +3182,8 @@ export class UI {
     this.puWrap.classList.toggle('on', puActive);
     if (puActive) {
       const def = POWERUPS[pu.active!];
+      if (this.puPrevPu !== pu.active) { this.puIcon.innerHTML = powerupGlyphArt(pu.active!); this.puPrevPu = pu.active; }
+      this.puIcon.style.color = def.color;
       this.puLabel.textContent = `${def.name} ${Math.ceil(pu.timer)}s`;
       this.puLabel.style.color = def.color;
       this.puFill.style.transform = `scaleX(${Math.max(0, Math.min(1, pu.total > 0 ? pu.timer / pu.total : 0))})`;

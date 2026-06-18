@@ -69,7 +69,7 @@ import type { SaveData, Settings } from './save';
 import type { Enemy, EnemyKind, Bullet } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash, coherenceEdges } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
-import { icon } from './icons';
+import { glyphArt } from './glyphArt';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder, type ShareMeta } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
@@ -855,7 +855,7 @@ export class Game {
     const def = RUN_EVENTS[id];
     this.eventChoices = rollEventChoices(id, this.world.eventRng, this.world);
     this.state = 'event';
-    this.ui.showEvent(def.name, def.flavor, def.accent, this.eventChoices, icon(def.id));
+    this.ui.showEvent(def.name, def.flavor, def.accent, this.eventChoices, glyphArt(def.id));
     this.audio.duckMusic(true);
     this.renderer.flash(def.accent, 0.14);
   }

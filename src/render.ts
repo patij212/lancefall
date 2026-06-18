@@ -5,6 +5,7 @@
 import { TUNE, COMBO_COLORS, WARDEN, BEACON, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, HERALD, SHIELD, THREAT_RIM, BIOMECH } from './tune';
 import type { CipherState } from './cipher';
 import { POWERUPS } from './powerups';
+import { powerupGlyphColored } from './glyphArt';
 import { clamp } from './vec';
 import type { World } from './world';
 import { bulletVisual } from './bulletStyle';
@@ -73,6 +74,7 @@ export class Renderer {
   private tint: HTMLCanvasElement;
   private tctx: CanvasRenderingContext2D;
   private glowCache = new Map<string, HTMLCanvasElement>();
+  private puGlyphImg = new Map<string, HTMLImageElement>();
   dpr = 1;
   w = 1280;
   h = 720;
@@ -206,6 +208,17 @@ export class Renderer {
     c.fillRect(0, 0, 64, 64);
     this.glowCache.set(color, g);
     return g;
+  }
+
+  /** Rasterize a power-up's maximalist glyph (its buff colour baked in, since currentColor
+   *  can't resolve inside an <img>) to a cached Image, for drawing on the field pickup. */
+  private getPowerupGlyph(kind: keyof typeof POWERUPS): HTMLImageElement {
+    let img = this.puGlyphImg.get(kind);
+    if (img) return img;
+    img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(powerupGlyphColored(kind, POWERUPS[kind].color));
+    this.puGlyphImg.set(kind, img);
+    return img;
   }
 
   /** Full frame: world buffer → composite → vignette. */
@@ -634,23 +647,28 @@ export class Renderer {
       ctx.globalCompositeOperation = 'lighter';
       const glow = this.getGlow(def.color);
       ctx.globalAlpha = 0.7 * fade * pulse;
-      ctx.drawImage(glow, -28, -28, 56, 56);
-      // spinning hexagon shell
-      ctx.globalAlpha = fade;
-      ctx.rotate(u.spin);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ngon(ctx, 6, 13);
-      ctx.rotate(-u.spin * 2);
+      ctx.drawImage(glow, -30, -30, 60, 60);
+      // slow-rotating hex ring frame — keeps the "pickup spins" energy without spinning the art
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = fade * 0.8;
+      ctx.save();
+      ctx.rotate(u.spin * 0.5);
       ctx.strokeStyle = def.color;
-      ctx.lineWidth = 2.5;
-      ngon(ctx, 6, 9);
-      // bright core
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ngonStroke(ctx, 6, 16);
+      ctx.restore();
+      // the buff's maximalist glyph (upright, rasterized SVG, buff-coloured) — telegraphs WHAT is dropping
+      const img = this.getPowerupGlyph(u.kind);
+      ctx.globalAlpha = fade;
+      if (img.complete && img.naturalWidth) {
+        ctx.drawImage(img, -14, -14, 28, 28);
+      } else {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     });
   }
