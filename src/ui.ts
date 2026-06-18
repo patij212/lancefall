@@ -49,7 +49,7 @@ import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
 import { renderBestiary, renderCipherLegend } from './panels/codex';
-import { renderUpgrades } from './panels/upgrades';
+import { buildUpgradesShell } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
@@ -430,6 +430,7 @@ export class UI {
   private settingsPanel!: HTMLElement;
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
+  private upgShell?: { root: HTMLElement; update: (s: SaveData) => void }; // meta-tree shell, built once
   private howtoPanel!: HTMLElement;
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
@@ -2011,11 +2012,16 @@ export class UI {
   openUpgrades(): void {
     const s = this.saveRef;
     if (!s) return;
-    // the meta-tree (panels/upgrades) — rebuilt from the live save each open; buyMeta
-    // re-calls this method, so a purchase re-renders for free.
+    // the meta-tree (panels/upgrades) — shell built ONCE, then morphed in place. buyMeta
+    // re-calls this method, so a purchase re-tints/relevels the affected nodes without the
+    // whole tree reflashing. openModal stays (idempotent) to keep the existing focus behavior.
     const body = this.upgradesPanel.querySelector('#upg-body')!;
     this.upgBalanceEl.textContent = `◆ ${s.shards.toLocaleString()} shards`;
-    body.replaceChildren(renderUpgrades(s, (id) => this.cb.onBuyMeta(id)));
+    if (!this.upgShell) {
+      this.upgShell = buildUpgradesShell((id) => this.cb.onBuyMeta(id));
+      body.replaceChildren(this.upgShell.root);
+    }
+    this.upgShell.update(s);
     this.openModal(this.upgradesPanel);
   }
 

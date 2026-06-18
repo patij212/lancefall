@@ -5,7 +5,7 @@
 // level (the mock's gating). This is a UI affordance only: meta.ts (effects/costs/save)
 // is untouched, and any node already owned stays shown. Re-rendered each open.
 
-import { el } from './dom';
+import { el, reconcile } from './dom';
 import type { SaveData } from '../save';
 import { META_NODES, metaNode, nodeCost } from '../meta';
 
@@ -51,24 +51,24 @@ function link(x1: number, y1: number, x2: number, y2: number, color: string, unl
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" vector-effect="non-scaling-stroke" stroke-linecap="round" opacity="${op}" ${dash}/>`;
 }
 
-export function renderUpgrades(s: SaveData, onBuy: (id: string) => void): HTMLElement {
+/** Build the meta-tree shell ONCE (balance cards, legend, link layer, root node, the 12
+ *  branch nodes) and return an `update(save)` that morphs it in place: reconcile re-keys the
+ *  12 nodes by meta id, so a purchase re-tints/relevels/unlocks the affected nodes without
+ *  reflashing the whole tree. The cost stays a real <button> (disabled when unaffordable) so
+ *  Enter-to-buy keyboard access survives. */
+export function buildUpgradesShell(onBuy: (id: string) => void): { root: HTMLElement; update: (s: SaveData) => void } {
   const root = el('div');
-  const lvlOf = (id: string) => s.meta?.[id] ?? 0;
 
-  // ── balance summary (head) ──
-  const owned = META_NODES.filter((n) => lvlOf(n.id) > 0).length;
-  const totalLevels = META_NODES.reduce((sum, n) => sum + Math.min(lvlOf(n.id), n.maxLevel), 0);
-  const maxLevels = META_NODES.reduce((sum, n) => sum + n.maxLevel, 0);
-  const sumCard = (k: string, v: string) => el('div', { class: 'upg-sum' }, el('div', { class: 'upg-sum-v' }, v), el('div', { class: 'upg-sum-k' }, k));
+  // ── balance summary (head) — values filled in update() ──
+  const sumShards = el('div', { class: 'upg-sum-v' });
+  const sumOwned = el('div', { class: 'upg-sum-v' });
+  const sumLevels = el('div', { class: 'upg-sum-v' });
+  const sumCard = (k: string, v: HTMLElement) => el('div', { class: 'upg-sum' }, v, el('div', { class: 'upg-sum-k' }, k));
   root.append(
-    el('div', { class: 'upg-balance' },
-      sumCard('Shards', `◆ ${s.shards.toLocaleString()}`),
-      sumCard('Nodes Owned', `${owned} / ${META_NODES.length}`),
-      sumCard('Total Levels', `${totalLevels} / ${maxLevels}`),
-    ),
+    el('div', { class: 'upg-balance' }, sumCard('Shards', sumShards), sumCard('Nodes Owned', sumOwned), sumCard('Total Levels', sumLevels)),
   );
 
-  // ── branch legend (3) ──
+  // ── branch legend (3) — static ──
   const legend = el('div', { class: 'upg-legend' });
   for (const b of BRANCHES) {
     const dot = el('i');
@@ -77,20 +77,11 @@ export function renderUpgrades(s: SaveData, onBuy: (id: string) => void): HTMLEl
   }
   root.append(legend);
 
-  // ── the tree ──
+  // ── the tree shell: link layer (innerHTML refreshed in update) + root node + node layer ──
   const tree = el('div', { class: 'upg-tree' });
-  let links = '';
-  for (const b of BRANCHES) {
-    links += link(50, TY[0], b.x, TY[1], b.color, true, lvlOf(b.nodes[0]) > 0); // root → tier 1
-    for (let i = 0; i < 3; i++) {
-      links += link(b.x, TY[i + 1], b.x, TY[i + 2], b.color, lvlOf(b.nodes[i]) > 0, lvlOf(b.nodes[i + 1]) > 0);
-    }
-  }
   const linkLayer = el('div', { class: 'upg-link-layer' });
-  linkLayer.innerHTML = `<svg class="upg-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links}</svg>`;
   tree.append(linkLayer);
 
-  // root node — THE LAST LANCE
   const rootNode = el('div', { class: 'tnode tnode-root' });
   rootNode.style.left = '50%';
   rootNode.style.top = TY[0] + '%';
@@ -99,48 +90,81 @@ export function renderUpgrades(s: SaveData, onBuy: (id: string) => void): HTMLEl
   rootNode.append(el('div', { class: 'tnode-badge' }, rootFace), el('div', { class: 'tnode-name' }, 'THE LAST LANCE'));
   tree.append(rootNode);
 
-  // branch nodes
-  for (const b of BRANCHES) {
-    b.nodes.forEach((id, i) => {
-      const node = metaNode(id);
-      if (!node) return;
-      const lvl = lvlOf(id);
-      // a tier unlocks once the one above owns a level (mock gating); an already-owned node
-      // stays unlocked regardless (legacy saves / safety).
-      const unlocked = i === 0 || lvlOf(b.nodes[i - 1]) > 0 || lvl > 0;
-      const maxed = lvl >= node.maxLevel;
-      const cost = nodeCost(node, lvl);
-      const afford = unlocked && !maxed && s.shards >= cost;
-      const cls = maxed ? ' maxed' : !unlocked ? ' locked' : afford ? ' afford' : lvl > 0 ? ' owned' : '';
-      const tn = el('div', { class: 'tnode' + cls, title: node.desc });
-      tn.style.left = b.x + '%';
-      tn.style.top = TY[i + 1] + '%';
-      tn.style.setProperty('--bc', b.color);
-      tn.style.setProperty('--bc-rgb', b.rgb);
-      tn.style.setProperty('--fill', String(Math.round((lvl / node.maxLevel) * 100)));
-
-      const ring = el('div', { class: 'tnode-ring' });
-      const face = el('div', { class: 'tnode-face' });
-      face.innerHTML = unlocked ? (ICONS[id] ?? ICONS.fortune) : LOCK_SVG;
-      const badge = el('div', { class: 'tnode-badge' }, ring, face);
-      if (unlocked) badge.append(el('div', { class: 'tnode-lv' }, `${lvl}/${node.maxLevel}`));
-
-      // cost line — a real button when affordable (keyboard-accessible), else a plain label.
-      let costEl: HTMLElement;
-      if (afford) {
-        costEl = el('button', { class: 'tnode-cost afford', type: 'button' }, `◆ ${cost.toLocaleString()}`);
-        costEl.addEventListener('click', (e) => { e.stopPropagation(); onBuy(id); });
-        tn.addEventListener('click', () => onBuy(id));
-      } else {
-        costEl = el('div', { class: 'tnode-cost ' + (maxed ? 'max' : 'lock') }, maxed ? '◆ MAX' : !unlocked ? 'LOCKED' : `◆ ${cost.toLocaleString()}`);
-      }
-      tn.append(badge, el('div', { class: 'tnode-name' }, node.name), costEl);
-      tree.append(tn);
-    });
-  }
+  // dedicated layer so reconcile owns ONLY the 12 nodes (display:contents keeps their absolute
+  // positioning resolving against .upg-tree, exactly as before).
+  const nodeLayer = el('div', { class: 'upg-node-layer' });
+  tree.append(nodeLayer);
   root.append(tree);
   root.append(
     el('p', { class: 'upg-lead' }, 'Permanent upgrades carry between every descent. Each branch unlocks downward — buy a node to reveal the next. Glowing nodes are affordable.'),
   );
-  return root;
+
+  // the 12 nodes flattened with branch + tier coords, for reconcile (skip any unknown id).
+  const flat = BRANCHES.flatMap((b) => b.nodes.map((id, i) => ({ id, b, i }))).filter((n) => metaNode(n.id));
+
+  const update = (s: SaveData): void => {
+    const lvlOf = (id: string) => s.meta?.[id] ?? 0;
+
+    sumShards.textContent = `◆ ${s.shards.toLocaleString()}`;
+    sumOwned.textContent = `${META_NODES.filter((n) => lvlOf(n.id) > 0).length} / ${META_NODES.length}`;
+    const totalLevels = META_NODES.reduce((sum, n) => sum + Math.min(lvlOf(n.id), n.maxLevel), 0);
+    const maxLevels = META_NODES.reduce((sum, n) => sum + n.maxLevel, 0);
+    sumLevels.textContent = `${totalLevels} / ${maxLevels}`;
+
+    // links: a cheap SVG string (not the visible flicker source) refreshed wholesale.
+    let links = '';
+    for (const b of BRANCHES) {
+      links += link(50, TY[0], b.x, TY[1], b.color, true, lvlOf(b.nodes[0]) > 0); // root → tier 1
+      for (let i = 0; i < 3; i++) {
+        links += link(b.x, TY[i + 1], b.x, TY[i + 2], b.color, lvlOf(b.nodes[i]) > 0, lvlOf(b.nodes[i + 1]) > 0);
+      }
+    }
+    linkLayer.innerHTML = `<svg class="upg-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links}</svg>`;
+
+    reconcile(
+      nodeLayer,
+      flat,
+      (n) => n.id,
+      (n) => {
+        const tn = el('div', { class: 'tnode' });
+        tn.style.left = n.b.x + '%';
+        tn.style.top = TY[n.i + 1] + '%';
+        tn.style.setProperty('--bc', n.b.color);
+        tn.style.setProperty('--bc-rgb', n.b.rgb);
+        const ring = el('div', { class: 'tnode-ring' });
+        const face = el('div', { class: 'tnode-face' });
+        const badge = el('div', { class: 'tnode-badge' }, ring, face, el('div', { class: 'tnode-lv' }));
+        const cost = el('button', { class: 'tnode-cost', type: 'button' });
+        tn.append(badge, el('div', { class: 'tnode-name' }, metaNode(n.id)!.name), cost);
+        tn.dataset.afford = '0';
+        tn.addEventListener('click', () => { if (tn.dataset.afford === '1') onBuy(n.id); });
+        cost.addEventListener('click', (e) => { e.stopPropagation(); if (tn.dataset.afford === '1') onBuy(n.id); });
+        return tn;
+      },
+      (tn, n) => {
+        const node = metaNode(n.id)!;
+        const lvl = lvlOf(n.id);
+        // a tier unlocks once the one above owns a level (mock gating); an already-owned node
+        // stays unlocked regardless (legacy saves / safety).
+        const unlocked = n.i === 0 || lvlOf(n.b.nodes[n.i - 1]) > 0 || lvl > 0;
+        const maxed = lvl >= node.maxLevel;
+        const cost = nodeCost(node, lvl);
+        const afford = unlocked && !maxed && s.shards >= cost;
+        tn.className = 'tnode' + (maxed ? ' maxed' : !unlocked ? ' locked' : afford ? ' afford' : lvl > 0 ? ' owned' : '');
+        tn.title = node.desc;
+        tn.dataset.afford = afford ? '1' : '0';
+        tn.style.setProperty('--fill', String(Math.round((lvl / node.maxLevel) * 100)));
+        (tn.querySelector('.tnode-face') as HTMLElement).innerHTML = unlocked ? (ICONS[n.id] ?? ICONS.fortune) : LOCK_SVG;
+        const lv = tn.querySelector('.tnode-lv') as HTMLElement;
+        lv.classList.toggle('hidden', !unlocked);
+        lv.textContent = `${lvl}/${node.maxLevel}`;
+        const costEl = tn.querySelector('.tnode-cost') as HTMLButtonElement;
+        costEl.className = 'tnode-cost ' + (afford ? 'afford' : maxed ? 'max' : 'lock');
+        costEl.disabled = !afford; // unaffordable/maxed/locked → not focusable, no Enter-to-buy
+        costEl.textContent = maxed ? '◆ MAX' : !unlocked ? 'LOCKED' : `◆ ${cost.toLocaleString()}`;
+      },
+    );
+  };
+
+  return { root, update };
 }

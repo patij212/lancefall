@@ -1728,6 +1728,8 @@ body {
 .upg-legend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
 /* §v7 — 3-branch meta-tree, transcribed verbatim from the mock (cockpit.html .tree/.tnode). */
 .upg-tree { position: relative; width: 100%; max-width: 660px; height: 512px; margin: 0 auto 4px; }
+/* reconcile node layer — transparent so the 12 tnodes keep absolute-positioning against .upg-tree */
+.upg-node-layer { display: contents; }
 .upg-link-layer, .upg-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
 .tnode { position: absolute; transform: translate(-50%, -50%); width: 132px; text-align: center; z-index: 1; }
 .tnode-badge { width: 50px; height: 50px; margin: 0 auto 6px; border-radius: 50%; position: relative; transition: transform 0.14s; }
