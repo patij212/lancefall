@@ -39,7 +39,10 @@ import {
   modeUnlocked,
   nextRailMode,
   rollDailyAttempt,
-  RAIL_MODE_IDS,
+  RAIL_CARDS,
+  RAIL_CARD_IDS,
+  RAIL_VARIANT_IDS,
+  cardForMode,
   MAX_DAILY_ATTEMPTS,
 } from './modes';
 import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
@@ -342,12 +345,20 @@ const RAIL_ACCENTS: Record<string, string> = {
   arena: '#22d3ee',
   bossrush: '#fb923c',
   daily: '#fbbf24',
+  weekly: '#f59e0b',
   nightmare: '#f87171',
   longestday: '#c084fc',
 };
 function railAccent(id: string): string {
   return RAIL_ACCENTS[id] ?? '#22d3ee';
 }
+
+/** Fixed family title for a MULTI-variant rail card (keyed by card primary id) — the card title
+ *  stays put while the pill switches variants, so the card is never named after one of its own
+ *  variants (ENDLESS card shows CASUAL·STANDARD; the active variant drives the hero, not the title). */
+const CARD_TITLE: Record<string, string> = { casual: 'ENDLESS', daily: 'ECHO OF THE FALL' };
+/** Short pill-segment label per variant id. */
+const VARIANT_LABEL: Record<string, string> = { casual: 'CASUAL', endless: 'STANDARD', daily: 'DAILY', weekly: 'WEEKLY' };
 
 /** "#rrggbb" → "r, g, b" for the rgba() accent vars the cockpit CSS reads. */
 function hexToRgb(hex: string): string {
@@ -508,6 +519,10 @@ export class UI {
   private descendOverlay!: HTMLElement; // §v7 fixed "INITIATING DESCENT" takeover (mock sequence)
   private fitRaf: number | null = null; // §v7 scale-to-fit cockpit fitter rAF handle
   private quietReskin = false; // §v7 arrow-nav re-skin suppresses the heavy panel pulse
+  /** In-memory per-card active variant (keyed by card primary id). NOT persisted — cross-session
+   *  memory rides selectedMode; this only smooths within-session ←/→ nav so returning to a card
+   *  restores the variant you last had on it this session. */
+  private cardVariant = new Map<string, string>();
   private shipArt!: HTMLCanvasElement;
   private shipArtName!: HTMLElement;
   private shipArtDesc!: HTMLElement;
@@ -2846,13 +2861,15 @@ export class UI {
     this.saveRef = save;
 
     // ── coerce an invalid/locked selection ONCE so the rail always has a valid card ──
-    // (e.g. a Nightmare/Solstice selection from before it was earned, or a non-rail mode
-    // like Weekly that has no rail card). Guarded so the re-entrant refreshTitle can't loop.
+    // (e.g. a Nightmare/Solstice selection from before it was earned). Every mode is now a
+    // reachable rail VARIANT, so this only fires for a LOCKED card; unlock is judged on the
+    // owning card's primary. Guarded so the re-entrant refreshTitle can't loop.
     if (!this.coercingMode) {
       const sel = modeById(save.selectedMode);
-      const onRail = RAIL_MODE_IDS.includes(sel.id) && modeUnlocked(sel, save.deepestWave);
+      const card = cardForMode(sel.id);
+      const onRail = RAIL_VARIANT_IDS.includes(sel.id) && modeUnlocked(modeById(card[0]), save.deepestWave);
       if (!onRail) {
-        const firstUnlocked = RAIL_MODE_IDS.find((id) => modeUnlocked(modeById(id), save.deepestWave)) ?? 'endless';
+        const firstUnlocked = RAIL_CARD_IDS.find((id) => modeUnlocked(modeById(id), save.deepestWave)) ?? 'endless';
         this.coercingMode = true;
         this.cb.onSelectMode(firstUnlocked); // persists → re-enters refreshTitle (guarded)
         this.coercingMode = false;
@@ -3019,12 +3036,20 @@ export class UI {
     this.cosmTrailName.textContent = selTrail.name;
     this.cosmTrailDot.style.background = `linear-gradient(135deg, ${selTrail.combo ? '#22d3ee' : selTrail.base}, ${selTrail.bright})`;
 
-    // ── LEFT: MODE RAIL (RAIL_MODE_IDS order; roving tabindex; locked = dimmed, not pickable) ──
+    // ── LEFT: MODE RAIL (RAIL_CARDS order; roving tabindex; locked = dimmed, not pickable) ──
+    // A card groups one or two mode variants; multi-variant cards (Endless, Echo) carry a pill.
     this.modeGrid.replaceChildren();
-    for (const id of RAIL_MODE_IDS) {
-      const m = modeById(id);
-      const selected = save.selectedMode === m.id;
-      const unlocked = modeUnlocked(m, save.deepestWave);
+    for (const variants of RAIL_CARDS) {
+      const primary = variants[0];
+      const multi = variants.length > 1;
+      // active variant: the selected mode if it belongs to this card, else this card's remembered
+      // (this session) or default variant. Record it so ←/→ nav can restore it on return.
+      const onThisCard = variants.includes(save.selectedMode);
+      const activeId = onThisCard ? save.selectedMode : (this.cardVariant.get(primary) ?? primary);
+      this.cardVariant.set(primary, activeId);
+      const m = modeById(activeId);
+      const selected = onThisCard;
+      const unlocked = modeUnlocked(modeById(primary), save.deepestWave);
       const brief = modeBrief(m);
       const card = el('button', {
         class: 'mode-card ck-mi' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked'),
@@ -3032,12 +3057,13 @@ export class UI {
         'aria-disabled': unlocked ? 'false' : 'true',
         tabindex: selected ? '0' : '-1',
       });
-      card.style.setProperty('--accent', railAccent(m.id));
-      card.style.setProperty('--accent-rgb', hexToRgb(railAccent(m.id)));
+      card.style.setProperty('--accent', railAccent(activeId));
+      card.style.setProperty('--accent-rgb', hexToRgb(railAccent(activeId)));
+      const title = multi ? (CARD_TITLE[primary] ?? m.name) : m.name;
       const text = el(
         'div',
         { class: 'ck-mi-text' },
-        el('div', { class: 'ck-mi-name' }, m.name),
+        el('div', { class: 'ck-mi-name' }, title),
         el('div', { class: 'ck-mi-sub' }, `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`),
       );
       // PB line on the selected card (and a "new? start here" nudge on Casual for fresh saves).
@@ -3049,17 +3075,39 @@ export class UI {
         // in the accent and the tag in shadow — render the value only.
         text.append(el('div', { class: 'ck-mi-pb' }, pb));
       }
-      card.append(iconEl('ck-mi-icon', MODE_ICONS[m.id] ?? ''), text);
+      // variant pill (multi-variant cards only): two segments, the active one lit. A segment
+      // click selects that variant directly (and stops the card's own select).
+      if (multi) {
+        const pill = el('div', { class: 'ck-mi-pill', role: 'group', 'aria-label': 'Variant' });
+        for (const vid of variants) {
+          const seg = el('button', {
+            class: 'ck-mi-pill-seg' + (vid === activeId ? ' on' : ''),
+            type: 'button',
+            tabindex: '-1',
+            'aria-pressed': String(vid === activeId),
+          }, VARIANT_LABEL[vid] ?? modeById(vid).name);
+          seg.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (!unlocked) return;
+            this.cardVariant.set(primary, vid);
+            this.quietReskin = true;
+            this.cb.onSelectMode(vid);
+          });
+          pill.append(seg);
+        }
+        text.append(pill);
+      }
+      card.append(iconEl('ck-mi-icon', MODE_ICONS[activeId] ?? MODE_ICONS[primary] ?? ''), text);
       if (!unlocked) {
-        card.append(el('div', { class: 'ck-mi-badge locked' }, `LOCKED · reach wave ${m.unlockedAtWave}`));
-      } else if (m.id === 'casual' && save.totalRuns === 0) {
+        card.append(el('div', { class: 'ck-mi-badge locked' }, `LOCKED · reach wave ${modeById(primary).unlockedAtWave}`));
+      } else if (activeId === 'casual' && save.totalRuns === 0) {
         card.append(el('div', { class: 'ck-mi-badge start' }, 'START HERE'));
       } else if (m.seedKind === 'date') {
         card.append(el('div', { class: 'ck-mi-badge daily' }, 'DAILY'));
       }
-      card.title = unlocked ? m.desc : `Locked — reach wave ${m.unlockedAtWave} to unlock ${m.name}.`;
+      card.title = unlocked ? m.desc : `Locked — reach wave ${modeById(primary).unlockedAtWave} to unlock ${title}.`;
       card.addEventListener('click', () => {
-        if (unlocked) this.cb.onSelectMode(m.id);
+        if (unlocked) this.cb.onSelectMode(activeId);
       });
       this.modeGrid.append(card);
     }
@@ -3192,13 +3240,31 @@ export class UI {
     });
   }
 
-  /** §5 U2 — step the selected mode along the RAIL (keyboard/gamepad), skipping locked
-   *  modes, persist, and re-focus the now-selected card. */
+  /** §5 U2 — step the selected mode along the rail CARDS (keyboard/gamepad), skipping locked
+   *  cards, restoring each card's remembered variant, persist, and re-focus the selected card. */
   moveModeSelection(dir: number): void {
     const s = this.saveRef;
     if (!s) return;
     this.quietReskin = true; // arrow-nav: light hero swap only, skip the heavy panel pulse (mock)
-    this.cb.onSelectMode(nextRailMode(s.selectedMode, dir, s.deepestWave)); // persists → refreshTitle rebuilds the rail
+    const primary = nextRailMode(s.selectedMode, dir, s.deepestWave);
+    const remembered = this.cardVariant.get(primary) ?? primary;
+    this.cb.onSelectMode(remembered); // persists → refreshTitle rebuilds the rail
+    (this.modeGrid.querySelector('.mode-card.selected') as HTMLElement | null)?.focus();
+  }
+
+  /** mode-consolidation — flip the SELECTED card's variant (↑ = first/left segment, ↓ = second).
+   *  No-op on a single-variant card. Remembers the choice for this session + persists via
+   *  onSelectMode (selectedMode is the launch source of truth). */
+  flipVariant(dir: number): void {
+    const s = this.saveRef;
+    if (!s) return;
+    const variants = cardForMode(s.selectedMode);
+    if (variants.length < 2) return; // single-variant card: nothing to flip
+    const target = dir < 0 ? variants[0] : variants[1];
+    if (target === s.selectedMode) return; // already on it
+    this.cardVariant.set(variants[0], target);
+    this.quietReskin = true;
+    this.cb.onSelectMode(target);
     (this.modeGrid.querySelector('.mode-card.selected') as HTMLElement | null)?.focus();
   }
 

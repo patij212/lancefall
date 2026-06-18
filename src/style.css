@@ -2884,6 +2884,14 @@ body {
 .ck-mi-badge.daily { background: rgba(251, 191, 36, 0.12); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.22); }
 .ck-mi-badge.locked { background: rgba(248, 113, 113, 0.08); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.15); }
 .ck-mi-badge.start { background: rgba(34, 211, 238, 0.1); color: #67e8f9; border: 1px solid rgba(34, 211, 238, 0.3); }
+/* mode-consolidation — the CASUAL·STANDARD / DAILY·WEEKLY variant pill on multi-variant cards.
+   Flipped with ↑/↓ or a segment click; the active segment lights in the card accent. */
+.ck-mi-pill { display: inline-flex; gap: 2px; margin-top: 4px; padding: 2px; border-radius: 6px;
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.08); border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.22); }
+.ck-mi-pill-seg { font: inherit; font-size: 9px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5); background: transparent; border: 0; cursor: pointer; line-height: 1.4; }
+.ck-mi-pill-seg.on { color: #04060a; background: var(--accent); font-weight: 700; }
+.mode-card.locked .ck-mi-pill-seg { cursor: not-allowed; }
 .ck-mi-badge.locked::before { content: '🔒 '; }
 
 /* §v7 — mode-rail flavour box: sinks flush to the rail bottom (margin-top:auto in the flex
