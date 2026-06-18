@@ -55,6 +55,32 @@ Three edits in the STATS block (~`.stats-hero` … `.stat-cell`):
 — `git add src/game.ts src/style.css` ONLY after confirming `git diff` on those files shows
 just these hunks (no stray card-agent lines), then commit + ff master.
 
+## ROUND 2 — STATS "absolutely amazing" richness pass (PENDING — blocked on live card-agent)
+
+Owner asked to close the remaining mock gaps. A concurrent card-agent went LIVE-editing the
+whole STATS surface (stats.ts, style.css, game.ts, achievements.ts, skins.ts, survival.ts,
+ui.ts, migrate.test.ts) for a skin-achievements feature — so this round is deferred to a clean
+tree (auto-resume watcher running). Plan to execute once clean:
+
+1. **Labels** (stats.ts): `BEST BY MODE` → `PERSONAL BEST · BY MODE`; hero `runs` → `runs survived`.
+2. **COMBAT → 6 cells** (mock parity). Add 3 lifetime counters to the v7 bump (v7 NOT deployed yet,
+   so no new version): `lifeGrazes`, `lifeDaybreaks`, `lifeLastBreath` in `save.ts` + DEFAULT_SAVE
+   (already drafted in working tree, uncommitted) + migrate clamp. Track at run-end in `game.ts`
+   (`if (!this.inChallenge)` block): `lifeGrazes += w.grazeCount; lifeDaybreaks += w.overdriveUses;
+   lifeLastBreath += w.clutch.lastBreathUses;`. Render the 6 mock cells: Total Kills, Bosses Down,
+   Shards Earned, Bullets Grazed, DAYBREAKs Fired, Last-Breath Saves (drop "Runs Won" — win rate is
+   in the hero). Combat grid → `repeat(3,1fr)` (6 cells = 2 rows).
+3. **Hero prominence** (style.css): match mock `.st-hs` — bigger values (~19px), wider spread.
+4. **Width cap** (style.css): stats panel `max-width` ~1100–1160px centered (mock `.modal` = 1160)
+   so it reads as spacious; verify at a 1440px viewport (the earlier "cramped" look was partly a
+   narrow-capture artifact — `.panel-wide` has no max-width today).
+5. **Achievement text** (stats.ts): unlocked → `Unlocked · X% of players have this`. Honest
+   per-achievement PROGRESS BARS are OPTIONAL: achievements are boolean `check()`s with no progress
+   metric (the mock's bars are fabricated). If wanted, add a save-metric map in stats.ts for the
+   threshold ones only (combo/runs/shards/wave/score) and show a bar where a real fraction exists —
+   do NOT fake the rest.
+6. Verify (tsc + tests + build), re-capture vs mock at a matched viewport, then commit + ff master + deploy.
+
 ## Do NOT deploy yet
 `npm run deploy` builds from the working tree, which currently also contains the card-agent's
 uncommitted survival WIP — deploying now would publish their unfinished feature. Deploy only
