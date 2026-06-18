@@ -2572,6 +2572,17 @@ export class Game {
       this.save.lifeGrazes += w.grazeCount;
       this.save.lifeDaybreaks += w.overdriveUses;
       this.save.lifeLastBreath += w.clutch.lastBreathUses;
+      // v9 DOSSIER — bounded run history (last 50, newest last) + lifetime activity for the STATS
+      // graphs. Plain push/assign only (determinism-safe); genuine runs only (this !inChallenge block).
+      this.save.runHistory.push({
+        score: w.score, wave, mode: this.mode.id, won,
+        sec: Math.floor(w.time), heat: this.runHeat, combo: w.bestComboRun, date: playedDay,
+      });
+      if (this.save.runHistory.length > 50) this.save.runHistory = this.save.runHistory.slice(-50);
+      this.save.playDays[playedDay] = (this.save.playDays[playedDay] ?? 0) + 1;
+      this.save.lifeTimeSec += Math.floor(w.time);
+      this.save.runsByMode[this.mode.id] = (this.save.runsByMode[this.mode.id] ?? 0) + 1;
+      if (won) this.save.winsByMode[this.mode.id] = (this.save.winsByMode[this.mode.id] ?? 0) + 1;
       // CODEX — fold this run's per-kind kills into the lifetime map (mirrors lifeKills)
       for (const k in w.killsByKind) this.save.killsByKind[k] = (this.save.killsByKind[k] ?? 0) + w.killsByKind[k];
       // achievements (evaluate against updated lifetime totals)

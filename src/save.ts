@@ -13,6 +13,20 @@ const SAVE_KEY = 'lancefall.save';
 const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
 const SETTINGS_KEY = 'lancefall.settings.v1';
 
+/** One completed (non-challenge) run, kept in a bounded ring for the STATS dossier graphs. */
+export interface RunRecord {
+  score: number;
+  wave: number;
+  mode: string;
+  won: boolean;
+  /** run duration, whole seconds */
+  sec: number;
+  heat: number;
+  combo: number;
+  /** YYYY-MM-DD (local), matches dateString() */
+  date: string;
+}
+
 export interface SaveData {
   /** save schema version (see migrate.ts) */
   version: number;
@@ -126,6 +140,18 @@ export interface SaveData {
   fastestArenaSec: number;
   /** most bosses felled in one run (STATS "Bosses · One Run") */
   mostBossesOneRun: number;
+  // ── v9 DOSSIER — bounded run history + lifetime activity for the STATS graphs.
+  //    Additive; written only at run-end via push/assign (never rng). ──
+  /** last 50 completed runs (newest last) — the score-trend chart + recent list */
+  runHistory: RunRecord[];
+  /** YYYY-MM-DD → runs that day (the activity heatmap); capped to recent keys on migrate */
+  playDays: Record<string, number>;
+  /** total seconds played across all runs ("time in the City") */
+  lifeTimeSec: number;
+  /** mode id → runs played (per-mode plays) */
+  runsByMode: Record<string, number>;
+  /** mode id → runs won (per-mode win rate = winsByMode / runsByMode) */
+  winsByMode: Record<string, number>;
 }
 
 export interface Settings {
@@ -229,6 +255,11 @@ export function defaultSave(): SaveData {
     longestRunSec: 0,
     fastestArenaSec: 0,
     mostBossesOneRun: 0,
+    runHistory: [],
+    playDays: {},
+    lifeTimeSec: 0,
+    runsByMode: {},
+    winsByMode: {},
   };
 }
 
