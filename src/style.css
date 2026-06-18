@@ -2602,6 +2602,15 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.26));
+  /* mock-cockpit parity — the LANCEFALL wordmark carries an occasional neon-sign flicker */
+  animation: flicker 8s infinite;
+}
+/* solid for most of the 8s loop, then a quick stutter at the end (a tired neon tube) */
+@keyframes flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.7; }
+  98% { opacity: 0.95; }
+  99% { opacity: 0.6; }
 }
 .ck-wordmark-sub {
   font-family: 'Orbitron', 'Space Grotesk', sans-serif;
@@ -3957,6 +3966,7 @@ body {
 .reduce-motion .ck-descend-overlay.show,
 .reduce-motion .ck-descend-overlay.show .ck-do-title,
 .reduce-motion .ck-do-bars span,
+.reduce-motion .ck-wordmark,
 .reduce-motion .ck-light-lance {
   animation: none !important;
   transition: none !important;
@@ -4007,6 +4017,7 @@ body {
   .spire-beacon,
   .ck-hero-content.swap,
   .ck-main.pulse,
+  .ck-wordmark,
   .ck-light-lance {
     animation: none !important;
     transition: none !important;
