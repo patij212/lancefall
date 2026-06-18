@@ -2788,16 +2788,29 @@ export class UI {
     ];
     let curMode = 'endless';
     let curWeekly = false;
+    let loadSeq = 0; // monotonic token — only the most recent tab/scope load may render (stale responses are dropped)
     const allBtn = el('button', { class: 'btn btn-ghost btn-sm' }, 'ALL-TIME');
     const wkBtn = el('button', { class: 'btn btn-ghost btn-sm' }, '★ THIS WEEK');
     const load = async () => {
+      const seq = ++loadSeq;
       const weekly = curWeekly && curMode !== 'daily'; // daily is already date-scoped
       scopeRow.classList.toggle('hidden', curMode === 'daily');
       allBtn.classList.toggle('btn-primary', !weekly);
       wkBtn.classList.toggle('btn-primary', weekly);
-      listWrap.replaceChildren(el('div', { class: 'event-flavor' }, 'Loading…'));
+      // mark the active mode tab (mock parity + tells you which board you're on)
+      for (const b of Array.from(modeRow.children)) b.classList.toggle('btn-primary', (b as HTMLElement).dataset.mode === curMode);
+      // DIM the current board in place rather than clearing it. Clearing collapses the list
+      // to a one-line "Loading…", and the vertically-centred modal then re-centres on the
+      // shorter panel — a visible jump, repeated on every tab change (the jitter). With the
+      // list at a fixed CSS height, keeping content keeps the panel rock-steady while fetching.
+      listWrap.classList.add('is-loading');
+      listWrap.setAttribute('aria-busy', 'true');
       const entries = await fetchLeaderboard(curMode, curMode === 'daily' ? dateString() : undefined, weekly);
+      if (seq !== loadSeq || !listWrap.isConnected) return; // superseded by a newer tab, or the panel closed — drop this stale render
+      listWrap.classList.remove('is-loading');
+      listWrap.removeAttribute('aria-busy');
       listWrap.replaceChildren();
+      listWrap.scrollTop = 0; // a freshly loaded board always starts at the top
       if (entries.length === 0) {
         listWrap.append(el('div', { class: 'event-flavor' }, weekly ? 'No scores this week yet — be the first.' : 'No scores yet — be the first.'));
         return;
@@ -2850,7 +2863,7 @@ export class UI {
     wkBtn.addEventListener('click', () => { curWeekly = true; void load(); });
     scopeRow.append(allBtn, wkBtn);
     for (const m of modes) {
-      const b = el('button', { class: 'btn btn-ghost btn-sm' }, m.name);
+      const b = el('button', { class: 'btn btn-ghost btn-sm', 'data-mode': m.id }, m.name);
       // the WEEKLY SIEGE board is canonically the this-week scope — default to it on select
       b.addEventListener('click', () => { curMode = m.id; if (m.id === 'weekly') curWeekly = true; void load(); });
       modeRow.append(b);
