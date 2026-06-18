@@ -2165,7 +2165,9 @@ export class UI {
   }
 
   private buildCodex(): void {
-    const h = el('h2', {}, 'CODEX');
+    const icon = el('div', { class: 'panel-head-icon' });
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M20 18v3H6.5A2.5 2.5 0 0 1 4 18.5" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'BESTIARY · LORE · CIPHER'), el('h2', { class: 'panel-head-title' }, 'CODEX')));
     const body = el('div', { class: 'codex-body' });
     // intro lead (mock): the creature portraits are still in the render pipeline; entries
     // surface behaviour / role / lore today.
@@ -2187,10 +2189,11 @@ export class UI {
       el('div', { class: 'row-group-title' }, 'READ THE KEY · THE CIPHER'),
       renderCipherLegend(),
     );
-    body.append(lead, this.codexMemories, this.codexBestiary, cipher);
+    // enemy-lead order (mock): bestiary first, then cipher, then the lore memories.
+    body.append(lead, this.codexBestiary, cipher, this.codexMemories);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.codexPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
     this.codexPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
