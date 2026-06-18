@@ -705,6 +705,7 @@ export class UI {
       if (active instanceof HTMLElement && active !== document.body) this.modalOpener.set(panel, active);
     }
     panel.classList.remove('hidden');
+    this.ensureCloseX(panel);
     if (!this.openStack.includes(panel)) this.openStack.push(panel);
     // move focus into the panel (first focusable, else the panel itself) so the trap has
     // somewhere to hold and screen-reader/keyboard users land inside the dialog.
@@ -725,6 +726,16 @@ export class UI {
     const opener = this.modalOpener.get(panel);
     this.modalOpener.delete(panel);
     if (opener && opener.isConnected) opener.focus();
+  }
+
+  /** Inject a top-right close-X into a modal's card once (mock parity — every panel has one).
+   *  Idempotent; wired to closeModal so it restores focus exactly like the DONE button. */
+  private ensureCloseX(panel: HTMLElement): void {
+    const card = panel.querySelector('.panel');
+    if (!card || card.querySelector('.modal-x')) return;
+    const x = el('button', { class: 'modal-x', type: 'button', 'aria-label': 'Close' }, '×');
+    x.addEventListener('click', () => this.closeModal(panel));
+    card.appendChild(x);
   }
 
   /** The topmost (most-recently-opened) panel that is still open, if any. */

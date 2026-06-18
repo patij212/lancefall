@@ -3844,6 +3844,34 @@ body {
   max-width: min(94vw, 1000px);
 }
 .clarity .screen-modal .panel { border-color: rgba(34, 211, 238, 0.4); }
+
+/* §v7 — top-right close-X on every modal (mock parity; injected by openModal). */
+.modal-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.modal-x:hover,
+.modal-x:focus-visible {
+  color: #eaf2ff;
+  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(34, 211, 238, 0.1);
+}
 /* accent top-edge (the mock's .modal-card::before) */
 .screen-modal .panel::before {
   content: '';
