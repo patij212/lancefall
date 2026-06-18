@@ -2115,10 +2115,13 @@ export class UI {
   /** CREDITS — the player-facing audio attribution surface (CC BY 3.0 requires visible credit). */
   private buildCredits(): void {
     const c = audioCredits();
-    const h = el('h2', {}, '♪ AUDIO CREDITS');
+    const h = el('h2', {}, 'CREDITS');
     const body = el('div', { class: 'howto-body' });
     body.append(
-      el('div', { class: 'howto-rule' }, el('b', {}, 'MUSIC'), el('span', {}, 'free-licensed, used under Creative Commons')),
+      el('div', { class: 'howto-rule' }, el('b', {}, 'CREATED BY'), el('span', {}, 'patij212')),
+    );
+    body.append(
+      el('div', { class: 'howto-rule' }, el('b', {}, '♪ MUSIC'), el('span', {}, 'free-licensed, used under Creative Commons')),
     );
     for (const line of c.music) body.append(el('div', { class: 'credit-line' }, line));
     body.append(el('div', { class: 'howto-rule' }, el('b', {}, 'SOUND'), el('span', {}, '')));
