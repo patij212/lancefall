@@ -3,7 +3,9 @@
   --bg-raised: #14161d;
   --border: #2a2c38;
   --text: #e6e8ef;
-  --text-muted: #8b8d99;
+  /* §v7 — cooler/brighter label ramp (mock's steel-blue captions, was warm gray #8b8d99).
+     Lifts legibility + the "lit" mood across every screen's muted labels in one lever. */
+  --text-muted: #8aa0bd;
   --cyan: #22d3ee;
   --purple: #a855f7;
   --pink: #ec4899;
@@ -1477,6 +1479,17 @@ body {
   width: 18px;
   height: 18px;
   accent-color: var(--cyan);
+}
+/* §v7 — slider value chip (mock): a live amber readout, right-aligned (tabular nums). */
+.setting-val {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--amber);
+  min-width: 2.6em;
+  text-align: right;
 }
 /* §v7 — settings live-preview chips: chromatic split widens with the value, the shake
    box jitters at the chosen amplitude, particle dots fill by density. */

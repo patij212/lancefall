@@ -1697,10 +1697,13 @@ export class UI {
     const s = this.settings;
 
     // slider returns { row, input } so a PRESET can re-sync the displayed value
+    const fmtSliderVal = (v: number) => String(Math.round(v * 100) / 100);
     const slider = (label: string, min: number, max: number, step: number, val: number, on: (v: number) => void) => {
       const input = el('input', { type: 'range', min: String(min), max: String(max), step: String(step), value: String(val) }) as HTMLInputElement;
-      input.addEventListener('input', () => on(parseFloat(input.value)));
-      return { row: el('label', { class: 'setting' }, el('span', {}, label), input), input };
+      // value chip (mock flourish): a live amber readout of the current value, right-aligned.
+      const chip = el('span', { class: 'setting-val' }, fmtSliderVal(val));
+      input.addEventListener('input', () => { const v = parseFloat(input.value); on(v); chip.textContent = fmtSliderVal(v); });
+      return { row: el('label', { class: 'setting' }, el('span', {}, label), input, chip), input };
     };
     const toggle = (label: string, val: boolean, on: (v: boolean) => void) => {
       const input = el('input', { type: 'checkbox' }) as HTMLInputElement;
@@ -1756,8 +1759,9 @@ export class UI {
         this.patch(p);
         chromaS.input.value = String(p.chromAberration);
         shakeS.input.value = String(p.shake);
-        setChromaPrev(p.chromAberration);
-        setShakePrev(p.shake);
+        // dispatch 'input' so the live preview AND the value chip both re-sync to the preset.
+        chromaS.input.dispatchEvent(new Event('input'));
+        shakeS.input.dispatchEvent(new Event('input'));
         setDensity(p.particleDensity);
         presetRow.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
         b.classList.add('active');
