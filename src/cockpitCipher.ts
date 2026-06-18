@@ -76,6 +76,21 @@ export function audioBands(
   return { bass: avg(0, 0.08), mid: avg(0.08, 0.4), treble: avg(0.4, 1), level: avg(0, 1) };
 }
 
+/** Map building `index` of `count` to an FFT bin in [lo, hi] — spreads the front row across the
+ *  spectrum so each building dances to its own frequency slice (left = bass, right = highs). */
+export function spectrumBin(index: number, count: number, lo: number, hi: number): number {
+  if (count <= 1) return lo;
+  const f = Math.min(1, Math.max(0, index / (count - 1)));
+  return Math.round(lo + f * (hi - lo));
+}
+
+/** Blend a building's idle "vibe" (gentle bob when silent) with its live audio energy, by how
+ *  present the music is (0 = silent → idle, 1 = loud → full audio dance). */
+export function danceMix(idle: number, audio: number, presence: number): number {
+  const p = clamp01(presence);
+  return idle * (1 - p) + audio * p;
+}
+
 // ── THE CIPHER STORM overlay (Turing decode) ─────────────────────────────────
 // A self-contained animated backdrop layer for the COCKPIT title screen: falling cipher
 // glyphs, a faint machine lattice + Enigma-rotor core, and a decode scanline where noise
@@ -113,6 +128,10 @@ const CYAN_RGB: [number, number, number] = [34, 211, 238];
 const BASS_GLOW = 0.6; // how hard the kick/bass pumps the whole field's brightness
 const SKYLINE_H = 0.17; // neon city band height (fraction of viewport, anchored to the bottom)
 const NEON = ['#22d3ee', '#818cf8', '#fbbf24']; // window palette (cyan / indigo / amber)
+const DANCE_STRETCH = 0.42; // how much a building grows taller at full energy (the "dance")
+const DANCE_SWAY = 4; // px of side-to-side wiggle when a building is energetic
+const DANCE_BIN_LO = 2; // FFT bins the front row spans (the energetic low / low-mid range)
+const DANCE_BIN_HI = 56;
 
 interface Column {
   head: number; // current head row (fractional)
@@ -142,8 +161,11 @@ interface Win {
 interface Building {
   x: number; // px
   w: number;
-  h: number; // px (height above the bottom)
+  h: number; // px (resting height above the bottom)
   windows: Win[];
+  bin: number; // FFT bin this building dances to
+  ph: number; // idle-bob phase
+  e: number; // smoothed dance energy (runtime)
 }
 
 // ── Music reactivity: a read-only master tap ─────────────────────────────────
@@ -347,9 +369,13 @@ function mountCipher(): { stop(): void } {
             col: hue < 0.5 ? NEON[0] : hue < 0.8 ? NEON[1] : NEON[2],
           });
         }
-      buildings.push({ x, w, h, windows });
+      buildings.push({ x, w, h, windows, bin: 0, ph: Math.random() * 6.28, e: 0 });
       x += w + 1 + Math.random() * 7;
     }
+    // spread the front row across the spectrum so each building dances to its own frequency
+    buildings.forEach((b, i) => {
+      b.bin = spectrumBin(i, buildings.length, DANCE_BIN_LO, DANCE_BIN_HI);
+    });
   };
 
   const ensureSize = (): void => {
@@ -520,34 +546,56 @@ function mountCipher(): { stop(): void } {
 
   /** The neon City of Lancefall along the bottom — dark silhouettes whose windows ignite and
    *  pump with the bass (the city "springing to life" with the music). */
-  const drawSkyline = (coh: number, glow: number): void => {
+  // geometry of a building this frame, given its current dance energy (b.e)
+  const bGeo = (b: Building): { bx: number; topY: number; scale: number } => {
+    const eh = b.h * (1 + b.e * DANCE_STRETCH); // grows taller on its beat
+    return { bx: b.x + Math.sin(t * 3 + b.ph) * b.e * DANCE_SWAY, topY: H - eh, scale: eh / b.h };
+  };
+
+  const drawSkyline = (coh: number, glow: number, dt: number): void => {
     if (!buildings.length) return;
-    // silhouettes + accent-lit rooftops
-    for (const b of buildings) {
-      ctx.fillStyle = rgba('#060a14', 0.9);
-      ctx.fillRect(b.x, H - b.h, b.w, b.h);
-      ctx.fillStyle = rgbaT(accentRgb, 0.1 + coh * 0.18 + rBass * 0.25);
-      ctx.fillRect(b.x, H - b.h, b.w, 1.2);
-    }
-    // window neon — additive; collective flare on the kick + per-window flicker
-    ctx.globalCompositeOperation = 'lighter';
-    const pump = 0.45 + rBass * 1.9 + beatEnvelope(t, BEAT) * 0.18 * (1 - Math.min(1, rLevel * 3));
-    for (const b of buildings) {
-      for (const wn of b.windows) {
-        const flick = 0.6 + 0.4 * Math.sin(t * 2.2 + wn.ph);
-        const a = wn.base * flick * (0.16 + coh * 0.4) * pump * glow;
-        if (a < 0.02) continue;
-        ctx.fillStyle = rgba(wn.col, Math.min(0.95, a));
-        ctx.fillRect(b.x + wn.x, H - b.h + wn.y, wn.w, wn.h);
-      }
-    }
-    // a ground bloom rising off the skyline, brightening with the bass
+    const presence = Math.min(1, rLevel * 3); // how much the music has "taken over"
+    const baseBob = beatEnvelope(t, BEAT) * 0.1 * (1 - presence); // collective vibe when silent
+
+    // ground bloom (behind the buildings), brightening with the bass
     const gy = H - H * SKYLINE_H;
+    ctx.globalCompositeOperation = 'lighter';
     const gg = ctx.createLinearGradient(0, H, 0, gy);
     gg.addColorStop(0, rgbaT(accentRgb, 0.06 + coh * 0.06 + rBass * 0.12));
     gg.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = gg;
     ctx.fillRect(0, gy, W, H - gy);
+    ctx.globalCompositeOperation = 'source-over';
+
+    // each building dances to ITS OWN frequency bin (a gentle bob when silent), then we draw
+    // every silhouette before the windows so a tall neighbour never occludes lit windows.
+    for (const b of buildings) {
+      const binE = freqData && b.bin < freqData.length ? freqData[b.bin] / 255 : 0;
+      const idle = 0.05 + 0.05 * Math.sin(t * 1.8 + b.ph);
+      const target = danceMix(idle, binE, presence);
+      // snappy attack so it pops on the hit, slower release so it settles — like an EQ bar
+      if (dt > 0) b.e = target > b.e ? easeToward(b.e, target, dt, 24) : easeToward(b.e, target, dt, 8);
+      else b.e = idle;
+      const { bx, topY } = bGeo(b);
+      ctx.fillStyle = rgba('#060a14', 0.9);
+      ctx.fillRect(bx, topY, b.w, H - topY);
+      ctx.fillStyle = rgbaT(accentRgb, 0.1 + coh * 0.16 + b.e * 0.7); // rooftop flares with its energy
+      ctx.fillRect(bx, topY, b.w, 1.6);
+    }
+
+    // window neon (additive) — each building's windows pump with that building's own energy
+    ctx.globalCompositeOperation = 'lighter';
+    for (const b of buildings) {
+      const { bx, topY, scale } = bGeo(b);
+      const pump = 0.4 + b.e * 2.2 + baseBob;
+      for (const wn of b.windows) {
+        const flick = 0.6 + 0.4 * Math.sin(t * 2.2 + wn.ph);
+        const a = wn.base * flick * (0.16 + coh * 0.4) * pump * glow;
+        if (a < 0.02) continue;
+        ctx.fillStyle = rgba(wn.col, Math.min(0.95, a));
+        ctx.fillRect(bx + wn.x, topY + wn.y * scale, wn.w, wn.h);
+      }
+    }
     ctx.globalCompositeOperation = 'source-over';
   };
 
@@ -585,7 +633,7 @@ function mountCipher(): { stop(): void } {
     const freeRun = beatEnvelope(t, BEAT) * BEAT_GLOW * (1 - Math.min(1, rLevel * 3));
     const glow = 1 + freeRun + rBass * BASS_GLOW + burst * 0.9;
     drawBase(effCoh);
-    drawSkyline(effCoh, glow);
+    drawSkyline(effCoh, glow, dt);
     drawRotor(effCoh, glow);
     drawRain(dt, effCoh, glow);
     drawScanline(effCoh, glow);
@@ -599,7 +647,7 @@ function mountCipher(): { stop(): void } {
     accentRgb = readAccent();
     const coh = clamp01(targetCoh());
     drawBase(coh);
-    drawSkyline(coh, 1); // the neon city, lit and held (no pump under reduce-motion)
+    drawSkyline(coh, 1, 0); // the neon city, lit and held (no dance under reduce-motion)
     drawLattice(coh, 1);
     // a settled field of already-decoded lore — the city remembering, held still
     ctx.font = `700 ${CELL - 4}px 'JetBrains Mono', ui-monospace, monospace`;

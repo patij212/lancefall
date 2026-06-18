@@ -9,6 +9,8 @@ import {
   beatEnvelope,
   parseAccentRgb,
   audioBands,
+  spectrumBin,
+  danceMix,
 } from './cockpitCipher';
 
 // Pure logic behind the cockpit CIPHER STORM overlay (Turing decode). The canvas/DOM
@@ -182,5 +184,44 @@ describe('audioBands — split the FFT into bass/mid/treble/level (music reactiv
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('spectrumBin — map a building to its FFT bin (the dancing equalizer)', () => {
+  it('puts the first building at the low edge and the last at the high edge', () => {
+    expect(spectrumBin(0, 10, 2, 50)).toBe(2);
+    expect(spectrumBin(9, 10, 2, 50)).toBe(50);
+  });
+  it('spreads the middle linearly', () => {
+    expect(spectrumBin(5, 11, 0, 100)).toBe(50);
+  });
+  it('handles a single building (count <= 1)', () => {
+    expect(spectrumBin(0, 1, 2, 50)).toBe(2);
+  });
+  it('stays within [lo, hi] and is monotonic non-decreasing', () => {
+    let prev = -1;
+    for (let i = 0; i < 30; i++) {
+      const bin = spectrumBin(i, 30, 3, 56);
+      expect(bin).toBeGreaterThanOrEqual(3);
+      expect(bin).toBeLessThanOrEqual(56);
+      expect(bin).toBeGreaterThanOrEqual(prev);
+      prev = bin;
+    }
+  });
+});
+
+describe('danceMix — blend the idle vibe with the audio dance', () => {
+  it('is pure idle when there is no audio presence', () => {
+    expect(danceMix(0.1, 0.9, 0)).toBeCloseTo(0.1, 5);
+  });
+  it('is pure audio at full presence', () => {
+    expect(danceMix(0.1, 0.9, 1)).toBeCloseTo(0.9, 5);
+  });
+  it('blends in between', () => {
+    expect(danceMix(0.2, 0.8, 0.5)).toBeCloseTo(0.5, 5);
+  });
+  it('clamps presence outside [0, 1]', () => {
+    expect(danceMix(0.1, 0.9, 2)).toBeCloseTo(0.9, 5);
+    expect(danceMix(0.1, 0.9, -1)).toBeCloseTo(0.1, 5);
   });
 });
