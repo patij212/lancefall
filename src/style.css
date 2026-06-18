@@ -464,7 +464,8 @@ body {
   min-width: min(720px, 92vw);
 }
 .panel h2 {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'Rajdhani', 'Space Grotesk', sans-serif;
+  font-weight: 700;
   margin: 0 0 6px;
   letter-spacing: 0.06em;
   font-size: 26px;
@@ -2209,6 +2210,12 @@ body {
   justify-content: flex-start;
   padding: clamp(12px, 3vh, 36px) 16px 24px;
   overflow-y: auto;
+  /* §v7 ambient (mock body::before): soft cyan/indigo edge-glow + a floor wash so the
+     cockpit reads as a lit space, not a frame in flat black. Cheap (static radials). */
+  background:
+    radial-gradient(ellipse 70% 55% at 12% 50%, rgba(34, 211, 238, 0.045) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 55% at 88% 50%, rgba(129, 140, 248, 0.045) 0%, transparent 70%),
+    radial-gradient(ellipse 95% 55% at 50% 114%, rgba(34, 211, 238, 0.07) 0%, transparent 60%);
   /* COHERENCE dial (0..1): authored at the 62% mid-bloom resting state; the
      .boot-in trigger lifts it from near-dark on title show. */
   --coh: 0.62;
@@ -2339,9 +2346,9 @@ body {
   gap: 4px;
 }
 .ck-wordmark {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: clamp(28px, 5vw, 38px);
+  font-family: 'Orbitron', 'Space Grotesk', sans-serif;
+  font-weight: 900;
+  font-size: clamp(26px, 4.6vw, 36px);
   line-height: 1;
   letter-spacing: 0.04em;
   background: linear-gradient(90deg, #22d3ee 0%, #818cf8 45%, #f472b6 78%, #fb923c 100%);
@@ -2351,9 +2358,9 @@ body {
   filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.26));
 }
 .ck-wordmark-sub {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 9.5px;
-  letter-spacing: 0.34em;
+  font-family: 'Orbitron', 'Space Grotesk', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.3em;
   color: var(--purple);
   font-weight: 700;
   text-transform: uppercase;
@@ -2889,10 +2896,10 @@ body {
   background: linear-gradient(270deg, transparent, rgba(var(--accent-rgb, 34, 211, 238), 0.4));
 }
 .ck-hero-title {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(22px, 3.4vw, 30px);
+  font-family: 'Orbitron', 'Space Grotesk', sans-serif;
+  font-size: clamp(20px, 3.1vw, 28px);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: #fff;
   line-height: 1.05;
   text-shadow: 0 0 28px rgba(var(--accent-rgb, 34, 211, 238), 0.6), 0 0 70px rgba(var(--accent-rgb, 34, 211, 238), 0.2);

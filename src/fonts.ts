@@ -30,6 +30,20 @@ import '@fontsource/space-grotesk/latin-ext-600.css';
 import '@fontsource/space-grotesk/latin-700.css';
 import '@fontsource/space-grotesk/latin-ext-700.css';
 
+// Orbitron — the wordmark + hero/mode titles (the mock's identity face; weights 400/700/900).
+// No latin-ext subset is published for Orbitron, so latin only.
+import '@fontsource/orbitron/latin-400.css';
+import '@fontsource/orbitron/latin-700.css';
+import '@fontsource/orbitron/latin-900.css';
+
+// Rajdhani — the condensed display label/stat face the mock uses everywhere (weights 500/600/700).
+import '@fontsource/rajdhani/latin-500.css';
+import '@fontsource/rajdhani/latin-ext-500.css';
+import '@fontsource/rajdhani/latin-600.css';
+import '@fontsource/rajdhani/latin-ext-600.css';
+import '@fontsource/rajdhani/latin-700.css';
+import '@fontsource/rajdhani/latin-ext-700.css';
+
 // JetBrains Mono — numerics / mono UI (weights 400, 500, 700)
 import '@fontsource/jetbrains-mono/latin-400.css';
 import '@fontsource/jetbrains-mono/latin-ext-400.css';
