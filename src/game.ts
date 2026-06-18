@@ -121,6 +121,7 @@ export class Game {
   private biomeShield = 0;
   private biomeBulletAccel = 0; // RULE: px/s² added along each live bullet's heading (THE EMBERWALL)
   private biomeNoGraze = false; // RULE: graze dead-zone — no graze reward economy (THE NULL)
+  private biomeGrazeMul = 1; // RULE: graze stamina-refund scale here (THE BLOOMGARDENS doubles it)
   private deathCause = 'a bullet';
   private nudgedHandle = false; // show the "set a handle" leaderboard nudge once per session
 
@@ -2247,7 +2248,8 @@ export class Game {
     }
     chargeFromGraze(w.overdrive); // grazing trickles the OVERDRIVE meter
     const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
-    p.stamina = Math.min(max, p.stamina + w.stats.grazeStaminaRefund);
+    // BIOME RULE (THE BLOOMGARDENS) — graze refunds scaled stamina (generous flow biome)
+    p.stamina = Math.min(max, p.stamina + w.stats.grazeStaminaRefund * this.biomeGrazeMul);
     w.score += Math.round(grazeScore(w.combo) * w.stats.scoreMul);
     // B1: grazing keeps the chain alive — floor the window + trickle a fractional
     // combo charge (skill expression feeds the combo, and thus the COHERENCE bloom).
@@ -2863,6 +2865,7 @@ export class Game {
     this.biomeShield = b.shieldBonus;
     this.biomeBulletAccel = b.bulletAccel ?? 0;
     this.biomeNoGraze = b.noGraze ?? false;
+    this.biomeGrazeMul = b.grazeMul ?? 1;
     if (announce) {
       this.ui.announce(`⟐ ${b.name}`, b.accent);
       this.narrateOne('toast', NARRATOR.strata[index]);

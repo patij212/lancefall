@@ -385,6 +385,10 @@ export const BIOME_RULES = {
   // THE EMBERWALL accelerates every live bullet along its heading — the screen
   // gets faster, demanding earlier reads. Gentle (px/s²) so it ramps, not snaps.
   emberBulletAccel: 70,
+  // THE BLOOMGARDENS is the GENEROUS inverse of THE NULL's graze dead-zone: a graze
+  // refunds this much more stamina here, so the bullet-dense garden becomes a graze-dash
+  // flow state — a breather biome. (Nick: tune the feel here.)
+  bloomGrazeMul: 2,
 } as const;
 
 // Enemy SHIELD — a darter/orbiter can arrive with a frontal shield that tracks you.

@@ -58,4 +58,14 @@ describe('biomes', () => {
     // exactly one biome strips the graze economy — the others all reward grazing
     expect(BIOMES.filter((b) => b.noGraze)).toHaveLength(1);
   });
+
+  it('THE BLOOMGARDENS changes a RULE: graze refunds extra stamina (grazeMul > 1) — §3.2', () => {
+    const bloom = BIOMES.find((b) => b.id === 'bloom');
+    expect(bloom).toBeDefined();
+    expect(bloom!.grazeMul).toBe(BIOME_RULES.bloomGrazeMul);
+    expect(bloom!.grazeMul!).toBeGreaterThan(1);
+    // exactly one biome scales graze UP — the generous inverse of THE NULL's dead-zone, so
+    // THREE distinct biomes now each carry a mechanical rule (ember accel / null no-graze / bloom graze-up)
+    expect(BIOMES.filter((b) => (b.grazeMul ?? 1) > 1)).toHaveLength(1);
+  });
 });

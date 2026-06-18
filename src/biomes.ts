@@ -20,6 +20,9 @@ export interface Biome {
   /** RULE: a graze DEAD-ZONE — grazing grants no stamina/combo/score here.
    *  THE NULL strips the skill-reward economy: survive on dashes alone. */
   noGraze?: boolean;
+  /** RULE: scales the stamina a graze refunds here (1 = normal). THE BLOOMGARDENS
+   *  doubles it — the generous inverse of THE NULL's dead-zone (a graze-dash flow biome). */
+  grazeMul?: number;
 }
 
 export const BIOME_DURATION = 70; // seconds per biome before cycling — locked to TUNE.director.bossInterval (keep aligned)
@@ -41,6 +44,7 @@ export const BIOMES: Biome[] = [
   {
     id: 'bloom', name: 'THE BLOOMGARDENS', accent: '#a855f7',
     nebula: ['#241040', '#1a3a20', '#2e1030'], bias: { splitter: 1.6, bloomer: 1.6, wisp: 1.6 }, speedMul: 1, shieldBonus: 0,
+    grazeMul: BIOME_RULES.bloomGrazeMul, // RULE: graze refunds double stamina — a generous flow biome
   },
   {
     id: 'warren', name: 'THE WARRENS', accent: '#a78bfa',
