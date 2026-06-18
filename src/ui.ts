@@ -3,7 +3,7 @@
 // innerHTML churn) so the 60fps loop stays clean.
 
 import type { World } from './world';
-import { el, iconEl, stat } from './panels/dom';
+import { el, iconEl, stat, reconcile } from './panels/dom';
 import type { Settings, SaveData } from './save';
 import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
@@ -1408,12 +1408,17 @@ export class UI {
     if (next !== s.selectedHeat) this.cb.onHeatChange(next); // persists → refreshTitle re-paints pips
   }
 
-  /** Paint the loadout HEAT pips (one per level 1..MAX_HEAT; first `level` lit). */
+  /** Paint the loadout HEAT pips (one per level 1..MAX_HEAT; first `level` lit). Morphs in
+   *  place — pips persist across refreshes so the .on toggle can transition. */
   private paintHeatPips(level: number): void {
-    this.heatPipsWrap.replaceChildren();
-    for (let i = 1; i <= MAX_HEAT; i++) {
-      this.heatPipsWrap.append(el('div', { class: 'ck-heat-pip' + (i <= level ? ' on' : '') }));
-    }
+    const pips = Array.from({ length: MAX_HEAT }, (_, i) => i + 1);
+    reconcile(
+      this.heatPipsWrap,
+      pips,
+      (n) => `h${n}`,
+      () => el('div', { class: 'ck-heat-pip' }),
+      (node, n) => node.classList.toggle('on', n <= level),
+    );
   }
 
   /** Paint the loadout ARMOR pips — effective shields for the selected Heat (baseShields
@@ -1421,12 +1426,17 @@ export class UI {
    *  alongside the HEAT pips whenever refreshTitle runs. */
   private paintArmorPips(save: SaveData): void {
     const eff = Math.max(0, save.baseShields - (HEAT_LEVELS[save.selectedHeat]?.shieldsLost ?? 0));
-    this.armorPipsWrap.replaceChildren();
-    if (eff <= 0) {
-      this.armorPipsWrap.append(el('div', { class: 'ck-armor-none' }, 'STRIPPED'));
-      return;
-    }
-    for (let i = 0; i < eff; i++) this.armorPipsWrap.append(el('div', { class: 'ck-armor-pip' }));
+    // STRIPPED is its own keyed node, so switching to/from it adds/removes cleanly.
+    const items = eff <= 0 ? ['stripped'] : Array.from({ length: eff }, (_, i) => `a${i}`);
+    reconcile(
+      this.armorPipsWrap,
+      items,
+      (id) => id,
+      (id) => id === 'stripped'
+        ? el('div', { class: 'ck-armor-none' }, 'STRIPPED')
+        : el('div', { class: 'ck-armor-pip' }),
+      () => {}, // pip/STRIPPED nodes carry no per-refresh state
+    );
   }
 
   private buildPause(): void {
