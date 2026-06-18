@@ -1979,16 +1979,18 @@ export class UI {
     const s = this.saveRef;
     if (!s) return;
     const body = this.statsPanel.querySelector('#stats-body')!;
-    body.replaceChildren(...renderStats(s, this.statsRarity));
+    const stats = renderStats(s, this.statsRarity);
+    body.replaceChildren(...stats.nodes);
     this.openModal(this.statsPanel);
-    // §v7 — fetch the global achievement-rarity aggregate once (cache it on the UI), then
-    // re-render the dossier in place if it resolves while the panel is still open. Offline /
-    // no-backend → null → the rarity line simply stays hidden. Never blocks the open.
+    // §v7 — fetch the global achievement-rarity aggregate once (cache it on the UI), then morph
+    // the rarity lines onto the existing cards if it resolves while the panel is still open
+    // (setRarity, not a body rebuild). Offline / no-backend → null → lines stay hidden. Never
+    // blocks the open.
     if (!this.statsRarity && leaderboardEnabled()) {
       void fetchAchievementRarity().then((r) => {
         if (!r) return;
         this.statsRarity = r;
-        if (this.openStack.includes(this.statsPanel)) body.replaceChildren(...renderStats(s, this.statsRarity));
+        if (this.openStack.includes(this.statsPanel)) stats.setRarity(r);
       });
     }
   }

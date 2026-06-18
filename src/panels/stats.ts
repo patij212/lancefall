@@ -3,8 +3,9 @@
 // cell grid, achievement filter tabs (ALL / UNLOCKED / LOCKED), and the global rarity line
 // ("X% of players have this") whenever the backend aggregate is available (else omitted).
 //
-// Returns an array of sections so the caller drops them straight into the scroll body
-// (body.replaceChildren(...renderStats(...))) — no transparent wrapper box.
+// Returns the section nodes plus a `setRarity` updater: the caller mounts `nodes` once and,
+// when the async global-rarity aggregate resolves, calls `setRarity(r)` to morph the rarity
+// lines onto the existing achievement cards in place (no STATS body reflash).
 
 import { el, stat, reconcile } from './dom';
 import type { SaveData } from '../save';
@@ -51,8 +52,9 @@ function barChart(rows: [string, number][], accent: '' | 'mode-fill', fmt: (n: n
   return wrap;
 }
 
-export function renderStats(s: SaveData, rarity: AchRarity | null): HTMLElement[] {
+export function renderStats(s: SaveData, rarity: AchRarity | null): { nodes: HTMLElement[]; setRarity: (r: AchRarity | null) => void } {
   const out: HTMLElement[] = [];
+  let curRarity = rarity; // mutable so a late-arriving aggregate can morph the grid in place
   const got = ACHIEVEMENTS.filter((a) => s.achievements.includes(a.id)).length;
   const total = ACHIEVEMENTS.length;
 
@@ -131,8 +133,8 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): HTMLElement[
     ['lock', `LOCKED · ${total - got}`],
   ];
   const rarLine = (id: string): HTMLElement | null => {
-    if (!rarity || rarity.players <= 0) return null;
-    const pct = ((rarity.holders[id] ?? 0) / rarity.players) * 100;
+    if (!curRarity || curRarity.players <= 0) return null;
+    const pct = ((curRarity.holders[id] ?? 0) / curRarity.players) * 100;
     const txt = pct >= 1 ? `${Math.round(pct)}%` : pct > 0 ? '<1%' : '0%';
     return el('div', { class: 'ach-rar' }, `${txt} of players have this`);
   };
@@ -181,5 +183,8 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): HTMLElement[
   syncTabs();
   renderGrid();
   out.push(tabs, grid);
-  return out;
+  // when the aggregate arrives, update the closure rarity + re-run the (reconciling) grid so
+  // the per-card rarity lines morph in — the rest of the dossier never re-renders.
+  const setRarity = (r: AchRarity | null): void => { curRarity = r; renderGrid(); };
+  return { nodes: out, setRarity };
 }
