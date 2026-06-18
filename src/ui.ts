@@ -3095,85 +3095,115 @@ export class UI {
 
     // ── LEFT: MODE RAIL (RAIL_CARDS order; roving tabindex; locked = dimmed, not pickable) ──
     // A card groups one or two mode variants; multi-variant cards (Endless, Echo) carry a pill.
-    this.modeGrid.replaceChildren();
-    for (const variants of RAIL_CARDS) {
-      const primary = variants[0];
-      const multi = variants.length > 1;
-      // active variant: the selected mode if it belongs to this card, else this card's remembered
-      // (this session) or default variant. Record it so ←/→ nav can restore it on return.
-      const onThisCard = variants.includes(save.selectedMode);
-      const activeId = onThisCard ? save.selectedMode : (this.cardVariant.get(primary) ?? primary);
-      this.cardVariant.set(primary, activeId);
-      const m = modeById(activeId);
-      const selected = onThisCard;
-      const unlocked = modeUnlocked(modeById(primary), save.deepestWave);
-      const brief = modeBrief(m);
-      const card = el('button', {
-        class: 'mode-card ck-mi' + (selected ? ' selected' : '') + (unlocked ? '' : ' locked'),
-        'aria-pressed': String(selected),
-        'aria-disabled': unlocked ? 'false' : 'true',
-        tabindex: selected ? '0' : '-1',
-      });
-      card.style.setProperty('--accent', railAccent(activeId));
-      card.style.setProperty('--accent-rgb', hexToRgb(railAccent(activeId)));
-      const title = multi ? (CARD_TITLE[primary] ?? m.name) : m.name;
-      const text = el(
-        'div',
-        { class: 'ck-mi-text' },
-        el('div', { class: 'ck-mi-name' }, title),
-        el('div', { class: 'ck-mi-sub' }, `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`),
-      );
-      // PB line on the selected card (and a "new? start here" nudge on Casual for fresh saves).
-      if (selected) {
-        const pb = m.seedKind === 'date'
-          ? (save.dailyBest > 0 ? save.dailyBest.toLocaleString() : '—')
-          : (save.highScore > 0 ? save.highScore.toLocaleString() : '—');
-        // the "PB" label is a dim ::before prefix (see .ck-mi-pb::before) so the value reads
-        // in the accent and the tag in shadow — render the value only.
-        text.append(el('div', { class: 'ck-mi-pb' }, pb));
-      }
-      // variant pill (multi-variant cards only): two segments, the active one lit. A segment
-      // click selects that variant directly (and stops the card's own select).
-      if (multi) {
-        const pill = el('div', { class: 'ck-mi-pill', role: 'group', 'aria-label': 'Variant' });
-        for (const vid of variants) {
-          // a SPAN (role=button), not a <button> — a nested <button> inside the card's own
-          // <button> is invalid HTML and double-activates (the click bubbles into the card and
-          // re-selects its active variant). stopPropagation below keeps the card from re-selecting.
-          const seg = el('span', {
-            class: 'ck-mi-pill-seg' + (vid === activeId ? ' on' : ''),
-            role: 'button',
-            'aria-pressed': String(vid === activeId),
-          }, VARIANT_LABEL[vid] ?? modeById(vid).name);
-          seg.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            if (!unlocked) return;
-            this.cardVariant.set(primary, vid);
-            this.quietReskin = true;
-            this.cb.onSelectMode(vid);
-          });
-          pill.append(seg);
+    // mode cards morph in place. createFn builds every slot once (PB line, badge, pill
+    // segments) and attaches listeners that read LIVE state off the node's dataset; updateFn
+    // toggles content/visibility. No rebuild → the clicked node survives the event, which is
+    // what finally makes the variant pill reliable (no stale-closure double-select).
+    reconcile(
+      this.modeGrid,
+      RAIL_CARDS,
+      (variants) => variants[0], // key by the card's primary mode id
+      (variants) => {
+        const primary = variants[0];
+        const multi = variants.length > 1;
+        const cardTitle = multi ? (CARD_TITLE[primary] ?? modeById(primary).name) : modeById(primary).name;
+        const card = el('button', { class: 'mode-card ck-mi' });
+        const text = el(
+          'div',
+          { class: 'ck-mi-text' },
+          el('div', { class: 'ck-mi-name' }, cardTitle),
+          el('div', { class: 'ck-mi-sub' }),
+          el('div', { class: 'ck-mi-pb hidden' }),
+        );
+        if (multi) {
+          const pill = el('div', { class: 'ck-mi-pill', role: 'group', 'aria-label': 'Variant' });
+          for (const vid of variants) {
+            // a SPAN (role=button), not a nested <button> (invalid inside the card's <button>).
+            const seg = el('span', { class: 'ck-mi-pill-seg', role: 'button' }, VARIANT_LABEL[vid] ?? modeById(vid).name);
+            seg.dataset.vid = vid;
+            seg.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              if (card.dataset.unlocked !== '1') return;
+              this.cardVariant.set(primary, vid);
+              this.quietReskin = true;
+              this.cb.onSelectMode(vid);
+            });
+            pill.append(seg);
+          }
+          text.append(pill);
         }
-        text.append(pill);
-      }
-      card.append(iconEl('ck-mi-icon', MODE_ICONS[activeId] ?? MODE_ICONS[primary] ?? ''), text);
-      if (!unlocked) {
-        card.append(el('div', { class: 'ck-mi-badge locked' }, `LOCKED · reach wave ${modeById(primary).unlockedAtWave}`));
-      } else if (activeId === 'casual' && save.totalRuns === 0) {
-        card.append(el('div', { class: 'ck-mi-badge start' }, 'START HERE'));
-      } else if (m.seedKind === 'date') {
-        card.append(el('div', { class: 'ck-mi-badge daily' }, 'DAILY'));
-      }
-      card.title = unlocked ? m.desc : `Locked — reach wave ${modeById(primary).unlockedAtWave} to unlock ${title}.`;
-      card.addEventListener('click', (ev) => {
-        // a click on the variant pill is handled by the segment itself — skip the card's own
-        // select so it can't re-pick its (stale) active variant on the same click. The segment's
-        // onSelectMode re-renders synchronously, which makes stopPropagation alone unreliable.
-        if ((ev.target as HTMLElement).closest('.ck-mi-pill')) return;
-        if (unlocked) this.cb.onSelectMode(activeId);
-      });
-      this.modeGrid.append(card);
-    }
+        const badge = el('div', { class: 'ck-mi-badge hidden' });
+        card.append(iconEl('ck-mi-icon', ''), text, badge);
+        card.addEventListener('click', (ev) => {
+          if ((ev.target as HTMLElement).closest('.ck-mi-pill')) return; // segment handles itself
+          if (card.dataset.unlocked === '1') this.cb.onSelectMode(card.dataset.activeId ?? primary);
+        });
+        return card;
+      },
+      (card, variants) => {
+        const s = this.saveRef!;
+        const primary = variants[0];
+        const multi = variants.length > 1;
+        // active variant: the selected mode if it belongs to this card, else this card's
+        // remembered (this session) or default variant. Record it so ←/→ nav can restore it.
+        const onThisCard = variants.includes(s.selectedMode);
+        const activeId = onThisCard ? s.selectedMode : (this.cardVariant.get(primary) ?? primary);
+        this.cardVariant.set(primary, activeId);
+        const m = modeById(activeId);
+        const selected = onThisCard;
+        const unlocked = modeUnlocked(modeById(primary), s.deepestWave);
+        const brief = modeBrief(m);
+        const title = multi ? (CARD_TITLE[primary] ?? m.name) : m.name;
+
+        // live state for the once-attached listeners
+        card.dataset.activeId = activeId;
+        card.dataset.unlocked = unlocked ? '1' : '0';
+
+        card.classList.toggle('selected', selected);
+        card.classList.toggle('locked', !unlocked);
+        card.setAttribute('aria-pressed', String(selected));
+        card.setAttribute('aria-disabled', unlocked ? 'false' : 'true');
+        card.tabIndex = selected ? 0 : -1;
+        card.style.setProperty('--accent', railAccent(activeId));
+        card.style.setProperty('--accent-rgb', hexToRgb(railAccent(activeId)));
+        card.title = unlocked ? m.desc : `Locked — reach wave ${modeById(primary).unlockedAtWave} to unlock ${title}.`;
+
+        (card.querySelector('.ck-mi-icon') as HTMLElement).innerHTML = MODE_ICONS[activeId] ?? MODE_ICONS[primary] ?? '';
+        (card.querySelector('.ck-mi-sub') as HTMLElement).textContent = `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`;
+
+        // PB line — selected card only. The "PB" tag is a dim ::before prefix; render value only.
+        const pb = card.querySelector('.ck-mi-pb') as HTMLElement;
+        pb.classList.toggle('hidden', !selected);
+        if (selected) {
+          pb.textContent = m.seedKind === 'date'
+            ? (s.dailyBest > 0 ? s.dailyBest.toLocaleString() : '—')
+            : (s.highScore > 0 ? s.highScore.toLocaleString() : '—');
+        }
+
+        if (multi) {
+          for (const seg of Array.from(card.querySelectorAll('.ck-mi-pill-seg')) as HTMLElement[]) {
+            const on = seg.dataset.vid === activeId;
+            seg.classList.toggle('on', on);
+            seg.setAttribute('aria-pressed', String(on));
+          }
+        }
+
+        const badge = card.querySelector('.ck-mi-badge') as HTMLElement;
+        if (!unlocked) {
+          badge.className = 'ck-mi-badge locked';
+          badge.textContent = `LOCKED · reach wave ${modeById(primary).unlockedAtWave}`;
+        } else if (activeId === 'casual' && s.totalRuns === 0) {
+          badge.className = 'ck-mi-badge start';
+          badge.textContent = 'START HERE';
+        } else if (m.seedKind === 'date') {
+          badge.className = 'ck-mi-badge daily';
+          badge.textContent = 'DAILY';
+        } else {
+          badge.className = 'ck-mi-badge hidden';
+          badge.textContent = '';
+        }
+      },
+    );
 
     // ── CENTER: SELECTED RUN ──
     this.refreshSelectedRun(save);
