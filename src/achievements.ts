@@ -1,6 +1,8 @@
 // Achievements — goals to chase, evaluated on game over against a snapshot of
 // the run + lifetime totals. Pure: evaluate() returns the newly-unlocked ones.
 
+import type { EnemyKind } from './types';
+
 export interface AchCtx {
   score: number;
   combo: number; // best combo this run
@@ -22,16 +24,21 @@ export interface AchCtx {
   lifeKills: number;
   lifeBoss: number;
   lifeShards: number;
+  lifeKillsByKind: Record<string, number>; // lifetime per-kind kills (CODEX tally) — gates the per-enemy SKIN achievements
 }
 
 export interface Achievement {
   id: string;
   name: string;
   desc: string;
+  /** 'skin' = a dedicated per-enemy SKIN unlock (grouped under the STATS SKINS tab); absent =
+   *  a general achievement. (Some general achievements ALSO gate a skin — see skinAchId.) */
+  category?: 'skin';
   check: (c: AchCtx) => boolean;
 }
 
-export const ACHIEVEMENTS: Achievement[] = [
+// ── general achievements (the curated set) ──────────────────────────────────
+const BASE_ACHIEVEMENTS: Achievement[] = [
   { id: 'firstblood', name: 'First Blood', desc: 'Spear your first enemy.', check: (c) => c.kills >= 1 },
   { id: 'skewer', name: 'Shish Kebab', desc: 'Spear 6 enemies in a single dash.', check: (c) => c.maxDashChain >= 6 },
   { id: 'comboist', name: 'On a Roll', desc: 'Reach a ×25 combo.', check: (c) => c.combo >= 25 },
@@ -66,6 +73,144 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'pristine', name: 'Pristine', desc: 'Clear Boss Rush without taking a single hit.', check: (c) => c.won && c.modeId === 'bossrush' && c.hitsTaken === 0 },
   { id: 'flawlesskey', name: 'The Flawless Key', desc: 'Down the Sovereign without taking a single hit.', check: (c) => c.sovereignDown && c.hitsTaken === 0 },
 ];
+
+// ── SKIN unlocks — one achievement per non-common skin ──────────────────────
+// Cosmetic enemy skins (skins.ts) used to share THREE tier gates (every Rare from `survivor`,
+// every Epic from `gauntlet`, every Legendary from `regicide`). They are now broken out so each
+// of the 57 non-common skins has its OWN unique achievement. Where a fitting general achievement
+// already exists it is REUSED (it does double duty as that skin's gate); the rest are new, themed
+// to the enemy that wears the skin. Per-enemy kill goals read the lifetime CODEX tally
+// (save.killsByKind → AchCtx.lifeKillsByKind), so a veteran retroactively earns them on their next
+// game over. Common skins stay free (no gate). This table is the single source of truth: skins.ts
+// reads it via skinAchId(), and the new entries are folded into ACHIEVEMENTS below.
+
+type SkinTier = 'rare' | 'epic' | 'legendary';
+const SKIN_TIERS: SkinTier[] = ['rare', 'epic', 'legendary'];
+
+/** Either reuse an existing achievement as this skin's gate, or define a brand-new one. A `kill`
+ *  tag marks a LIFETIME per-kind kill gate (so the picker can show live "have / need" progress —
+ *  per-run feats and reused gates have no accumulating progress and omit it). */
+type SkinGate =
+  | { reuse: string }
+  | { id: string; name: string; desc: string; check: (c: AchCtx) => boolean; kill?: { kind: string; need: number } };
+interface SkinAchEntry {
+  kind: EnemyKind;
+  tier: SkinTier;
+  gate: SkinGate;
+}
+
+/** A rare/epic/legendary ladder of "defeat N of this enemy" (lifetime). The enemy's own
+ *  colours, earned by mastering it. `singular` titles the trophy; `plural` reads in the desc. */
+function killLadder(kind: EnemyKind, singular: string, plural: string, counts: [number, number, number]): SkinAchEntry[] {
+  const titles = [`${singular} Hunter`, `${singular} Bane`, `${singular} Nemesis`];
+  return SKIN_TIERS.map((tier, i) => ({
+    kind,
+    tier,
+    gate: {
+      id: `skin-${kind}-${tier}`,
+      name: titles[i],
+      desc: `Defeat ${counts[i].toLocaleString()} ${plural}.`,
+      check: (c: AchCtx) => (c.lifeKillsByKind[kind] ?? 0) >= counts[i],
+      kill: { kind, need: counts[i] },
+    },
+  }));
+}
+
+/** A boss skin ladder — defeat that boss N times (lifetime). Boss kills are precious, so the
+ *  counts are small; the first felling already earns the Rare. */
+function bossLadder(kind: EnemyKind, display: string, short: string, counts: [number, number, number]): SkinAchEntry[] {
+  const titles = [`${short} Slain`, `${short} Vanquisher`, `${short} Conqueror`];
+  return SKIN_TIERS.map((tier, i) => ({
+    kind,
+    tier,
+    gate: {
+      id: `skin-${kind}-${tier}`,
+      name: titles[i],
+      desc: counts[i] <= 1 ? `Defeat ${display}.` : `Defeat ${display} ${counts[i]} times.`,
+      check: (c: AchCtx) => (c.lifeKillsByKind[kind] ?? 0) >= counts[i],
+      kill: { kind, need: counts[i] },
+    },
+  }));
+}
+
+const SKIN_ACH_ENTRIES: SkinAchEntry[] = [
+  // DARTER — the RUSHER you dash through: a dash-chain ladder (reuses the Shish Kebab feat).
+  { kind: 'darter', tier: 'rare', gate: { reuse: 'skewer' } },
+  { kind: 'darter', tier: 'epic', gate: { id: 'skin-darter-epic', name: 'Impaler', desc: 'Spear 8 enemies in a single dash.', check: (c) => c.maxDashChain >= 8 } },
+  { kind: 'darter', tier: 'legendary', gate: { id: 'skin-darter-legendary', name: 'The Long Lance', desc: 'Spear 10 enemies in a single dash.', check: (c) => c.maxDashChain >= 10 } },
+  // ORBITER — the ZONER: a graze ladder (reuses Living Dangerously).
+  { kind: 'orbiter', tier: 'rare', gate: { id: 'skin-orbiter-rare', name: 'Brush With Death', desc: 'Graze 30 bullets in a single run.', check: (c) => c.grazes >= 30 } },
+  { kind: 'orbiter', tier: 'epic', gate: { reuse: 'grazer' } },
+  { kind: 'orbiter', tier: 'legendary', gate: { id: 'skin-orbiter-legendary', name: 'Eye of the Storm', desc: 'Graze 120 bullets in a single run.', check: (c) => c.grazes >= 120 } },
+  // MINI — the SWARM: a single-run body-count ladder (reuses Centurion).
+  { kind: 'mini', tier: 'rare', gate: { id: 'skin-mini-rare', name: 'Swarm Cleaner', desc: 'Get 60 kills in a single run.', check: (c) => c.kills >= 60 } },
+  { kind: 'mini', tier: 'epic', gate: { reuse: 'centurion' } },
+  { kind: 'mini', tier: 'legendary', gate: { id: 'skin-mini-legendary', name: 'Extermination', desc: 'Get 175 kills in a single run.', check: (c) => c.kills >= 175 } },
+  // SOVEREIGN — the marquee: reuse the three existing Sovereign feats (the perfect fits).
+  { kind: 'sovereign', tier: 'rare', gate: { reuse: 'regicide' } },
+  { kind: 'sovereign', tier: 'epic', gate: { reuse: 'coronation' } },
+  { kind: 'sovereign', tier: 'legendary', gate: { reuse: 'flawlesskey' } },
+  // ── per-enemy kill ladders (the rest) — wear an enemy's colours by mastering it ──
+  ...killLadder('lancer', 'Lancer', 'Lancers', [25, 110, 450]),
+  ...killLadder('seeker', 'Seeker', 'Seekers', [25, 110, 450]),
+  ...killLadder('splitter', 'Splitter', 'Splitters', [25, 110, 450]),
+  ...killLadder('bloomer', 'Bloomer', 'Bloomers', [25, 110, 450]),
+  ...killLadder('bomber', 'Bomber', 'Bombers', [12, 55, 220]),
+  ...killLadder('wisp', 'Wisp', 'Wisps', [40, 180, 700]),
+  ...killLadder('drifter', 'Drifter', 'Drifters', [40, 180, 700]),
+  ...killLadder('shade', 'Shade', 'Shades', [12, 55, 220]),
+  ...killLadder('brooder', 'Brooder', 'Brooders', [12, 55, 220]),
+  ...killLadder('herald', 'Herald', 'Heralds', [12, 55, 220]),
+  // ── boss skin ladders — fell the boss enough to wear its regalia ──
+  ...bossLadder('warden', 'THE WARDEN', 'Warden', [1, 4, 12]),
+  ...bossLadder('weaver', 'THE WEAVER', 'Weaver', [1, 4, 12]),
+  ...bossLadder('beacon', 'THE BEACON', 'Beacon', [1, 4, 12]),
+  ...bossLadder('mirrorblade', 'THE MIRRORBLADE', 'Mirrorblade', [1, 4, 12]),
+  ...bossLadder('hollow', 'THE HOLLOW', 'Hollow', [1, 4, 12]),
+];
+
+/** The NEW skin achievements (the non-reuse gates), tagged as the 'skin' category. */
+const SKIN_ACHIEVEMENTS: Achievement[] = SKIN_ACH_ENTRIES.flatMap((e) =>
+  'id' in e.gate ? [{ id: e.gate.id, name: e.gate.name, desc: e.gate.desc, check: e.gate.check, category: 'skin' as const }] : [],
+);
+
+export const ACHIEVEMENTS: Achievement[] = [...BASE_ACHIEVEMENTS, ...SKIN_ACHIEVEMENTS];
+
+const SKIN_ACH_BY_KEY = new Map<string, string>();
+for (const e of SKIN_ACH_ENTRIES) {
+  SKIN_ACH_BY_KEY.set(`${e.kind}:${e.tier}`, 'reuse' in e.gate ? e.gate.reuse : e.gate.id);
+}
+
+/** The achievement id that gates a given skin (kind + rarity), or null for the free Common.
+ *  The single source of truth shared with skins.ts so a skin's gate and the achievement that
+ *  satisfies it can never drift apart. */
+export function skinAchId(kind: string, rarity: string): string | null {
+  if (rarity === 'common') return null;
+  return SKIN_ACH_BY_KEY.get(`${kind}:${rarity}`) ?? null;
+}
+
+const ACH_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
+/** Look up an achievement by id (for the skin picker's per-skin unlock hint). */
+export function achievementById(id: string): Achievement | undefined {
+  return ACH_BY_ID.get(id);
+}
+
+// gates whose progress accumulates over a lifetime (per-enemy / per-boss kill counts) — the
+// only ones a "have / need" readout is meaningful for. Per-run feats (dash/graze/single-run
+// kills) and reused event achievements are absent, so skinKillProgress returns null for them.
+const KILL_GATE = new Map<string, { kind: string; need: number }>();
+for (const e of SKIN_ACH_ENTRIES) {
+  if ('id' in e.gate && e.gate.kill) KILL_GATE.set(e.gate.id, e.gate.kill);
+}
+
+/** Live progress toward a LIFETIME kill-gated skin, from the player's CODEX tally. Returns
+ *  { have, need } for per-enemy / per-boss kill gates, or null for gates that don't accumulate
+ *  (per-run feats, reused event achievements) — those have no meaningful running count. */
+export function skinKillProgress(achId: string, killsByKind: Record<string, number>): { have: number; need: number } | null {
+  const g = KILL_GATE.get(achId);
+  if (!g) return null;
+  return { have: Math.max(0, Math.floor(killsByKind?.[g.kind] ?? 0)), need: g.need };
+}
 
 /** Returns the achievements newly satisfied by this context (not already in `unlocked`). */
 export function evaluate(unlocked: string[], c: AchCtx): Achievement[] {

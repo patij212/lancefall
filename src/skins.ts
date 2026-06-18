@@ -29,6 +29,7 @@
 
 import type { EnemyKind, Enemy } from './types';
 import type { RenderOpts } from './render';
+import { skinAchId, achievementById } from './achievements';
 
 export type SkinRarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type Lod = 'full' | 'mid' | 'far';
@@ -57,16 +58,10 @@ export interface SkinDef {
   draw: SkinDraw;
 }
 
-// ── tier → achievement gate (mirrors trails.ts + BIOMECH_HANDOFF.md) ────────
-// Common = free; Rare = survivor (wave 10); Epic = gauntlet (win Arena);
-// Legendary = regicide (kill the Sovereign). Unlocks derive from
+// ── per-skin achievement gate ───────────────────────────────────────────────
+// Common = free; every non-common skin has its OWN achievement (see achievements.ts
+// skinAchId — the single source of truth for the mapping). Unlocks derive from
 // save.achievements (no separate unlockedSkins field — like canUnlockTrail).
-const TIER_ACH: Record<SkinRarity, string | null> = {
-  common: null,
-  rare: 'survivor',
-  epic: 'gauntlet',
-  legendary: 'regicide',
-};
 
 // ── pure ctx helpers (extracted verbatim-in-spirit from the gallery) ────────
 /** rgba() from a #rrggbb hex + alpha. */
@@ -4866,10 +4861,10 @@ function hero(
   draws: { common: [string, SkinDraw]; rare: [string, SkinDraw]; epic: [string, SkinDraw]; legendary: [string, SkinDraw] },
 ): SkinDef[] {
   return [
-    { id: `${kind}-default`, kind, rarity: 'common', name: draws.common[0], unlockAch: TIER_ACH.common, draw: draws.common[1] },
-    { id: `${kind}-rare`, kind, rarity: 'rare', name: draws.rare[0], unlockAch: TIER_ACH.rare, draw: draws.rare[1] },
-    { id: `${kind}-epic`, kind, rarity: 'epic', name: draws.epic[0], unlockAch: TIER_ACH.epic, draw: draws.epic[1] },
-    { id: `${kind}-legendary`, kind, rarity: 'legendary', name: draws.legendary[0], unlockAch: TIER_ACH.legendary, draw: draws.legendary[1] },
+    { id: `${kind}-default`, kind, rarity: 'common', name: draws.common[0], unlockAch: skinAchId(kind, 'common'), draw: draws.common[1] },
+    { id: `${kind}-rare`, kind, rarity: 'rare', name: draws.rare[0], unlockAch: skinAchId(kind, 'rare'), draw: draws.rare[1] },
+    { id: `${kind}-epic`, kind, rarity: 'epic', name: draws.epic[0], unlockAch: skinAchId(kind, 'epic'), draw: draws.epic[1] },
+    { id: `${kind}-legendary`, kind, rarity: 'legendary', name: draws.legendary[0], unlockAch: skinAchId(kind, 'legendary'), draw: draws.legendary[1] },
   ];
 }
 
@@ -5038,30 +5033,16 @@ export function canUnlockSkin(skin: SkinDef, achievements: string[]): boolean {
   return skin.unlockAch === null || achievements.includes(skin.unlockAch);
 }
 
-/** Short toast shown when a player taps a still-locked skin (explains the gate). */
-export function skinLockToast(rarity: SkinRarity): string {
-  switch (rarity) {
-    case 'rare':
-      return 'Reach wave 10 to unlock this skin';
-    case 'epic':
-      return 'Win the Arena to unlock this skin';
-    case 'legendary':
-      return 'Defeat the Sovereign to unlock this skin';
-    default:
-      return 'Skin locked';
-  }
+/** Short toast shown when a player taps a still-locked skin (names the achievement that frees it). */
+export function skinLockToast(skin: SkinDef): string {
+  if (skin.unlockAch === null) return 'Skin locked';
+  return `Locked — ${skinUnlockHint(skin)}`;
 }
 
-/** Human label for a rarity's unlock requirement (for the picker tooltip). */
+/** Human label for a skin's unlock requirement (for the picker tooltip + status line) — the
+ *  gating achievement's name + "how to earn it" line, so each skin reads its own goal. */
 export function skinUnlockHint(skin: SkinDef): string {
-  switch (skin.rarity) {
-    case 'common':
-      return 'Free';
-    case 'rare':
-      return 'Reach wave 10 (Last One Standing)';
-    case 'epic':
-      return 'Win the Arena (Gauntlet Cleared)';
-    case 'legendary':
-      return 'Bring down the Sovereign (Regicide)';
-  }
+  if (skin.unlockAch === null) return 'Free';
+  const a = achievementById(skin.unlockAch);
+  return a ? `${a.name} — ${a.desc}` : 'Locked';
 }

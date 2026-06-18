@@ -6,17 +6,13 @@ import {
   defaultSkinId,
   skinById,
   canUnlockSkin,
+  skinUnlockHint,
+  skinLockToast,
   type SkinRarity,
 } from './skins';
+import { achievementById } from './achievements';
 
 const RARITIES: SkinRarity[] = ['common', 'rare', 'epic', 'legendary'];
-// the achievement that gates each rarity (mirrors achievements.ts + the handoff)
-const RARITY_ACH: Record<SkinRarity, string | null> = {
-  common: null,
-  rare: 'survivor',
-  epic: 'gauntlet',
-  legendary: 'regicide',
-};
 
 describe('skins registry', () => {
   it('ports the 5 heroes + 5 bosses + 9 mini-enemies, each with 4 rarities', () => {
@@ -37,7 +33,7 @@ describe('skins registry', () => {
     }
   });
 
-  it('every skin is valid: unique id, correct kind, draw fn, and the right gate per rarity', () => {
+  it('every skin is valid: unique id, correct kind, draw fn, and a resolvable gate', () => {
     const ids = new Set<string>();
     for (const skin of ALL_SKINS) {
       expect(ids.has(skin.id)).toBe(false); // unique
@@ -45,8 +41,19 @@ describe('skins registry', () => {
       expect(PORTED_KINDS).toContain(skin.kind);
       expect(typeof skin.draw).toBe('function');
       expect(skin.name.length).toBeGreaterThan(0);
-      expect(skin.unlockAch).toBe(RARITY_ACH[skin.rarity]);
+      // Common is free (null gate); every non-common skin gates on a real achievement.
+      if (skin.rarity === 'common') expect(skin.unlockAch).toBeNull();
+      else {
+        expect(skin.unlockAch).not.toBeNull();
+        expect(achievementById(skin.unlockAch!)).toBeDefined();
+      }
     }
+  });
+
+  it('one achievement per skin: every non-common skin has its OWN unique gate', () => {
+    const gates = ALL_SKINS.filter((s) => s.rarity !== 'common').map((s) => s.unlockAch);
+    expect(gates).toHaveLength(PORTED_KINDS.length * 3); // 19 kinds × rare/epic/legendary
+    expect(new Set(gates).size).toBe(gates.length); // no two skins share a gate
   });
 
   it('the Common take of each kind IS the kind default id (the biomech baseline)', () => {
@@ -84,24 +91,40 @@ describe('canUnlockSkin gating', () => {
     expect(canUnlockSkin(common, [])).toBe(true);
   });
 
-  it('Rare needs `survivor`; Epic needs `gauntlet`; Legendary needs `regicide`', () => {
+  it('a non-common skin is gated by its OWN achievement (held → unlocked)', () => {
     const rare = skinsForKind('orbiter').find((s) => s.rarity === 'rare')!;
     const epic = skinsForKind('lancer').find((s) => s.rarity === 'epic')!;
     const legendary = skinsForKind('seeker').find((s) => s.rarity === 'legendary')!;
 
+    // locked without the gate, unlocked once the skin's own achievement is held
     expect(canUnlockSkin(rare, [])).toBe(false);
-    expect(canUnlockSkin(rare, ['survivor'])).toBe(true);
-
-    expect(canUnlockSkin(epic, ['survivor'])).toBe(false);
-    expect(canUnlockSkin(epic, ['gauntlet'])).toBe(true);
-
-    expect(canUnlockSkin(legendary, ['gauntlet', 'survivor'])).toBe(false);
-    expect(canUnlockSkin(legendary, ['regicide'])).toBe(true);
+    expect(canUnlockSkin(rare, [rare.unlockAch!])).toBe(true);
+    // holding a DIFFERENT skin's gate is not enough (the old shared-tier behaviour is gone)
+    expect(canUnlockSkin(epic, [rare.unlockAch!])).toBe(false);
+    expect(canUnlockSkin(epic, [epic.unlockAch!])).toBe(true);
+    expect(canUnlockSkin(legendary, [legendary.unlockAch!])).toBe(true);
   });
 
-  it('a full achievement set unlocks every ported skin', () => {
-    const all = ['survivor', 'gauntlet', 'regicide'];
+  it('holding every gate unlocks every ported skin', () => {
+    const all = ALL_SKINS.map((s) => s.unlockAch).filter((x): x is string => x !== null);
     for (const skin of ALL_SKINS) expect(canUnlockSkin(skin, all)).toBe(true);
+  });
+});
+
+describe('per-skin unlock copy', () => {
+  it('Common reads Free; non-common reads its gating achievement name + desc', () => {
+    const common = skinsForKind('lancer').find((s) => s.rarity === 'common')!;
+    expect(skinUnlockHint(common)).toBe('Free');
+    expect(skinLockToast(common)).toBe('Skin locked');
+
+    for (const skin of ALL_SKINS) {
+      if (skin.rarity === 'common') continue;
+      const a = achievementById(skin.unlockAch!)!;
+      const hint = skinUnlockHint(skin);
+      expect(hint).toContain(a.name);
+      expect(hint).toContain(a.desc);
+      expect(skinLockToast(skin)).toBe(`Locked — ${hint}`);
+    }
   });
 });
 

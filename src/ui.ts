@@ -23,11 +23,14 @@ import { renderStats } from './panels/stats';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
 import { SHIPS, shipById } from './ships';
+import { metaApplyFor } from './meta';
+import { runShields } from './survival';
 import { drawShipSilhouette } from './shipModels';
 import { THEMES } from './themes';
 import { TRAILS } from './trails';
 import { PORTED_KINDS, skinsForKind, canUnlockSkin, skinUnlockHint } from './skins';
 import type { SkinDef } from './skins';
+import { skinKillProgress } from './achievements';
 import type { Enemy } from './types';
 import { GLOSSES, glossTriggers, type GlossId } from './gloss';
 import {
@@ -1227,6 +1230,14 @@ export class UI {
     };
     const customize = el('button', { class: 'ck-customize cust-btn', type: 'button' }, 'CUSTOMIZE');
     customize.addEventListener('click', () => this.openCosmetics());
+    // BESTIARY SKINS — a cosmetic (enemy reskins), so it lives here in COSMETICS beside CUSTOMIZE
+    // rather than buried inside the CUSTOMIZE modal. Opens the per-kind skin picker directly.
+    const skinsBtn = el(
+      'button',
+      { class: 'ck-customize cust-btn', type: 'button', title: 'BESTIARY SKINS — cosmetic enemy reskins. They change how a threat looks, never how it plays.' },
+      'BESTIARY SKINS',
+    );
+    skinsBtn.addEventListener('click', () => this.openSkins());
     const loadoutCol = el(
       'div',
       { class: 'ck-col ck-col-right' },
@@ -1243,6 +1254,7 @@ export class UI {
         cosmCard(this.cosmTrailDot, 'DASH TRAIL', this.cosmTrailName, 'DASH TRAIL — the cosmetic streak left when you dash. Tap to customize.'),
       ),
       customize,
+      skinsBtn,
     );
 
     this.mainPanel = el(
@@ -1436,20 +1448,37 @@ export class UI {
     );
   }
 
-  /** Paint the loadout ARMOR pips — effective shields for the selected Heat (baseShields
-   *  minus that level's shieldsLost; floor 0). Higher Heat strips ARMOR, so this re-paints
-   *  alongside the HEAT pips whenever refreshTitle runs. */
+  /** Paint the loadout ARMOR pips — the EXACT shield count this run would start with, for the
+   *  selected ship + Heat + MODE. The base is derived the canonical way (deriveStats, so meta/
+   *  ship grants count and it matches the in-run stat — NOT the stale save.baseShields, which v6
+   *  migrations zeroed); Heat strips `shieldsLost`; then runShields applies the mode rules
+   *  (NIGHTMARE sudden death → STRIPPED, CASUAL → +cushion) — the same helper game.start uses, so
+   *  the preview can't drift from the run. Casual-cushion pips render in their own accent so the
+   *  player can read "base vs mode bonus" at a glance. Re-paints alongside the HEAT pips. */
   private paintArmorPips(save: SaveData): void {
-    const eff = Math.max(0, save.baseShields - (HEAT_LEVELS[save.selectedHeat]?.shieldsLost ?? 0));
-    // STRIPPED is its own keyed node, so switching to/from it adds/removes cleanly.
-    const items = eff <= 0 ? ['stripped'] : Array.from({ length: eff }, (_, i) => `a${i}`);
+    const base = deriveStats({}, shipById(save.selectedShip).apply, metaApplyFor(save.meta)).baseShields;
+    const heatStripped = Math.max(0, base - (HEAT_LEVELS[save.selectedHeat]?.shieldsLost ?? 0));
+    const rules = modeById(save.selectedMode).rules;
+    const eff = runShields(heatStripped, rules); // authoritative total — identical to the run
+    // split the total into base pips + the mode's CASUAL bonus pips (display only — sudden death
+    // zeroes both, so `bonus` is 0 there and `eff` is 0 → STRIPPED).
+    const bonus = rules?.suddenDeath ? 0 : Math.min(eff, rules?.casualShields ?? 0);
+    const baseCount = eff - bonus;
+    // STRIPPED is its own keyed node, so switching to/from it adds/removes cleanly. Base pips key
+    // `a*`, bonus pips key `b*`, so a mode swap morphs the right pips in/out without a reflash.
+    const items = eff <= 0
+      ? ['stripped']
+      : [
+          ...Array.from({ length: baseCount }, (_, i) => `a${i}`),
+          ...Array.from({ length: bonus }, (_, i) => `b${i}`),
+        ];
     reconcile(
       this.armorPipsWrap,
       items,
       (id) => id,
       (id) => id === 'stripped'
         ? el('div', { class: 'ck-armor-none' }, 'STRIPPED')
-        : el('div', { class: 'ck-armor-pip' }),
+        : el('div', { class: id[0] === 'b' ? 'ck-armor-pip ck-armor-bonus' : 'ck-armor-pip' }),
       () => {}, // pip/STRIPPED nodes carry no per-refresh state
     );
   }
@@ -2269,14 +2298,13 @@ export class UI {
   // ── CUSTOMIZE (cosmetics) modal — PALETTE + DASH TRAIL pickers ───────────────
   /** Build the CUSTOMIZE modal shell. The palette + dash-trail swatch grids
    *  (this.themeRow / this.trailRow) are populated live in refreshTitle and simply mounted
-   *  here; BESTIARY SKINS hops to its own modal. Cosmetics never touch how a run plays. */
+   *  here. BESTIARY SKINS now lives in the loadout's COSMETICS section (a sibling of CUSTOMIZE),
+   *  not buried inside this modal. Cosmetics never touch how a run plays. */
   private buildCosmetics(): void {
     const cosmIcon = el('div', { class: 'panel-head-icon' });
     cosmIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.4 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.6-.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
     this.cosmBalanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
     const head = el('div', { class: 'panel-head' }, cosmIcon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LOADOUT · COSMETICS'), el('h2', { class: 'panel-head-title' }, 'CUSTOMIZE')), this.cosmBalanceEl);
-    const skinsBtn = el('button', { class: 'btn btn-ghost' }, 'BESTIARY SKINS →');
-    skinsBtn.addEventListener('click', () => this.openSkins());
     // BESTIARY (codex) — a way into the enemy/lore gallery from cosmetics (requested; not in mock).
     const bestiaryBtn = el('button', { class: 'btn btn-ghost' }, 'BESTIARY');
     bestiaryBtn.addEventListener('click', () => { this.closeModal(this.cosmeticsPanel); this.showCodex(); });
@@ -2291,7 +2319,7 @@ export class UI {
       el('div', { class: 'row-group-title' }, 'DASH TRAIL'),
       this.trailRow,
       note,
-      el('div', { class: 'go-row' }, skinsBtn, bestiaryBtn, close),
+      el('div', { class: 'go-row' }, bestiaryBtn, close),
     );
     const panel = el('div', { class: 'panel panel-wide' }, head, body);
     this.cosmeticsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
@@ -2395,6 +2423,8 @@ export class UI {
               el('div', { class: 'skin-name' }, skin.name),
               el('div', { class: 'skin-rarity rarity-' + skin.rarity }, skin.rarity.toUpperCase()),
               el('div', { class: 'skin-status' }),
+              // live progress toward a lifetime kill-gated skin (hidden for per-run/reused gates)
+              el('div', { class: 'skin-progress' }, el('div', { class: 'skin-progress-fill' }), el('span', { class: 'skin-progress-num' })),
             );
             card.addEventListener('click', () => {
               if (card.dataset.unlocked === '1') this.cb.onSelectSkin(kind, skin.id);
@@ -2413,6 +2443,13 @@ export class UI {
             card.setAttribute('aria-label', `${UI.KIND_LABEL[kind] ?? kind} — ${skin.name} (${skin.rarity}${unlocked ? '' : ', locked'})`);
             card.title = unlocked ? `${skin.name} — ${skin.rarity}` : `${skin.name} — locked: ${skinUnlockHint(skin)}`;
             (card.querySelector('.skin-status') as HTMLElement).textContent = unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : skinUnlockHint(skin);
+            // live "have / need" for lifetime kill-gated skins (null for per-run/reused gates → bar stays hidden)
+            const prog = !unlocked && skin.unlockAch ? skinKillProgress(skin.unlockAch, s.killsByKind) : null;
+            card.classList.toggle('show-progress', !!prog);
+            if (prog) {
+              (card.querySelector('.skin-progress-fill') as HTMLElement).style.width = `${Math.min(100, (prog.have / prog.need) * 100)}%`;
+              (card.querySelector('.skin-progress-num') as HTMLElement).textContent = `${prog.have.toLocaleString()} / ${prog.need.toLocaleString()}`;
+            }
           },
         );
       },

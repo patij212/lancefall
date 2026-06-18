@@ -33,7 +33,7 @@ import { submitScore, submitAchievements } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
-import { consumeShield, regenShield } from './survival';
+import { consumeShield, regenShield, runShields } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
 import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE, ONBOARD } from './tune';
 import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
@@ -607,21 +607,14 @@ export class Game {
     // start each run with a full stamina bar sized to the chosen ship
     this.world.player.stamina = maxStamina(this.world.stats.staminaSegments);
     this.world.reviveLeft = this.world.stats.reviveTokens;
-    // ARMOR shields for the run (v6 §7) — from the derived stat (Heat strips it)
-    this.world.player.shields = this.world.stats.baseShields;
-    this.world.player.maxShields = this.world.stats.baseShields;
-    // §4 M2 — NIGHTMARE sudden death strips the ARMOR cushion (the true one-hit veteran tier)
-    if (this.mode.rules?.suddenDeath) {
-      this.world.player.shields = 0;
-      this.world.player.maxShields = 0;
-    }
-    // §7 — CASUAL grants a fat ARMOR cushion so anyone can SEE the content (rng-free, never
-    // touches the seeded stream). An off-board mode, so the extra shields can't game the boards.
-    const casualShields = this.mode.rules?.casualShields ?? 0;
-    if (casualShields > 0) {
-      this.world.player.maxShields += casualShields;
-      this.world.player.shields += casualShields;
-    }
+    // ARMOR shields for the run (v6 §7) — the derived stat (Heat strips it), then the selected
+    // mode's rules: NIGHTMARE sudden death strips the cushion to 0, CASUAL grants its fat
+    // accessibility cushion on top (rng-free, never touches the seeded stream — an off-board mode,
+    // so the extra shields can't game the boards). runShields is the SAME helper the loadout
+    // preview uses, so the ARMOR pips a player sees on the title can't drift from the run.
+    const startShields = runShields(this.world.stats.baseShields, this.mode.rules);
+    this.world.player.shields = startShields;
+    this.world.player.maxShields = startShields;
     this.applySettings(this.settings);
     this.director.configure(runCfg);
     this.winning = false;
@@ -981,7 +974,7 @@ export class Game {
     const def = skinById(id);
     if (!def || def.kind !== kind) return;
     if (!canUnlockSkin(def, this.save.achievements)) {
-      this.ui.toast(skinLockToast(def.rarity));
+      this.ui.toast(skinLockToast(def));
       return;
     }
     this.selectSkin(kind, id);
@@ -2591,6 +2584,7 @@ export class Game {
         lifeKills: this.save.lifeKills,
         lifeBoss: this.save.lifeBoss,
         lifeShards: this.save.lifeShards,
+        lifeKillsByKind: this.save.killsByKind, // folded above — gates the per-enemy SKIN achievements
       });
       for (const a of newAch) this.save.achievements.push(a.id);
       if (this.mode.id === 'daily') {

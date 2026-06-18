@@ -17,7 +17,7 @@ import { modeById } from '../modes';
 import { heatLevel } from '../heat';
 
 const BOSS_KINDS = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
-type AchFilter = 'all' | 'got' | 'lock';
+type AchFilter = 'all' | 'got' | 'lock' | 'skin';
 
 // per-row bar accents (mock parity). MODE_COLOR mirrors ui.ts RAIL_ACCENTS; BOSS_COLOR is the
 // mock's nemesis palette (beacon filled in). Kept local so this panel module stays decoupled.
@@ -159,10 +159,12 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): { nodes: HTM
   const tabs = el('div', { class: 'ach-filter' });
   const grid = el('div', { class: 'ach-grid' });
   let filter: AchFilter = 'all';
+  const skinTotal = ACHIEVEMENTS.filter((a) => a.category === 'skin').length;
   const tabDefs: [AchFilter, string][] = [
     ['all', `ALL · ${total}`],
     ['got', `UNLOCKED · ${got}`],
     ['lock', `LOCKED · ${total - got}`],
+    ['skin', `SKINS · ${skinTotal}`],
   ];
   const rarLine = (id: string): HTMLElement | null => {
     if (!curRarity || curRarity.players <= 0) return null;
@@ -175,6 +177,7 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): { nodes: HTM
   const renderGrid = () => {
     const list = ACHIEVEMENTS.filter((a) => {
       if (filter === 'all') return true;
+      if (filter === 'skin') return a.category === 'skin';
       const g = s.achievements.includes(a.id);
       return filter === 'got' ? g : !g;
     });

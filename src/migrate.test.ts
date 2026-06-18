@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { migrateSave, SAVE_VERSION } from './migrate';
 import { defaultSave } from './save';
 import { TUNE } from './tune';
+import { skinById } from './skins';
 
 describe('save migration', () => {
   it('returns a fresh default for null/garbage input', () => {
@@ -195,8 +196,10 @@ describe('save migration', () => {
   });
 
   it('preserves an UNLOCKED equipped skin (achievement held)', () => {
+    // each non-common skin now has its OWN gate — hold that one to keep the equipped skin
+    const gate = skinById('darter-legendary')!.unlockAch!;
     const out = migrateSave(
-      { version: 6, achievements: ['regicide'], selectedSkins: { darter: 'darter-legendary' } },
+      { version: 6, achievements: [gate], selectedSkins: { darter: 'darter-legendary' } },
       defaultSave(),
     );
     expect(out.selectedSkins.darter).toBe('darter-legendary');
@@ -245,7 +248,9 @@ describe('save migration', () => {
 
   it('round-trips a save with an unlocked equipped skin set unchanged', () => {
     const s = defaultSave();
-    s.achievements = ['survivor', 'gauntlet', 'regicide'];
+    // hold each equipped non-default skin's OWN gate (per-skin unlocks, not the old shared tiers)
+    s.achievements = ['darter-legendary', 'orbiter-epic', 'lancer-rare', 'warden-legendary', 'splitter-epic']
+      .map((id) => skinById(id)!.unlockAch!);
     s.selectedSkins = {
       darter: 'darter-legendary',
       orbiter: 'orbiter-epic',
