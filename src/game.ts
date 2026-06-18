@@ -2529,6 +2529,14 @@ export class Game {
         this.save.nemesis[nk] = (this.save.nemesis[nk] ?? 0) + 1;
       }
       this.save.maxHeat = Math.max(this.save.maxHeat, this.runHeat);
+      // v7 RECORDS — peak single-run bests for the STATS dossier (cosmetic; max/min only,
+      // never touches sim/seed/scoring). Fastest Arena counts only a WON arena clear.
+      this.save.longestRunSec = Math.max(this.save.longestRunSec, Math.floor(w.time));
+      this.save.mostBossesOneRun = Math.max(this.save.mostBossesOneRun, w.bossKills);
+      if (won && this.mode.id === 'arena') {
+        const clr = Math.floor(w.clearTime || w.time);
+        this.save.fastestArenaSec = this.save.fastestArenaSec > 0 ? Math.min(this.save.fastestArenaSec, clr) : clr;
+      }
       if (won && w.sovereignDown) {
         // NG+ — felling the Sovereign deepens the loop. Pure save state; the EFFECT
         // is gated to non-seeded runs at start(), so this never affects a Daily.
@@ -2560,6 +2568,10 @@ export class Game {
       this.save.lifeBoss += w.bossKills;
       this.save.lifeShards += banked;
       if (won) this.save.lifeWins++; // win rate = lifeWins / totalRuns (STATS hero stat)
+      // v7 COMBAT lifetime counters (STATS dossier cells; mirror lifeKills accumulation)
+      this.save.lifeGrazes += w.grazeCount;
+      this.save.lifeDaybreaks += w.overdriveUses;
+      this.save.lifeLastBreath += w.clutch.lastBreathUses;
       // CODEX — fold this run's per-kind kills into the lifetime map (mirrors lifeKills)
       for (const k in w.killsByKind) this.save.killsByKind[k] = (this.save.killsByKind[k] ?? 0) + w.killsByKind[k];
       // achievements (evaluate against updated lifetime totals)

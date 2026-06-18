@@ -157,6 +157,20 @@ describe('save migration', () => {
     expect(migrateSave({ version: 7, longestRunSec: 22.9 }, defaultSave()).longestRunSec).toBe(22);
   });
 
+  // ── v7 COMBAT lifetime counters — lifeGrazes / lifeDaybreaks / lifeLastBreath ride the
+  //    generic number coerce loop (like lifeKills/lifeWins). ──
+  it('default-fills the v7 combat counters to 0 and preserves / coerces real values', () => {
+    const fresh = migrateSave({ version: 6, highScore: 1 }, defaultSave());
+    expect(fresh.lifeGrazes).toBe(0);
+    expect(fresh.lifeDaybreaks).toBe(0);
+    expect(fresh.lifeLastBreath).toBe(0);
+    const real = migrateSave({ version: 7, lifeGrazes: 9884, lifeDaybreaks: 206, lifeLastBreath: 38 }, defaultSave());
+    expect(real.lifeGrazes).toBe(9884);
+    expect(real.lifeDaybreaks).toBe(206);
+    expect(real.lifeLastBreath).toBe(38);
+    expect(migrateSave({ version: 7, lifeGrazes: 'lots' }, defaultSave()).lifeGrazes).toBe(0);
+  });
+
   it('round-trips a full default save unchanged', () => {
     const s = defaultSave();
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);

@@ -85,7 +85,7 @@ export function renderStats(s: SaveData): HTMLElement[] {
       el('div', { class: 'stats-hero-grid' },
         hiScore,
         stat('best combo', `×${s.bestCombo}`),
-        stat('runs', String(s.totalRuns)),
+        stat('runs survived', String(s.totalRuns)),
         stat('win rate', winRate),
       ),
     ),
@@ -117,7 +117,7 @@ export function renderStats(s: SaveData): HTMLElement[] {
     .sort((a, b) => b[1] - a[1]);
   if (modeBests.length) {
     out.push(
-      el('div', { class: 'stats-label' }, 'BEST BY MODE'),
+      el('div', { class: 'stats-label' }, 'PERSONAL BEST · BY MODE'),
       barChart(modeBests.map(([id, v]) => [modeById(id).name, v, MODE_COLOR[id] ?? '#22d3ee'] as [string, number, string]), (n) => n.toLocaleString()),
     );
   }
@@ -134,15 +134,17 @@ export function renderStats(s: SaveData): HTMLElement[] {
     );
   }
 
-  // COMBAT · LIFETIME — the cumulative totals as a cell grid.
+  // COMBAT · LIFETIME — the cumulative totals as a 6-cell grid (mock parity).
   const cell = (k: string, v: string) => el('div', { class: 'stat-cell' }, el('div', { class: 'stat-cell-v' }, v), el('div', { class: 'stat-cell-k' }, k));
   out.push(
     el('div', { class: 'stats-label' }, 'COMBAT · lifetime'),
     el('div', { class: 'stat-cells' },
       cell('Total Kills', s.lifeKills.toLocaleString()),
-      cell('Bosses Felled', s.lifeBoss.toLocaleString()),
+      cell('Bosses Down', s.lifeBoss.toLocaleString()),
       cell('Shards Earned', s.lifeShards.toLocaleString()),
-      cell('Runs Won', s.lifeWins.toLocaleString()),
+      cell('Bullets Grazed', s.lifeGrazes.toLocaleString()),
+      cell('DAYBREAKs Fired', s.lifeDaybreaks.toLocaleString()),
+      cell('Last-Breath Saves', s.lifeLastBreath.toLocaleString()),
     ),
   );
 

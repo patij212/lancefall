@@ -47,6 +47,12 @@ export interface SaveData {
   lifeShards: number;
   /** lifetime WON runs (win rate = lifeWins / totalRuns; the STATS hero stat) */
   lifeWins: number;
+  /** lifetime bullets grazed (STATS COMBAT cell) — v7 */
+  lifeGrazes: number;
+  /** lifetime DAYBREAK (overdrive) fires (STATS COMBAT cell) — v7 */
+  lifeDaybreaks: number;
+  /** lifetime LAST BREATH clutch saves (STATS COMBAT cell) — v7 */
+  lifeLastBreath: number;
   /** unlocked achievement ids */
   achievements: string[];
   /** permanent meta-upgrade levels (node id → level) */
@@ -190,6 +196,9 @@ export function defaultSave(): SaveData {
     lifeBoss: 0,
     lifeShards: 0,
     lifeWins: 0,
+    lifeGrazes: 0,
+    lifeDaybreaks: 0,
+    lifeLastBreath: 0,
     achievements: [],
     meta: {},
     dailyMutators: [],

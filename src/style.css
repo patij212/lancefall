@@ -1693,10 +1693,11 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border);
+  /* mock .st-hero — cyan-tinted dossier headline */
+  background: linear-gradient(160deg, rgba(34, 211, 238, 0.05), rgba(255, 255, 255, 0.012));
+  border: 1px solid rgba(34, 211, 238, 0.15);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 16px 20px;
   margin-bottom: 4px;
 }
 .st-ring { width: 92px; height: 92px; flex-shrink: 0; position: relative; }
@@ -1710,15 +1711,20 @@ body {
 .rec { background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; }
 .rec-k { font-family: 'Rajdhani', sans-serif; font-size: 8px; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
 .rec-v { font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; color: #eaf2ff; }
-.nem-bars { display: flex; flex-direction: column; gap: 7px; }
-.nem-row { display: grid; grid-template-columns: 130px 1fr 40px; align-items: center; gap: 10px; }
-.nem-k { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); letter-spacing: 0.04em; }
-.nem-track { height: 9px; background: rgba(255, 255, 255, 0.05); border-radius: 999px; overflow: hidden; }
-.nem-fill { height: 100%; background: linear-gradient(90deg, #f472b6, #fb7185); border-radius: 999px; }
-.nem-v { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fb7185; text-align: right; }
-/* COMBAT · LIFETIME — a compact cell grid of cumulative totals. */
-.stat-cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.stat-cell { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; text-align: center; }
+.rec-v small { font-size: 10px; color: #8aa0bd; font-weight: 600; }
+/* PERSONAL BEST / NEMESIS — mock .hbar bars: per-row accent + glow (set inline), light value. */
+.nem-bars { display: flex; flex-direction: column; gap: 5px; }
+.nem-row { display: grid; grid-template-columns: 124px 1fr 60px; align-items: center; gap: 11px; padding: 5px 0; }
+.nem-k { font-family: 'Rajdhani', sans-serif; font-size: 10.5px; font-weight: 600; color: #b9c8de; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nem-track { height: 8px; background: rgba(255, 255, 255, 0.06); border-radius: 4px; overflow: hidden; }
+.nem-fill { height: 100%; border-radius: 4px; animation: nemGrow 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.nem-v { font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 700; color: #dbe6f7; text-align: right; }
+@keyframes nemGrow { from { width: 0; } }
+.reduce-motion .nem-fill { animation: none; }
+@media (prefers-reduced-motion: reduce) { .nem-fill { animation: none; } }
+/* COMBAT · LIFETIME — mock connected hairline cell grid (1px gaps over a shared backing). */
+.stat-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; overflow: hidden; }
+.stat-cell { background: rgba(8, 12, 24, 0.6); padding: 13px 12px; text-align: center; }
 .stat-cell-v { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 19px; color: var(--text); }
 .stat-cell-k { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; margin-top: 3px; }
 /* ACHIEVEMENTS filter tabs (ALL / UNLOCKED / LOCKED) + per-card global rarity line. */
@@ -4035,6 +4041,9 @@ body {
   max-height: 90vh;
   max-width: min(94vw, 1000px);
 }
+/* STATS dossier reads wider than other modals (mock .modal = 1160px) so the records grid,
+   per-mode bars and 6-cell combat strip have room to breathe. */
+.screen-modal:has(#stats-body) .panel { max-width: min(94vw, 1160px); }
 .clarity .screen-modal .panel { border-color: rgba(34, 211, 238, 0.4); }
 
 /* §v7 — top-right close-X on every modal (mock parity; injected by openModal). */
