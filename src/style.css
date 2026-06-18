@@ -1655,7 +1655,7 @@ body {
 }
 .ach-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr); /* 3-up to match the bestiary grid + fill the wide modal */
   gap: 8px;
 }
 .ach {
@@ -4190,6 +4190,9 @@ body {
 .screen-modal .codex-body {
   height: clamp(300px, calc(90vh - 180px), 700px);
   max-height: none;
+  /* fill the wide modal (was capped at 780px → content left-shifted, narrower than the tab bar
+     above it). Matches the tabs' + other panels' full-width inset, so both edges line up. */
+  max-width: none;
 }
 /* §v7 — the polished .panel-head is a full-bleed header bar (like the legacy h2 header):
    it spans the whole card width with its own internal padding + border-bottom, and pins to
