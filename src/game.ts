@@ -1323,6 +1323,8 @@ export class Game {
           if (modeUnlocked(modeById(id), this.save.deepestWave)) this.selectMode(id);
         }
       }
+      const vdir = this.input.consumeVariant();
+      if (vdir !== 0) this.ui.flipVariant(vdir); // ↑/↓ flips the selected card's variant pill
       if (this.input.consumeStart()) this.descend(modeById(this.save.selectedMode)); // launch the persisted mode (parity with PLAY)
     } else if (this.state === 'playing') {
       if (inp.pausePressed) this.pause();

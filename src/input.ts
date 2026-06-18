@@ -37,6 +37,7 @@ export class InputManager {
   private overdriveEdge = false;
   private selectEdge = -1;
   private menuEdge = 0; // §5 U2 — relative title mode-card nav (-1 left / +1 right); consumed on the title
+  private variantEdge = 0; // mode-consolidation — title variant pill flip (-1 up / +1 down)
   private anyEdge = false;
   private restartEdge = false;
   private startEdge = false;
@@ -92,6 +93,8 @@ export class InputManager {
       if (k === '6') this.selectEdge = 5;
       if (k === 'arrowleft') this.menuEdge = -1; // §5 U2 — title mode-card nav (ignored mid-run)
       if (k === 'arrowright') this.menuEdge = 1;
+      if (k === 'arrowup') this.variantEdge = -1; // title variant pill flip (ignored mid-run)
+      if (k === 'arrowdown') this.variantEdge = 1;
       if (k === 'r') this.restartEdge = true;
       if (k === ' ' || k === 'enter' || k === 'j') {
         this.startEdge = true;
@@ -253,6 +256,7 @@ export class InputManager {
     this.confirmEdge = false;
     this.selectEdge = -1;
     this.menuEdge = 0;
+    this.variantEdge = 0;
     this.overdriveEdge = false;
   }
 
@@ -288,6 +292,13 @@ export class InputManager {
   consumeMenu(): number {
     const v = this.menuEdge;
     this.menuEdge = 0;
+    return v;
+  }
+
+  /** Consume the title variant-flip edge (arrows up/down): -1, 0, or +1. */
+  consumeVariant(): number {
+    const v = this.variantEdge;
+    this.variantEdge = 0;
     return v;
   }
 
