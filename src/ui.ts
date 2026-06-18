@@ -2501,19 +2501,18 @@ export class UI {
   }
 
   private buildHeat(): void {
-    const h = el('h2', {}, 'HEAT ASCENSION');
-    const sub = el(
-      'div',
-      { class: 'event-flavor' },
-      'An optional ascension ladder — more pressure, more score. Heat 0 is free and fair; the rest is the veteran’s chase.',
-    );
-    const curve = el('div', { class: 'heat-curve' });
+    const icon = el('div', { class: 'panel-head-icon' });
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3c2.2 3 4 5.2 4 8.2a4 4 0 0 1-8 0c0-1.1.4-2.1 1.1-3 .3 1 .9 1.6 1.7 1.7C12.2 8.8 11 6 12 3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'ASCENSION LADDER'), el('h2', { class: 'panel-head-title' }, 'HEAT')));
+    const lead = el('p', { class: 'panel-lead' }, 'An optional ascension ladder — more pressure, more score. Heat 0 is free and fair; the rest is the veteran’s chase. Score multiplier by level →');
+    const curve = el('div', { class: 'heat-mult' });
     curve.id = 'heat-curve';
-    const grid = el('div', { class: 'heat-grid' });
+    const grid = el('div', { class: 'p-grid cols2' });
     grid.id = 'heat-grid';
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.heatPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, sub, curve, grid, close);
+    const body = el('div', { class: 'heat-body' }, lead, curve, grid, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, body);
     this.heatPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
@@ -2521,42 +2520,46 @@ export class UI {
     const s = this.saveRef;
     if (!s) return;
     const maxMul = HEAT_LEVELS[HEAT_LEVELS.length - 1].scoreMul;
-    // score-multiplier CURVE (mock-mainui) — the difficulty → reward trade at a glance,
-    // the selected level lit. A static bar row; the cards below are the selectors.
+    // score-multiplier CURVE (mock .heat-mult) — difficulty → reward at a glance; selected lit.
     const curve = this.heatPanel.querySelector('#heat-curve')!;
     curve.replaceChildren();
     for (const lvl of HEAT_LEVELS) {
-      const bar = el('div', { class: 'heat-cbar' + (s.selectedHeat === lvl.level ? ' selected' : '') });
-      bar.style.setProperty('--accent', lvl.accent);
+      const bar = el('div', { class: 'heat-mult-bar' + (s.selectedHeat === lvl.level ? ' on' : '') });
+      bar.style.height = `${Math.round((lvl.scoreMul / maxMul) * 100)}%`;
+      bar.style.background = lvl.accent;
+      bar.style.color = lvl.accent;
       bar.title = `H${lvl.level} ${lvl.name} — ×${lvl.scoreMul.toFixed(2)} score`;
-      const fill = el('div', { class: 'heat-cbar-fill' });
-      fill.style.height = `${Math.round((lvl.scoreMul / maxMul) * 100)}%`;
-      bar.append(fill, el('div', { class: 'heat-cbar-lbl' }, String(lvl.level)));
       curve.append(bar);
     }
     const grid = this.heatPanel.querySelector('#heat-grid')!;
     grid.replaceChildren();
     for (const lvl of HEAT_LEVELS) {
       const selected = s.selectedHeat === lvl.level;
-      const card = el('button', { class: 'heat-card' + (selected ? ' selected' : '') });
-      card.style.setProperty('--accent', lvl.accent);
-      // structured MODIFIER chips — the mechanical COST behind the prose desc (penalties
-      // in red). Only the active modifiers show, so H0 (COLD) stays clean.
-      const chips: HTMLElement[] = [];
-      const chip = (t: string, danger = false) => el('span', { class: 'heat-mod' + (danger ? ' danger' : '') }, t);
-      if (lvl.enemySpeedAdd > 0) chips.push(chip(`SPEED +${Math.round(lvl.enemySpeedAdd * 100)}%`));
-      if (lvl.spawnMulMod < 1) chips.push(chip(`DENSITY +${Math.round((1 - lvl.spawnMulMod) * 100)}%`));
-      if (lvl.bossIntervalMod < 1) chips.push(chip(`BOSSES +${Math.round((1 - lvl.bossIntervalMod) * 100)}%`));
-      if (lvl.grazeRadiusMod < 1) chips.push(chip(`GRAZE −${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`));
-      if (lvl.revivesLost > 0) chips.push(chip(`−${lvl.revivesLost} REVIVE`, true));
-      if (lvl.shieldsLost > 0) chips.push(chip(`−${lvl.shieldsLost} ARMOR`, true));
-      card.append(
-        el('div', { class: 'heat-num' }, lvl.level === 0 ? 'OFF' : `H${lvl.level}`),
-        el('div', { class: 'heat-name' }, lvl.name),
-        el('div', { class: 'heat-desc' }, lvl.desc),
-        ...(chips.length ? [el('div', { class: 'heat-mods' }, ...chips)] : []),
-        el('div', { class: 'heat-mul' }, `×${lvl.scoreMul.toFixed(2)} score · ×${lvl.shardMul.toFixed(2)} shards`),
-      );
+      const hx = lvl.accent.replace('#', '');
+      const n = parseInt(hx.length === 3 ? hx.split('').map((c) => c + c).join('') : hx, 16);
+      const card = el('button', { class: 'p-card heat-pcard' + (selected ? ' sel' : ''), type: 'button' });
+      card.style.setProperty('--ca', lvl.accent);
+      card.style.setProperty('--ca-rgb', `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`);
+      const dot = el('span', { class: 'p-dot' });
+      dot.style.background = lvl.accent;
+      dot.style.color = lvl.accent;
+      const mult = el('span', { class: 'heat-card-mult' }, `×${lvl.scoreMul.toFixed(2)}`);
+      const top = el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, `HEAT ${lvl.level} · ${lvl.name}`), mult);
+      // k/v modifier grid — the mechanical cost behind the prose (mock .heat-mods).
+      const mods: [string, string][] = [];
+      if (lvl.enemySpeedAdd > 0) mods.push(['SPEED', `+${Math.round(lvl.enemySpeedAdd * 100)}%`]);
+      if (lvl.spawnMulMod < 1) mods.push(['DENSITY', `+${Math.round((1 - lvl.spawnMulMod) * 100)}%`]);
+      if (lvl.bossIntervalMod < 1) mods.push(['BOSSES', `+${Math.round((1 - lvl.bossIntervalMod) * 100)}%`]);
+      if (lvl.revivesLost > 0) mods.push(['REVIVES', `−${lvl.revivesLost}`]);
+      if (lvl.shieldsLost > 0) mods.push(['ARMOR', `−${lvl.shieldsLost}`]);
+      if (lvl.grazeRadiusMod < 1) mods.push(['GRAZE', `−${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`]);
+      if (!mods.length) mods.push(['MODIFIERS', 'none']);
+      const modGrid = el('div', { class: 'heat-mods' });
+      modGrid.style.gridTemplateColumns = `repeat(${Math.min(3, mods.length)}, 1fr)`;
+      for (const [k, v] of mods) {
+        modGrid.append(el('div', { class: 'heat-mod' }, el('div', { class: 'k' }, k), el('div', { class: 'v ' + (v === 'none' ? 'neutral' : 'bad') }, v)));
+      }
+      card.append(top, el('div', { class: 'p-card-desc' }, lvl.desc), modGrid);
       card.addEventListener('click', () => {
         this.cb.onHeatChange(lvl.level);
         this.openHeat(); // re-render selection

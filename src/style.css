@@ -1110,16 +1110,19 @@ body {
 .heat-cbar.selected .heat-cbar-fill { opacity: 1; box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
 .heat-cbar-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); margin-top: 4px; }
 .heat-cbar.selected .heat-cbar-lbl { color: var(--accent); font-weight: 700; }
-.heat-mods { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin: 6px 0 2px; }
-.heat-mod {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8.5px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-muted);
-}
-.heat-mod.danger { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+/* §v7 — HEAT panel transcribed from mock pHeat: .heat-mult curve + .p-card + k/v mods. */
+.heat-body { padding: 8px 20px 18px; overflow-y: auto; max-height: 80vh; }
+.heat-mult { display: flex; align-items: flex-end; gap: 4px; height: 64px; margin: 8px 0 16px; padding: 0 2px; }
+.heat-mult-bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 6px; opacity: 0.55; transition: opacity 0.12s; }
+.heat-mult-bar.on { opacity: 1; box-shadow: 0 0 12px -2px currentColor; }
+.heat-mult-bar:hover { opacity: 0.85; }
+.heat-card-mult { margin-left: auto; font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 13px; color: var(--ca); }
+.heat-mods { display: grid; gap: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 9px; overflow: hidden; margin-top: 10px; }
+.heat-mod { background: rgba(8, 12, 24, 0.6); padding: 9px 11px; }
+.heat-mod .k { font-family: 'Rajdhani', sans-serif; font-size: 8px; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+.heat-mod .v { font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; margin-top: 3px; }
+.heat-mod .v.bad { color: #f87171; }
+.heat-mod .v.neutral { color: #8aa0bd; }
 .reduce-motion .heat-cbar-fill { transition: none; }
 @media (max-width: 640px) { .heat-grid { grid-template-columns: repeat(2, 1fr); } .heat-curve { height: 64px; } }
 
