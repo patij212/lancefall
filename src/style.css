@@ -1335,29 +1335,28 @@ body {
   opacity: 0.9;
 }
 
+/* OVERDRIVE / DAYBREAK gauge — flows inside .hud-botcenter (mock .hud-bc, amber). */
 .hud-overdrive {
-  position: absolute;
-  left: 50%;
-  bottom: 56px;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: calc(4px * var(--hud-scale));
   pointer-events: none;
 }
 .hud-od-label {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: calc(10px * var(--hud-scale));
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--amber);
 }
 .hud-od-track {
-  width: 150px;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
+  width: 100%;
+  height: calc(7px * var(--hud-scale));
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 4px;
   overflow: hidden;
 }
 .hud-od-fill {
@@ -1365,16 +1364,17 @@ body {
   height: 100%;
   transform-origin: left;
   transform: scaleX(0);
-  background: linear-gradient(90deg, var(--cyan), #ffffff);
-  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.5), #fbbf24 70%, #fde047);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+  border-radius: 4px;
 }
 .hud-overdrive.od-ready .hud-od-label {
-  color: #fff;
-  text-shadow: 0 0 10px var(--cyan);
+  color: #fde047;
+  text-shadow: 0 0 10px var(--amber);
   animation: odPulse 0.7s ease-in-out infinite;
 }
 .hud-overdrive.od-ready .hud-od-track {
-  box-shadow: 0 0 12px var(--cyan), 0 0 4px #fff inset;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.85), 0 0 22px rgba(251, 191, 36, 0.55);
 }
 @keyframes odPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 .reduce-motion .hud-overdrive.od-ready .hud-od-label { animation: none; }
@@ -1388,29 +1388,25 @@ body {
 }
 
 /* ── Active power-up badge (above the OVERDRIVE meter; hidden unless active) ── */
+/* active power-up chip — flows under combo in the top-left (mock .pup: icon · name · timer). */
 .hud-powerup {
-  position: absolute;
-  left: 50%;
-  bottom: 84px;
-  transform: translateX(-50%);
   display: none;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: calc(6px * var(--hud-scale));
   pointer-events: none;
 }
 .hud-powerup.on { display: flex; }
 .hud-pu-label {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 11px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: calc(11px * var(--hud-scale));
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   text-shadow: 0 0 10px currentColor;
 }
 .hud-pu-track {
-  width: 150px;
-  height: 5px;
+  width: calc(72px * var(--hud-scale));
+  height: calc(4px * var(--hud-scale));
   background: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
   overflow: hidden;
@@ -1765,39 +1761,58 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .hud-touch-pause.hidden { display: none; }
+/* ════════ HUD — six-corner layout transcribed from the mock (ingame.html) ════════
+   Score+combo top-left, cipher top-center, coherence+best top-right, dash bottom-left,
+   overdrive bottom-center, armor bottom-right. All sized off --hud-scale (1080p→4K). */
+.hud-lbl {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: calc(9px * var(--hud-scale));
+  color: var(--text-muted);
+  margin-bottom: calc(3px * var(--hud-scale));
+}
 .hud-topleft {
   position: absolute;
   top: calc(18px * var(--hud-scale));
-  left: calc(20px * var(--hud-scale));
-}
-.hud-score {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 700;
-  font-size: calc(28px * var(--hud-scale));
-  color: var(--text);
-  text-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
-}
-.hud-wave {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: calc(13px * var(--hud-scale));
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-.hud-topcenter {
-  position: absolute;
-  top: calc(14px * var(--hud-scale));
-  left: 50%;
-  transform: translateX(-50%);
+  left: calc(22px * var(--hud-scale));
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: calc(5px * var(--hud-scale));
+}
+.hud-topleft .hud-lbl { margin-bottom: 0; }
+.hud-score {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: calc(34px * var(--hud-scale));
+  line-height: 1;
+  color: #eaf2ff;
+  text-shadow: 0 0 14px rgba(34, 211, 238, 0.25);
+}
+.hud-subline {
+  display: flex;
+  gap: calc(10px * var(--hud-scale));
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: calc(12px * var(--hud-scale));
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.hud-combo-row {
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: calc(8px * var(--hud-scale));
+  min-height: calc(20px * var(--hud-scale));
 }
 .hud-combo {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
   line-height: 1;
-  text-shadow: 0 0 22px currentColor;
+  text-shadow: 0 0 16px currentColor;
   transition: font-size 0.08s ease;
 }
 .hud-combo.break {
@@ -1813,11 +1828,12 @@ body {
   }
 }
 .hud-combo-bar {
-  width: calc(120px * var(--hud-scale));
-  height: 4px;
+  width: calc(110px * var(--hud-scale));
+  height: calc(5px * var(--hud-scale));
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
   overflow: hidden;
+  align-self: center;
 }
 .hud-combo-fill {
   width: 100%;
@@ -1825,53 +1841,121 @@ body {
   transform-origin: left center;
   transform: scaleX(0);
   background: var(--cyan);
+  box-shadow: 0 0 8px currentColor;
 }
-.hud-bottom {
+/* TOP-CENTER: cipher readout (boss fights) */
+.hud-topcenter {
   position: absolute;
-  bottom: calc(22px * var(--hud-scale));
+  top: calc(16px * var(--hud-scale));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 5px;
+  text-align: center;
+}
+/* TOP-RIGHT: coherence meter + best */
+.hud-topright {
+  position: absolute;
+  top: calc(18px * var(--hud-scale));
+  right: calc(22px * var(--hud-scale));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(5px * var(--hud-scale));
+  width: calc(150px * var(--hud-scale));
+}
+.hud-topright .hud-lbl { margin-bottom: 0; }
+.hud-citymem {
+  width: 100%;
+  height: calc(5px * var(--hud-scale));
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.hud-citymem-fill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.45), #22d3ee 70%, #f472b6);
+  transition: transform 0.12s linear;
+}
+.reduce-motion .hud-citymem-fill { transition: none; }
+.hud-bestcombo {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: calc(11px * var(--hud-scale));
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-align: right;
+}
+/* BOTTOM-LEFT: dash / stamina */
+.hud-botleft {
+  position: absolute;
+  bottom: calc(20px * var(--hud-scale));
+  left: calc(22px * var(--hud-scale));
 }
 .hud-stamina {
   display: flex;
-  gap: 6px;
+  gap: calc(6px * var(--hud-scale));
 }
 .seg {
-  width: calc(54px * var(--hud-scale));
-  height: calc(13px * var(--hud-scale));
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border);
-  border-radius: 5px;
+  width: calc(40px * var(--hud-scale));
+  height: calc(11px * var(--hud-scale));
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 4px;
   overflow: hidden;
 }
 .seg-fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, var(--cyan), #7dd3fc);
+  background: linear-gradient(90deg, var(--cyan), #5beaff);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
   transition: width 0.06s linear;
 }
 .seg.empty .seg-fill {
   background: var(--danger);
+  box-shadow: none;
 }
+/* BOTTOM-CENTER: overdrive gauge (styled with .hud-overdrive) */
+.hud-botcenter {
+  position: absolute;
+  bottom: calc(22px * var(--hud-scale));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(300px * var(--hud-scale));
+  max-width: 46vw;
+  text-align: center;
+}
+/* BOTTOM-RIGHT: armor pips */
+.hud-botright {
+  position: absolute;
+  bottom: calc(20px * var(--hud-scale));
+  right: calc(22px * var(--hud-scale));
+  text-align: right;
+}
+.hud-botright .hud-lbl { text-align: right; }
 .hud-shields {
   display: flex;
-  gap: 5px;
+  gap: calc(5px * var(--hud-scale));
   align-items: center;
+  justify-content: flex-end;
 }
 .shield-pip {
   width: calc(13px * var(--hud-scale));
   height: calc(13px * var(--hud-scale));
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: rgba(91, 234, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
 }
 .shield-pip.filled {
-  background: radial-gradient(circle at 35% 30%, #aef2ff, #2a9fd6);
-  border-color: #5beaff;
-  box-shadow: 0 0 6px rgba(91, 234, 255, 0.6);
+  background: radial-gradient(circle at 35% 30%, #c7ccff, #818cf8);
+  border-color: #a5b4fc;
+  box-shadow: 0 0 6px rgba(129, 140, 248, 0.5);
 }
 .reduce-motion .shield-pip.filled { box-shadow: none; }
 
@@ -1896,35 +1980,8 @@ body {
 }
 .reduce-motion .hud-beatpip { animation: none !important; opacity: 0; }
 
-/* C4 (v6 §1) — City Memory meter: a thin gray→neon bar fed by the coherence value.
-   Transition only on transform (the value is already eased); disabled under reduce-motion. */
-.hud-citymem {
-  width: calc(80px * var(--hud-scale));
-  height: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  overflow: hidden;
-  align-self: center;
-}
-.hud-citymem-fill {
-  width: 100%;
-  height: 100%;
-  transform-origin: left;
-  transform: scaleX(0);
-  background: linear-gradient(90deg, #6ee7ff, #c4b5fd);
-  transition: transform 0.12s linear;
-}
-.reduce-motion .hud-citymem-fill { transition: none; }
-.hud-graze,
-.hud-bestcombo {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: calc(12px * var(--hud-scale));
-  color: var(--text-muted);
-  min-width: 80px;
-}
-.hud-bestcombo {
-  text-align: right;
-}
+/* C4 (v6 §1) — City Memory (COHERENCE) meter + graze/best moved into the six-corner
+   HUD layout above (top-right / top-left subline). Beat-grade pip kept as-is. */
 
 /* ── Milestone announcement ── */
 /* ── §1.2 DASH SANDBOX overlay ── */

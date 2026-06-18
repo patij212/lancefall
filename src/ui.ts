@@ -774,11 +774,12 @@ export class UI {
   }
 
   private buildHud(): void {
-    this.scoreEl = el('div', { class: 'hud-score' }, '0');
-    this.waveEl = el('div', { class: 'hud-wave' }, 'WAVE 1');
+    // ── TOP-LEFT: score · time/shards · graze · combo · buffs (mock .hud-tl) ──
     this.dailyBadge = el('div', { class: 'hud-daily hidden' }, '◆ ECHO');
-    this.mutatorRow = el('div', { class: 'hud-mutators' });
-    const topLeft = el('div', { class: 'hud-topleft' }, this.scoreEl, this.waveEl, this.dailyBadge, this.mutatorRow);
+    this.scoreEl = el('div', { class: 'hud-score' }, '0');
+    this.waveEl = el('div', { class: 'hud-wave' }, ''); // repurposed at runtime as a time · shards subline
+    this.grazeEl = el('div', { class: 'hud-graze', title: 'GRAZE — skim a bullet without being hit to refill stamina and build your run.' }, '');
+    const subline = el('div', { class: 'hud-subline' }, this.waveEl, this.grazeEl);
 
     this.comboEl = el('div', { class: 'hud-combo' }, '');
     this.comboBar = el('div', { class: 'hud-combo-fill' });
@@ -786,29 +787,51 @@ export class UI {
     // changes per-frame; the wrapper title stays put). Keyboard-reachable, no flashing.
     const comboBarWrap = el('div', { class: 'hud-combo-bar', title: 'COMBO — kills chained without a break. Higher combo lifts your score multiplier and decays if you stop killing.' }, this.comboBar);
     this.beatPip = el('div', { class: 'hud-beatpip' });
-    const topCenter = el('div', { class: 'hud-topcenter' }, this.comboEl, comboBarWrap, this.beatPip);
+    const comboRow = el('div', { class: 'hud-combo-row' }, this.comboEl, comboBarWrap, this.beatPip);
 
-    this.staminaWrap = el('div', { class: 'hud-stamina', title: 'STAMINA — each dash spends a segment. It refills over time and faster when you graze bullets.' });
-    this.shieldsWrap = el('div', { class: 'hud-shields', title: 'ARMOR — each pip absorbs one lethal hit before LAST BREATH. One pip regenerates every boss clear.' });
-    this.grazeEl = el('div', { class: 'hud-graze', title: 'GRAZE — skim a bullet without being hit to refill stamina and build your run.' }, '');
-    this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
-    this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
-    this.cityMemWrap = el('div', { class: 'hud-citymem', title: 'COHERENCE — the City of Lancefall lights up as you chain kills and dash on the beat. Higher coherence = brighter world and fuller sound.' }, this.cityMemFill);
-    const bottom = el('div', { class: 'hud-bottom' }, this.grazeEl, this.staminaWrap, this.shieldsWrap, this.cityMemWrap, this.bestComboEl);
+    this.mutatorRow = el('div', { class: 'hud-mutators' });
 
-    // OVERDRIVE meter (below the stamina bar)
-    this.odLabel = el('div', { class: 'hud-od-label' }, 'DAYBREAK');
-    this.odFill = el('div', { class: 'hud-od-fill' });
-    this.odWrap = el('div', { class: 'hud-overdrive', title: 'DAYBREAK (OVERDRIVE) — kills and grazes charge this meter. When it reads READY, press F (or LB) for a time-slowing, screen-clearing burst of light.' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
-
-    // active POWER-UP badge (hidden unless one is active)
+    // active POWER-UP badge (hidden unless one is active) — sits under combo, top-left (mock .pups)
     this.puLabel = el('div', { class: 'hud-pu-label' }, '');
     this.puFill = el('div', { class: 'hud-pu-fill' });
     this.puIcon = el('span', { class: 'hud-pu-icon' });
     this.puWrap = el('div', { class: 'hud-powerup' }, this.puIcon, this.puLabel, el('div', { class: 'hud-pu-track' }, this.puFill));
 
-    // CIPHER-LOCK readout — the code to break, in required dash order (boss fights)
+    const topLeft = el(
+      'div',
+      { class: 'hud-topleft' },
+      this.dailyBadge,
+      el('div', { class: 'hud-lbl' }, 'SCORE'),
+      this.scoreEl,
+      subline,
+      comboRow,
+      this.mutatorRow,
+      this.puWrap,
+    );
+
+    // ── TOP-CENTER: cipher readout (boss fights) (mock .hud-tc) ──
     this.cipherEl = el('div', { class: 'hud-cipher' });
+    const topCenter = el('div', { class: 'hud-topcenter' }, this.cipherEl);
+
+    // ── TOP-RIGHT: coherence meter + best (mock .hud-tr) ──
+    this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
+    this.cityMemWrap = el('div', { class: 'hud-citymem', title: 'COHERENCE — the City of Lancefall lights up as you chain kills and dash on the beat. Higher coherence = brighter world and fuller sound.' }, this.cityMemFill);
+    this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
+    const topRight = el('div', { class: 'hud-topright' }, el('div', { class: 'hud-lbl' }, 'COHERENCE'), this.cityMemWrap, this.bestComboEl);
+
+    // ── BOTTOM-LEFT: dash / stamina (mock .hud-bl) ──
+    this.staminaWrap = el('div', { class: 'hud-stamina', title: 'STAMINA — each dash spends a segment. It refills over time and faster when you graze bullets.' });
+    const bottomLeft = el('div', { class: 'hud-botleft' }, el('div', { class: 'hud-lbl' }, 'DASH'), this.staminaWrap);
+
+    // ── BOTTOM-CENTER: OVERDRIVE gauge (mock .hud-bc) ──
+    this.odLabel = el('div', { class: 'hud-od-label' }, 'DAYBREAK');
+    this.odFill = el('div', { class: 'hud-od-fill' });
+    this.odWrap = el('div', { class: 'hud-overdrive', title: 'DAYBREAK (OVERDRIVE) — kills and grazes charge this meter. When it reads READY, press F (or LB) for a time-slowing, screen-clearing burst of light.' }, this.odLabel, el('div', { class: 'hud-od-track' }, this.odFill));
+    const bottomCenter = el('div', { class: 'hud-botcenter' }, this.odWrap);
+
+    // ── BOTTOM-RIGHT: armor pips (mock .hud-br) ──
+    this.shieldsWrap = el('div', { class: 'hud-shields', title: 'ARMOR — each pip absorbs one lethal hit before LAST BREATH. One pip regenerates every boss clear.' });
+    const bottomRight = el('div', { class: 'hud-botright' }, el('div', { class: 'hud-lbl' }, 'ARMOR'), this.shieldsWrap);
 
     // Touch PAUSE — a 44px tap target (the iOS/Android min) shown only on coarse
     // pointers; phones have no Esc/P key. Pointerdown so it never competes with the
@@ -838,7 +861,7 @@ export class UI {
     this.glossBodyEl = el('div', { class: 'hud-gloss-body' });
     this.glossEl = el('div', { class: 'hud-gloss', role: 'status', 'aria-live': 'polite' }, this.glossTermEl, this.glossBodyEl);
 
-    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, bottom, this.odWrap, this.puWrap, this.cipherEl, this.touchPauseBtn);
+    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, topRight, bottomLeft, bottomCenter, bottomRight, this.touchPauseBtn);
     this.rebuildStamina(TUNE.stamina.segments);
   }
 
