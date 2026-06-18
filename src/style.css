@@ -1720,45 +1720,32 @@ body {
 .upg-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin: 2px 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.06em; color: var(--text-muted); }
 .upg-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .upg-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
-.upg-tree { position: relative; width: 100%; height: 400px; margin: 2px 0 4px; }
-.upg-link-layer, .upg-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.tnode { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 98px; text-align: center; transition: transform 0.12s ease; }
-.tnode-badge {
-  --bc: #22d3ee;
-  position: relative;
-  width: 30px; height: 30px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text);
-  border: 1.5px solid color-mix(in srgb, var(--bc) 50%, var(--border));
-  background: color-mix(in srgb, var(--bc) 10%, rgba(255, 255, 255, 0.02));
-}
-/* mock: a conic-gradient progress RING around the badge, filled to the node's level (--fill). */
-.tnode:not(.tnode-root) .tnode-badge::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: conic-gradient(var(--bc) var(--fill, 0%), rgba(255, 255, 255, 0.07) 0);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
-  pointer-events: none;
-}
-.tnode-root .tnode-badge { color: var(--bc); border-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.05); font-size: 13px; }
-.tnode.owned .tnode-badge,
-.tnode.maxed .tnode-badge { background: color-mix(in srgb, var(--bc) 28%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--bc) 55%, transparent); }
-/* an affordable node breathes a soft accent glow + lifts on hover (mock). */
-.tnode.afford .tnode-badge { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 42%, transparent); animation: tnodeAfford 2.4s ease-in-out infinite; }
-@keyframes tnodeAfford {
-  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 40%, transparent), 0 0 8px color-mix(in srgb, var(--bc) 25%, transparent); }
-  50% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bc) 62%, transparent), 0 0 18px color-mix(in srgb, var(--bc) 52%, transparent); }
-}
-.tnode.afford:hover { transform: translate(-50%, -50%) scale(1.09); }
-.reduce-motion .tnode.afford .tnode-badge { animation: none; }
-.tnode-name { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 10.5px; line-height: 1.15; color: var(--text); }
-.tnode.maxed .tnode-name { color: var(--green); }
-.tnode-cost { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.03); color: var(--text-muted); cursor: pointer; }
-.tnode-cost.afford { color: var(--bc); border-color: color-mix(in srgb, var(--bc) 45%, transparent); background: color-mix(in srgb, var(--bc) 12%, transparent); }
-.tnode-cost[disabled] { opacity: 0.5; cursor: default; }
+/* §v7 — 3-branch meta-tree, transcribed verbatim from the mock (cockpit.html .tree/.tnode). */
+.upg-tree { position: relative; width: 100%; max-width: 660px; height: 512px; margin: 0 auto 4px; }
+.upg-link-layer, .upg-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+.tnode { position: absolute; transform: translate(-50%, -50%); width: 132px; text-align: center; z-index: 1; }
+.tnode-badge { width: 50px; height: 50px; margin: 0 auto 6px; border-radius: 50%; position: relative; transition: transform 0.14s; }
+.tnode-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--bc) calc(var(--fill, 0) * 1%), rgba(255, 255, 255, 0.09) 0); }
+.tnode-face { position: absolute; inset: 3px; border-radius: 50%; background: #0a1020; border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: center; color: var(--bc); }
+.tnode-face svg { width: 20px; height: 20px; }
+.tnode-lv { position: absolute; right: -5px; bottom: -3px; font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-size: 8.5px; font-weight: 700; background: #0a1020; border: 1px solid var(--bc); color: var(--bc); border-radius: 8px; padding: 0 4px; line-height: 1.5; }
+.tnode-name { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 10.5px; letter-spacing: 0.03em; color: #cdd9ec; line-height: 1.15; }
+.tnode-cost { font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-size: 9.5px; font-weight: 700; margin-top: 3px; background: none; border: none; padding: 0; }
+.tnode-cost.afford { color: #4ade80; cursor: pointer; }
+.tnode-cost.max { color: #7a93b2; }
+.tnode-cost.lock { color: #6a7a8a; }
+.tnode.afford { cursor: pointer; }
+.tnode.afford .tnode-badge { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06); }
+.tnode.afford .tnode-badge::before { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 18px 1px var(--bc); opacity: 0.6; will-change: opacity; animation: tnodeGlow 2.4s ease-in-out infinite; pointer-events: none; }
+@keyframes tnodeGlow { 0%, 100% { opacity: 0.34; } 50% { opacity: 0.86; } }
+.tnode.afford:hover .tnode-badge { transform: scale(1.09); }
+.reduce-motion .tnode.afford .tnode-badge::before { animation: none; }
+.tnode.locked { opacity: 0.42; }
+.tnode.locked .tnode-face { color: #6a7a8a; }
+.tnode.maxed .tnode-face { background: rgba(var(--bc-rgb), 0.16); }
+.tnode-root .tnode-badge { width: 60px; height: 60px; }
+.tnode-root .tnode-face { background: radial-gradient(circle, #0d1832, #070b16); border-color: rgba(34, 211, 238, 0.45); color: #22d3ee; }
+.tnode-root .tnode-name { color: #7dd3fc; font-size: 9.5px; letter-spacing: 0.14em; }
 .upg-lead { text-align: center; font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin: 8px 0 0; }
 .upg-node {
   display: flex;
