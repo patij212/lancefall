@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { hash01, isResolved, decodeCharAt, easeToward, clamp01 } from './cockpitCipher';
+import {
+  hash01,
+  isResolved,
+  decodeCharAt,
+  easeToward,
+  clamp01,
+  choiceCoherence,
+  beatEnvelope,
+  parseAccentRgb,
+} from './cockpitCipher';
 
 // Pure logic behind the cockpit CIPHER STORM overlay (Turing decode). The canvas/DOM
 // half is verified visually; these are the deterministic, bug-prone bits.
@@ -84,5 +93,57 @@ describe('clamp01', () => {
     expect(clamp01(-0.5)).toBe(0);
     expect(clamp01(1.5)).toBe(1);
     expect(clamp01(0.42)).toBe(0.42);
+  });
+});
+
+describe('choiceCoherence — the backdrop reflects THE CHOICE', () => {
+  it('held the light (catch) → mostly decoded', () => {
+    expect(choiceCoherence('catch')).toBeGreaterThan(0.8);
+  });
+  it('let it fall → near-noise', () => {
+    const c = choiceCoherence('fall');
+    expect(c).not.toBeNull();
+    expect(c as number).toBeLessThan(0.25);
+  });
+  it('no choice yet → null (defer to the boot --coh rise)', () => {
+    expect(choiceCoherence('none')).toBeNull();
+    expect(choiceCoherence('whatever')).toBeNull();
+  });
+});
+
+describe('beatEnvelope — free-running 120bpm pulse', () => {
+  it('spikes to ~1 at the start of each beat', () => {
+    expect(beatEnvelope(0, 0.5)).toBeCloseTo(1, 5);
+    expect(beatEnvelope(0.5, 0.5)).toBeCloseTo(1, 5);
+    expect(beatEnvelope(1.0, 0.5)).toBeCloseTo(1, 5);
+  });
+  it('decays across a beat', () => {
+    expect(beatEnvelope(0.25, 0.5)).toBeLessThan(beatEnvelope(0.05, 0.5));
+  });
+  it('stays within [0, 1]', () => {
+    for (let i = 0; i < 120; i++) {
+      const v = beatEnvelope(i * 0.037, 0.5);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+  });
+  it('returns 0 when there is no beat (non-positive period)', () => {
+    expect(beatEnvelope(1, 0)).toBe(0);
+    expect(beatEnvelope(1, -1)).toBe(0);
+  });
+});
+
+describe('parseAccentRgb — per-mode accent tint', () => {
+  it('parses an "r, g, b" triple', () => {
+    expect(parseAccentRgb('34, 211, 238')).toEqual([34, 211, 238]);
+    expect(parseAccentRgb('251,191,36')).toEqual([251, 191, 36]);
+  });
+  it('tolerates extra whitespace', () => {
+    expect(parseAccentRgb('  129 ,  140 , 248 ')).toEqual([129, 140, 248]);
+  });
+  it('falls back to cyan on empty or malformed input', () => {
+    expect(parseAccentRgb('')).toEqual([34, 211, 238]);
+    expect(parseAccentRgb('not-a-color')).toEqual([34, 211, 238]);
+    expect(parseAccentRgb('1,2')).toEqual([34, 211, 238]);
   });
 });

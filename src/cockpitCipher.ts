@@ -31,6 +31,33 @@ export function easeToward(current: number, target: number, dt: number, rate: nu
   return current + (target - current) * (1 - Math.exp(-rate * dt));
 }
 
+/** Coherence floor implied by THE CHOICE on the Sovereign kill: held the light → the city
+ *  remembers (mostly decoded); let it fall → near-noise. `null` means "no choice yet" — defer
+ *  to the boot-in --coh rise so new players still get the waking moment. */
+export function choiceCoherence(choice: string): number | null {
+  if (choice === 'catch') return 0.9;
+  if (choice === 'fall') return 0.14;
+  return null;
+}
+
+/** A free-running pulse envelope in [0, 1] at the given beat period (s) — spikes to 1 at each
+ *  beat and decays. Runs on the cockpit's own ~120bpm heartbeat (no audio coupling). beat<=0
+ *  means "no beat" → 0 (flat). */
+export function beatEnvelope(t: number, beat: number): number {
+  if (beat <= 0) return 0;
+  const phase = (t % beat) / beat;
+  return Math.exp(-phase * 6);
+}
+
+/** Parse a CSS `--accent-rgb` triple ("34, 211, 238") into [r,g,b], falling back to cyan on
+ *  empty/malformed input so the tint never crashes the loop. */
+export function parseAccentRgb(value: string): [number, number, number] {
+  const CYAN: [number, number, number] = [34, 211, 238];
+  const parts = (value || '').split(',').map((s) => parseInt(s.trim(), 10));
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return CYAN;
+  return [parts[0], parts[1], parts[2]];
+}
+
 // ── THE CIPHER STORM overlay (Turing decode) ─────────────────────────────────
 // A self-contained animated backdrop layer for the COCKPIT title screen: falling cipher
 // glyphs, a faint machine lattice + Enigma-rotor core, and a decode scanline where noise
@@ -60,6 +87,11 @@ const CELL = 20; // logical px per glyph cell
 const MAX_DPR = 1.5; // cap device-pixel-ratio (perf)
 const SCRIM_ALPHA = 0.16; // a whisper-thin deepening so glyphs seat on the backdrop (0 = pure overlay)
 const COH_FALLBACK = 0.5; // used if --coh can't be read
+const BEAT = 0.5; // free-running pulse period (s) — ~120bpm, the cockpit's own heartbeat
+const BEAT_GLOW = 0.12; // gentle beat "breath" brightness (kept low — flashing-safe)
+const CENTER_FALLOFF = 0.82; // fade the cipher away from the central content column (0 = even)
+const PARALLAX = 16; // px of pointer parallax on the rotor; lattice uses half
+const CYAN_RGB: [number, number, number] = [34, 211, 238];
 
 interface Column {
   head: number; // current head row (fractional)
@@ -124,6 +156,10 @@ function mountCipher(): { stop(): void } {
   let phraseIdx = 0;
   let phraseTimer = 0;
   let cockpitShown = false;
+  let accentRgb: [number, number, number] = CYAN_RGB; // per-mode tint (lattice + scan beam)
+  let choice = 'none'; // THE CHOICE from the save → coherence floor
+  let burst = 0; // decode-burst envelope (0..1), spiked on DESCEND
+  const mouse = { x: 0.5, y: 0.5 }; // normalized pointer (parallax)
 
   const cockpitEl = (): HTMLElement | null =>
     document.querySelector<HTMLElement>('.screen-cockpit');
@@ -150,6 +186,34 @@ function mountCipher(): { stop(): void } {
     const v = parseFloat(getComputedStyle(el).getPropertyValue('--coh'));
     return Number.isFinite(v) ? clamp01(v) : cohTarget;
   };
+
+  // THE CHOICE on the Sovereign kill, read straight from the save (decoupled from game.ts).
+  const readChoice = (): string => {
+    try {
+      const raw = localStorage.getItem('lancefall.save');
+      if (!raw) return 'none';
+      const c = (JSON.parse(raw) as { stillpointChoice?: string }).stillpointChoice;
+      return c === 'catch' || c === 'fall' ? c : 'none';
+    } catch {
+      return 'none';
+    }
+  };
+
+  // Per-mode accent rides --accent-rgb on .ck-main (set by ui.ts as a numeric triple).
+  const readAccent = (): [number, number, number] => {
+    const m = document.querySelector<HTMLElement>('.ck-main');
+    if (!m) return CYAN_RGB;
+    return parseAccentRgb(getComputedStyle(m).getPropertyValue('--accent-rgb').trim());
+  };
+
+  // Effective coherence target: THE CHOICE sets a floor; new players defer to the boot --coh rise.
+  const targetCoh = (): number => {
+    const cc = choiceCoherence(choice);
+    return cc !== null ? cc : readCoh();
+  };
+
+  const rgbaT = (rgb: [number, number, number], a: number): string =>
+    `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 
   const build = (): void => {
     const nCols = Math.ceil(W / CELL) + 1;
@@ -213,15 +277,15 @@ function mountCipher(): { stop(): void } {
   };
 
   /** The Enigma-rotor / Turing-machine core: three faint concentric tick rings. */
-  const drawRotor = (coh: number): void => {
-    const cx = W / 2;
-    const cy = H * 0.5;
+  const drawRotor = (coh: number, glow: number): void => {
+    const cx = W / 2 + (mouse.x - 0.5) * -PARALLAX;
+    const cy = H * 0.5 + (mouse.y - 0.5) * -PARALLAX;
     ctx.globalCompositeOperation = 'lighter';
     for (let ri = 0; ri < 3; ri++) {
       const rad = Math.min(W, H) * (0.15 + ri * 0.09);
       const ticks = 24 + ri * 12;
       const rot = t * (0.05 - ri * 0.012) * (ri % 2 ? -1 : 1);
-      ctx.strokeStyle = rgba(ri === 1 ? '#818cf8' : '#22d3ee', 0.03 + coh * 0.06);
+      ctx.strokeStyle = rgba(ri === 1 ? '#818cf8' : '#22d3ee', (0.03 + coh * 0.06) * glow);
       ctx.lineWidth = 1;
       for (let k = 0; k < ticks; k++) {
         const a = rot + (k / ticks) * 6.28;
@@ -236,12 +300,15 @@ function mountCipher(): { stop(): void } {
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  /** Constellation lattice — nodes wire themselves together as coherence rises. */
-  const drawLattice = (coh: number): void => {
+  /** Constellation lattice — nodes wire themselves together as coherence rises. Links carry the
+   *  per-mode accent (the mode reads through); nodes stay bright white so they always sparkle. */
+  const drawLattice = (coh: number, glow: number): void => {
     ctx.globalCompositeOperation = 'lighter';
+    const lpx = (mouse.x - 0.5) * -PARALLAX * 0.5;
+    const lpy = (mouse.y - 0.5) * -PARALLAX * 0.5;
     const pts = nodes.map((n) => ({
-      x: n.x * W + Math.sin(t * 0.2 + n.ph) * 12,
-      y: n.y * H + Math.cos(t * 0.18 + n.ph) * 12,
+      x: n.x * W + Math.sin(t * 0.2 + n.ph) * 12 + lpx,
+      y: n.y * H + Math.cos(t * 0.18 + n.ph) * 12 + lpy,
     }));
     const linkDist = Math.min(W, H) * (0.13 + coh * 0.11);
     for (let i = 0; i < pts.length; i++) {
@@ -250,7 +317,7 @@ function mountCipher(): { stop(): void } {
         const dy = pts[i].y - pts[j].y;
         const d = Math.hypot(dx, dy);
         if (d < linkDist) {
-          ctx.strokeStyle = rgba('#22d3ee', (1 - d / linkDist) * (0.025 + coh * 0.11));
+          ctx.strokeStyle = rgbaT(accentRgb, (1 - d / linkDist) * (0.025 + coh * 0.11) * glow);
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(pts[i].x, pts[i].y);
@@ -262,7 +329,7 @@ function mountCipher(): { stop(): void } {
     for (let i = 0; i < pts.length; i++) {
       const n = nodes[i];
       const pul = 0.5 + 0.5 * Math.sin(t * n.sp + n.ph);
-      ctx.fillStyle = rgba('#bdf3ff', (0.12 + coh * 0.4) * pul);
+      ctx.fillStyle = rgba('#bdf3ff', (0.12 + coh * 0.4) * pul * glow);
       ctx.beginPath();
       ctx.arc(pts[i].x, pts[i].y, 1.2 + pul * 1.3, 0, 6.28);
       ctx.fill();
@@ -272,16 +339,16 @@ function mountCipher(): { stop(): void } {
 
   /** The decode scanline: a band sweeping down where columns past their threshold show the
    *  readable phrase in amber, the rest stay dim noise. Subtle so it never fights the UI. */
-  const drawScanline = (coh: number): void => {
+  const drawScanline = (coh: number, glow: number): void => {
     const scanY = ((t * 0.06) % 1.25 - 0.12) * H;
     ctx.globalCompositeOperation = 'lighter';
     const band = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
     band.addColorStop(0, 'rgba(0,0,0,0)');
-    band.addColorStop(0.5, rgba('#22d3ee', 0.04 + coh * 0.08));
+    band.addColorStop(0.5, rgbaT(accentRgb, (0.04 + coh * 0.08) * glow));
     band.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = band;
     ctx.fillRect(0, scanY - 20, W, 40);
-    ctx.strokeStyle = rgba('#9fe9ff', 0.08 + coh * 0.22);
+    ctx.strokeStyle = rgbaT(accentRgb, (0.08 + coh * 0.22) * glow);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, scanY);
@@ -297,14 +364,15 @@ function mountCipher(): { stop(): void } {
       const resolved = isResolved(i, coh);
       const ch = resolved ? decodeCharAt(phrase, i, offset) : CIPHER_CHARS[(Math.random() * CIPHER_CHARS.length) | 0];
       if (ch === ' ') continue;
-      ctx.fillStyle = resolved ? rgba('#ffd98a', 0.4 + coh * 0.5) : rgba('#3a4a66', 0.08 + coh * 0.12);
+      // resolved meaning stays amber (the Turing-decode signature); noise stays dim + un-glowed
+      ctx.fillStyle = resolved ? rgba('#ffd98a', (0.4 + coh * 0.5) * glow) : rgba('#3a4a66', 0.08 + coh * 0.12);
       ctx.fillText(ch, i * CELL, scanY);
     }
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  /** The falling glyph rain. */
-  const drawRain = (dt: number, coh: number): void => {
+  /** The falling glyph rain (cyan/indigo — the city identity stays untinted). */
+  const drawRain = (dt: number, coh: number, glow: number): void => {
     ctx.font = `700 ${CELL - 4}px 'JetBrains Mono', ui-monospace, monospace`;
     ctx.textBaseline = 'top';
     for (let i = 0; i < cols.length; i++) {
@@ -322,7 +390,7 @@ function mountCipher(): { stop(): void } {
         let a: number;
         if (k === 0) {
           color = '#eafdff';
-          a = 0.7 * (0.45 + coh * 0.55);
+          a = 0.7 * (0.45 + coh * 0.55) * glow;
         } else {
           color = c.hue ? '#818cf8' : '#22d3ee';
           a = f * f * (0.12 + coh * 0.4);
@@ -334,6 +402,25 @@ function mountCipher(): { stop(): void } {
     }
   };
 
+  /** #1 — fade the cipher away from the central content column so it FRAMES the hero/title/
+   *  DESCEND rather than competing. A taller-than-wide erase ellipse keeps the edges alive. */
+  const applyCenterFalloff = (): void => {
+    if (CENTER_FALLOFF <= 0) return;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(1, 1.55); // vertical column (title → hero → descend)
+    const r = Math.min(W, H) * 0.5;
+    const mask = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    mask.addColorStop(0, `rgba(0,0,0,${CENTER_FALLOFF})`);
+    mask.addColorStop(0.6, `rgba(0,0,0,${CENTER_FALLOFF * 0.45})`);
+    mask.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mask;
+    ctx.fillRect(-W, -H, W * 2, H * 2);
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
   const drawFrame = (dt: number, coh: number): void => {
     t += dt;
     phraseTimer += dt;
@@ -341,31 +428,40 @@ function mountCipher(): { stop(): void } {
       phraseTimer = 0;
       phraseIdx = (phraseIdx + 1) % CIPHER_PHRASES.length;
     }
-    drawBase(coh);
-    drawRotor(coh);
-    drawRain(dt, coh);
-    drawScanline(coh);
-    drawLattice(coh);
+    // #3 — DESCEND decode burst: a quick spike that forces the field to fully resolve + flash.
+    if (burst > 0) burst = Math.max(0, burst - dt / 0.55);
+    const effCoh = clamp01(coh + burst * (1 - coh));
+    // #3 — free-running ~120bpm beat breath (gentle) + the burst flash.
+    const glow = 1 + beatEnvelope(t, BEAT) * BEAT_GLOW + burst * 0.9;
+    drawBase(effCoh);
+    drawRotor(effCoh, glow);
+    drawRain(dt, effCoh, glow);
+    drawScanline(effCoh, glow);
+    drawLattice(effCoh, glow);
+    applyCenterFalloff();
   };
 
   /** "STILL CITY" — a held, resolved frame for reduce-motion: no rain, the lore already
    *  decoded, the lattice already wired. Calm, not degraded. */
   const drawStill = (): void => {
-    const coh = clamp01(readCoh());
+    accentRgb = readAccent();
+    const coh = clamp01(targetCoh());
     drawBase(coh);
-    drawLattice(coh);
-    // a settled column of resolved glyphs, dim
+    drawLattice(coh, 1);
+    // a settled field of already-decoded lore — the city remembering, held still
     ctx.font = `700 ${CELL - 4}px 'JetBrains Mono', ui-monospace, monospace`;
     ctx.textBaseline = 'top';
     const rows = Math.ceil(H / CELL);
     const nCols = Math.ceil(W / CELL);
     for (let i = 0; i < nCols; i++) {
       if (!isResolved(i, coh)) continue;
+      const phrase = CIPHER_PHRASES[i % CIPHER_PHRASES.length];
       for (let r = 0; r < rows; r += 3) {
         ctx.fillStyle = rgba(i % 5 === 0 ? '#818cf8' : '#22d3ee', 0.05 + coh * 0.08);
-        ctx.fillText(decodeCharAt(CIPHER_PHRASES[0], i + r, 0), i * CELL, r * CELL);
+        ctx.fillText(decodeCharAt(phrase, r, 0), i * CELL, r * CELL);
       }
     }
+    applyCenterFalloff();
   };
 
   const loop = (now: number): void => {
@@ -375,7 +471,8 @@ function mountCipher(): { stop(): void } {
       cohReadAcc += dt;
       if (cohReadAcc >= 0.2) {
         cohReadAcc = 0;
-        cohTarget = readCoh();
+        cohTarget = targetCoh();
+        accentRgb = readAccent();
       }
       cohEased = easeToward(cohEased, cohTarget, dt, 3);
       drawFrame(dt, cohEased);
@@ -399,6 +496,7 @@ function mountCipher(): { stop(): void } {
   // Decide what to run based on cockpit visibility + reduce-motion. Cheap; called from the
   // observer + resize, not every frame.
   const refresh = (): void => {
+    const wasShown = cockpitShown;
     cockpitShown = isCockpitVisible();
     if (!cockpitShown) {
       stopLoop();
@@ -407,6 +505,7 @@ function mountCipher(): { stop(): void } {
     }
     canvas.style.display = 'block';
     ensureSize();
+    if (!wasShown) choice = readChoice(); // re-read THE CHOICE only on (re)entry to the title
     if (prefersReducedMotion()) {
       stopLoop();
       drawStill();
@@ -424,15 +523,33 @@ function mountCipher(): { stop(): void } {
     if (document.hidden) stopLoop();
     else refresh();
   };
+  const onPointer = (e: PointerEvent): void => {
+    mouse.x = e.clientX / window.innerWidth;
+    mouse.y = e.clientY / window.innerHeight;
+  };
+  // #3 — DESCEND (or Enter while the cockpit is up) → a decode burst: the field snaps to fully
+  // decoded for a beat, the machine "solving" as you dive in. Watches the same user gesture, so
+  // no game.ts hook (the click handler launches ~130ms later, leaving the flash visible first).
+  const onDescendClick = (e: Event): void => {
+    const tgt = e.target as Element | null;
+    if (tgt && typeof tgt.closest === 'function' && tgt.closest('.ck-descend')) burst = 1;
+  };
+  const onKeyLaunch = (e: KeyboardEvent): void => {
+    if (cockpitShown && e.key === 'Enter') burst = 1;
+  };
 
   window.addEventListener('resize', onResize);
+  window.addEventListener('pointermove', onPointer, { passive: true });
   document.addEventListener('visibilitychange', onVisibility);
+  document.addEventListener('click', onDescendClick, true);
+  document.addEventListener('keydown', onKeyLaunch, true);
 
   // React to screen switches (cockpit show/hide) + reduce-motion class flips on <html>.
   const obs = new MutationObserver(() => refresh());
   if (uiRoot) obs.observe(uiRoot, { attributes: true, attributeFilter: ['class', 'style'], subtree: true, childList: true });
   obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
+  accentRgb = readAccent();
   refresh(); // the title is usually already up at boot
 
   return {
@@ -440,7 +557,10 @@ function mountCipher(): { stop(): void } {
       stopLoop();
       obs.disconnect();
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointermove', onPointer);
       document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('click', onDescendClick, true);
+      document.removeEventListener('keydown', onKeyLaunch, true);
       canvas.remove();
       started = false;
     },
