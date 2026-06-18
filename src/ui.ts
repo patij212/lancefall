@@ -6,8 +6,8 @@ import type { World } from './world';
 import type { Settings, SaveData } from './save';
 import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
-import { PERKS } from './perks';
-import type { PerkDef } from './perks';
+import { PERKS, deriveStats } from './perks';
+import type { PerkDef, RunStats } from './perks';
 import { glyphArt, hasGlyphArt, relicGlyphArt, powerupGlyphArt } from './glyphArt';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
 import { RELICS, type RelicId } from './relics';
@@ -2492,6 +2492,21 @@ export class UI {
     this.shipArtDesc.textContent = ship.desc;
     this.paintHeatPips(save.selectedHeat);
 
+    // per-hull comparison stat bars (mock-mainui) — derive each ship's profile via the
+    // canonical deriveStats (ship apply only, no perks/meta) so the bars match the real
+    // in-run values, then normalize each stat across the roster (relative strength).
+    const SHIP_STAT_KEYS: { key: string; get: (st: RunStats) => number }[] = [
+      { key: 'DASH', get: (st) => st.dashLenMul },
+      { key: 'STAM', get: (st) => st.staminaSegments },
+      { key: 'SPEED', get: (st) => st.maxSpeed },
+      { key: 'WIDTH', get: (st) => st.dashHitboxRadius },
+      { key: 'REGEN', get: (st) => st.regenPerSec },
+    ];
+    const shipStats = new Map(SHIPS.map((sh) => [sh.id, deriveStats({}, sh.apply)] as const));
+    const statRanges = SHIP_STAT_KEYS.map((m) => {
+      const vals = SHIPS.map((sh) => m.get(shipStats.get(sh.id)!));
+      return { min: Math.min(...vals), max: Math.max(...vals) };
+    });
     this.shipRow.replaceChildren();
     for (const ship of SHIPS) {
       const unlocked = save.unlockedShips.includes(ship.id);
@@ -2500,12 +2515,25 @@ export class UI {
       chip.style.setProperty('--accent', ship.accent);
       const glyph = el('canvas', { class: 'ship-glyph' }) as HTMLCanvasElement;
       this.paintShipGlyph(glyph, ship.id, ship.accent);
+      const st = shipStats.get(ship.id)!;
+      const statBars = el('div', { class: 'ship-stats' });
+      SHIP_STAT_KEYS.forEach((m, i) => {
+        const r = statRanges[i];
+        const norm = r.max > r.min ? (m.get(st) - r.min) / (r.max - r.min) : 0.5;
+        const fill = el('div', { class: 'ship-stat-fill' });
+        fill.style.width = `${Math.round(16 + norm * 84)}%`; // floor so the weakest hull still reads
+        statBars.append(el('div', { class: 'ship-stat' },
+          el('span', { class: 'ship-stat-k' }, m.key),
+          el('div', { class: 'ship-stat-track' }, fill),
+        ));
+      });
       chip.append(
         el(
           'div',
           { class: 'ship-info' },
           el('div', { class: 'ship-name' }, ship.name),
           el('div', { class: 'ship-desc' }, ship.desc),
+          statBars,
           el('div', { class: 'ship-status' }, unlocked ? (selected ? 'EQUIPPED' : 'tap to equip') : `◆ ${ship.unlockShards.toLocaleString()}`),
         ),
         el('div', { class: 'ship-preview' }, glyph), // hidden by default; reveals big below the text on hover
