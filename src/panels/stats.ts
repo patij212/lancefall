@@ -145,13 +145,17 @@ export function renderStats(s: SaveData, rarity: AchRarity | null): HTMLElement[
     grid.replaceChildren(
       ...list.map((a) => {
         const g = s.achievements.includes(a.id);
-        const card = el('div', { class: 'ach' + (g ? ' got' : '') },
-          el('div', { class: 'ach-name' }, (g ? '🏆 ' : '🔒 ') + a.name),
+        // mock: a horizontal card — trophy/lock glyph in its own icon cell, text column beside.
+        const text = el('div', { class: 'ach-text' },
+          el('div', { class: 'ach-name' }, a.name),
           el('div', { class: 'ach-desc' }, a.desc),
         );
         const r = rarLine(a.id);
-        if (r) card.append(r);
-        return card;
+        if (r) text.append(r);
+        return el('div', { class: 'ach' + (g ? ' got' : '') },
+          el('div', { class: 'ach-ico' }, g ? '🏆' : '🔒'),
+          text,
+        );
       }),
     );
   };

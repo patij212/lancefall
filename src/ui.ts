@@ -2402,7 +2402,11 @@ export class UI {
 
   private buildHeat(): void {
     const h = el('h2', {}, 'HEAT ASCENSION');
-    const sub = el('div', { class: 'event-flavor' }, 'Crank the difficulty for a bigger score multiplier. Your call — every run.');
+    const sub = el(
+      'div',
+      { class: 'event-flavor' },
+      'An optional ascension ladder — more pressure, more score. Heat 0 is free and fair; the rest is the veteran’s chase.',
+    );
     const curve = el('div', { class: 'heat-curve' });
     curve.id = 'heat-curve';
     const grid = el('div', { class: 'heat-grid' });
@@ -2440,9 +2444,9 @@ export class UI {
       // in red). Only the active modifiers show, so H0 (COLD) stays clean.
       const chips: HTMLElement[] = [];
       const chip = (t: string, danger = false) => el('span', { class: 'heat-mod' + (danger ? ' danger' : '') }, t);
-      if (lvl.enemySpeedAdd > 0) chips.push(chip(`SPD +${Math.round(lvl.enemySpeedAdd * 100)}%`));
-      if (lvl.spawnMulMod < 1) chips.push(chip(`DENSE +${Math.round((1 - lvl.spawnMulMod) * 100)}%`));
-      if (lvl.bossIntervalMod < 1) chips.push(chip(`BOSS +${Math.round((1 - lvl.bossIntervalMod) * 100)}%`));
+      if (lvl.enemySpeedAdd > 0) chips.push(chip(`SPEED +${Math.round(lvl.enemySpeedAdd * 100)}%`));
+      if (lvl.spawnMulMod < 1) chips.push(chip(`DENSITY +${Math.round((1 - lvl.spawnMulMod) * 100)}%`));
+      if (lvl.bossIntervalMod < 1) chips.push(chip(`BOSSES +${Math.round((1 - lvl.bossIntervalMod) * 100)}%`));
       if (lvl.grazeRadiusMod < 1) chips.push(chip(`GRAZE −${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`));
       if (lvl.revivesLost > 0) chips.push(chip(`−${lvl.revivesLost} REVIVE`, true));
       if (lvl.shieldsLost > 0) chips.push(chip(`−${lvl.shieldsLost} ARMOR`, true));
@@ -2775,11 +2779,13 @@ export class UI {
       SHIP_STAT_KEYS.forEach((m, i) => {
         const r = statRanges[i];
         const norm = r.max > r.min ? (m.get(st) - r.min) / (r.max - r.min) : 0.5;
-        const fill = el('div', { class: 'ship-stat-fill' });
-        fill.style.width = `${Math.round(16 + norm * 84)}%`; // floor so the weakest hull still reads
+        // mock: 5 discrete segments lit to the normalised stat (≥1 so the weakest hull reads).
+        const lit = Math.max(1, Math.round(norm * 5));
+        const track = el('div', { class: 'ship-stat-track' });
+        for (let sg = 0; sg < 5; sg++) track.append(el('div', { class: 'ship-stat-seg' + (sg < lit ? ' on' : '') }));
         statBars.append(el('div', { class: 'ship-stat' },
           el('span', { class: 'ship-stat-k' }, m.key),
-          el('div', { class: 'ship-stat-track' }, fill),
+          track,
         ));
       });
       chip.append(

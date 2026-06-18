@@ -344,8 +344,10 @@ body {
 .ship-stats { display: flex; flex-direction: column; gap: 3px; margin: 0 0 8px; }
 .ship-stat { display: grid; grid-template-columns: 42px 1fr; align-items: center; gap: 8px; }
 .ship-stat-k { font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 0.08em; color: var(--text-muted); }
-.ship-stat-track { height: 5px; background: rgba(255, 255, 255, 0.07); border-radius: 999px; overflow: hidden; }
-.ship-stat-fill { height: 100%; background: var(--accent); border-radius: 999px; opacity: 0.85; }
+/* mock: a segmented stat bar — 5 discrete pips, the lit ones in the hull accent. */
+.ship-stat-track { display: flex; gap: 3px; height: 5px; }
+.ship-stat-seg { flex: 1; border-radius: 1px; background: rgba(255, 255, 255, 0.08); }
+.ship-stat-seg.on { background: var(--accent); opacity: 0.9; }
 
 /* ── Palette swatches ── */
 .theme-row {
@@ -1033,7 +1035,7 @@ body {
 /* ── Heat ascension panel ── */
 .heat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr); /* mock: wider 2-up cards with room for the modifier chips */
   gap: 10px;
   max-width: 720px;
 }
@@ -1317,12 +1319,14 @@ body {
 }
 /* §v7 — THE SIX WHO LET IT FALL: a left-rail confession timeline (one episode per boss). */
 .tl { position: relative; margin: 12px auto 0; max-width: 64ch; padding-left: 26px; }
-.tl::before { content: ''; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 1px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04)); }
+/* the spine runs cyan→amber: the city's identity bleeding to the fall's dusk (mock). */
+.tl::before { content: ''; position: absolute; left: 9px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(180deg, rgba(34, 211, 238, 0.4), rgba(253, 224, 71, 0.3)); }
 .tl-item { --accent: #fbbf24; position: relative; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline; padding: 9px 0; }
-.tl-dot { position: absolute; left: -22px; top: 13px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent); }
-.tl-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); opacity: 0.85; }
+/* a ringed node (mock): accent border + dark core + glow, not a flat dot. */
+.tl-dot { position: absolute; left: -21px; top: 6px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--accent); background: #0a1020; box-shadow: 0 0 8px -1px var(--accent); }
+.tl-num { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); opacity: 0.85; }
 .tl-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: 0.04em; }
-.tl-ep { grid-column: 2; font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+.tl-ep { grid-column: 2; font-size: 11.5px; color: var(--accent); opacity: 0.85; margin-top: 1px; }
 .tl-quote { grid-column: 2; font-size: 12px; font-style: italic; color: #c2d2e8; border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); padding-left: 9px; margin-top: 5px; line-height: 1.5; }
 .credit-dedication {
   margin-top: 14px;
@@ -1536,7 +1540,13 @@ body {
   border-radius: 9px;
   padding: 9px 11px;
   opacity: 0.5;
+  /* mock: trophy/lock glyph in its own cell, text column beside it. */
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
 }
+.ach-ico { font-size: 18px; line-height: 1; flex-shrink: 0; }
+.ach-text { flex: 1; min-width: 0; }
 .ach.got {
   opacity: 1;
   border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
