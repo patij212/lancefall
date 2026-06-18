@@ -307,6 +307,15 @@ export const DRIFTER_TUNE = {
   bulletSpeed: 320,
   outerSpeedMul: 0.78, // outer bullets slower → arced wavefront
   strafeSpeed: 80,
+  // VERB (§3.3): every sprayEvery-th lock fires a WIDE SCATTER SPRAY instead of the
+  // precise 3-bullet arc fan — sprayCount bullets across spraySpan radians, slower and
+  // short-lived. Where the arc fan is a wavefront to WEAVE, the spray floods a cone to
+  // THREAD (or dash a lane through). subPhase-counted → zero world.rng (Daily-safe).
+  sprayEvery: 3, // arc, arc, SPRAY, arc, arc, SPRAY, …
+  sprayCount: 7, // bullets in the cone
+  spraySpan: 1.15, // total cone width (radians, ~66°)
+  spraySpeedMul: 0.82, // slower than the arc fan — readable, dodge-able
+  sprayLife: 4, // short life so a wide cone clears fast (doesn't pave the arena)
 };
 
 // Herald — a mid-range "wall" zoner. Locks its aim, then casts a perpendicular

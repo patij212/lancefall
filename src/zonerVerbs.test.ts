@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
 import { updateEnemy, applyEdgePull } from './enemies';
-import { ORBITER, LANCER, ZONER } from './tune';
+import { ORBITER, LANCER, ZONER, DRIFTER_TUNE } from './tune';
 import type { Enemy } from './types';
 
 // Two overlapping ZONER enemies gain a DISTINCT mechanical verb beyond "fire a bolt":
@@ -127,11 +127,45 @@ describe('zoner edge-pull keeps standoff zoners off the walls', () => {
   });
 });
 
+describe('DRIFTER verb — alternates the arc fan with a wide scatter spray', () => {
+  it('every sprayEvery-th lock fires a wide short-lived spray; the rest fire the arc fan', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('drifter', 700, 360, 1, 1, false, false, 0)!;
+    // long enough for at least one spray (the sprayEvery-th lock) plus arc fans
+    const perLock = DRIFTER_TUNE.repositionTime + DRIFTER_TUNE.lockTime;
+    const shots = run(w, e, perLock * (DRIFTER_TUNE.sprayEvery + 1) + 0.4);
+    // spray bullets carry the short sprayLife; arc-fan bullets keep the default 8s life
+    const spray = shots.filter((s) => s.life <= DRIFTER_TUNE.sprayLife + 1e-3);
+    const arc = shots.filter((s) => s.life > DRIFTER_TUNE.sprayLife + 1e-3);
+    expect(spray.length).toBeGreaterThanOrEqual(DRIFTER_TUNE.sprayCount); // ≥ one full cone, fired at once
+    expect(arc.length).toBeGreaterThanOrEqual(3); // and the precise arc fan still fires
+    // the drifter has no parked mines — every bullet it emits is a moving bolt
+    for (const s of shots) expect(Math.hypot(s.vx, s.vy)).toBeGreaterThan(0);
+  });
+
+  it('the spray fans bullets across a wider cone than the 3-bullet arc fan', () => {
+    // aim the drifter straight DOWN (enemy above the centred player) so the cone never
+    // wraps across ±π and atan2 spreads compare cleanly.
+    const w = freshWorld();
+    w.player.x = 640;
+    const e = w.spawnEnemy('drifter', 640, 120, 1, 1, false, false, 0)!;
+    const perLock = DRIFTER_TUNE.repositionTime + DRIFTER_TUNE.lockTime;
+    const shots = run(w, e, perLock * (DRIFTER_TUNE.sprayEvery + 1) + 0.4);
+    const spray = shots.filter((s) => s.life <= DRIFTER_TUNE.sprayLife + 1e-3).slice(0, DRIFTER_TUNE.sprayCount);
+    expect(spray.length).toBe(DRIFTER_TUNE.sprayCount);
+    const angles = spray.map((s) => Math.atan2(s.vy, s.vx));
+    const spread = Math.max(...angles) - Math.min(...angles);
+    expect(spread).toBeGreaterThan(2 * DRIFTER_TUNE.arcSpread); // wider than the arc fan
+    expect(spread).toBeCloseTo(DRIFTER_TUNE.spraySpan, 1); // ≈ the configured cone width
+  });
+});
+
 describe('zoner verbs are world.rng-free (Daily stays bit-identical)', () => {
-  it('driving an orbiter + lancer for seconds consumes ZERO world.rng draws', () => {
+  it('driving an orbiter + lancer + drifter for seconds consumes ZERO world.rng draws', () => {
     const w = freshWorld(7);
     const orb = w.spawnEnemy('orbiter', 800, 360, 1, 1, false, false, 0)!;
     const lan = w.spawnEnemy('lancer', 900, 360, 1, 1, false, false, 0)!;
+    const dri = w.spawnEnemy('drifter', 700, 360, 1, 1, false, false, 0)!;
     // a clean twin with the same seed, no enemy ticks, is the reference rng state
     const ref = createRng(7);
     // advance both worlds' rng identically up to here? No — instead: capture the
@@ -143,6 +177,7 @@ describe('zoner verbs are world.rng-free (Daily stays bit-identical)', () => {
     for (let i = 0; i < 600; i++) {
       updateEnemy(orb, w, DT);
       updateEnemy(lan, w, DT);
+      updateEnemy(dri, w, DT); // includes the spray verb — bullet count varies, rng must not
     }
     // the very next world.rng draw must match the twin's next draw — i.e. the enemy
     // verbs advanced world.rng ZERO times over 10s of fire

@@ -442,14 +442,31 @@ function drifter(e: Enemy, world: World, dt: number): void {
     e.timer -= dt;
     e.telegraph = clamp(1 - e.timer / DRIFTER_TUNE.lockTime, 0, 1);
     if (e.timer <= 0) {
-      // a 3-bullet arc fan: centre fast, outer slower → curved wavefront
       const base = DRIFTER_TUNE.bulletSpeed * e.bulletMul;
       const a = e.angle;
-      const s = DRIFTER_TUNE.arcSpread;
-      const o = DRIFTER_TUNE.outerSpeedMul;
-      world.spawnBullet(e.x, e.y, Math.cos(a) * base, Math.sin(a) * base, 6, '#34d399', false);
-      world.spawnBullet(e.x, e.y, Math.cos(a - s) * base * o, Math.sin(a - s) * base * o, 6, '#34d399', false);
-      world.spawnBullet(e.x, e.y, Math.cos(a + s) * base * o, Math.sin(a + s) * base * o, 6, '#34d399', false);
+      // VERB (§3.3): alternate the precise arc fan with a WIDE SCATTER SPRAY every
+      // sprayEvery-th lock. subPhase counts locks (incremented before the check, like
+      // the ORBITER mine) → fully deterministic, zero world.rng, so the Daily stays
+      // bit-identical even though the bullet COUNT varies between locks.
+      e.subPhase++;
+      if (e.subPhase % DRIFTER_TUNE.sprayEvery === 0) {
+        // a wide cone of bullets to THREAD — slower + short-lived so it clears fast
+        const n = DRIFTER_TUNE.sprayCount;
+        const span = DRIFTER_TUNE.spraySpan;
+        const ss = base * DRIFTER_TUNE.spraySpeedMul;
+        for (let i = 0; i < n; i++) {
+          const off = -span / 2 + (span * i) / (n - 1);
+          const b = world.spawnBullet(e.x, e.y, Math.cos(a + off) * ss, Math.sin(a + off) * ss, 6, '#34d399', false);
+          if (b) b.life = DRIFTER_TUNE.sprayLife;
+        }
+      } else {
+        // a 3-bullet arc fan: centre fast, outer slower → curved wavefront to weave
+        const s = DRIFTER_TUNE.arcSpread;
+        const o = DRIFTER_TUNE.outerSpeedMul;
+        world.spawnBullet(e.x, e.y, Math.cos(a) * base, Math.sin(a) * base, 6, '#34d399', false);
+        world.spawnBullet(e.x, e.y, Math.cos(a - s) * base * o, Math.sin(a - s) * base * o, 6, '#34d399', false);
+        world.spawnBullet(e.x, e.y, Math.cos(a + s) * base * o, Math.sin(a + s) * base * o, 6, '#34d399', false);
+      }
       e.phase = 0;
       e.timer = DRIFTER_TUNE.repositionTime;
       e.telegraph = 0;
