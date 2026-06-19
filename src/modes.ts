@@ -101,13 +101,16 @@ export const MODES: RunConfig[] = [
     rules: { scoreFrame: 'cleartime', events: 'none' }, // §4 M3 cleartime + M5 no mid-run events
   },
   {
+    // SOLSTICE PROTOCOL — the MAIN mode / campaign spine (the lead rail card). Every boss is a
+    // cipher of escalating class (Warden caesar → Weaver substitution → Beacon partial →
+    // Sovereign rotor); the story of the fall is told in cipher. Always unlocked — it's the
+    // front door, not a gated side-mode.
     id: 'longestday', name: 'SOLSTICE PROTOCOL',
-    desc: 'Every boss is a cipher. Read the key, break the code, and bring back the longest day.',
+    desc: 'The campaign. Every boss is a cipher — read the key, deduce the code, and bring back the longest day.',
     seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 38, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
-    unlockedAtWave: 8, // §1.1 progressive disclosure — earn SOLSTICE PROTOCOL by reaching wave 8
-    flavorHead: '◇ SOLSTICE PROTOCOL', flavor: 'The cipher shifts. Only the worthy see the pattern.',
+    flavorHead: '◇ SOLSTICE PROTOCOL', flavor: 'The story of the fall, told in cipher.<br>Read each lock, and the day grows longer.',
   },
   {
     // §7 — CASUAL/STORY. A gentler ENDLESS so anyone can SEE the content (bosses, biomes,
@@ -201,12 +204,12 @@ export function nextModeId(currentId: string, dir: number): string {
  *  (CASUAL·STANDARD difficulty) and ECHO owns [daily, weekly] (DAILY·WEEKLY seed cadence).
  *  The rail is a pure UI concern; MODES stays the full 8-mode data set. */
 export const RAIL_CARDS: readonly (readonly string[])[] = [
+  ['longestday'], // SOLSTICE PROTOCOL — the main mode / campaign, the rail's default landing
   ['casual', 'endless'],
   ['arena'],
   ['bossrush'],
   ['daily', 'weekly'],
   ['nightmare'],
-  ['longestday'],
 ];
 
 /** The default (primary) mode id per card, in rail order — digit-jump + nav landing target. */

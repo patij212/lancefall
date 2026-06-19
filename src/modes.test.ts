@@ -156,10 +156,9 @@ describe('§v7 modeFlavor (mode-rail flavour box)', () => {
 });
 
 describe('§1.1 progressive disclosure (rail unlock gates)', () => {
-  it('NIGHTMARE + SOLSTICE PROTOCOL are wave-gated; the rest are always unlocked', () => {
+  it('NIGHTMARE is wave-gated; SOLSTICE (the main mode) + the rest are always unlocked', () => {
     expect(modeById('nightmare').unlockedAtWave).toBe(5);
-    expect(modeById('longestday').unlockedAtWave).toBe(8);
-    for (const id of ['casual', 'endless', 'arena', 'bossrush', 'daily']) {
+    for (const id of ['casual', 'endless', 'arena', 'bossrush', 'daily', 'longestday']) {
       expect(modeById(id).unlockedAtWave ?? 0).toBe(0);
     }
   });
@@ -167,18 +166,18 @@ describe('§1.1 progressive disclosure (rail unlock gates)', () => {
   it('modeUnlocked gates purely on deepestWave (absent unlockedAtWave = always unlocked)', () => {
     expect(modeUnlocked(modeById('nightmare'), 4)).toBe(false);
     expect(modeUnlocked(modeById('nightmare'), 5)).toBe(true);
-    expect(modeUnlocked(modeById('longestday'), 7)).toBe(false);
-    expect(modeUnlocked(modeById('longestday'), 8)).toBe(true);
+    expect(modeUnlocked(modeById('longestday'), 0)).toBe(true); // the main mode — never gated
     expect(modeUnlocked(modeById('endless'), 0)).toBe(true); // never gated
   });
 
-  it('the RAIL is 6 cards; Endless owns casual+endless, Echo owns daily+weekly', () => {
+  it('the RAIL is 6 cards; SOLSTICE leads, Endless owns casual+endless, Echo owns daily+weekly', () => {
     expect(RAIL_CARDS.length).toBe(6);
-    expect(RAIL_CARDS[0]).toEqual(['casual', 'endless']);
-    expect(RAIL_CARDS[3]).toEqual(['daily', 'weekly']);
+    expect(RAIL_CARDS[0]).toEqual(['longestday']); // SOLSTICE PROTOCOL is the lead card (the campaign)
+    expect(RAIL_CARDS[1]).toEqual(['casual', 'endless']);
+    expect(RAIL_CARDS[4]).toEqual(['daily', 'weekly']);
     // every other card is single-variant
-    for (const i of [1, 2, 4, 5]) expect(RAIL_CARDS[i].length).toBe(1);
-    expect([...RAIL_CARD_IDS]).toEqual(['casual', 'arena', 'bossrush', 'daily', 'nightmare', 'longestday']);
+    for (const i of [0, 2, 3, 5]) expect(RAIL_CARDS[i].length).toBe(1);
+    expect([...RAIL_CARD_IDS]).toEqual(['longestday', 'casual', 'arena', 'bossrush', 'daily', 'nightmare']);
   });
 
   it('every mode in MODES is reachable from the rail (no stranded modes)', () => {
@@ -195,12 +194,12 @@ describe('§1.1 progressive disclosure (rail unlock gates)', () => {
   });
 
   it('nextRailMode walks cards, returns the landing card primary, wraps, and SKIPS locked', () => {
-    // brand-new player (deepestWave 0): nightmare(5) + longestday(8) locked & skipped
-    expect(nextRailMode('casual', 1, 0)).toBe('arena');   // card0 -> card1
-    expect(nextRailMode('endless', 1, 0)).toBe('arena');  // a non-primary variant resolves to its card too
-    expect(nextRailMode('daily', 1, 0)).toBe('casual');   // card3 -> skip locked 4,5 -> wrap card0
-    expect(nextRailMode('weekly', -1, 0)).toBe('bossrush'); // card3 -> card2
-    expect(nextRailMode('casual', -1, 0)).toBe('daily');  // wrap left past the locked tail
+    // brand-new player (deepestWave 0): nightmare(5) locked & skipped; SOLSTICE leads + is unlocked
+    expect(nextRailMode('casual', 1, 0)).toBe('arena');       // card1 -> card2
+    expect(nextRailMode('endless', 1, 0)).toBe('arena');      // a non-primary variant resolves to its card too
+    expect(nextRailMode('daily', 1, 0)).toBe('longestday');   // card4 -> skip locked nightmare -> wrap card0
+    expect(nextRailMode('weekly', -1, 0)).toBe('bossrush');   // card4 -> card3
+    expect(nextRailMode('casual', -1, 0)).toBe('longestday'); // card1 -> card0 (SOLSTICE)
     // veteran (deepestWave 99): all unlocked, plain wrap
     expect(nextRailMode('daily', 1, 99)).toBe('nightmare');
     expect(nextRailMode('longestday', 1, 99)).toBe('casual');
@@ -208,5 +207,21 @@ describe('§1.1 progressive disclosure (rail unlock gates)', () => {
 
   it('nextRailMode returns the current id when nothing else is reachable', () => {
     expect(nextRailMode('casual', 1, -1)).toBe('casual'); // deepestWave -1 locks all
+  });
+});
+
+describe('SOLSTICE PROTOCOL is the main mode', () => {
+  it('is the lead rail card (the default landing)', () => {
+    expect(RAIL_CARD_IDS[0]).toBe('longestday');
+  });
+
+  it('is always unlocked (the campaign spine, not a gated side-mode)', () => {
+    expect(modeUnlocked(modeById('longestday'), 0)).toBe(true);
+  });
+
+  it('still reaches every built mode from the rail (no mode stranded)', () => {
+    for (const id of ['casual', 'endless', 'arena', 'bossrush', 'daily', 'weekly', 'nightmare', 'longestday']) {
+      expect(RAIL_VARIANT_IDS).toContain(id);
+    }
   });
 });
