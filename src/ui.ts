@@ -5,7 +5,6 @@
 import type { World } from './world';
 import { el, iconEl, stat, reconcile } from './panels/dom';
 import type { Settings, SaveData } from './save';
-import { defaultKeyBindings } from './input';
 import { deriveStats } from './perks';
 import type { PerkDef, RunStats } from './perks';
 import { glyphArt, hasGlyphArt, relicGlyphArt, powerupGlyphArt } from './glyphArt';
@@ -20,7 +19,6 @@ import { renderStats } from './panels/stats';
 import { lastRunForMode, fmtAgo, breakdownEntries } from './panels/statsDerive';
 import { renderAchievements } from './panels/achievements';
 import { comboColor } from './render';
-import { TRACKS, type SoundtrackId } from './soundtracks';
 import { SHIPS, shipById } from './ships';
 import { metaApplyFor } from './meta';
 import { runShields } from './survival';
@@ -61,6 +59,7 @@ import { buildCreditsPanel } from './panels/credits';
 import { buildDuelPanel, type DuelPanel } from './panels/duel';
 import { buildInspectPanel, type InspectPanel } from './panels/inspect';
 import { buildArchetypePanel } from './panels/archetype';
+import { buildSettingsPanel, type SettingsPanel } from './panels/settings';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
 import {
@@ -423,13 +422,6 @@ function rarLabel(cost: number, star: boolean): string {
   return star ? '★ Achievement' : cost === 0 ? 'Free' : cost <= 800 ? 'Common' : cost <= 1200 ? 'Rare' : 'Epic';
 }
 
-/** Human-readable label for a bound key list (e.SPACE / J / ESC). */
-function keyLabel(keys: string[]): string {
-  const one = (k: string) =>
-    k === ' ' ? 'SPACE' : k === 'escape' ? 'ESC' : k === 'arrowleft' ? '←' : k === 'arrowright' ? '→' : k === 'arrowup' ? '↑' : k === 'arrowdown' ? '↓' : k.toUpperCase();
-  return keys.map(one).join(' / ');
-}
-
 /** Coarse pointer (touch) — gates the on-screen PAUSE button so desktop keeps a clean HUD. */
 function matchMediaCoarse(): boolean {
   try {
@@ -529,7 +521,6 @@ export class UI {
   private comboEl!: HTMLElement;
   private comboBar!: HTMLElement;
   private beatPip!: HTMLElement;
-  private cityMemToggle: HTMLInputElement | null = null;
   private cityMemWrap!: HTMLElement;
   private cityMemFill!: HTMLElement;
   private staminaWrap!: HTMLElement;
@@ -1893,181 +1884,17 @@ export class UI {
     this.show('event');
   }
 
+  private settingsModal!: SettingsPanel;
   private buildSettings(): void {
-    const h = el('h2', {}, 'SETTINGS');
-    const s = this.settings;
-
-    // slider returns { row, input } so a PRESET can re-sync the displayed value
-    const fmtSliderVal = (v: number) => String(Math.round(v * 100) / 100);
-    const slider = (label: string, min: number, max: number, step: number, val: number, on: (v: number) => void) => {
-      const input = el('input', { type: 'range', min: String(min), max: String(max), step: String(step), value: String(val) }) as HTMLInputElement;
-      // value chip (mock flourish): a live amber readout of the current value, right-aligned.
-      const chip = el('span', { class: 'setting-val' }, fmtSliderVal(val));
-      input.addEventListener('input', () => { const v = parseFloat(input.value); on(v); chip.textContent = fmtSliderVal(v); });
-      return { row: el('label', { class: 'setting' }, el('span', {}, label), input, chip), input };
-    };
-    const toggle = (label: string, val: boolean, on: (v: boolean) => void) => {
-      const input = el('input', { type: 'checkbox' }) as HTMLInputElement;
-      input.checked = val;
-      input.addEventListener('change', () => on(input.checked));
-      return el('label', { class: 'setting setting-toggle' }, el('span', {}, label), input);
-    };
-
-    // ── the perf/fidelity dials the PRESETS drive (kept as refs so a preset re-syncs them) ──
-    const shakeS = slider('Screen shake', 0, 1.5, 0.05, s.shake, (v) => this.patch({ shake: v }));
-    const chromaS = slider('Chromatic aberration', 0, 1, 0.05, s.chromAberration, (v) => this.patch({ chromAberration: v }));
-    // live preview chips (mock flourish): the chromatic split widens with the value; the
-    // shake box jitters at the chosen amplitude. Both update on drag + on a preset.
-    const chromaPrev = el('span', { class: 'chroma-prev' }, 'LANCE');
-    const setChromaPrev = (v: number) => {
-      const o = (v * 1.6).toFixed(2);
-      chromaPrev.style.textShadow = `-${o}px 0 #ff004c, ${o}px 0 #00e1ff`;
-    };
-    setChromaPrev(s.chromAberration);
-    chromaS.input.addEventListener('input', () => setChromaPrev(parseFloat(chromaS.input.value)));
-    chromaS.row.insertBefore(chromaPrev, chromaS.input);
-    const shakePrev = el('span', { class: 'shake-prev' });
-    const setShakePrev = (v: number) => shakePrev.style.setProperty('--amp', `${(v * 1.8).toFixed(2)}px`);
-    setShakePrev(s.shake);
-    shakeS.input.addEventListener('input', () => setShakePrev(parseFloat(shakeS.input.value)));
-    shakeS.row.insertBefore(shakePrev, shakeS.input);
-    const partPrev = el('span', { class: 'part-prev' });
-    for (let i = 0; i < 4; i++) partPrev.append(el('i'));
-    const densityWrap = el('div', { class: 'setting' }, el('span', {}, 'Particle density'), partPrev);
-    const densityBtns: Partial<Record<'low' | 'med' | 'high', HTMLElement>> = {};
-    const setDensity = (d: 'low' | 'med' | 'high') => {
-      for (const k of ['low', 'med', 'high'] as const) densityBtns[k]?.classList.toggle('active', k === d);
-      partPrev.dataset.d = d; // CSS lights 1 / 2 / 4 dots
-    };
-    for (const d of ['low', 'med', 'high'] as const) {
-      const b = el('button', { class: 'btn btn-ghost btn-sm' }, d.toUpperCase());
-      densityBtns[d] = b;
-      b.addEventListener('click', () => { this.patch({ particleDensity: d }); setDensity(d); });
-      densityWrap.append(b);
-    }
-    setDensity(s.particleDensity);
-
-    // ── PRESETS (mock-mainui) — one tap sets the perf/fidelity dials + re-syncs the controls ──
-    const PRESETS: Record<string, { particleDensity: 'low' | 'med' | 'high'; chromAberration: number; shake: number }> = {
-      PERFORMANCE: { particleDensity: 'low', chromAberration: 0, shake: 0.6 },
-      BALANCED: { particleDensity: 'med', chromAberration: 0.6, shake: 1 },
-      QUALITY: { particleDensity: 'high', chromAberration: 1, shake: 1 },
-    };
-    const presetRow = el('div', { class: 'set-presets' });
-    for (const [name, p] of Object.entries(PRESETS)) {
-      const b = el('button', { class: 'btn btn-ghost btn-sm' }, name);
-      b.addEventListener('click', () => {
-        this.patch(p);
-        chromaS.input.value = String(p.chromAberration);
-        shakeS.input.value = String(p.shake);
-        // dispatch 'input' so the live preview AND the value chip both re-sync to the preset.
-        chromaS.input.dispatchEvent(new Event('input'));
-        shakeS.input.dispatchEvent(new Event('input'));
-        setDensity(p.particleDensity);
-        presetRow.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
-        b.classList.add('active');
-      });
-      presetRow.append(b);
-    }
-    // reflect the active preset on open (mock: a preset reads lit) — light whichever preset the
-    // current dials already match, so the row isn't blank. Defaults land on BALANCED.
-    const presetNames = Object.keys(PRESETS);
-    const activeIdx = presetNames.findIndex((name) => {
-      const p = PRESETS[name];
-      return p.particleDensity === s.particleDensity && p.chromAberration === s.chromAberration && p.shake === s.shake;
+    this.settingsModal = buildSettingsPanel({
+      settings: this.settings,
+      patch: (p) => this.patch(p),
+      cityMemory: () => this.saveRef?.cityMemoryMeter ?? true,
+      onToggleCityMemory: (v) => this.cb.onToggleCityMemory(v),
+      setRebinding: (a) => { this.rebinding = a; },
+      onClose: () => this.closeSettings(),
     });
-    if (activeIdx >= 0) (presetRow.children[activeIdx] as HTMLElement | undefined)?.classList.add('active');
-
-    // soundtrack picker — AURORA (dreamy) vs SURGE (aggressive)
-    const trackWrap = el('div', { class: 'setting' }, el('span', {}, 'Soundtrack'));
-    for (const id of ['aurora', 'surge'] as SoundtrackId[]) {
-      const prof = TRACKS[id];
-      const b = el('button', { class: 'btn btn-ghost btn-sm' + (s.soundtrack === id ? ' active' : ''), title: prof.blurb }, prof.name);
-      b.addEventListener('click', () => {
-        this.patch({ soundtrack: id });
-        trackWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
-        b.classList.add('active');
-      });
-      trackWrap.append(b);
-    }
-
-    // City-memory is backed by SaveData (not Settings); re-synced on open (see openSettings()).
-    const cityMemRow = toggle('City memory meter', this.saveRef?.cityMemoryMeter ?? true, (v) => this.cb.onToggleCityMemory(v));
-    this.cityMemToggle = cityMemRow.querySelector('input');
-
-    // ── key rebinding (keyboard only; gamepad/touch unchanged) ──
-    const rebindBtns: Array<{ action: 'dash' | 'overdrive' | 'pause'; btn: HTMLButtonElement }> = [];
-    const refreshKeyLabels = () => {
-      for (const { action, btn } of rebindBtns) btn.textContent = keyLabel(this.settings.keymap[action]);
-    };
-    const rebindRow = (label: string, action: 'dash' | 'overdrive' | 'pause') => {
-      const btn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, keyLabel(this.settings.keymap[action]));
-      rebindBtns.push({ action, btn });
-      btn.addEventListener('click', () => {
-        if (this.rebinding) return; // one capture at a time
-        this.rebinding = action;
-        btn.classList.add('active');
-        btn.textContent = 'press a key…';
-        const onKey = (e: KeyboardEvent) => {
-          e.preventDefault();
-          e.stopImmediatePropagation(); // swallow the capture key so it can't also trigger the old binding
-          window.removeEventListener('keydown', onKey, true);
-          this.rebinding = null;
-          btn.classList.remove('active');
-          const k = e.key.toLowerCase();
-          if (k !== 'escape') this.patch({ keymap: { ...this.settings.keymap, [action]: [k] } });
-          refreshKeyLabels();
-        };
-        window.addEventListener('keydown', onKey, true);
-      });
-      return el('label', { class: 'setting' }, el('span', {}, label), btn);
-    };
-    const resetKeys = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Reset keys to default');
-    resetKeys.addEventListener('click', () => { this.patch({ keymap: defaultKeyBindings() }); refreshKeyLabels(); });
-
-    // ── tabbed SECTIONS (mock-mainui) — group related settings; one section visible at a time ──
-    const sect = (id: string, ...kids: HTMLElement[]) => el('div', { class: 'set-sect', 'data-sect': id }, ...kids);
-    const sections: { id: string; name: string; el: HTMLElement }[] = [
-      { id: 'audio', name: 'AUDIO', el: sect('audio',
-        slider('Master volume', 0, 1, 0.05, s.master, (v) => this.patch({ master: v })).row,
-        slider('SFX volume', 0, 1, 0.05, s.sfx, (v) => this.patch({ sfx: v })).row,
-        slider('Music volume', 0, 1, 0.05, s.music, (v) => this.patch({ music: v })).row,
-        trackWrap) },
-      { id: 'visuals', name: 'VISUALS', el: sect('visuals',
-        shakeS.row,
-        slider('HUD scale', 0.8, 1.4, 0.05, s.hudScale, (v) => this.patch({ hudScale: v })).row,
-        chromaS.row, densityWrap) },
-      { id: 'gameplay', name: 'GAMEPLAY', el: sect('gameplay',
-        toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) => this.patch({ dashStyle: v ? 'slingshot' : 'lance' })),
-        cityMemRow) },
-      { id: 'access', name: 'ACCESS', el: sect('access',
-        toggle('Reduce flashing', s.reduceFlashing, (v) => this.patch({ reduceFlashing: v })),
-        toggle('Reduce motion', s.reduceMotion, (v) => this.patch({ reduceMotion: v })),
-        toggle('Colorblind shapes', s.colorblind, (v) => this.patch({ colorblind: v })),
-        toggle('Clarity (high contrast)', s.clarity, (v) => this.patch({ clarity: v })),
-        toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => this.patch({ rhythmAssist: v }))) },
-      { id: 'controls', name: 'CONTROLS', el: sect('controls',
-        toggle('Controller rumble', s.rumble, (v) => this.patch({ rumble: v })),
-        rebindRow('Dash', 'dash'), rebindRow('Overdrive', 'overdrive'), rebindRow('Pause', 'pause'),
-        el('div', { class: 'setting' }, resetKeys)) },
-    ];
-    const tabRow = el('div', { class: 'set-tabs' });
-    const showSect = (id: string) => {
-      for (const x of sections) x.el.classList.toggle('hidden', x.id !== id);
-      tabRow.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.getAttribute('data-sect') === id));
-    };
-    for (const x of sections) {
-      const b = el('button', { class: 'btn btn-ghost btn-sm', 'data-sect': x.id }, x.name);
-      b.addEventListener('click', () => showSect(x.id));
-      tabRow.append(b);
-    }
-
-    const body = el('div', { class: 'settings-body' }, ...sections.map((x) => x.el));
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeSettings());
-    const panel = el('div', { class: 'panel panel-wide' }, h, presetRow, tabRow, body, close);
-    this.settingsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
-    showSect('audio'); // default to the AUDIO tab
+    this.settingsPanel = this.settingsModal.root;
   }
 
   private buildStats(): void {
@@ -2135,9 +1962,9 @@ export class UI {
   }
 
   private openSettings(): void {
-    // buildSettings() ran in the constructor before any save loaded, so the city-memory
-    // checkbox was rendered against a null saveRef. Re-sync it to the live save on open.
-    if (this.cityMemToggle) this.cityMemToggle.checked = this.saveRef?.cityMemoryMeter ?? true;
+    // buildSettings ran in the constructor before any save loaded, so re-sync the city-memory
+    // toggle (it's backed by SaveData, not Settings) to the live save on open.
+    this.settingsModal.syncCityMemory();
     this.openModal(this.settingsPanel);
   }
   private closeSettings(): void {
