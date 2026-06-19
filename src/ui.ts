@@ -10,9 +10,7 @@ import { PERKS, deriveStats } from './perks';
 import type { PerkDef, RunStats } from './perks';
 import { glyphArt, hasGlyphArt, relicGlyphArt, powerupGlyphArt } from './glyphArt';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
-import { RELICS, type RelicId } from './relics';
-import { decodeBuildDna } from './buildDna';
-import type { BuildDna } from './buildDna';
+import { type RelicId } from './relics';
 import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
 import { HEAT_LEVELS, MAX_HEAT } from './heat';
@@ -59,7 +57,9 @@ import { renderTheSix } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
 import type { Panel } from './panels/panel';
-import { audioCredits } from './audioManifest';
+import { buildCreditsPanel } from './panels/credits';
+import { buildDuelPanel, type DuelPanel } from './panels/duel';
+import { buildInspectPanel, type InspectPanel } from './panels/inspect';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
 import {
@@ -2145,32 +2145,7 @@ export class UI {
 
   /** CREDITS — the player-facing audio attribution surface (CC BY 3.0 requires visible credit). */
   private buildCredits(): void {
-    const c = audioCredits();
-    const h = el('h2', {}, 'CREDITS');
-    const body = el('div', { class: 'howto-body' });
-    body.append(
-      el('div', { class: 'howto-rule' }, el('b', {}, 'CREATED BY'), el('span', {}, 'patij212')),
-    );
-    body.append(
-      el('div', { class: 'howto-rule' }, el('b', {}, '♪ MUSIC'), el('span', {}, 'free-licensed, used under Creative Commons')),
-    );
-    for (const line of c.music) body.append(el('div', { class: 'credit-line' }, line));
-    body.append(el('div', { class: 'howto-rule' }, el('b', {}, 'SOUND'), el('span', {}, '')));
-    for (const line of c.sfx) body.append(el('div', { class: 'credit-line' }, line));
-    body.append(
-      el('div', { class: 'credit-foot' }, 'The recurring LANCE THEME melody + the procedural reactive layer are original to LANCEFALL.'),
-    );
-    body.append(
-      el(
-        'div',
-        { class: 'credit-foot credit-dedication' },
-        'Made for the June Solstice Game Jam — an ode to Alan Turing (1912–1954): code-breaking, algorithms, and the machine that learned to think. Every cipher here is a small tribute.',
-      ),
-    );
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.creditsPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, body, close);
-    this.creditsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.creditsPanel = buildCreditsPanel(() => this.closeModal(this.creditsPanel));
   }
 
   private showCredits(): void {
@@ -2193,101 +2168,35 @@ export class UI {
     return body;
   }
 
+  private duel!: DuelPanel;
   private buildDuel(): void {
-    const h = el('h2', {}, '⚔ ACCEPT A DUEL');
-    const blurb = el(
-      'div',
-      { class: 'event-flavor' },
-      'A friend sent you a duel code? Paste it below. You\'ll fall through their exact seed, racing their translucent ghost — beat their score to win.',
-    );
-    const input = el('textarea', {
-      class: 'duel-input',
-      rows: '4',
-      placeholder: 'Paste duel code…',
-    }) as HTMLTextAreaElement;
-    const accept = el('button', { class: 'btn btn-primary' }, 'ACCEPT DUEL');
-    accept.addEventListener('click', () => {
-      const code = input.value.trim();
-      if (!code) return;
-      this.closeModal(this.duelPanel);
-      input.value = '';
-      this.cb.onAcceptChallenge(code);
+    this.duel = buildDuelPanel({
+      onAccept: (code) => this.cb.onAcceptChallenge(code),
+      onChallengeDev: () => this.cb.onChallengeDev(),
+      onClose: () => this.closeModal(this.duelPanel),
     });
-    const close = el('button', { class: 'btn btn-ghost' }, 'CANCEL');
-    close.addEventListener('click', () => this.closeModal(this.duelPanel));
-    // 4.1 — CHALLENGE THE DEV: a pinned fixed-seed run (races the author ghost if bundled).
-    const devBlurb = el(
-      'div',
-      { class: 'event-flavor' },
-      'Or take the dev\'s gauntlet: a pinned fixed seed everyone shares. Beat it, then ⚔ DUEL your run back.',
-    );
-    const dev = el('button', { class: 'btn btn-ghost' }, '⚑ CHALLENGE THE DEV');
-    dev.addEventListener('click', () => {
-      this.closeModal(this.duelPanel);
-      this.cb.onChallengeDev();
-    });
-    const panel = el(
-      'div',
-      { class: 'panel' },
-      h,
-      blurb,
-      input,
-      el('div', { class: 'go-row' }, accept, close),
-      devBlurb,
-      el('div', { class: 'go-row' }, dev),
-    );
-    this.duelPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.duelPanel = this.duel.root;
   }
 
   /** 4.4 — open the DUEL panel pre-filled with a code arriving from a shared `#duel=` link.
    *  The player reads the blurb + the challenger's context, then hits ACCEPT (same flow as a
    *  manual paste). Public so the boot URL-router can call it; additive (no UICallbacks change). */
   openDuelWithCode(code: string): void {
+    this.duel.open(code);
     this.openModal(this.duelPanel);
-    const input = this.duelPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
-    if (input) {
-      input.value = code;
-      input.focus();
-      input.select();
-    }
   }
 
   // INSPECT A BUILD — paste a Build DNA code (someone hit COPY BUILD) and read back
   // exactly what they ran. Pure decode + display; closes the export-only loop.
+  private inspect!: InspectPanel;
   private buildInspect(): void {
-    const h = el('h2', {}, '⧬ INSPECT A BUILD');
-    const blurb = el(
-      'div',
-      { class: 'event-flavor' },
-      'Paste a Build DNA code (a friend hit COPY BUILD) to read exactly what they ran — ship, heat, perks, fusions, relics.',
-    );
-    const input = el('textarea', { class: 'duel-input', rows: '3', placeholder: 'Paste build code (L1…)…' }) as HTMLTextAreaElement;
-    const result = el('div', { class: 'howto-rules' });
-    const inspect = el('button', { class: 'btn' }, 'INSPECT');
-    inspect.addEventListener('click', () => {
-      result.replaceChildren();
-      const dna = decodeBuildDna(input.value.trim());
-      if (!dna) {
-        result.append(el('div', { class: 'event-flavor' }, input.value.trim() ? 'That is not a valid Build DNA code.' : 'Paste a build code first.'));
-        return;
-      }
-      for (const row of describeBuild(dna)) {
-        result.append(el('div', { class: 'howto-rule' }, el('b', {}, row.label), el('span', {}, row.value)));
-      }
-    });
-    const close = el('button', { class: 'btn btn-ghost' }, 'CLOSE');
-    close.addEventListener('click', () => this.closeModal(this.inspectPanel));
-    const panel = el('div', { class: 'panel' }, h, blurb, input, el('div', { class: 'go-row' }, inspect, close), result);
-    this.inspectPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.inspect = buildInspectPanel({ onClose: () => this.closeModal(this.inspectPanel) });
+    this.inspectPanel = this.inspect.root;
   }
 
   private openInspect(): void {
-    const result = this.inspectPanel.querySelector('.howto-rules');
-    result?.replaceChildren(); // clear any prior inspection
-    const input = this.inspectPanel.querySelector('.duel-input') as HTMLTextAreaElement | null;
-    if (input) input.value = '';
+    this.inspect.open();
     this.openModal(this.inspectPanel);
-    input?.focus();
   }
 
   private buildCodex(): void {
@@ -4260,30 +4169,6 @@ export class UI {
 
 /** Render a decoded Build DNA into readable label/value rows. Defensive: unknown
  *  ids (from an older/edited code) are skipped, never looked up blindly. */
-function describeBuild(dna: BuildDna): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [];
-  const perksReg = PERKS as Record<string, { name: string }>;
-  const evosReg = EVOLUTIONS as Record<string, { name: string }>;
-  const relicsReg = RELICS as Record<string, { name: string }>;
-  const stacks = (dna.stacks ?? {}) as Record<string, number>;
-  const ship = SHIPS.find((s) => s.id === dna.ship);
-  rows.push({ label: 'SHIP', value: ship ? ship.name : dna.ship || '—' });
-  if (dna.heat > 0) {
-    const lvl = Math.max(0, Math.min(HEAT_LEVELS.length - 1, Math.round(dna.heat)));
-    rows.push({ label: 'HEAT', value: `${lvl} · ${HEAT_LEVELS[lvl].name}` });
-  }
-  if (dna.arch && dna.arch !== 'none') rows.push({ label: 'PATH', value: archetypeById(dna.arch).name });
-  const perks = Object.keys(stacks)
-    .filter((id) => (stacks[id] ?? 0) > 0 && perksReg[id])
-    .map((id) => (stacks[id] > 1 ? `${perksReg[id].name}×${stacks[id]}` : perksReg[id].name));
-  if (perks.length) rows.push({ label: 'PERKS', value: perks.join(', ') });
-  const evos = (dna.evos ?? []).filter((id) => evosReg[id]).map((id) => evosReg[id].name);
-  if (evos.length) rows.push({ label: 'FUSIONS', value: evos.join(', ') });
-  const relics = (dna.relics ?? []).filter((id) => relicsReg[id]).map((id) => relicsReg[id].name);
-  if (relics.length) rows.push({ label: 'RELICS', value: relics.join(', ') });
-  return rows;
-}
-
 function formatTime(t: number): string {
   const m = Math.floor(t / 60);
   const s = Math.floor(t % 60);
