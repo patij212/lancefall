@@ -32,6 +32,17 @@ export function weaverSecondGapStart(gapStart: number, n: number, gapWidth: numb
   return (((gapStart + half - drift) % n) + n) % n;
 }
 
+/** Safe-lane WIDTH for the enraged pulse ring at `ringCount`: shrinks linearly from
+ *  WEAVER.ringGap toward gapShrinkMin over gapShrinkRings rings, so the lanes narrow
+ *  into a timed THREAD as the phase escalates. Off-enrage stays the full ringGap.
+ *  Pure (counter-driven, no rng); clamped to [gapShrinkMin, ringGap]. */
+export function weaverGapWidth(ringCount: number, enraged: boolean): number {
+  if (!enraged) return WEAVER.ringGap;
+  const progress = ringCount / WEAVER.gapShrinkRings;
+  const w = Math.floor(WEAVER.ringGap - (WEAVER.ringGap - WEAVER.gapShrinkMin) * progress);
+  return Math.max(WEAVER.gapShrinkMin, Math.min(WEAVER.ringGap, w));
+}
+
 export function updateWeaver(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
@@ -80,8 +91,9 @@ export function updateWeaver(e: Enemy, world: World, dt: number): void {
     if (e.fireTimer <= 0) {
       const n = WEAVER.ringBullets;
       const gapStart = Math.floor(world.rng.next() * n); // the one seeded draw (unchanged)
-      const secondStart = weaverSecondGapStart(gapStart, n, WEAVER.ringGap, e.fireCount, WEAVER.gapDriftStep);
-      const omit = new Set(weaverGapIndices(gapStart, n, WEAVER.ringGap, enraged, secondStart));
+      const gapWidth = weaverGapWidth(e.fireCount, enraged); // enraged: lanes narrow over rings (thread test)
+      const secondStart = weaverSecondGapStart(gapStart, n, gapWidth, e.fireCount, WEAVER.gapDriftStep);
+      const omit = new Set(weaverGapIndices(gapStart, n, gapWidth, enraged, secondStart));
       const sp = WEAVER.ringBulletSpeed;
       for (let i = 0; i < n; i++) {
         if (omit.has(i)) continue; // safe lane(s)

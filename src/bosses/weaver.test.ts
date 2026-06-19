@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { weaverGapIndices, weaverSecondGapStart } from './weaver';
+import { weaverGapIndices, weaverSecondGapStart, weaverGapWidth } from './weaver';
+import { WEAVER } from '../tune';
 
 describe('weaver gap indices', () => {
   const n = 26, gapWidth = 3;
@@ -14,6 +15,29 @@ describe('weaver gap indices', () => {
   it('wraps indices past n', () => {
     const g = weaverGapIndices(25, n, gapWidth, false, 0);
     expect(g).toEqual([0, 1, 25]); // 25,26%26=0,27%26=1
+  });
+});
+
+describe('weaver gap width (enraged thread test)', () => {
+  it('stays full ringGap when not enraged, every ring', () => {
+    expect(weaverGapWidth(0, false)).toBe(WEAVER.ringGap);
+    expect(weaverGapWidth(99, false)).toBe(WEAVER.ringGap);
+  });
+  it('opens at full width on ring 0 even when enraged', () => {
+    expect(weaverGapWidth(0, true)).toBe(WEAVER.ringGap);
+  });
+  it('narrows over successive enraged rings', () => {
+    expect(weaverGapWidth(WEAVER.gapShrinkRings, true)).toBe(WEAVER.gapShrinkMin);
+    // monotonic non-increasing across rings
+    let prev = weaverGapWidth(0, true);
+    for (let r = 1; r <= WEAVER.gapShrinkRings + 2; r++) {
+      const w = weaverGapWidth(r, true);
+      expect(w).toBeLessThanOrEqual(prev);
+      prev = w;
+    }
+  });
+  it('clamps to gapShrinkMin (never zero/negative)', () => {
+    expect(weaverGapWidth(9999, true)).toBe(WEAVER.gapShrinkMin);
   });
 });
 
