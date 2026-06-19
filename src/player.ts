@@ -193,8 +193,12 @@ function advanceDash(p: Player, dt: number, stats: RunStats, ev: PlayerEvents): 
   p.y = p.dashFromY + (p.dashToY - p.dashFromY) * t;
   if (t >= 1) {
     p.phase = 'idle';
-    p.vx = p.dashDirX * TUNE.dash.carrySpeed;
-    p.vy = p.dashDirY * TUNE.dash.carrySpeed;
+    // A HEAVY LANCE bite-in PLANTS you at the standoff — kill the fly-through momentum,
+    // or the carry (which points along the heading, INTO the boss) drags you off the
+    // standoff and onto the contact-lethal hull. A normal dash keeps its carry.
+    const carry = p.dashBitIn ? 0 : TUNE.dash.carrySpeed;
+    p.vx = p.dashDirX * carry;
+    p.vy = p.dashDirY * carry;
     p.regenDelay = stats.regenDelay;
     ev.landed = true;
   }

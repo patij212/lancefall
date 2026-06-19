@@ -33,7 +33,7 @@ export const TUNE = {
     // "bite-in" that sticks a boss/elite instead of overshooting (see dash.ts/game.ts).
     heavyChargeMin: 1.0, // ONLY a full 100% charge arms the heavy (charge pins at 1.0 when held)
     heavyDamageBonus: 1, // additive dash damage on a full-charge heavy (modest — stacks with pierce/IMPALER)
-    heavyBiteInFollow: 30, // px a heavy dash continues past a boss/elite contact, then stops
+    heavyBiteInGap: 12, // px the heavy dash STOPS clear of a boss/elite body (no faceplant onto a lethal hull)
   },
 
   stamina: {

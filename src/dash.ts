@@ -46,15 +46,17 @@ export function isFullCharge(charge: number): boolean {
   return charge >= TUNE.dash.heavyChargeMin - 1e-6;
 }
 
-/** Clamp a heavy dash's end point to just past a boss/elite contact so it bites in
- *  and sticks the target instead of overshooting the arena. Returns the new (toX,toY). */
-export function biteInTarget(
-  fromX: number, fromY: number, hitX: number, hitY: number, follow: number,
+/** Where a heavy dash STOPS when it bites a boss/elite: a standoff `dist` from the
+ *  boss centre, on the side the player (px,py) is already on — so the spear stabs the
+ *  body but you don't faceplant into a contact-lethal boss. Falls back to the dash
+ *  heading (dirX,dirY) when the player is dead-centre on the boss. */
+export function biteInStop(
+  bossX: number, bossY: number, px: number, py: number, dirX: number, dirY: number, dist: number,
 ): { toX: number; toY: number } {
-  const dx = hitX - fromX, dy = hitY - fromY;
-  const d = Math.hypot(dx, dy) || 1;
-  const stop = d + follow;
-  return { toX: fromX + (dx / d) * stop, toY: fromY + (dy / d) * stop };
+  let gx = px - bossX, gy = py - bossY;
+  let gd = Math.hypot(gx, gy);
+  if (gd < 1e-3) { gx = dirX; gy = dirY; gd = Math.hypot(gx, gy) || 1; }
+  return { toX: bossX + (gx / gd) * dist, toY: bossY + (gy / gd) * dist };
 }
 
 export function canDash(stamina: number, cost: number = TUNE.stamina.dashCost): boolean {

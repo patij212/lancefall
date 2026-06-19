@@ -45,7 +45,7 @@ import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
 import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
-import { maxStamina, effectiveDashCost, cappedRefund, biteInTarget } from './dash';
+import { maxStamina, effectiveDashCost, cappedRefund, biteInStop } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
@@ -1633,16 +1633,19 @@ export class Game {
           this.audio.thunk(60, this.panFor(e.x));
         }
         this.damageEnemy(e, dmg, true);
-        // HEAVY LANCE bite-in: a full-charge dash that connects with a BOSS/elite sticks
-        // it — continue just past the contact instead of overshooting across the arena.
+        // HEAVY LANCE bite-in: a full-charge dash that connects with a BOSS/elite STOPS
+        // at spear's reach on the side you're already on — so you stab it but don't
+        // faceplant into the contact-lethal body, and the arena overshoot is gone too.
+        // (Damage already landed above; this only governs where the body ends up.)
         if (p.dashHeavy && !p.dashBitIn && (e.isBoss || e.elite)) {
           p.dashBitIn = true;
-          const stick = biteInTarget(p.x, p.y, e.x, e.y, TUNE.dash.heavyBiteInFollow);
+          const standoff = e.radius + TUNE.player.radius + TUNE.dash.heavyBiteInGap;
+          const stop = biteInStop(e.x, e.y, p.x, p.y, p.dashDirX, p.dashDirY, standoff);
           p.dashFromX = p.x;
           p.dashFromY = p.y;
-          p.dashToX = stick.toX;
-          p.dashToY = stick.toY;
-          const rem = Math.hypot(stick.toX - p.x, stick.toY - p.y);
+          p.dashToX = stop.toX;
+          p.dashToY = stop.toY;
+          const rem = Math.hypot(stop.toX - p.x, stop.toY - p.y);
           p.dashTime = 0;
           p.dashDuration = Math.max(TUNE.dash.minDuration, rem / TUNE.dash.speed);
         }

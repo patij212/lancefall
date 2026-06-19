@@ -85,3 +85,30 @@ describe('tap-dash floor', () => {
     expect(ev.dashFired).toBe(false);
   });
 });
+
+describe('HEAVY LANCE bite-in plants the player (no carry into the boss)', () => {
+  function dashingPlayer(bitIn: boolean): Player {
+    const p = freshPlayer();
+    p.phase = 'dashing';
+    p.dashBitIn = bitIn;
+    p.dashFromX = 500; p.dashFromY = 500;
+    p.dashToX = 560; p.dashToY = 500;
+    p.dashDirX = 1; p.dashDirY = 0;
+    p.dashTime = 0; p.dashDuration = TUNE.dash.minDuration;
+    return p;
+  }
+
+  it('a bite-in dash lands with ZERO carry velocity (it plants, not flies through)', () => {
+    const p = dashingPlayer(true);
+    updatePlayer(p, freshInput(), 0.1, deriveStats({}), 1000, 1000, freshEvents());
+    expect(p.phase).toBe('idle');
+    expect(Math.hypot(p.vx, p.vy)).toBeCloseTo(0); // no momentum to drag it onto the lethal hull
+  });
+
+  it('a NORMAL dash still carries momentum (regression guard)', () => {
+    const p = dashingPlayer(false);
+    updatePlayer(p, freshInput(), 0.1, deriveStats({}), 1000, 1000, freshEvents());
+    expect(p.phase).toBe('idle');
+    expect(Math.hypot(p.vx, p.vy)).toBeCloseTo(TUNE.dash.carrySpeed); // unchanged for normal dashes
+  });
+});
