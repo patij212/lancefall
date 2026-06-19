@@ -40,11 +40,16 @@ The v1 parry (`resolveParry`, game.ts) destroys bullets in the arc and pays +28 
 
 ### Pillar 4 — The PROGRESSION (Phase 2)
 - **Two skill axes** (design refinement): **timing** (perfect-frame = caught in the first ~2–3 frames of the active window) and **rhythm** (on-beat). They're SEPARATE and both rewarded; nailing **both at once** is the apex (→ the hero moment). Add a pure `parryGrade(activeElapsed, onBeat)` → `'perfect'|'good'` × `onBeat` in `parry.ts`.
-- **Meta branch:** a dedicated PARRY node cluster in `meta.ts` (e.g. *Wider Guard* = +arc, *Quick Recover* = −recovery, *Streak Memory* = +streak window, and the **"PERFECT FRAME"** capstone = opens/widens the perfect-frame window so timing-skill pays off). Follow the existing meta-node shape; surface in `panels/upgrades.ts` following the panel convention.
+- **Meta branch:** a dedicated PARRY node cluster in `meta.ts` (follow the existing meta-node shape; surface in `panels/upgrades.ts` following the panel convention):
+  - **Long Guard** — permanent `+reach` per level (the arc extends further in front → catch bullets sooner).
+  - **Wide Guard** — permanent `+halfAngle` per level (the wedge sweeps wider → catch more across the front).
+  - **Quick Recover** — `−recovery` per level. **Streak Memory** — `+streak window` per level.
+  - **PERFECT FRAME** (capstone) — opens/widens the perfect-frame timing window so reaction-skill pays off.
+  - Reach + arc-angle scaling are the PERMANENT floor; the coherence flow-widening (Pillar 2) is the TEMPORARY bonus on top — they STACK. **Clamp `halfAngle` at π (a full 360° guard) and `reach` at a sane cap**, so the full-circle apex is reachable only by a deep parry-meta build AT max coherence (an earned "parry master" payoff), never an overshoot.
 
 ## Guardrails (bake these in — it must NOT become a win-button)
 - Riposte damage stays SMALL (kills chaff; only chips elites/bosses — never a boss-melter).
-- Full-circle arc only at **max** coherence (a rare flow reward, not the default stance).
+- Full-circle arc only at the apex of a deep parry-meta build AT **max** coherence (`halfAngle` clamped at π, `reach` capped) — earned, never the default stance.
 - The hero bullet-clear is gated behind **perfect AND on-beat** (rare + earned), and clears only **chaff** bullets (not boss bullets).
 - The `bossBudget` cap still bounds the boss-guard-shave per parry.
 - **Determinism:** every new bit is pure / geometry / fixed math — NO new `world.rng` draws. Run `src/determinism.test.ts` after each task.
