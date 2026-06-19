@@ -49,6 +49,47 @@ function drawSplitterCracks(ctx: CanvasRenderingContext2D, e: Enemy, t: number, 
   ctx.restore();
 }
 
+/** SHADE — the timing-duel tell. While dormant it shows nothing (it is harmless, so the
+ *  absence of a ring reads as "safe to touch"); as it readies a STRIKE a warning ring
+ *  converges onto the body (the phase-in), and during the lethal lunge a hot ring + a
+ *  forward slash along the lunge mark it as live. Strobe gated by a11y flags. */
+function drawShadeStrike(ctx: CanvasRenderingContext2D, e: Enemy, t: number, reduceMotion: boolean, reduceFlashing: boolean): void {
+  const tele = e.telegraph || 0;
+  if (e.phase !== 1 && tele <= 0) return; // dormant drift → no tell (it is harmless)
+  const r = bodyRadius(e);
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  ctx.globalCompositeOperation = 'lighter';
+  if (e.phase === 1) {
+    // STRIKE (lethal): a hot ring + a slash along the committed lunge
+    const pulse = reduceMotion || reduceFlashing ? 0.85 : 0.6 + 0.4 * Math.abs(Math.sin(t * 28));
+    ctx.strokeStyle = '#fff7ed';
+    ctx.globalAlpha = 0.85 * pulse;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 5, 0, Math.PI * 2);
+    ctx.stroke();
+    const a = Math.atan2(e.vy, e.vx) || 0;
+    ctx.strokeStyle = '#fdba74';
+    ctx.globalAlpha = 0.9 * pulse;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    ctx.lineTo(Math.cos(a) * (r + 18), Math.sin(a) * (r + 18));
+    ctx.stroke();
+  } else {
+    // PHASE-IN warning: a ring converging onto the body as the strike readies (tele 0→1)
+    const rr = r + 26 * (1 - tele);
+    ctx.strokeStyle = '#fdba74';
+    ctx.globalAlpha = 0.25 + 0.5 * tele;
+    ctx.lineWidth = 1.5 + 2 * tele;
+    ctx.beginPath();
+    ctx.arc(0, 0, rr, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Draw every active enemy's role tell. One call site in render.ts (drawEnemies). */
 export function drawEnemyTells(
   ctx: CanvasRenderingContext2D,
@@ -57,11 +98,13 @@ export function drawEnemyTells(
   reduceMotion: boolean,
   reduceFlashing: boolean,
 ): void {
-  void reduceFlashing; // reserved for strobe-gated tells added in later enemy passes
   world.enemies.forEachActive((e) => {
     switch (e.kind) {
       case 'splitter':
         drawSplitterCracks(ctx, e, t, reduceMotion);
+        break;
+      case 'shade':
+        drawShadeStrike(ctx, e, t, reduceMotion, reduceFlashing);
         break;
       default:
         break;

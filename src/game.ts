@@ -17,7 +17,7 @@ import { Director } from './waves';
 import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, shieldChance, ELITE_KINDS, suddenDeathInset } from './waves';
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
-import { updateEnemy, splitInto } from './enemies';
+import { updateEnemy, splitInto, shadeLethal } from './enemies';
 import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindow, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
@@ -2540,6 +2540,9 @@ export class Game {
     w.hash.queryAABB(p.x - 60, p.y - 60, p.x + 60, p.y + 60, this.candidates);
     for (const e of this.candidates) {
       if (!e.active || e.isBoss) continue; // boss body handled by the phase-aware check below
+      // SHADE is harmless while drifting — only its brief telegraphed STRIKE is lethal
+      // (the timing-duel; enemy overhaul). A dormant shade can be stood on / dashed through.
+      if (e.kind === 'shade' && !shadeLethal(e)) continue;
       if (circleHit(p.x, p.y, p.radius, e.x, e.y, e.radius * 0.72)) {
         this.playerDie('a collision', e.kind);
         return;

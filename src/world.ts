@@ -343,7 +343,7 @@ export class World {
     e.timer =
       kind === 'darter' ? DARTER.cadence
       : kind === 'drifter' ? DRIFTER_TUNE.repositionTime
-      : kind === 'shade' ? SHADE_TUNE.blinkCadence
+      : kind === 'shade' ? SHADE_TUNE.strikeCadence
       : kind === 'brooder' ? BROODER.spawnEvery // wait before the first hatch
       : kind === 'herald' ? HERALD.repositionTime // strafe before the first wall
       : kind === 'seeker' ? SEEKER_TUNE.repositionTime // strafe before the first bolt

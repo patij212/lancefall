@@ -421,12 +421,17 @@ export const SEEKER_TUNE = {
   feintSpeedMul: 1.3, // the feint snaps in faster than the slow homer (a distinct read)
 } as const;
 
-// Shade — a teleporting ambusher. Chases, then blinks to a fresh edge angle.
-// No bullets; contact kill. Fills the gap between wisp + bomber.
+// Shade — a TIMING-DUEL (enemy overhaul). It is FADED + HARMLESS while drifting
+// (no contact kill — see shadeLethal); it only becomes lethal during a brief,
+// TELEGRAPHED phase-in STRIKE. The phase-in flash is the tell: dash through it
+// (i-frames) or sidestep. Safe between strikes — the deliberate easing that funds the
+// overhaul's flat difficulty budget (it used to be a contact kill at all times).
 export const SHADE_TUNE = {
-  chaseSpeed: 150,
-  blinkCadence: 3.2, // s between blinks
-  telegraphTime: 0.4, // s of pre-blink warning flash
+  driftSpeed: 72, // slow, harmless approach while dormant (closes the duel distance)
+  strikeCadence: 2.6, // s of drift between strikes
+  telegraphTime: 0.55, // s of pre-strike phase-in warning (bumped 0.4→0.55 for readability)
+  strikeSpeed: 350, // the committed lunge — coasts (no re-steer) so it is sidestep-able
+  strikeTime: 0.42, // s the lethal lunge lasts, then it is harmless again
 };
 
 // BIOME RULES — the per-biome modifiers that change a RULE, not just the palette.
@@ -870,6 +875,19 @@ export const ZONE = {
   enabled: true, // master switch for boss zone-targeting
   bias: 0.25, // fraction of the way the drift target is nudged toward the player (small → keeps the wander)
   margin: 60, // px the zoned target is kept inside the arena edges
+} as const;
+
+// FINALE THEATER — every non-Sovereign boss fires ONE survivable "last stand" ring the
+// moment its HP first crosses `frac`, with a guaranteed escape lane toward the player so
+// the kill feels earned, not cheap. (The Sovereign keeps its own sub-25% crescendo.)
+export const FINALE = {
+  frac: 0.08, // HP fraction below which the one-shot last-stand volley fires
+  gapHalf: 0.55, // rad half-width of the guaranteed safe lane (centred on the player) — keeps it survivable
+  warden: { bullets: 22, speed: 200 },
+  weaver: { bullets: 26, speed: 185 },
+  beacon: { bullets: 24, speed: 190 },
+  mirrorblade: { bullets: 18, speed: 220 },
+  hollow: { bullets: 20, speed: 170 },
 } as const;
 
 export const WARDEN = {

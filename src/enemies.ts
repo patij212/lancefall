@@ -506,24 +506,48 @@ function drifter(e: Enemy, world: World, dt: number): void {
   }
 }
 
+/** SHADE is LETHAL only mid-STRIKE (phase 1). It is faded + harmless while drifting
+ *  (phase 0) — the timing-duel safety that funds the overhaul's flat budget. The body
+ *  collision check (game.ts) consults this so a drifting shade can be stood on / walked
+ *  through with no penalty; only the brief telegraphed lunge kills. PURE, no rng. */
+export function shadeLethal(e: Enemy): boolean {
+  return e.kind === 'shade' && e.phase === 1;
+}
+
 function shade(e: Enemy, world: World, dt: number): void {
   const p = world.player;
-  e.timer -= dt;
-  e.telegraph = e.timer < SHADE_TUNE.telegraphTime ? clamp(1 - e.timer / SHADE_TUNE.telegraphTime, 0, 1) : 0;
-  if (e.timer <= 0) {
-    // blink to a fresh edge angle — threatens from an unexpected direction
-    const pt = world.edgeSpawn();
-    e.x = pt.x;
-    e.y = pt.y;
-    e.timer = SHADE_TUNE.blinkCadence;
-    e.telegraph = 0;
-    e.scale = 0.5; // brief re-materialise pop
-  }
-  steerToward(e, p.x, p.y, SHADE_TUNE.chaseSpeed * e.speedMul);
-  if (e.telegraph > 0) {
-    // brace (slow) just before blinking out
-    e.vx *= 0.3;
-    e.vy *= 0.3;
+  if (e.phase === 0) {
+    // DRIFT — faded + harmless; close the duel distance slowly. The phase-in tell ramps
+    // over the last telegraphTime seconds (drawn in enemyTells), and it braces to a near-
+    // stop just before striking so the strike origin is readable.
+    steerToward(e, p.x, p.y, SHADE_TUNE.driftSpeed * e.speedMul);
+    e.timer -= dt;
+    e.telegraph = e.timer < SHADE_TUNE.telegraphTime ? clamp(1 - e.timer / SHADE_TUNE.telegraphTime, 0, 1) : 0;
+    if (e.telegraph > 0) {
+      e.vx *= 0.35;
+      e.vy *= 0.35;
+    }
+    if (e.timer <= 0) {
+      // PHASE IN → STRIKE: lock a committed lunge at the player and become lethal. The
+      // lunge COASTS (no re-steer below), so a clean sidestep or a dash-through beats it.
+      const [nx, ny] = norm(p.x - e.x, p.y - e.y);
+      e.vx = nx * SHADE_TUNE.strikeSpeed * e.speedMul;
+      e.vy = ny * SHADE_TUNE.strikeSpeed * e.speedMul;
+      e.phase = 1;
+      e.timer = SHADE_TUNE.strikeTime;
+      e.telegraph = 1; // hold the flash bright through the lethal window
+      e.scale = 0.7; // a small phase-in pop
+    }
+  } else {
+    // STRIKE — the lethal lunge coasts; collision lethality is gated by shadeLethal.
+    e.timer -= dt;
+    if (e.timer <= 0) {
+      e.phase = 0;
+      e.timer = SHADE_TUNE.strikeCadence;
+      e.telegraph = 0;
+      e.vx *= 0.2;
+      e.vy *= 0.2;
+    }
   }
 }
 
