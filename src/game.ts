@@ -18,8 +18,8 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, s
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto, shadeLethal } from './enemies';
-import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindow, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor } from './boss';
-import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
+import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindowWithBeat, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor } from './boss';
+import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign, sovereignCoreBonusForBeat } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, longestDayBonus, perfectThreadReady, perfectThreadScore } from './combat';
@@ -158,6 +158,7 @@ export class Game {
   private candidates: Enemy[] = [];
   private chainBuf: Enemy[] = []; // separate buffer so chain explosions don't clobber the dash-hit loop
   private parryWasActive = false; // edge-detect the active-window close to fizzle a whiff
+  private lastDashOnBeat = false; // the landing dash's beat grade — read at core-shatter / echo-kill for on-beat teeth
   private riposteBossBuf: Bullet[] = []; // boss bullets a Riposte dash intersects, sorted then spent against the budget
   private dashSlowmoTriggered = false;
   private dying = false;
@@ -1260,6 +1261,7 @@ export class Game {
       // pass the current time scale so a dash that LOOKS on-beat during slow-mo grades on-beat
       // (playtest: slow-mo broke the rhythm) — the window widens by 1/timeScale while slowed
       const grade = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale);
+      this.lastDashOnBeat = grade !== 'off'; // latch for on-beat boss teeth (core chunk / echo window)
       if (grade !== 'off') {
         const perfect = grade === 'perfect';
         coherenceBeatKick(this.coherence, perfect);
@@ -1977,8 +1979,9 @@ export class Game {
       this.shake.add(0.16);
     } else if (e.kind === 'hollow_echo') {
       // hunting an echo DESTABILISES the Hollow — EARN its vulnerability window now
-      // (replaces the old passive "wait for white"). No new world.rng draw.
-      if (w.boss && w.boss.kind === 'hollow') openHollowWindow(w.boss);
+      // (replaces the old passive "wait for white"). An ON-BEAT echo-kill earns a LONGER
+      // window (the beat's teeth on the hunt). No new world.rng draw.
+      if (w.boss && w.boss.kind === 'hollow') openHollowWindowWithBeat(w.boss, fromDash && this.lastDashOnBeat);
     }
 
     w.enemies.release(e);
@@ -2029,8 +2032,9 @@ export class Game {
     this.checkComboTier();
     const boss = w.boss;
     if (!boss || boss.kind !== 'sovereign') return;
-    // weak-point chunk to the crown (may kill it → bossDeath cleans up the rest)
-    this.damageEnemy(boss, SOVEREIGN.coreWeakBonus, true);
+    // weak-point chunk to the crown (may kill it → bossDeath cleans up the rest).
+    // ON-BEAT teeth: a core shattered on the beat deals DOUBLE the crown chunk.
+    this.damageEnemy(boss, sovereignCoreBonusForBeat(fromDash && this.lastDashOnBeat), true);
     // last core down? crack the crown open. (Intentional: if the SAME dash that
     // shattered the final core also clips the now-unarmored body later in the hit
     // pass, that one bonus hit lands — a satisfying, hard-to-pull-off flourish,

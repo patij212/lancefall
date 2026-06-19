@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gravityPull, coreOrbitPos, beamHitsPoint, isSovereignExposed, sovereignBodyArmored, sovereignBeamActive, exposeSovereign, sovereignFinale, novaSpiralTelegraphFrac } from './sovereign';
+import { gravityPull, coreOrbitPos, beamHitsPoint, isSovereignExposed, sovereignBodyArmored, sovereignBeamActive, exposeSovereign, sovereignFinale, novaSpiralTelegraphFrac, sovereignCoreBonusForBeat } from './sovereign';
 import { SOVEREIGN } from './tune';
 import type { Enemy } from './types';
 
@@ -119,6 +119,13 @@ describe('sovereign finale', () => {
   });
   it('ignores non-sovereign enemies even at low HP', () => {
     expect(sovereignFinale(mkBoss({ kind: 'warden', hp: 1, maxHp: 30 }))).toBe(false);
+  });
+});
+
+describe('sovereign on-beat core teeth', () => {
+  it('doubles the crown chunk on an on-beat core shatter', () => {
+    expect(sovereignCoreBonusForBeat(true)).toBe(SOVEREIGN.coreWeakBonus * 2);
+    expect(sovereignCoreBonusForBeat(false)).toBe(SOVEREIGN.coreWeakBonus);
   });
 });
 

@@ -73,6 +73,12 @@ export function sovereignFinale(e: Enemy): boolean {
   return e.kind === 'sovereign' && e.hp / e.maxHp < SOVEREIGN.finaleFrac;
 }
 
+/** On-beat dash TEETH: shattering a Sovereign core ON THE BEAT doubles the crown chunk
+ *  it deals (the beat's mechanical reward vs the final boss). Pure — fixed multiplier, no rng. */
+export function sovereignCoreBonusForBeat(onBeat: boolean): number {
+  return onBeat ? SOVEREIGN.coreWeakBonus * 2 : SOVEREIGN.coreWeakBonus;
+}
+
 /** NOVA SPIRAL wind-up progress 0..1 from the telegraph countdown `fireTimer`
  *  (fireTimer = spiralTelegraph at entry, 0 when the spiral arms). Pure ramp for
  *  the tracer draw; clamped so it reads correctly at the window edges. */

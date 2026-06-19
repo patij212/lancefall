@@ -26,6 +26,15 @@ export function openHollowWindow(e: Enemy): void {
   e.telegraph = 1;
 }
 
+/** Like openHollowWindow, but an echo killed ON THE BEAT grants a LONGER vulnerability
+ *  window (echoSyncWindowOnBeat) — the beat's teeth on the Hollow hunt. Pure; no rng. */
+export function openHollowWindowWithBeat(e: Enemy, onBeat: boolean): void {
+  if (e.kind !== 'hollow') return;
+  e.phase = 2;
+  e.timer = onBeat ? HOLLOW.echoSyncWindowOnBeat : HOLLOW.echoSyncWindow;
+  e.telegraph = 1;
+}
+
 /** Seed one echo clone at a random offset around the boss. */
 function spawnHollowEcho(boss: Enemy, world: World): void {
   const a = world.rng.range(0, Math.PI * 2);

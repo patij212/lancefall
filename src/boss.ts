@@ -10,7 +10,7 @@ import { updateWarden } from './bosses/warden';
 import { updateWeaver } from './bosses/weaver';
 import { updateBeacon, beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac } from './bosses/beacon';
 import { updateMirrorblade, mirrorbladeDashing } from './bosses/mirrorblade';
-import { updateHollow, hollowSyncActive, cleanupHollowEchoes, openHollowWindow } from './bosses/hollow';
+import { updateHollow, hollowSyncActive, cleanupHollowEchoes, openHollowWindow, openHollowWindowWithBeat } from './bosses/hollow';
 import {
   updateSovereign,
   spawnSovereignCores,
@@ -25,7 +25,7 @@ import {
 export { beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac };
 export { bossEnraged, bossEnrageFrac, getEnrageColor } from './bosses/util';
 export { mirrorbladeDashing };
-export { hollowSyncActive, cleanupHollowEchoes, openHollowWindow };
+export { hollowSyncActive, cleanupHollowEchoes, openHollowWindow, openHollowWindowWithBeat };
 export { spawnSovereignCores, spawnCipherRing, cleanupSovereignCores, countSovereignCores };
 
 /** Human-readable boss name for the incoming-warning toast. */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { openHollowWindow, hollowSyncActive } from './hollow';
+import { openHollowWindow, openHollowWindowWithBeat, hollowSyncActive } from './hollow';
 import { HOLLOW } from '../tune';
 import type { Enemy } from '../types';
 
@@ -27,5 +27,15 @@ describe('hollow window', () => {
     openHollowWindow(e);
     expect(e.phase).toBe(0);
     expect(e.timer).toBe(5);
+  });
+
+  it('on-beat echo-kill opens a LONGER window than off-beat (the beat teeth)', () => {
+    const onB = mk({ phase: 0 });
+    openHollowWindowWithBeat(onB, true);
+    expect(onB.timer).toBe(HOLLOW.echoSyncWindowOnBeat);
+    const offB = mk({ phase: 0 });
+    openHollowWindowWithBeat(offB, false);
+    expect(offB.timer).toBe(HOLLOW.echoSyncWindow);
+    expect(HOLLOW.echoSyncWindowOnBeat).toBeGreaterThan(HOLLOW.echoSyncWindow);
   });
 });

@@ -522,6 +522,7 @@ export const HOLLOW = {
   syncTelegraph: 0.9, // s of white-flash warning before the window
   syncWindow: 1.0, // s the boss is damageable (dash through it) on the passive cycle
   echoSyncWindow: 1.4, // s of vulnerability EARNED by killing an echo (destabilises the Hollow on demand)
+  echoSyncWindowOnBeat: 1.8, // s of vulnerability when the echo is killed ON THE BEAT (the beat's teeth on the hunt)
   fanBullets: 5,
   fanSpread: 0.3,
   fanBulletSpeed: 210,
