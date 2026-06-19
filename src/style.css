@@ -5526,3 +5526,265 @@ body {
   .go-foot-secondary { width: 100%; }
   .go-tab-title { font-size: 30px; }
 }
+
+/* ============================================================================
+   THE BOMBE — the codebreaker console. A neon cryptanalysis station: a grey→neon
+   master-cipher meter, enciphered tokens as dim glyphs that resolve into warm
+   plaintext, a working-rotor Bombe motif, and styled cryptograms. Themes off the
+   per-mode --accent. A11y: reduce-motion holds every frame, reduce-flashing softens
+   the decrypt flash to a fade, clarity lifts contrast. (appended — shared file)
+   ============================================================================ */
+/* the console themes cyan/amber (the codebreaker palette); --accent is declared per-component
+   elsewhere, so the modal sets its own so every var(--accent) below resolves. */
+.bombe-body { display: flex; flex-direction: column; --accent: var(--cyan); }
+
+/* the "it ran overnight" readout — gently announces itself when it appears */
+.bombe-overnight {
+  margin: 0 0 12px;
+  padding: 9px 13px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-raised));
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(11px * var(--hud-scale));
+  letter-spacing: 0.03em;
+  color: var(--text);
+  animation: bombe-overnight-in 0.5s ease-out both;
+}
+@keyframes bombe-overnight-in {
+  0% { opacity: 0; transform: translateY(-4px); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  60% { box-shadow: 0 0 16px 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  100% { opacity: 1; transform: translateY(0); box-shadow: 0 0 0 0 transparent; }
+}
+
+/* master cipher meter — the longest-day progress, grey (cold) to neon */
+.bombe-master { margin: 4px 0 16px; }
+.bombe-master-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(11.5px * var(--hud-scale));
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin: 0 0 7px;
+  text-transform: uppercase;
+}
+.bombe-master-track {
+  position: relative;
+  height: 16px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(90deg, #2a3140, #323a4b) padding-box;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.bombe-master-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 10px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 70%, #4a5568) 0%,
+    var(--accent) 55%,
+    var(--amber) 100%);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent),
+    inset 0 0 8px color-mix(in srgb, #fff 22%, transparent);
+  transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bombe-master-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: bombe-meter-sweep 3.2s ease-in-out infinite;
+  opacity: 0.5;
+}
+.bombe-master-fill.done {
+  background: linear-gradient(90deg, var(--accent) 0%, var(--amber) 55%, #fff3c4 100%);
+  box-shadow: 0 0 22px var(--amber), 0 0 44px color-mix(in srgb, var(--amber) 55%, transparent),
+    inset 0 0 12px rgba(255, 255, 255, 0.5);
+  animation: bombe-longestday 2.6s ease-in-out infinite;
+}
+@keyframes bombe-meter-sweep { 0% { background-position: -50% 0; } 100% { background-position: 150% 0; } }
+@keyframes bombe-longestday { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }
+
+/* status row: the working machine + fragment/level readout + build button */
+.bombe-statusrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-raised));
+}
+.bombe-statuscol { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.bombe-frag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(14px * var(--hud-scale));
+  font-weight: 700;
+  color: var(--amber);
+}
+.bombe-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(10.5px * var(--hud-scale));
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.bombe-upgrade { flex: 0 0 auto; white-space: nowrap; }
+
+/* the working Bombe — three rotor drums that spin while it runs */
+.bombe-machine { display: flex; gap: 5px; flex: 0 0 auto; align-items: center; }
+.bombe-drum {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background:
+    conic-gradient(from 0deg,
+      color-mix(in srgb, var(--accent) 50%, transparent) 0deg 40deg,
+      transparent 40deg 90deg) content-box,
+    radial-gradient(circle, var(--bg) 38%, transparent 40%);
+  opacity: 0.4;
+}
+.bombe-machine.running .bombe-drum { opacity: 0.95; animation: bombe-rotor 1.8s linear infinite; }
+.bombe-machine.running .bombe-drum:nth-child(2) { animation-duration: 1.25s; animation-direction: reverse; }
+.bombe-machine.running .bombe-drum:nth-child(3) { animation-duration: 2.4s; }
+@keyframes bombe-rotor { to { transform: rotate(360deg); } }
+
+/* intercept cards */
+.bombe-list { display: flex; flex-direction: column; gap: 12px; }
+.bombe-intercept {
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.bombe-intercept.done {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 6px 22px -12px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.bombe-ic-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0 0 8px; }
+.bombe-ic-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(11px * var(--hud-scale));
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  font-weight: 700;
+}
+.bombe-ic-prog {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(10px * var(--hud-scale));
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.bombe-intercept.done .bombe-ic-prog { color: var(--accent); }
+.bombe-ic-text {
+  font-size: calc(13px * var(--hud-scale));
+  line-height: 1.85;
+  margin: 0 0 11px;
+  word-spacing: 0.04em;
+}
+
+/* tokens: decrypted = warm readable plaintext; enciphered = dim monospace glyphs.
+   colorblind-safe: resolved reads via brightness + weight (bright/medium) vs the
+   un-cracked glyph (dim/light), never hue alone. */
+.bombe-tok { color: var(--text); font-weight: 500; transition: color 0.4s; }
+.bombe-tok.enc {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 300;
+  color: #4a5568;
+  letter-spacing: 0.02em;
+  opacity: 0.72;
+}
+.bombe-tok.enc.r-rare { color: #6b7a93; }
+.bombe-tok.enc.r-key { color: color-mix(in srgb, var(--amber) 55%, #6b7a93); text-shadow: 0 0 6px color-mix(in srgb, var(--amber) 30%, transparent); }
+
+/* the cross-reveal FLASH — a just-cracked word lights up across every transmission */
+.bombe-tok.just {
+  animation: bombe-resolve 0.9s ease-out both;
+  animation-delay: var(--flash-delay, 0ms);
+}
+@keyframes bombe-resolve {
+  0% { color: #fff; text-shadow: 0 0 14px var(--accent), 0 0 22px var(--accent); }
+  40% { color: var(--accent); text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent); }
+  100% { color: var(--text); text-shadow: none; }
+}
+
+.bombe-decrypt { margin-top: 2px; }
+
+/* cryptanalysis puzzles */
+.bombe-puzzles { display: flex; flex-direction: column; gap: 12px; }
+.bombe-puzzle {
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  transition: border-color 0.3s;
+}
+.bombe-puzzle.done { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+.bombe-pz-prompt {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(20px * var(--hud-scale));
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent);
+  margin: 0 0 8px;
+  word-break: break-word;
+}
+.bombe-puzzle.done .bombe-pz-prompt { color: var(--text-muted); text-shadow: none; opacity: 0.7; }
+.bombe-pz-hint {
+  font-size: calc(11px * var(--hud-scale));
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 11px;
+}
+.bombe-pz-solve { display: flex; gap: 9px; align-items: center; }
+.bombe-pz-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(13px * var(--hud-scale));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bombe-pz-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.bombe-pz-btn { flex: 0 0 auto; }
+.bombe-pz-done {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(11px * var(--hud-scale));
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+/* A11y */
+:root.reduce-motion .bombe-master-fill,
+:root.reduce-motion .bombe-master-fill::after,
+:root.reduce-motion .bombe-master-fill.done,
+:root.reduce-motion .bombe-machine.running .bombe-drum,
+:root.reduce-motion .bombe-overnight,
+:root.reduce-motion .bombe-tok.just { animation: none !important; transition: none !important; }
+:root.reduce-motion .bombe-master-fill::after { display: none; }
+:root.reduce-flashing .bombe-tok.just { animation: bombe-resolve-soft 0.9s ease-out both; }
+:root.reduce-flashing .bombe-master-fill.done { animation: none; }
+:root.reduce-flashing .bombe-master-fill::after { animation: none; opacity: 0.18; }
+:root.reduce-flashing .bombe-overnight { animation: none; }
+@keyframes bombe-resolve-soft { 0% { color: var(--accent); } 100% { color: var(--text); } }
+/* clarity (high-contrast): lift the un-cracked glyph, thicken card borders, calm the bloom so text stays crisp */
+:root.clarity .bombe-tok.enc { color: #8aa0bd; opacity: 1; }
+:root.clarity .bombe-intercept,
+:root.clarity .bombe-puzzle,
+:root.clarity .bombe-statusrow { border-width: 2px; }
+:root.clarity .bombe-pz-prompt { text-shadow: none; }
+:root.clarity .bombe-master-fill { box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent); }
+:root.clarity .bombe-pz-hint, :root.clarity .bombe-status { color: var(--text); }
+:root.clarity .bombe-master-label { color: var(--text); }
