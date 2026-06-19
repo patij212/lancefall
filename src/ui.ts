@@ -3808,13 +3808,17 @@ export class UI {
           ...v.key.map((k, i) =>
             el(
               'span',
-              { class: 'cipher-pair' + cls(i) },
+              { class: 'cipher-pair' + cls(i) + (v.revealed[i] ? '' : ' dim') },
               el('span', { class: 'cipher-plain' }, k.plain),
               el('span', { class: 'cipher-eq' }, '→'),
-              el('span', { class: 'cipher-sym' }, k.cipher),
+              el('span', { class: 'cipher-sym' }, v.revealed[i] ? k.cipher : '?'),
             ),
           ),
         ),
+        // SOLSTICE rotor (Sovereign): the legend steps each key — surface the offset to track.
+        ...(v.cls === 'rotor'
+          ? [el('div', { class: 'cipher-label' }, `ROTOR +${v.rotorOffset}`)]
+          : []),
       );
       this.cipherEl.classList.add('on');
     } else {

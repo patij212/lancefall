@@ -19,7 +19,7 @@ import type { Lod, SkinDef } from './skins';
 import { themeById } from './themes';
 import { shipById } from './ships';
 import { drawShipSilhouette } from './shipModels';
-import { cipherSymbol } from './cipherDecode';
+import { coreSymbolForSlot } from './cipherDecode';
 import {
   washSaturation,
   cityGlowAlpha,
@@ -1607,7 +1607,6 @@ export class Renderer {
     const cipher = this.cipher;
     if (cipher && !cipher.solved) {
       const slot = e.phase;
-      const glyph = cipher.glyphs[slot] ?? slot;
       const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed
       // `cipherAssist` (Casual / opt-in) re-lights the next core for players who want help
       const isNext = this.cipherAssistR && cipher.order[cipher.progress] === slot;
@@ -1626,7 +1625,7 @@ export class Renderer {
       // The SYMBOL must READ — decoding it IS the act. A thin dark outline under a bright
       // fill keeps it legible on any core fill, through the bloom + the COHERENCE wash.
       // (Was a near-black fill that vanished on the dark core — the one mark you must read.)
-      const sym = cipherSymbol(glyph);
+      const sym = coreSymbolForSlot(cipher, slot);
       ctx.lineJoin = 'round';
       ctx.lineWidth = Math.max(2, r * 0.14);
       ctx.strokeStyle = 'rgba(4,6,12,0.72)';
