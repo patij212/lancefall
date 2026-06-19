@@ -11,14 +11,14 @@ import type { World } from './world';
 import { bulletVisual } from './bulletStyle';
 import type { Enemy, Bullet, EnemyKind } from './types';
 import type { ThemeDef } from './themes';
-import { trailById, trailGhostColor } from './trails';
+import { trailById } from './trails';
 import type { TrailDef } from './trails';
 import { drawShipSkin } from './shipSkins';
 import { skinById, defaultSkinId } from './skins';
 import type { Lod, SkinDef } from './skins';
 import { themeById } from './themes';
 import { shipById } from './ships';
-import { shipModel, traceShipPath, drawShipSilhouette } from './shipModels';
+import { drawShipSilhouette } from './shipModels';
 import { cipherSymbol } from './cipherDecode';
 import {
   washSaturation,
@@ -27,9 +27,7 @@ import {
   showWindows,
   bgExposure,
   vignetteDeepenFactor,
-  trailBrightness,
   beatFlashRing,
-  spearNeonLift,
   threatRim,
   nebulaBlobCount,
   bossEntranceBlur,
@@ -38,6 +36,8 @@ import {
 // NEW boss-rework telegraph/finale overlays (kept OUT of this file — drawn in the
 // boss-centre frame). render.ts only delegates; no inline drawing was added.
 import { drawNovaSpiralTelegraph, drawSovereignFinaleTint, drawBeaconCounterBeam } from './render/boss';
+import { drawSpear } from './render/spear';
+import { mix, hexRgb } from './render/colorMix';
 import { beaconEnraged } from './bosses/beacon';
 
 // ── BIOMECHANICAL enemy art direction (Proposal B) ──────────────────────────
@@ -2079,8 +2079,7 @@ export class Renderer {
   private drawPlayer(world: World): void {
     const ctx = this.bctx;
     const p = world.player;
-    // the active ship's silhouette + signature accent (cosmetic; shape-coded for colorblind)
-    const model = shipModel(world.shipId);
+    // the active ship's signature accent (cosmetic; shape-coded for colorblind)
     const shipAccent = shipById(world.shipId).accent;
 
     // active POWER-UP aura — a coloured pulsing ring around the ship
@@ -2135,127 +2134,17 @@ export class Renderer {
       }
     }
 
-    // dash spear line + streaking ship afterimages (the "snap" of the dash)
-    if (p.phase === 'dashing') {
-      const col = comboColor(world.combo);
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = col;
-      ctx.lineWidth = TUNE.dash.hitboxRadius * 0.8;
-      ctx.lineCap = 'round';
-      ctx.globalAlpha = spearNeonLift(this.coherence, this.reduceFlashingR, this.clarityR); // C4 — momentum lights the spear
-      ctx.beginPath();
-      ctx.moveTo(p.dashFromX, p.dashFromY);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-      ctx.restore();
-
-      // ghost silhouettes along the travelled segment — crisp outlines that
-      // read as a streak of ships, fading toward the tail
-      const gsr = TUNE.player.spriteRadius;
-      const blaze = Math.min(1, world.combo / 50); // the trail intensifies as the chain climbs
-      const ghosts = 4 + Math.round(2 * blaze); // 4 → 6 at high combo
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      const ghostBase = trailGhostColor(this.trail, this.theme.accent2);
-      ctx.strokeStyle = blaze > 0.5 ? mix(ghostBase, '#ffffff', (blaze - 0.5) * 2) : ghostBase;
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      // the ink-ribbon trail dims as coherence drops (fixed high under Clarity)
-      const tb = trailBrightness(this.coherence, this.reduceFlashingR, this.clarityR);
-      for (let i = 1; i <= ghosts; i++) {
-        const t = i / (ghosts + 1);
-        const gx = p.dashFromX + (p.x - p.dashFromX) * t;
-        const gy = p.dashFromY + (p.y - p.dashFromY) * t;
-        const s = 0.7 + 0.3 * t; // ghosts grow toward the ship
-        ctx.globalAlpha = Math.min(1, (0.22 + 0.4 * t) * (1 + 0.5 * blaze) * tb);
-        ctx.save();
-        ctx.translate(gx, gy);
-        ctx.rotate(p.angle);
-        ctx.scale(s, s);
-        traceShipPath(ctx, model.hull, gsr);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.restore();
-      }
-      ctx.restore();
-    }
-
-    // afterimage ghost
-    if (world.ghostTimer > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = '#a855f7';
-      // fade across the ghost's actual lifetime (WRAITH stretches afterimageSec well past 0.5)
-      ctx.globalAlpha = Math.min(1, 0.45 * (world.ghostTimer / Math.max(0.01, world.stats.afterimageSec)));
-      ctx.lineWidth = 14;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(world.ghostX0, world.ghostY0);
-      ctx.lineTo(world.ghostX1, world.ghostY1);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // charge aim guide
-    if (p.phase === 'charging') {
-      const len = TUNE.dash.minLen + (TUNE.dash.maxLen - TUNE.dash.minLen) * p.charge * world.stats.dashLenMul;
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.angle);
-      ctx.strokeStyle = `rgba(120,220,255,${0.25 + 0.4 * p.charge})`;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 8]);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(len, 0);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      // arrowhead
-      ctx.fillStyle = `rgba(150,230,255,${0.4 + 0.5 * p.charge})`;
-      ctx.beginPath();
-      ctx.moveTo(len + 10, 0);
-      ctx.lineTo(len - 4, 7);
-      ctx.lineTo(len - 4, -7);
-      ctx.closePath();
-      ctx.fill();
-      // HEAVY LANCE OVERCHARGE — once at full charge, keep holding: an amber glow FILLS
-      // along the spear as the overcharge builds, then locks solid + a bright tip when the
-      // heavy arms. a11y: a steady fill/glow (never a strobe) so it survives reduceFlashing.
-      if (p.charge >= 1 - 1e-6 && TUNE.dash.heavyOverchargeTime > 0) {
-        const prog = Math.min(1, p.overcharge / TUNE.dash.heavyOverchargeTime);
-        const armed = prog >= 1 - 1e-6;
-        ctx.strokeStyle = armed ? 'rgba(253,224,71,0.9)' : `rgba(253,224,71,${0.2 + 0.5 * prog})`;
-        ctx.lineWidth = 2 + 1.5 * prog;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(len * prog, 0); // the amber fills toward the tip as you overcharge
-        ctx.stroke();
-        if (armed) {
-          ctx.fillStyle = 'rgba(255,240,150,0.95)';
-          ctx.beginPath();
-          ctx.arc(len, 0, 5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      // SLINGSHOT — the load tether stretched BACKWARD (the tension you're building)
-      if (this.slingshotR) {
-        const loadLen = 14 + 56 * p.charge; // the band stretches as you load
-        ctx.strokeStyle = `rgba(255,180,90,${0.35 + 0.5 * p.charge})`;
-        ctx.lineWidth = 1.5 + 2 * p.charge;
-        ctx.beginPath();
-        ctx.moveTo(-6, -6);
-        ctx.lineTo(-loadLen, 0);
-        ctx.lineTo(-6, 6);
-        ctx.stroke();
-        ctx.fillStyle = `rgba(255,210,140,${0.5 + 0.4 * p.charge})`;
-        ctx.beginPath();
-        ctx.arc(-loadLen, 0, 2.5 + 1.5 * p.charge, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    }
+    // Spear-state visuals (dash spear + ghost trail, afterimage, charge guide + HEAVY
+    // overcharge / SLINGSHOT, PARRY arc) live in render/spear.ts — render.ts only delegates.
+    drawSpear(ctx, world, {
+      coherence: this.coherence,
+      reduceFlashing: this.reduceFlashingR,
+      clarity: this.clarityR,
+      slingshot: this.slingshotR,
+      trail: this.trail,
+      themeAccent2: this.theme.accent2,
+      comboCol: comboColor(world.combo),
+    });
 
     // ship glow — tinted by the ship's own signature accent (its identity colour)
     ctx.save();
@@ -2604,16 +2493,3 @@ function shade(hex: string, amt: number): string {
   return v;
 }
 
-function mix(a: string, b: string, t: number): string {
-  const ca = hexRgb(a);
-  const cb = hexRgb(b);
-  return `rgb(${Math.round(ca.r + (cb.r - ca.r) * t)},${Math.round(ca.g + (cb.g - ca.g) * t)},${Math.round(
-    ca.b + (cb.b - ca.b) * t,
-  )})`;
-}
-
-function hexRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '');
-  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
