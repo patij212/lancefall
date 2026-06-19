@@ -12,7 +12,7 @@ import {
   type SandboxEvents,
 } from './sandbox';
 
-const NONE: SandboxEvents = { beganCharge: false, dashed: false, skewer: false };
+const NONE: SandboxEvents = { beganCharge: false, dashed: false, skewer: false, parried: false };
 const DT = 1 / 60;
 
 /** Drive the sandbox feeding `ev` only on the frame each step's trigger should fire.
@@ -25,7 +25,9 @@ function walkAllTriggers(): ReturnType<typeof newSandbox> {
   s = stepSandbox(s, DT, { ...NONE, dashed: true });
   // step 2 'chain' → skewer
   s = stepSandbox(s, DT, { ...NONE, skewer: true });
-  // step 3 'done' advances only by cap — tick it out
+  // step 3 'parry' → parried
+  s = stepSandbox(s, DT, { ...NONE, parried: true });
+  // step 4 'done' advances only by cap — tick it out
   for (let i = 0; i < 200 && !s.done; i++) s = stepSandbox(s, DT, NONE);
   return s;
 }
@@ -52,6 +54,21 @@ describe('sandbox step progression (pure)', () => {
     // a dash advances to chain
     s = stepSandbox(s, DT, { ...NONE, dashed: true });
     expect(currentStep(s).step).toBe('chain');
+  });
+
+  it('teaches PARRY after the chain — a parry advances past the parry beat', () => {
+    let s = newSandbox();
+    s = stepSandbox(s, DT, { ...NONE, beganCharge: true }); // → release
+    s = stepSandbox(s, DT, { ...NONE, dashed: true }); // → chain
+    s = stepSandbox(s, DT, { ...NONE, skewer: true }); // → parry
+    expect(currentStep(s).step).toBe('parry');
+    expect(currentStep(s).text.toLowerCase()).toContain('parry');
+    // a stray skewer does NOT satisfy the parry (parried) trigger
+    s = stepSandbox(s, DT, { ...NONE, skewer: true });
+    expect(currentStep(s).step).toBe('parry');
+    // a parry advances to the closing 'done' beat
+    s = stepSandbox(s, DT, { ...NONE, parried: true });
+    expect(currentStep(s).step).toBe('done');
   });
 
   it('walking every trigger completes the lesson with skewers counted', () => {

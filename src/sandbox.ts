@@ -15,11 +15,12 @@
 /** The scripted teach steps, in order. Each step is gated by a TRIGGER the player
  *  must satisfy to advance; a per-step time cap auto-advances so the screen can
  *  never stall (no-fail also means no-stuck). */
-export type SandboxStep = 'charge' | 'release' | 'chain' | 'done';
+export type SandboxStep = 'charge' | 'release' | 'chain' | 'parry' | 'done';
 
 /** What unblocks the current step. 'charge' waits for the player to begin charging,
- *  'release' for a committed dash, 'chain'/'done' for a skewer (a dummy hit). */
-export type SandboxTrigger = 'beganCharge' | 'dashed' | 'skewer' | 'tick';
+ *  'release' for a committed dash, 'chain' for a skewer (a dummy hit), 'parry' for a
+ *  successful deflect, 'done' for the closing beat (cap-only). */
+export type SandboxTrigger = 'beganCharge' | 'dashed' | 'skewer' | 'parried' | 'tick';
 
 export interface SandboxStepDef {
   step: SandboxStep;
@@ -37,13 +38,17 @@ export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
   { step: 'charge', text: 'HOLD to charge your spear', advanceOn: 'beganCharge', cap: 6 },
   { step: 'release', text: 'RELEASE to spear the target', advanceOn: 'dashed', cap: 6 },
   { step: 'chain', text: 'Nice — again! Skewer the next one', advanceOn: 'skewer', cap: 4.5 },
+  // ACT TWO — the second verb. A dummy lobs ONE slow, telegraphed shot; deflecting it
+  // (right-click / K) advances. Still no-fail: the cap auto-advances if they don't.
+  { step: 'parry', text: 'PARRY the incoming shot (right-click / K) to deflect it', advanceOn: 'parried', cap: 4.5 },
   { step: 'done', text: "You've got it. Descending…", advanceOn: 'tick', cap: 1.2 },
 ] as const;
 
 /** Hard ceiling on the whole sandbox (seconds) — even if every trigger somehow
- *  stalls, the sandbox auto-completes by this time. Comfortably within the 5–8s
- *  feel target once triggers fire normally; this is the absolute backstop. */
-export const SANDBOX_MAX_TIME = 9;
+ *  stalls, the sandbox auto-completes by this time. Comfortably within the ≤10s
+ *  feel target once triggers fire normally; this is the absolute backstop (raised
+ *  from 9 to give the added PARRY beat room when a player is slow on one step). */
+export const SANDBOX_MAX_TIME = 11;
 
 /** How many skewers complete the lesson (the spec's "after ~1–2 skewers"). */
 export const SANDBOX_TARGET_SKEWERS = 2;
@@ -95,6 +100,7 @@ export interface SandboxEvents {
   beganCharge: boolean;
   dashed: boolean;
   skewer: boolean;
+  parried: boolean;
 }
 
 /** Does `ev` satisfy the trigger that advances PAST the given step? */
@@ -106,6 +112,8 @@ function triggerMet(def: SandboxStepDef, ev: SandboxEvents): boolean {
       return ev.dashed;
     case 'skewer':
       return ev.skewer;
+    case 'parried':
+      return ev.parried;
     case 'tick':
       return false; // 'done' advances only by its cap
   }
