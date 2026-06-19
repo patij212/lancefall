@@ -55,12 +55,15 @@ describe('ship stat profiles', () => {
     expect(s.staminaSegments).toBe(5);
   });
 
-  it('Tempest is nimble (faster, slightly shorter dash, normal stamina)', () => {
+  it('Tempest is a nimble graze-dancer (faster, graze-flow, slightly shorter dash)', () => {
     const s = deriveStats({}, shipById('tempest').apply);
     expect(s.staminaSegments).toBe(TUNE.stamina.segments);
     expect(s.maxSpeed).toBeGreaterThan(TUNE.player.maxSpeed);
     expect(s.accel).toBeGreaterThan(TUNE.player.accel);
     expect(s.dashLenMul).toBeLessThan(1);
+    // graze-flow identity: grazing refunds more stamina + a wider graze ring
+    expect(s.grazeStaminaRefund).toBeGreaterThan(TUNE.stamina.grazeRefund);
+    expect(s.grazeRadius).toBeGreaterThan(TUNE.graze.radius);
   });
 
   it('Phantom is a one-segment knife-edge with a huge dash', () => {
