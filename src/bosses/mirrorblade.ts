@@ -15,6 +15,23 @@ export function mirrorbladeDashing(e: Enemy): boolean {
   return e.kind === 'mirrorblade' && e.phase === 1;
 }
 
+/** Can a PARRY stagger it right now? Only mid-lunge (phase 1) — the duel read: time the
+ *  parry to its committed charge, not its wind-up or recovery. */
+export function mirrorbladeStaggerable(e: Enemy): boolean {
+  return e.kind === 'mirrorblade' && e.phase === 1;
+}
+
+/** STAGGER: a parried lunge is cancelled mid-flight and the duelist is dumped into an
+ *  extended RECOVER window (the punish opening) — its body stops dead. Pure state
+ *  mutation, no rng. Caller adds the chip damage + juice. */
+export function staggerMirrorblade(e: Enemy): void {
+  e.phase = 2; // RECOVER (vulnerable)
+  e.timer = MIRRORBLADE.recoverFast + MIRRORBLADE.staggerRecoverBonus;
+  e.telegraph = 0;
+  e.vx = 0;
+  e.vy = 0;
+}
+
 export function updateMirrorblade(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);

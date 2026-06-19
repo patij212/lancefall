@@ -108,6 +108,7 @@ export const TUNE = {
     reachCap: 180, // hard cap on effective reach (deep-meta + max-coherence apex)
     heroClearRadius: 150, // px chaff bullet-clear radius for the perfect+on-beat HERO moment
     heroCohSurge: 0.25, // coherence added by the hero moment (the apex surge)
+    mirrorbladeReach: 100, // px range a parry can stagger a lunging Mirrorblade body (wider than the bullet arc)
   },
 
   juice: {
@@ -998,6 +999,10 @@ export const MIRRORBLADE = {
   enrageFrac: 0.5,
   windupFast: 0.45,
   recoverFast: 0.6,
+  // PARRY-COUNTER (the duel): a parry timed to the lunge staggers it into an extended
+  // RECOVER window + chips it (doubled on-beat) — the canonical PARRY-vs-boss teach.
+  staggerRecoverBonus: 0.5, // extra seconds added to the recover window on a stagger (0.6 + 0.5 = 1.1s punish)
+  staggerChipDamage: 1, // dash-hits dealt by a stagger parry (off-beat); doubled on-beat
   // THE IMITATION GAME (render): the boss wears the player's ship silhouette, drawn
   // at this multiple of the boss draw-radius so it fills the slot and reads as "you."
   silhouetteScale: 1.05,

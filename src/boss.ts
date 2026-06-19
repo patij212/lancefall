@@ -9,7 +9,7 @@ import type { Enemy } from './types';
 import { updateWarden } from './bosses/warden';
 import { updateWeaver } from './bosses/weaver';
 import { updateBeacon, beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac } from './bosses/beacon';
-import { updateMirrorblade, mirrorbladeDashing } from './bosses/mirrorblade';
+import { updateMirrorblade, mirrorbladeDashing, mirrorbladeStaggerable, staggerMirrorblade } from './bosses/mirrorblade';
 import { updateHollow, hollowSyncActive, cleanupHollowEchoes, openHollowWindow, openHollowWindowWithBeat } from './bosses/hollow';
 import {
   updateSovereign,
@@ -24,7 +24,7 @@ import {
 // extraction into src/bosses/*.
 export { beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac };
 export { bossEnraged, bossEnrageFrac, getEnrageColor } from './bosses/util';
-export { mirrorbladeDashing };
+export { mirrorbladeDashing, mirrorbladeStaggerable, staggerMirrorblade };
 export { hollowSyncActive, cleanupHollowEchoes, openHollowWindow, openHollowWindowWithBeat };
 export { spawnSovereignCores, spawnCipherRing, cleanupSovereignCores, countSovereignCores };
 

@@ -2,7 +2,7 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP, SURVIVAL } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP, SURVIVAL } from './tune';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -18,7 +18,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, s
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto, shadeLethal } from './enemies';
-import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindowWithBeat, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor } from './boss';
+import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindowWithBeat, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor, mirrorbladeStaggerable, staggerMirrorblade } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign, sovereignCoreBonusForBeat } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
@@ -32,7 +32,7 @@ import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
-import { parrySweep, applyParryReward, parryEnemySweep, parryShove, parryCooldownAfter, boundedGuardShave, effectiveParryArc, parryStreakNext, parryGrade } from './parry';
+import { parrySweep, applyParryReward, parryEnemySweep, parryShove, parryCooldownAfter, boundedGuardShave, effectiveParryArc, parryStreakNext, parryGrade, parryArcContains } from './parry';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield, runShields } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
@@ -1768,7 +1768,14 @@ export class Game {
       (visit) => w.bullets.forEachActive(visit),
       (b) => this.breakBullet(b, b.fromBoss ? 5 : 3, RIPOSTE.shatterScore),
       arc.reach, arc.halfAngle);
-    if (swept.total === 0 || p.parryRewarded) return;
+    // MIRRORBLADE DUEL: a parry timed to its lunge STAGGERS it (cancel → extended RECOVER) —
+    // counts as a catch even with no bullets in the arc (the lunge IS the threat parried).
+    const boss = w.boss;
+    const staggered =
+      !!boss && boss.active && mirrorbladeStaggerable(boss)
+      && parryArcContains(p.x, p.y, p.angle, boss.x, boss.y, PARRY.mirrorbladeReach, arc.halfAngle);
+    if (staggered) staggerMirrorblade(boss!);
+    if ((swept.total === 0 && !staggered) || p.parryRewarded) return;
     p.parryRewarded = true;
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
     const perfect = parryGrade(p.parryElapsed, PARRY.perfectWindow + w.stats.parryPerfectWindow) === 'perfect';
@@ -1782,6 +1789,13 @@ export class Game {
     this.shoveBulletsNearby(); // defensive breathing-room push on the un-parried bullets
     if (swept.boss > 0 && w.boss && w.boss.active) {
       w.boss.timer = boundedGuardShave(w.boss.timer, swept.boss, PARRY.bossGuardShave, 0); // posture-break
+    }
+    if (staggered && boss) {
+      // the duel payoff: chip the staggered duelist (DOUBLED on the beat) + a felt STAGGER pop
+      this.damageEnemy(boss, MIRRORBLADE.staggerChipDamage * (onBeat ? 2 : 1), false);
+      w.particles.ring(boss.x, boss.y, boss.radius + 28, '#ff8a8a', 0.4);
+      w.particles.floatText(boss.x, boss.y - 44, 'STAGGER!', '#ff8a8a', 1.1);
+      this.shake.add(TUNE.juice.traumaGraze * 4);
     }
     if (hero) this.heroParry(); // perfect+on-beat → mini radial chaff-clear + coherence surge + chord sting
     // JUICE — distinct metallic ting (hero chord), a flash, a freeze-frame (a11y-gated)
