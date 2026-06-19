@@ -103,6 +103,8 @@ function makePlayer(): Player {
     grazesThisDash: 0,
     perfectThreadFired: false,
     refundThisDash: 0,
+    dashHeavy: false,
+    dashBitIn: false,
     iframe: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment,
     regenDelay: 0,

@@ -45,7 +45,7 @@ import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
 import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
-import { maxStamina, effectiveDashCost, cappedRefund } from './dash';
+import { maxStamina, effectiveDashCost, cappedRefund, biteInTarget } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
@@ -1614,8 +1614,12 @@ export class Game {
           this.audio.thunk(8, this.panFor(e.x));
           continue;
         }
+        // HEAVY LANCE: a full 100% charge adds bonus damage, folded into the base before
+        // the Hollow cap / Warden-rear crit (scales with a flank, but the Hollow's
+        // >=2-window cap still holds — no one-shotting its intangibility).
+        const base = w.stats.dashDamage + (p.dashHeavy ? TUNE.dash.heavyDamageBonus : 0);
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
-        let dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
+        let dmg = e.kind === 'hollow' ? base + HOLLOW.weakPointBonus : base;
         // cap per-window damage to the HOLLOW so even a max-damage stack needs ≥2 sync
         // windows — the mechanic — and can never one-shot through its intangibility.
         if (e.kind === 'hollow') dmg = Math.min(dmg, Math.max(2, Math.ceil(e.maxHp * 0.45)));
@@ -1629,6 +1633,19 @@ export class Game {
           this.audio.thunk(60, this.panFor(e.x));
         }
         this.damageEnemy(e, dmg, true);
+        // HEAVY LANCE bite-in: a full-charge dash that connects with a BOSS/elite sticks
+        // it — continue just past the contact instead of overshooting across the arena.
+        if (p.dashHeavy && !p.dashBitIn && (e.isBoss || e.elite)) {
+          p.dashBitIn = true;
+          const stick = biteInTarget(p.x, p.y, e.x, e.y, TUNE.dash.heavyBiteInFollow);
+          p.dashFromX = p.x;
+          p.dashFromY = p.y;
+          p.dashToX = stick.toX;
+          p.dashToY = stick.toY;
+          const rem = Math.hypot(stick.toX - p.x, stick.toY - p.y);
+          p.dashTime = 0;
+          p.dashDuration = Math.max(TUNE.dash.minDuration, rem / TUNE.dash.speed);
+        }
       }
     }
     // CIPHER-LOCK: key ONE core per dash — the first the spear reaches (nearest the

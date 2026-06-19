@@ -8,6 +8,8 @@ import {
   effectiveDashCost,
   regenStamina,
   cappedRefund,
+  isFullCharge,
+  biteInTarget,
 } from './dash';
 import { TUNE } from './tune';
 
@@ -113,5 +115,27 @@ describe('cappedRefund — per-dash refund budget (kills the perpetual-dash loop
   it('tracks the ACTUAL dash cost (a cheap HASTE dash tops up less, not a full segment)', () => {
     // a HASTE dash costs 60 → a refund can restore at most that 60, not a fixed 100
     expect(cappedRefund(100, 0, 60)).toBe(60);
+  });
+});
+
+describe('HEAVY LANCE — full-charge (100%) bonus + bite-in', () => {
+  it('arms ONLY at a full 100% charge', () => {
+    expect(isFullCharge(1.0)).toBe(true);
+    expect(isFullCharge(0.999)).toBe(false); // 99.9% is NOT heavy — you must hold to full
+    expect(isFullCharge(0.5)).toBe(false);
+  });
+
+  it('bite-in stops just past the contact, not at the full dash length', () => {
+    // a heavy dash from origin connecting with a target at (100,0) ends just past it,
+    // not 560px across the arena
+    const r = biteInTarget(0, 0, 100, 0, TUNE.dash.heavyBiteInFollow);
+    expect(r.toX).toBeCloseTo(100 + TUNE.dash.heavyBiteInFollow);
+    expect(r.toY).toBeCloseTo(0);
+  });
+
+  it('bite-in preserves the dash direction toward the contact', () => {
+    const r = biteInTarget(0, 0, 0, 50, TUNE.dash.heavyBiteInFollow);
+    expect(r.toX).toBeCloseTo(0);
+    expect(r.toY).toBeCloseTo(50 + TUNE.dash.heavyBiteInFollow);
   });
 });

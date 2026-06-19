@@ -40,6 +40,23 @@ export function cappedRefund(want: number, refundThisDash: number, dashCost: num
   return Math.max(0, Math.min(want, dashCost - refundThisDash));
 }
 
+/** True only for a full (100%) charge — the HEAVY LANCE arm condition. Charge pins
+ *  at 1.0 once held to full, so this is a stable hold state, not a timing window. */
+export function isFullCharge(charge: number): boolean {
+  return charge >= TUNE.dash.heavyChargeMin - 1e-6;
+}
+
+/** Clamp a heavy dash's end point to just past a boss/elite contact so it bites in
+ *  and sticks the target instead of overshooting the arena. Returns the new (toX,toY). */
+export function biteInTarget(
+  fromX: number, fromY: number, hitX: number, hitY: number, follow: number,
+): { toX: number; toY: number } {
+  const dx = hitX - fromX, dy = hitY - fromY;
+  const d = Math.hypot(dx, dy) || 1;
+  const stop = d + follow;
+  return { toX: fromX + (dx / d) * stop, toY: fromY + (dy / d) * stop };
+}
+
 export function canDash(stamina: number, cost: number = TUNE.stamina.dashCost): boolean {
   return stamina >= cost - 1e-6;
 }

@@ -15,7 +15,7 @@ function freshPlayer(): Player {
     phase: 'idle', charge: 0, dashTime: 0, dashDuration: 0,
     dashFromX: 0, dashFromY: 0, dashToX: 0, dashToY: 0, dashDirX: 1, dashDirY: 0,
     dashId: 0, killsThisDash: 0, grazesThisDash: 0, perfectThreadFired: false,
-    refundThisDash: 0, iframe: 0,
+    refundThisDash: 0, dashHeavy: false, dashBitIn: false, iframe: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment, regenDelay: 0,
     alive: true, hitFlash: 0, shields: 0, maxShields: 0,
   };
