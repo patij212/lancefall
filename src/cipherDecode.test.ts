@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeCipher, cipherSeed, dashCipherCore } from './cipher';
-import { decodeView, plaintextFor, cipherSymbol } from './cipherDecode';
+import { decodeView, plaintextFor, cipherSymbol, caesarShiftLetter } from './cipherDecode';
 
 // READ THE KEY must be a REAL substitution decode (not follow-the-highlight): reading the
 // on-HUD key and finding each core by its cipher symbol, in plaintext order, must reproduce
@@ -55,5 +55,35 @@ describe('decodeView — extended, class-aware shape', () => {
     // the legacy solve property still holds (read the full key in order → solve)
     expect(v.key.length).toBe(5);
     expect(new Set(v.symbolForSlot).size).toBe(5);
+  });
+});
+
+describe('decodeView — Caesar (the crib)', () => {
+  it('cores wear shifted LETTERS; only the crib pair is revealed', () => {
+    const c = makeCipher(5, cipherSeed(7, 5), 'caesar'); // n=5 → plaintext LIGHT
+    const v = decodeView(c);
+    expect(v.cls).toBe('caesar');
+    expect(v.revealed.filter(Boolean).length).toBe(1); // just the crib
+    expect(v.revealed[0]).toBe(true);
+    expect(new Set(v.symbolForSlot).size).toBe(5); // distinct shifted letters
+    expect(v.symbolForSlot.every((s) => /^[A-Z]$/.test(s))).toBe(true);
+  });
+
+  it('deducing k from the crib, then shifting each letter, solves the cipher', () => {
+    for (const [n, seed] of [[3, 1], [4, 42], [5, 999]] as const) {
+      const c = makeCipher(n, cipherSeed(seed, n * 13), 'caesar');
+      const v = decodeView(c);
+      // a player derives k from the one revealed pair (plain[0] → its shifted letter)…
+      const crib = v.key[0];
+      const k = (crib.cipher.charCodeAt(0) - crib.plain.charCodeAt(0) + 26) % 26;
+      // …then for each plaintext letter computes its shifted mark and finds that core.
+      for (let step = 0; step < n; step++) {
+        const mark = caesarShiftLetter(v.plaintext[step], k);
+        const slot = v.symbolForSlot.indexOf(mark);
+        const r = dashCipherCore(c, slot);
+        expect(r === 'progress' || r === 'solved').toBe(true);
+      }
+      expect(c.solved).toBe(true);
+    }
   });
 });

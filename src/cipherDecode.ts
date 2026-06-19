@@ -78,9 +78,29 @@ function revealPolicy(c: CipherState): boolean[] {
   return Array.from({ length: n }, () => true);
 }
 
-/** The mark a core wears, given its orbit slot. Default: the Greek cipher symbol (substitution /
- *  partial / rotor). Caesar overrides this with a shifted LETTER in Task 3. */
+/** The Caesar shift for this cipher, in 1..25 (never 0 — a 0-shift would be no cipher). Derived
+ *  purely from the seed, so it's stable + Daily-shared. */
+export function caesarShift(c: CipherState): number {
+  return 1 + (c.seed % 25);
+}
+
+/** Shift an A–Z letter forward by k (mod 26). The plaintext words are unique-lettered, so the
+ *  shift is a clean bijection → the cores wear distinct letters. */
+export function caesarShiftLetter(letter: string, k: number): string {
+  const code = letter.charCodeAt(0) - 65;
+  if (code < 0 || code > 25) return letter; // non-letter (e.g. the '?' fallback) passes through
+  return String.fromCharCode(65 + ((code + k) % 26));
+}
+
+/** The mark a core wears, given its orbit slot. Caesar shows the SHIFTED LETTER of that core's
+ *  decode step; all other classes show the Greek cipher symbol. */
 export function coreSymbolForSlot(c: CipherState, slot: number): string {
+  if (c.cls === 'caesar') {
+    const step = c.order.indexOf(slot);
+    const word = plaintextFor(c.order.length);
+    const letter = word[step] ?? '?';
+    return caesarShiftLetter(letter, caesarShift(c));
+  }
   return cipherSymbol(c.glyphs[slot]);
 }
 
