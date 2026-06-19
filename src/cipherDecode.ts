@@ -114,7 +114,16 @@ export function rotateSymbol(sym: string, _k: number): string {
   return sym;
 }
 
-/** Which key pairs are legible for a partial cipher (all true until Task 4). */
+/** Beacon's partial key: a seeded contiguous window (~half the legend) is legible, and the
+ *  CURRENT step is always legible so the next move is never unfair. The rest you route to by
+ *  forgiving trial (or the fight reveals more — beam passes / a spent charge, wired in game.ts
+ *  in Plan 2). Pure + seeded; reveals shrink the read without ever blocking it. */
 export function partialRevealed(c: CipherState): boolean[] {
-  return Array.from({ length: c.order.length }, () => true);
+  const n = c.order.length;
+  const out = Array.from({ length: n }, () => false);
+  const count = Math.ceil(n / 2);
+  const start = c.seed % n;
+  for (let k = 0; k < count; k++) out[(start + k) % n] = true;
+  out[Math.min(c.progress, n - 1)] = true; // the immediate next step is ALWAYS readable
+  return out;
 }

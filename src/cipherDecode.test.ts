@@ -87,3 +87,33 @@ describe('decodeView — Caesar (the crib)', () => {
     }
   });
 });
+
+describe('decodeView — partial (the earned key)', () => {
+  it('reveals ~half the key, ALWAYS including the current step (fair next move)', () => {
+    const c = makeCipher(6, cipherSeed(3, 6), 'partial');
+    const v = decodeView(c);
+    expect(v.cls).toBe('partial');
+    expect(v.revealed.filter(Boolean).length).toBeGreaterThanOrEqual(3); // >= ceil(6/2)
+    expect(v.revealed[v.progress]).toBe(true); // the next step is legible
+  });
+
+  it('does NOT reveal the whole key (it is partial)', () => {
+    const c = makeCipher(6, cipherSeed(3, 6), 'partial');
+    expect(decodeView(c).revealed.some((r) => r === false)).toBe(true);
+  });
+
+  it('revealed pairs are the TRUE key, and decoding still solves under fire', () => {
+    const c = makeCipher(6, cipherSeed(20260621, 6), 'partial');
+    // the true substitution key (what a fully-revealed view would show) for cross-check
+    const truth = decodeView({ ...c, cls: 'substitution' }).key;
+    for (let step = 0; step < 6; step++) {
+      const v = decodeView(c); // re-read each step (reveal of the current step tracks progress)
+      expect(v.revealed[step]).toBe(true);
+      expect(v.key[step].cipher).toBe(truth[step].cipher); // a revealed pair is never a lie
+      const slot = v.symbolForSlot.indexOf(v.key[step].cipher);
+      const r = dashCipherCore(c, slot);
+      expect(r === 'progress' || r === 'solved').toBe(true);
+    }
+    expect(c.solved).toBe(true);
+  });
+});
