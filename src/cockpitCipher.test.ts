@@ -11,6 +11,8 @@ import {
   audioBands,
   spectrumBin,
   danceMix,
+  detectBeat,
+  lowFreqStretch,
 } from './cockpitCipher';
 
 // Pure logic behind the cockpit CIPHER STORM overlay (Turing decode). The canvas/DOM
@@ -223,5 +225,48 @@ describe('danceMix — blend the idle vibe with the audio dance', () => {
   it('clamps presence outside [0, 1]', () => {
     expect(danceMix(0.1, 0.9, 2)).toBeCloseTo(0.9, 5);
     expect(danceMix(0.1, 0.9, -1)).toBeCloseTo(0.1, 5);
+  });
+});
+
+describe('detectBeat — onset detection for the beat-grid snap', () => {
+  it('fires on a clear onset (well above the moving average)', () => {
+    expect(detectBeat(0.8, 0.3, 1.3, 0.15)).toBe(true);
+  });
+  it('stays quiet below the floor (no false beats in near-silence)', () => {
+    expect(detectBeat(0.1, 0.0, 1.3, 0.15)).toBe(false);
+  });
+  it('does not fire on steady energy (no rise over the average)', () => {
+    expect(detectBeat(0.4, 0.4, 1.3, 0.15)).toBe(false);
+  });
+  it('fires loud against a zero baseline', () => {
+    expect(detectBeat(0.5, 0, 1.3, 0.15)).toBe(true);
+  });
+  it('needs to clear the sensitivity threshold strictly', () => {
+    expect(detectBeat(0.39, 0.3, 1.3, 0.15)).toBe(false); // 0.3 * 1.3 = 0.39, not greater
+    expect(detectBeat(0.4, 0.3, 1.3, 0.15)).toBe(true);
+  });
+});
+
+describe('lowFreqStretch — bass buildings stretch more', () => {
+  it('gives the most stretch at the bass end', () => {
+    expect(lowFreqStretch(0, 0.5, 1)).toBeCloseTo(1.0, 5); // base * (1 + bias)
+  });
+  it('gives only the base stretch at the treble end', () => {
+    expect(lowFreqStretch(1, 0.5, 1)).toBeCloseTo(0.5, 5);
+  });
+  it('interpolates in the middle', () => {
+    expect(lowFreqStretch(0.5, 0.5, 1)).toBeCloseTo(0.75, 5);
+  });
+  it('decreases monotonically from bass to treble', () => {
+    let prev = Infinity;
+    for (let i = 0; i <= 10; i++) {
+      const v = lowFreqStretch(i / 10, 0.5, 1.2);
+      expect(v).toBeLessThanOrEqual(prev);
+      prev = v;
+    }
+  });
+  it('clamps the normalized position to [0, 1]', () => {
+    expect(lowFreqStretch(2, 0.5, 1)).toBeCloseTo(0.5, 5); // treble cap
+    expect(lowFreqStretch(-1, 0.5, 1)).toBeCloseTo(1.0, 5); // bass cap
   });
 });

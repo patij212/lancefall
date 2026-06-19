@@ -91,6 +91,20 @@ export function danceMix(idle: number, audio: number, presence: number): number 
   return idle * (1 - p) + audio * p;
 }
 
+/** Onset detection for the beat-grid snap: a beat is when the current bass energy spikes above
+ *  a slow moving average by `sensitivity`× — and is loud enough to clear `floor` (no false beats
+ *  in near-silence). Stateless; the caller owns the moving average + a refractory cooldown. */
+export function detectBeat(current: number, baseline: number, sensitivity: number, floor: number): boolean {
+  return current > floor && current > baseline * sensitivity;
+}
+
+/** Per-building stretch factor, scaled UP toward the bass end. `binNorm` is the building's
+ *  normalized spectrum position (0 = bass, 1 = treble): bass gets `base * (1 + bias)`, treble
+ *  gets `base`. */
+export function lowFreqStretch(binNorm: number, base: number, bias: number): number {
+  return base * (1 + bias * (1 - clamp01(binNorm)));
+}
+
 // ── THE CIPHER STORM overlay (Turing decode) ─────────────────────────────────
 // A self-contained animated backdrop layer for the COCKPIT title screen: falling cipher
 // glyphs, a faint machine lattice + Enigma-rotor core, and a decode scanline where noise
@@ -128,10 +142,17 @@ const CYAN_RGB: [number, number, number] = [34, 211, 238];
 const BASS_GLOW = 0.6; // how hard the kick/bass pumps the whole field's brightness
 const SKYLINE_H = 0.17; // neon city band height (fraction of viewport, anchored to the bottom)
 const NEON = ['#22d3ee', '#818cf8', '#fbbf24']; // window palette (cyan / indigo / amber)
-const DANCE_STRETCH = 0.42; // how much a building grows taller at full energy (the "dance")
-const DANCE_SWAY = 4; // px of side-to-side wiggle when a building is energetic
+const DANCE_STRETCH = 0.5; // base height growth at full energy (the "dance")
+const LOW_FREQ_BIAS = 1.1; // bass buildings stretch this much MORE than treble (on top of base)
+const DANCE_SWAY = 5; // px of side-to-side wiggle when a building is energetic
 const DANCE_BIN_LO = 2; // FFT bins the front row spans (the energetic low / low-mid range)
 const DANCE_BIN_HI = 56;
+// beat-grid snap — audio onset detection makes the whole city punch on each kick
+const BEAT_SENS = 1.32; // bass must spike this far above its slow average to count as a beat
+const BEAT_FLOOR = 0.16; // ...and be at least this loud (no false beats in near-silence)
+const BEAT_REFRACTORY = 0.16; // min seconds between beats (caps ~375bpm, kills double-triggers)
+const BEAT_SNAP_STRETCH = 0.22; // extra collective height on each beat
+const BEAT_SNAP_GLOW = 0.5; // extra flash on each beat
 
 interface Column {
   head: number; // current head row (fractional)
@@ -164,6 +185,7 @@ interface Building {
   h: number; // px (resting height above the bottom)
   windows: Win[];
   bin: number; // FFT bin this building dances to
+  nrm: number; // normalized spectrum position (0 = bass, 1 = treble) → low-freq stretch bias
   ph: number; // idle-bob phase
   e: number; // smoothed dance energy (runtime)
 }
@@ -266,6 +288,9 @@ function mountCipher(): { stop(): void } {
   let rMid = 0;
   let rTreble = 0;
   let rLevel = 0;
+  let bassAvg = 0; // slow bass average for onset detection
+  let beatCooldown = 0; // refractory timer between beats
+  let beatSnap = 0; // beat-grid snap pulse (0..1), spiked on each detected kick
 
   const cockpitEl = (): HTMLElement | null =>
     document.querySelector<HTMLElement>('.screen-cockpit');
@@ -369,11 +394,12 @@ function mountCipher(): { stop(): void } {
             col: hue < 0.5 ? NEON[0] : hue < 0.8 ? NEON[1] : NEON[2],
           });
         }
-      buildings.push({ x, w, h, windows, bin: 0, ph: Math.random() * 6.28, e: 0 });
+      buildings.push({ x, w, h, windows, bin: 0, nrm: 0, ph: Math.random() * 6.28, e: 0 });
       x += w + 1 + Math.random() * 7;
     }
     // spread the front row across the spectrum so each building dances to its own frequency
     buildings.forEach((b, i) => {
+      b.nrm = buildings.length > 1 ? i / (buildings.length - 1) : 0;
       b.bin = spectrumBin(i, buildings.length, DANCE_BIN_LO, DANCE_BIN_HI);
     });
   };
@@ -548,7 +574,8 @@ function mountCipher(): { stop(): void } {
    *  pump with the bass (the city "springing to life" with the music). */
   // geometry of a building this frame, given its current dance energy (b.e)
   const bGeo = (b: Building): { bx: number; topY: number; scale: number } => {
-    const eh = b.h * (1 + b.e * DANCE_STRETCH); // grows taller on its beat
+    const stretch = lowFreqStretch(b.nrm, DANCE_STRETCH, LOW_FREQ_BIAS); // bass stretches more
+    const eh = b.h * (1 + b.e * stretch + beatSnap * BEAT_SNAP_STRETCH); // + the whole-city beat punch
     return { bx: b.x + Math.sin(t * 3 + b.ph) * b.e * DANCE_SWAY, topY: H - eh, scale: eh / b.h };
   };
 
@@ -631,7 +658,7 @@ function mountCipher(): { stop(): void } {
     // Brightness throb: the free-running beat carries it when silent, but FADES OUT once real
     // audio is flowing — then the live bass takes over (that's the "reaction to the music").
     const freeRun = beatEnvelope(t, BEAT) * BEAT_GLOW * (1 - Math.min(1, rLevel * 3));
-    const glow = 1 + freeRun + rBass * BASS_GLOW + burst * 0.9;
+    const glow = 1 + freeRun + rBass * BASS_GLOW + beatSnap * BEAT_SNAP_GLOW + burst * 0.9;
     drawBase(effCoh);
     drawSkyline(effCoh, glow, dt);
     drawRotor(effCoh, glow);
@@ -682,8 +709,16 @@ function mountCipher(): { stop(): void } {
       rMid = easeToward(rMid, bands.mid, dt, 9);
       rTreble = easeToward(rTreble, bands.treble, dt, 12);
       rLevel = easeToward(rLevel, bands.level, dt, 5);
+      // beat-grid snap: a bass onset over its slow average, gated by a refractory cooldown
+      beatCooldown -= dt;
+      if (beatSnap > 0) beatSnap = Math.max(0, beatSnap - dt / BEAT_REFRACTORY);
+      if (beatCooldown <= 0 && detectBeat(bands.bass, bassAvg, BEAT_SENS, BEAT_FLOOR)) {
+        beatSnap = 1;
+        beatCooldown = BEAT_REFRACTORY;
+      }
+      bassAvg = easeToward(bassAvg, bands.bass, dt, 2);
       if (import.meta.env.DEV)
-        (window as unknown as { __cipherBands?: unknown }).__cipherBands = { bass: rBass, mid: rMid, treble: rTreble, level: rLevel };
+        (window as unknown as { __cipherBands?: unknown }).__cipherBands = { bass: rBass, mid: rMid, treble: rTreble, level: rLevel, beat: beatSnap };
       drawFrame(dt, cohEased);
     }
     rafId = requestAnimationFrame(loop);
