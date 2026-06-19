@@ -16,6 +16,7 @@ export interface PlayerEvents {
   dashLen: number;
   landed: boolean;
   denied: boolean;
+  parryFired: boolean; // PARRY second verb opened its active window this step
 }
 
 export function resetEvents(ev: PlayerEvents): void {
@@ -24,6 +25,7 @@ export function resetEvents(ev: PlayerEvents): void {
   ev.dashLen = 0;
   ev.landed = false;
   ev.denied = false;
+  ev.parryFired = false;
 }
 
 export function updatePlayer(
@@ -47,6 +49,17 @@ export function updatePlayer(
 
   if (p.iframe > 0) p.iframe = Math.max(0, p.iframe - dt);
   if (p.hitFlash > 0) p.hitFlash = Math.max(0, p.hitFlash - dt);
+
+  // PARRY timers — the cooldown gates re-use; the parryTime lock spans the active
+  // window then a recovery tail (the whiff risk: no dash/parry until it elapses).
+  if (p.parryCooldown > 0) p.parryCooldown = Math.max(0, p.parryCooldown - dt);
+  if (p.parryTime > 0) {
+    p.parryTime = Math.max(0, p.parryTime - dt);
+    p.parryActive = p.parryTime > TUNE.parry.recover; // live during the leading window, recovery after
+  } else {
+    p.parryActive = false;
+  }
+  const inParryLock = p.parryTime > 0; // active+recovery: dashing/charging is suppressed below
 
   if (p.phase === 'dashing') {
     advanceDash(p, dt, stats, ev);
@@ -72,8 +85,20 @@ export function updatePlayer(
     p.x += p.vx * dt;
     p.y += p.vy * dt;
 
-    // ── charge / dash input ──
-    if (
+    // ── PARRY entry ── open the deflect window from idle/drift only (never mid-charge),
+    // and not while locked (active+recovery) or cooling down — a committed defensive read.
+    if (input.parryPressed && p.phase !== 'charging' && !inParryLock && p.parryCooldown <= 0) {
+      p.parryTime = TUNE.parry.active + TUNE.parry.recover;
+      p.parryActive = true;
+      p.parryCooldown = TUNE.parry.cooldown;
+      p.parryRewarded = false; // re-arm the once-per-parry reward latch
+      ev.parryFired = true;
+    }
+
+    // ── charge / dash input ── suppressed entirely while a parry holds the lock (the whiff risk)
+    if (inParryLock || ev.parryFired) {
+      // no dash/charge this step — fall through to regen
+    } else if (
       input.dashTapped &&
       p.phase !== 'charging' &&
       canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))

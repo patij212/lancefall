@@ -149,7 +149,7 @@ export class Game {
   /** §v7 — posted the achievement set to the rarity aggregate at least once this session */
   private achReported = false;
 
-  private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false };
+  private ev: PlayerEvents = { beganCharge: false, dashFired: false, dashLen: 0, landed: false, denied: false, parryFired: false };
   private cam: Camera = { leanX: 0, leanY: 0, zoom: 1, shakeX: 0, shakeY: 0, shakeAngle: 0 };
 
   private accumulator = 0;

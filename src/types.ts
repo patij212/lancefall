@@ -57,6 +57,11 @@ export interface Player {
   refundThisDash: number; // stamina refunded so far this dash (Siphon), capped per dash
   dashHeavy: boolean; // HEAVY LANCE: this dash fired heavy (armed by a sustained overcharge) → +dmg, +i-frames
   overcharge: number; // seconds held PAST full charge this charge (arms the heavy at heavyOverchargeTime)
+  // PARRY (second verb): a short aim-directed deflect arc with a whiff-recovery window.
+  parryTime: number; // seconds left in the active+recovery lock (>0 = can't dash/parry)
+  parryCooldown: number; // seconds from parry start before another parry may fire
+  parryActive: boolean; // the deflect arc is live this step (game.ts runs the sweep)
+  parryRewarded: boolean; // one-shot latch: a parry pays its reward at most once
   iframe: number; // seconds of invulnerability remaining
 
   stamina: number; // 0..maxStamina
