@@ -91,3 +91,40 @@ Today a dash-kill spawns minis but the dash **sweep also kills them** (they spaw
 - Every new threat is telegraphed; the run is **richer to read, not harder to survive** (verify by playtest — net difficulty ~flat).
 - New tells live in `src/render/enemyTells.ts` (nothing added to `skins.ts`/`render.ts`); pattern-math is pure + tested; determinism preserved (no new rng).
 - tsc clean, full suite green, prod boots clean. Committed per enemy, then `npm run deploy` and confirm `lancefall.pages.dev` boots.
+
+---
+
+## STATUS — SHIPPED + DEPLOYED (2026-06-19)
+
+All 12 enemies now play a distinct tactical role. tsc clean, **1093 tests green** (+~40
+new), prod build boots clean (runtime smoke: full spawn→combat→death→debrief run, 0
+console errors bar the harmless CSP-blocked CF beacon), **deployed to lancefall.pages.dev**.
+
+**Phase 1 — the 6 reworked chasers** (one commit each):
+- **Splitter** — parry signature target: a SWEEP kill (dash/heavy) is clean; a NON-sweep
+  kill (parry-riposte / graze-burn / AoE, all `damageEnemy(...,false)`) shatters it into a
+  weak+slow+short-lived combo-shower (`splitInto(e,w,fromSweep)`; ephemeral minis phase 1).
+- **Shade** — timing-duel: faded + HARMLESS while drifting, lethal only mid telegraphed
+  STRIKE (`shadeLethal()` gates the body-collision). Removed the old blink edgeSpawn → now
+  fully rng-free. The budget-saver (it used to be a contact kill at all times).
+- **Bomber** — don't-greed kamikaze: RUSH → ARM in range (telegraphed charge) →
+  SELF-DETONATE a deterministic blast ring (or kill from range / dash through).
+- **Wisp** — weave-swarm: slow dual-frequency weave (graze treat), light-thread tell.
+- **Darter** — dash-duelist: counter-lunges ALONG YOUR LINE only on a dash aimed at it
+  (cone+range), generous wind-up + wide-open recovery. Extracted to `src/enemies/darter.ts`
+  (pure `darterDetectsDash` + the PATROL→WINDUP→COUNTER→RECOVER machine). **Tame-first.**
+- **Brooder** — priority target: hangs at a fixed edge perch + a clearer hatch-pulse tell.
+
+**Phase 2 — the keepers:**
+- **Orbiter** — parked mines now read as a denied ZONE (render-only hazard disc/ring).
+- **Bloomer** — ring-read turret: EVERY bloom leaves a safe wedge that ROTATES a fixed step
+  ("track the gap"); dropped the per-bloom random ring rotation → now rng-free.
+- **Lancer / Drifter / Herald / Seeker** — KEPT as-is (already distinct roles + readable
+  aim-line tells: double-tap / curved arc / gap-wall / homing-feint). The Herald lane-drift
+  was flagged *optional* and skipped to preserve the shipped, tuned balance.
+
+**Structure honoured:** all new tells live in NEW `src/render/enemyTells.ts` (one delegated
+call from `render.ts drawEnemies`; ZERO inline drawing added to `render.ts` / `skins.ts`).
+Pure pattern-math is unit-tested (`src/enemyRoles.test.ts`, `src/darter.test.ts`,
+`src/zonerVerbs.test.ts`). Every new behaviour draws ZERO `world.rng` (asserted), so the
+seeded Daily stays bit-identical. All flash/strobe gated by reduceFlashing/reduceMotion.
