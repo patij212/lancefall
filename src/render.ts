@@ -35,6 +35,9 @@ import {
   bossEntranceBlur,
   allowChromaticAberration,
 } from './renderMath';
+// NEW boss-rework telegraph/finale overlays (kept OUT of this file — drawn in the
+// boss-centre frame). render.ts only delegates; no inline drawing was added.
+import { drawNovaSpiralTelegraph, drawSovereignFinaleTint } from './render/boss';
 
 // ── BIOMECHANICAL enemy art direction (Proposal B) ──────────────────────────
 // Enemies/bosses render as "living machines": their shape-coded silhouette
@@ -1954,6 +1957,9 @@ export class Renderer {
     const col = SOVEREIGN.color;
     const flash = e.hitFlash > 0;
     const rim = flash ? '#ffffff' : threatRim(col, THREAT_RIM.lift);
+    // NEW: NOVA SPIRAL wind-up tracers + sub-25% finale aura (drawn in render/boss.ts)
+    drawNovaSpiralTelegraph(ctx, e, this.reduceMotionR);
+    drawSovereignFinaleTint(ctx, e, this.reduceMotionR);
     // legacy CROWN BEAMS (phase 0)
     if (e.phase === 0 && e.subPhase !== 2) {
       const active = e.subPhase === 1;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gravityPull, coreOrbitPos, beamHitsPoint, isSovereignExposed, sovereignBodyArmored, sovereignBeamActive, exposeSovereign } from './sovereign';
+import { gravityPull, coreOrbitPos, beamHitsPoint, isSovereignExposed, sovereignBodyArmored, sovereignBeamActive, exposeSovereign, sovereignFinale, novaSpiralTelegraphFrac } from './sovereign';
 import { SOVEREIGN } from './tune';
 import type { Enemy } from './types';
 
@@ -104,5 +104,32 @@ describe('sovereign phase predicates', () => {
     expect(e.timer).toBe(SOVEREIGN.exposeDuration);
     expect(e.subPhase).toBe(0);
     expect(isSovereignExposed(e)).toBe(true);
+  });
+});
+
+describe('sovereign finale', () => {
+  it('enters finale below the finale HP fraction', () => {
+    expect(sovereignFinale(mkBoss({ hp: 6, maxHp: 30 }))).toBe(true); // 0.20 < 0.25
+    expect(sovereignFinale(mkBoss({ hp: 20, maxHp: 30 }))).toBe(false); // 0.67
+  });
+  it('is exactly bounded at the finale fraction (not inclusive)', () => {
+    const atFrac = SOVEREIGN.finaleFrac * 30;
+    expect(sovereignFinale(mkBoss({ hp: atFrac, maxHp: 30 }))).toBe(false); // == frac is not below
+    expect(sovereignFinale(mkBoss({ hp: atFrac - 0.01, maxHp: 30 }))).toBe(true);
+  });
+  it('ignores non-sovereign enemies even at low HP', () => {
+    expect(sovereignFinale(mkBoss({ kind: 'warden', hp: 1, maxHp: 30 }))).toBe(false);
+  });
+});
+
+describe('nova spiral telegraph', () => {
+  it('ramps 0 → 1 over the telegraph as fireTimer counts down', () => {
+    expect(novaSpiralTelegraphFrac(SOVEREIGN.spiralTelegraph)).toBeCloseTo(0, 6); // just entered
+    expect(novaSpiralTelegraphFrac(SOVEREIGN.spiralTelegraph / 2)).toBeCloseTo(0.5, 6);
+    expect(novaSpiralTelegraphFrac(0)).toBeCloseTo(1, 6); // wind-up complete → about to arm
+  });
+  it('clamps outside the window', () => {
+    expect(novaSpiralTelegraphFrac(SOVEREIGN.spiralTelegraph * 2)).toBe(0);
+    expect(novaSpiralTelegraphFrac(-1)).toBe(1);
   });
 });

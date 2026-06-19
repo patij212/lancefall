@@ -63,4 +63,20 @@ export function exposeSovereign(e: Enemy): void {
   e.timer = SOVEREIGN.exposeDuration;
   e.fireTimer = 0;
   e.subPhase = 0;
+  e.ringTimer = SOVEREIGN.exposeRingEvery; // arm the first desperation ring
+}
+
+/** FINALE: below the finale HP fraction the crown stops reforming — the body stays
+ *  open and the armored volleys (beams + spiral) fire WITH the expose ring. The
+ *  "everything at once" climax. Pure HP predicate (no rng, no timing state). */
+export function sovereignFinale(e: Enemy): boolean {
+  return e.kind === 'sovereign' && e.hp / e.maxHp < SOVEREIGN.finaleFrac;
+}
+
+/** NOVA SPIRAL wind-up progress 0..1 from the telegraph countdown `fireTimer`
+ *  (fireTimer = spiralTelegraph at entry, 0 when the spiral arms). Pure ramp for
+ *  the tracer draw; clamped so it reads correctly at the window edges. */
+export function novaSpiralTelegraphFrac(fireTimer: number): number {
+  const f = 1 - fireTimer / SOVEREIGN.spiralTelegraph;
+  return f < 0 ? 0 : f > 1 ? 1 : f;
 }

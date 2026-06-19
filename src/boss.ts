@@ -4,10 +4,20 @@
 // appearance. Takes 1 "dash-hit" per dash (one-hit-per-dashId enforced upstream).
 
 import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN, CIPHER } from './tune';
-import { cipherSeed, makeCipher } from './cipher';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
+import {
+  updateSovereign,
+  spawnSovereignCores,
+  spawnCipherRing,
+  cleanupSovereignCores,
+  countSovereignCores,
+} from './bosses/sovereign';
+
+// Re-export the Sovereign core/cipher helpers so existing importers of './boss'
+// (game.ts, cipherIntegration.test) keep working after the extraction.
+export { spawnSovereignCores, spawnCipherRing, cleanupSovereignCores, countSovereignCores };
 
 /** Human-readable boss name for the incoming-warning toast. */
 export function bossName(kind: Enemy['kind']): string {
@@ -495,163 +505,9 @@ function updateHollow(e: Enemy, world: World, dt: number): void {
   }
 }
 
-/** Fire an aimed fan of `n` bullets at the player. */
-function fireAimedFan(e: Enemy, world: World, n: number, spread: number, sp: number, color: string): void {
-  const p = world.player;
-  const base = Math.atan2(p.y - e.y, p.x - e.x);
-  const half = (n - 1) / 2;
-  for (let i = 0; i < n; i++) {
-    const a = base + (i - half) * spread;
-    world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, color, true);
-  }
-}
-
-/** Seed the Sovereign's orbiting Cores, evenly spaced around the body. */
-export function spawnSovereignCores(world: World, boss: Enemy): void {
-  for (let i = 0; i < SOVEREIGN.coreCount; i++) {
-    const a = (i / SOVEREIGN.coreCount) * Math.PI * 2;
-    const c = world.spawnEnemy(
-      'sovereign_core',
-      boss.x + Math.cos(a) * SOVEREIGN.coreOrbitRadius,
-      boss.y + Math.sin(a) * SOVEREIGN.coreOrbitRadius,
-      1, 1, false,
-    );
-    if (c) {
-      c.angle = a; // current orbit angle (advances each frame)
-      c.phase = i; // orbit index (render variety AND cipher slot)
-    }
-  }
-  // CIPHER-LOCK: the cores become a keypad. The decoded order comes from a stable
-  // hash of (seed, bossWave) via a LOCAL generator — shared on a Daily seed and
-  // NEVER drawing world.rng, so the scoring stream stays bit-identical.
-  world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle));
-  world.cipherCycle++; // each re-lock is a fresh code
-}
-
 /** Bosses that get the GENERIC ring cipher in a cipher-lock mode (Warden, Weaver,
  *  Beacon). The Hollow (one-time key), Mirrorblade (imitation game) and Sovereign
  *  (master cipher) are already code-breaking puzzles in their own right. */
 export function bossUsesRingCipher(kind: Enemy['kind']): boolean {
   return kind === 'warden' || kind === 'weaver' || kind === 'beacon';
-}
-
-/** Arm a generic cipher RING around a boss: cores at fixed angles (passed
- *  explicitly, so NO world.rng draw) + a fresh cipher from (seed, bossWave). Used
- *  by THE LONGEST DAY; re-armed via the expose window in updateBoss + solveCipher. */
-export function spawnCipherRing(world: World, boss: Enemy, n: number): void {
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
-    const c = world.spawnEnemy(
-      'sovereign_core',
-      boss.x + Math.cos(a) * SOVEREIGN.coreOrbitRadius,
-      boss.y + Math.sin(a) * SOVEREIGN.coreOrbitRadius,
-      1, 1, false, false, a,
-    );
-    if (c) {
-      c.angle = a;
-      c.phase = i;
-    }
-  }
-  boss.cipherExposed = 0;
-  world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle));
-  world.cipherCycle++; // each re-lock is a fresh code
-}
-
-/** Release any Cores still alive when the Sovereign falls (so they don't linger). */
-export function cleanupSovereignCores(world: World): void {
-  world.enemies.forEachActive((e) => {
-    if (e.kind === 'sovereign_core') world.enemies.release(e);
-  });
-  world.cipher = null; // the master cipher falls with the crown
-}
-
-/** How many Cores are still orbiting (0 → crack the crown open). */
-export function countSovereignCores(world: World): number {
-  let n = 0;
-  world.enemies.forEachActive((e) => {
-    if (e.kind === 'sovereign_core') n++;
-  });
-  return n;
-}
-
-function updateSovereign(e: Enemy, world: World, dt: number): void {
-  e.spawnTime += dt;
-  if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 1.5);
-  if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
-
-  // regal drift near arena centre
-  const cx = world.width / 2;
-  const cy = world.height / 2;
-  const tx = cx + Math.cos(e.spawnTime * 0.3) * world.width * 0.12;
-  const ty = cy + Math.sin(e.spawnTime * 0.42) * world.height * 0.1;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
-  e.vx = nx * SOVEREIGN.moveSpeed;
-  e.vy = ny * SOVEREIGN.moveSpeed;
-  e.x += e.vx * dt;
-  e.y += e.vy * dt;
-
-  const hpFrac = e.hp / e.maxHp;
-  const rate = hpFrac < 0.4 ? 0.82 : 1;
-
-  if (e.phase === 2) {
-    // EXPOSED — the crown is open: body vulnerable, light aimed fans (punish window)
-    e.telegraph = 1;
-    e.timer -= dt;
-    e.fireTimer -= dt;
-    if (e.fireTimer <= 0) {
-      if (e.subPhase < SOVEREIGN.fanShots) {
-        fireAimedFan(e, world, SOVEREIGN.fanBullets, SOVEREIGN.fanSpread, SOVEREIGN.fanBulletSpeed, SOVEREIGN.coreColor);
-        e.subPhase++;
-        e.fireTimer = SOVEREIGN.fanGap;
-      } else {
-        e.subPhase = 0;
-        e.fireTimer = SOVEREIGN.fanRest;
-      }
-    }
-    if (e.timer <= 0) {
-      // crown re-armors: reform the cores and resume the assault
-      spawnSovereignCores(world, e);
-      e.phase = 0;
-      e.timer = SOVEREIGN.phaseDuration;
-      e.fireTimer = SOVEREIGN.beamTelegraph;
-      e.subPhase = 0;
-      e.telegraph = 0;
-    }
-    return;
-  }
-
-  // armored — alternate CROWN BEAMS (phase 0) and NOVA SPIRAL (phase 1)
-  e.timer -= dt;
-  if (e.timer <= 0) {
-    e.phase = e.phase === 0 ? 1 : 0;
-    e.timer = SOVEREIGN.phaseDuration;
-    e.fireTimer = e.phase === 0 ? SOVEREIGN.beamTelegraph : 0;
-    e.subPhase = 0;
-    e.angle = 0;
-  }
-
-  if (e.phase === 0) {
-    // CROWN BEAMS — rotating star: telegraph → active → off
-    e.angle += SOVEREIGN.beamSpin * dt;
-    e.fireTimer -= dt;
-    if (e.fireTimer <= 0) {
-      if (e.subPhase === 0) { e.subPhase = 1; e.fireTimer = SOVEREIGN.beamActive; }
-      else if (e.subPhase === 1) { e.subPhase = 2; e.fireTimer = SOVEREIGN.beamOff; }
-      else { e.subPhase = 0; e.fireTimer = SOVEREIGN.beamTelegraph; }
-    }
-    e.telegraph = e.subPhase === 0 ? 1 - e.fireTimer / SOVEREIGN.beamTelegraph : e.subPhase === 1 ? 1 : 0;
-  } else {
-    // NOVA SPIRAL — golden-angle arms (bent by the gravity well in updateBullets)
-    e.telegraph = 0;
-    e.fireTimer -= dt;
-    while (e.fireTimer <= 0) {
-      const sp = SOVEREIGN.spiralSpeed;
-      for (let i = 0; i < SOVEREIGN.spiralArms; i++) {
-        const a = e.angle + (i / SOVEREIGN.spiralArms) * Math.PI * 2;
-        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, SOVEREIGN.color, true);
-      }
-      e.angle += SOVEREIGN.spiralSpin;
-      e.fireTimer += SOVEREIGN.spiralEvery * rate;
-    }
-  }
 }
