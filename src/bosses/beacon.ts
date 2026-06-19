@@ -21,6 +21,13 @@ export function beaconEnraged(e: Enemy): boolean {
   return e.kind === 'beacon' && bossEnraged(e, BEACON.enrageFrac);
 }
 
+/** Multiplier on the sweep's OFF (rest) window. Enraged it shrinks to offDurEnragedMul
+ *  so the comfy "walk around the wedge" pause stops working — you must dash THROUGH the
+ *  beam (i-frames phase you through). Pure HP read, no rng. */
+export function beaconSweepTightnessFrac(e: Enemy): number {
+  return beaconEnraged(e) ? BEACON.offDurEnragedMul : 1;
+}
+
 export function updateBeacon(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
@@ -59,7 +66,7 @@ export function updateBeacon(e: Enemy, world: World, dt: number): void {
         e.fireTimer = BEACON.activeDur;
       } else if (e.subPhase === 1) {
         e.subPhase = 2; // beam off
-        e.fireTimer = BEACON.offDur;
+        e.fireTimer = BEACON.offDur * beaconSweepTightnessFrac(e); // enraged: shorter rest → forces dash-through
       } else {
         e.subPhase = 0; // telegraph the next sweep
         e.fireTimer = BEACON.telegraphDur;

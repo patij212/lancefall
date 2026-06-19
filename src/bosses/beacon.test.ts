@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { beaconBeamActive, beaconEnraged } from './beacon';
+import { beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac } from './beacon';
 import { beamHitsPoint } from '../sovereign';
 import { BEACON } from '../tune';
 import type { Enemy } from '../types';
@@ -16,6 +16,20 @@ describe('beacon predicates', () => {
     expect(beaconEnraged(mk({ hp: 30 }))).toBe(false);
     expect(beaconEnraged(mk({ hp: BEACON.enrageFrac * 30 - 0.1 }))).toBe(true);
     expect(beaconEnraged(mk({ kind: 'warden', hp: 1 }))).toBe(false);
+  });
+});
+
+describe('beacon sweep tightness (dash-through pressure)', () => {
+  it('is 1 (unchanged rest window) above the enrage threshold', () => {
+    expect(beaconSweepTightnessFrac(mk({ hp: 30 }))).toBe(1);
+    expect(beaconSweepTightnessFrac(mk({ hp: BEACON.enrageFrac * 30 + 0.1 }))).toBe(1);
+  });
+  it('shrinks the rest window to offDurEnragedMul below the threshold (forces dash-through)', () => {
+    expect(beaconSweepTightnessFrac(mk({ hp: BEACON.enrageFrac * 30 - 0.1 }))).toBe(BEACON.offDurEnragedMul);
+    expect(BEACON.offDurEnragedMul).toBeLessThan(1);
+  });
+  it('never tightens a non-beacon', () => {
+    expect(beaconSweepTightnessFrac(mk({ kind: 'warden', hp: 1 }))).toBe(1);
   });
 });
 

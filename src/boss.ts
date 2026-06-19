@@ -8,7 +8,7 @@ import type { World } from './world';
 import type { Enemy } from './types';
 import { updateWarden } from './bosses/warden';
 import { updateWeaver } from './bosses/weaver';
-import { updateBeacon, beaconBeamActive, beaconEnraged } from './bosses/beacon';
+import { updateBeacon, beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac } from './bosses/beacon';
 import { updateMirrorblade, mirrorbladeDashing } from './bosses/mirrorblade';
 import { updateHollow, hollowSyncActive, cleanupHollowEchoes, openHollowWindow } from './bosses/hollow';
 import {
@@ -22,7 +22,7 @@ import {
 // Re-export per-boss predicates + Sovereign core/cipher helpers so existing
 // importers of './boss' (game.ts, cipherIntegration.test) keep working after the
 // extraction into src/bosses/*.
-export { beaconBeamActive, beaconEnraged };
+export { beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac };
 export { mirrorbladeDashing };
 export { hollowSyncActive, cleanupHollowEchoes, openHollowWindow };
 export { spawnSovereignCores, spawnCipherRing, cleanupSovereignCores, countSovereignCores };
