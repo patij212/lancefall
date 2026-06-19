@@ -1,6 +1,6 @@
-// UPGRADES — the permanent meta-tree, rendered EXACTLY as the v7 mock: three vertical
-// branches (MOMENTUM / THE EDGE / FORTUNE) of four tiers each, hanging off a central
-// THE LAST LANCE root, wired with SVG links that brighten as you own nodes along them.
+// UPGRADES — the permanent meta-tree: four vertical branches (MOMENTUM / THE EDGE /
+// FORTUNE / PARRY) hanging off a central THE LAST LANCE root, wired with SVG links that
+// brighten as you own nodes along them. (PARRY runs five tiers deep to its capstone.)
 // Each branch unlocks DOWNWARD — a tier is buyable only once the tier above it owns a
 // level (the mock's gating). This is a UI affordance only: meta.ts (effects/costs/save)
 // is untouched, and any node already owned stays shown. Re-rendered each open.
@@ -18,13 +18,14 @@ interface Branch {
   nodes: string[]; // META_NODE ids, tier 1 → 4
 }
 
-// the 12 META_NODES arranged into the mock's 3 branches (verbatim from cockpit.html TREE).
+// the META_NODES arranged into branches (the 3 original mock branches + the PARRY branch).
 const BRANCHES: Branch[] = [
-  { name: 'MOMENTUM', color: '#22d3ee', rgb: '34,211,238', x: 17, nodes: ['recovery', 'momentum', 'reach', 'ironwill'] },
-  { name: 'THE EDGE', color: '#fb923c', rgb: '251,146,60', x: 50, nodes: ['edge', 'grazer', 'memory', 'scavenger'] },
-  { name: 'FORTUNE', color: '#4ade80', rgb: '74,222,128', x: 83, nodes: ['treasure', 'headstart', 'fortune', 'secondchance'] },
+  { name: 'MOMENTUM', color: '#22d3ee', rgb: '34,211,238', x: 13, nodes: ['recovery', 'momentum', 'reach', 'ironwill'] },
+  { name: 'THE EDGE', color: '#fb923c', rgb: '251,146,60', x: 37, nodes: ['edge', 'grazer', 'memory', 'scavenger'] },
+  { name: 'FORTUNE', color: '#4ade80', rgb: '74,222,128', x: 63, nodes: ['treasure', 'headstart', 'fortune', 'secondchance'] },
+  { name: 'PARRY', color: '#a5f3fc', rgb: '165,243,252', x: 87, nodes: ['parryReach', 'parryWide', 'parryRecover', 'parryStreak', 'parryPerfect'] },
 ];
-const TY = [13, 36, 56, 76, 95]; // root row + 4 tier rows (tree-space y, 0..100)
+const TY = [9, 24, 40, 56, 72, 88]; // root row + up to 5 tier rows (tree-space y, 0..100)
 
 // per-node icons (mock TICONS), keyed by META_NODE id; plus the hull root + a lock glyph.
 const ICONS: Record<string, string> = {
@@ -40,6 +41,12 @@ const ICONS: Record<string, string> = {
   headstart: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 21V4M6 4h11l-2 4 2 4H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   fortune: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.6 6.2L21 9.7l-5 4.3 1.6 6.6L12 17l-5.6 3.6L8 14 3 9.7l6.4-.5Z" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
   secondchance: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 20S4 14.5 4 9a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 5.5-8 11-8 11Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 8v5M9.5 10.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  // PARRY branch — guard/shield motifs
+  parryReach: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12h12M14 8l5 4-5 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  parryWide: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 12L5 6M12 12l7-6M12 12v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M5 6a10 10 0 0 1 14 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  parryRecover: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12a7 7 0 1 1 2 4.9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 8v4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  parryStreak: '<svg viewBox="0 0 24 24" fill="none"><path d="M13 2L4 14h6l-1 8 9-12h-6Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  parryPerfect: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 11.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   root: '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3 9-3 2-3-2Z" fill="currentColor" fill-opacity="0.3" stroke="currentColor" stroke-width="1.4"/><path d="M9 13l3 9 3-9" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>',
 };
 const LOCK_SVG =
@@ -52,11 +59,10 @@ function link(x1: number, y1: number, x2: number, y2: number, color: string, unl
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" vector-effect="non-scaling-stroke" stroke-linecap="round" opacity="${op}" ${dash}/>`;
 }
 
-/** Build the meta-tree shell ONCE (balance cards, legend, link layer, root node, the 12
- *  branch nodes) and return an `update(save)` that morphs it in place: reconcile re-keys the
- *  12 nodes by meta id, so a purchase re-tints/relevels/unlocks the affected nodes without
- *  reflashing the whole tree. The cost stays a real <button> (disabled when unaffordable) so
- *  Enter-to-buy keyboard access survives. */
+/** Build the meta-tree shell ONCE (balance cards, legend, link layer, root node, the branch
+ *  nodes) and return an `update(save)` that morphs it in place: reconcile re-keys the nodes by
+ *  meta id, so a purchase re-tints/relevels/unlocks the affected nodes without reflashing the
+ *  whole tree. The cost stays a real <button> (disabled when unaffordable) so Enter-to-buy works. */
 export function buildUpgradesShell(onBuy: (id: string) => void): { root: HTMLElement; update: (s: SaveData) => void } {
   const root = el('div');
 
@@ -91,8 +97,8 @@ export function buildUpgradesShell(onBuy: (id: string) => void): { root: HTMLEle
   rootNode.append(el('div', { class: 'tnode-badge' }, rootFace), el('div', { class: 'tnode-name' }, 'THE LAST LANCE'));
   tree.append(rootNode);
 
-  // dedicated layer so reconcile owns ONLY the 12 nodes (display:contents keeps their absolute
-  // positioning resolving against .upg-tree, exactly as before).
+  // dedicated layer so reconcile owns ONLY the branch nodes (display:contents keeps their
+  // absolute positioning resolving against .upg-tree, exactly as before).
   const nodeLayer = el('div', { class: 'upg-node-layer' });
   tree.append(nodeLayer);
   root.append(tree);
@@ -100,7 +106,7 @@ export function buildUpgradesShell(onBuy: (id: string) => void): { root: HTMLEle
     el('p', { class: 'upg-lead' }, 'Permanent upgrades carry between every descent. Each branch unlocks downward — buy a node to reveal the next. Glowing nodes are affordable.'),
   );
 
-  // the 12 nodes flattened with branch + tier coords, for reconcile (skip any unknown id).
+  // all nodes flattened with branch + tier coords, for reconcile (skip any unknown id).
   const flat = BRANCHES.flatMap((b) => b.nodes.map((id, i) => ({ id, b, i }))).filter((n) => metaNode(n.id));
 
   const update = (s: SaveData): void => {
@@ -116,7 +122,7 @@ export function buildUpgradesShell(onBuy: (id: string) => void): { root: HTMLEle
     let links = '';
     for (const b of BRANCHES) {
       links += link(50, TY[0], b.x, TY[1], b.color, true, lvlOf(b.nodes[0]) > 0); // root → tier 1
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < b.nodes.length - 1; i++) {
         links += link(b.x, TY[i + 1], b.x, TY[i + 2], b.color, lvlOf(b.nodes[i]) > 0, lvlOf(b.nodes[i + 1]) > 0);
       }
     }

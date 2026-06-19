@@ -29,6 +29,12 @@ export const META_NODES: MetaNode[] = [
   { id: 'fortune', name: 'Fortune', desc: 'Perk drafts offer a 4th card', maxLevel: 1, baseCost: 900, costMul: 2, apply: (s) => { s.draftSize = 4; } },
   { id: 'headstart', name: 'Head Start', desc: 'Begin each run with a random perk', maxLevel: 2, baseCost: 700, costMul: 2.2, apply: (s, l) => { s.startPerks += l; } },
   { id: 'secondchance', name: 'Second Chance', desc: 'Revive once per run on death', maxLevel: 1, baseCost: 1500, costMul: 2, apply: (s, l) => { s.reviveTokens += l; } },
+  // ── PARRY branch — the second verb's permanent guard upgrades (overhaul P2) ──
+  { id: 'parryReach', name: 'Long Guard', desc: '+14 parry reach per level', maxLevel: 5, baseCost: 140, costMul: 1.55, apply: (s, l) => { s.parryReach += 14 * l; } },
+  { id: 'parryWide', name: 'Wide Guard', desc: '+0.27rad parry width per level', maxLevel: 5, baseCost: 150, costMul: 1.55, apply: (s, l) => { s.parryHalfAngle += 0.27 * l; } },
+  { id: 'parryRecover', name: 'Quick Recover', desc: '-0.03s parry recovery per level', maxLevel: 5, baseCost: 160, costMul: 1.6, apply: (s, l) => { s.parryRecover += 0.03 * l; } },
+  { id: 'parryStreak', name: 'Streak Memory', desc: '+0.4s parry-streak window per level', maxLevel: 5, baseCost: 170, costMul: 1.6, apply: (s, l) => { s.parryStreakWindow += 0.4 * l; } },
+  { id: 'parryPerfect', name: 'Perfect Frame', desc: '+0.025s perfect-frame window per level', maxLevel: 3, baseCost: 600, costMul: 2, apply: (s, l) => { s.parryPerfectWindow += 0.025 * l; } },
 ];
 
 export function metaNode(id: string): MetaNode | undefined {

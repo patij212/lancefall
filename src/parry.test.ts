@@ -17,6 +17,8 @@ import {
 import { PARRY, TUNE } from './tune';
 import { makeOverdrive } from './overdrive';
 import { newCoherence } from './coherence';
+import { deriveStats } from './perks';
+import { META_NODES, metaApplyFor } from './meta';
 
 type B = { x: number; y: number; fromBoss: boolean };
 
@@ -234,6 +236,18 @@ describe('effectiveParryArc', () => {
     const a = effectiveParryArc(1, 9999, 99);
     expect(a.halfAngle).toBeCloseTo(Math.PI);
     expect(a.reach).toBe(PARRY.reachCap);
+  });
+
+  it('the apex (maxed PARRY meta AT max coherence) reaches the full-circle guard', () => {
+    const maxed: Record<string, number> = {};
+    for (const n of META_NODES) if (n.id.startsWith('parry')) maxed[n.id] = n.maxLevel;
+    const s = deriveStats({}, undefined, metaApplyFor(maxed));
+    const apex = effectiveParryArc(1, s.parryReach, s.parryHalfAngle);
+    expect(apex.halfAngle).toBeCloseTo(Math.PI); // full 360° guard — earned
+    expect(apex.reach).toBe(PARRY.reachCap);
+    // …but max coherence WITHOUT the meta is wide, not full
+    const noMeta = effectiveParryArc(1, 0, 0);
+    expect(noMeta.halfAngle).toBeLessThan(Math.PI);
   });
 });
 

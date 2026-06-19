@@ -1964,9 +1964,9 @@ body {
 .upg-legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin: 2px 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.06em; color: var(--text-muted); }
 .upg-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .upg-legend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
-/* §v7 — 3-branch meta-tree, transcribed verbatim from the mock (cockpit.html .tree/.tnode). */
-.upg-tree { position: relative; width: 100%; max-width: 660px; height: 512px; margin: 0 auto 4px; }
-/* reconcile node layer — transparent so the 12 tnodes keep absolute-positioning against .upg-tree */
+/* meta-tree (4 branches; PARRY runs 5 tiers deep) — based on the v7 mock (.tree/.tnode). */
+.upg-tree { position: relative; width: 100%; max-width: 720px; height: 600px; margin: 0 auto 4px; }
+/* reconcile node layer — transparent so the tnodes keep absolute-positioning against .upg-tree */
 .upg-node-layer { display: contents; }
 .upg-link-layer, .upg-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
 .tnode { position: absolute; transform: translate(-50%, -50%); width: 132px; text-align: center; z-index: 1; }
