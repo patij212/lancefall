@@ -12,6 +12,19 @@ import { trailBrightness, spearNeonLift } from '../renderMath';
 import { shipModel, traceShipPath } from '../shipModels';
 import { mix } from './colorMix';
 
+// How far the dash SPEAR LINE leans from the combo-tier colour toward the equipped trail's
+// colour, for non-combo (cosmetic) trails. Kept partial so the combo-tier signal (the line's
+// hue climbing with the chain) is still readable — the trail just colours it. The default PULSE
+// trail tracks the combo colour, so it is unaffected (the line stays pure combo).
+const SPEAR_TRAIL_LEAN = 0.3;
+
+/** The dash spear-line colour: the combo-tier colour, leaned toward the equipped trail so the
+ *  chosen trail is felt on the dash's signature stroke (PULSE / combo-tracking trails are left
+ *  as the pure combo colour). Pure + exported for unit testing. */
+export function spearLineColor(comboCol: string, trail: TrailDef): string {
+  return trail.combo ? comboCol : mix(comboCol, trail.base, SPEAR_TRAIL_LEAN);
+}
+
 export interface SpearDeps {
   coherence: number;
   reduceFlashing: boolean;
@@ -28,7 +41,7 @@ export function drawSpear(ctx: CanvasRenderingContext2D, world: World, d: SpearD
 
   // dash spear line + streaking ship afterimages (the "snap" of the dash)
   if (p.phase === 'dashing') {
-    const col = d.comboCol;
+    const col = spearLineColor(d.comboCol, d.trail);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = col;
@@ -45,7 +58,7 @@ export function drawSpear(ctx: CanvasRenderingContext2D, world: World, d: SpearD
     // read as a streak of ships, fading toward the tail
     const gsr = TUNE.player.spriteRadius;
     const blaze = Math.min(1, world.combo / 50); // the trail intensifies as the chain climbs
-    const ghosts = 4 + Math.round(2 * blaze); // 4 → 6 at high combo
+    const ghosts = 5 + Math.round(2 * blaze); // 5 → 7 (denser streak so the trail reads clearly)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const ghostBase = trailGhostColor(d.trail, d.themeAccent2);
@@ -59,7 +72,7 @@ export function drawSpear(ctx: CanvasRenderingContext2D, world: World, d: SpearD
       const gx = p.dashFromX + (p.x - p.dashFromX) * t;
       const gy = p.dashFromY + (p.y - p.dashFromY) * t;
       const s = 0.7 + 0.3 * t; // ghosts grow toward the ship
-      ctx.globalAlpha = Math.min(1, (0.22 + 0.4 * t) * (1 + 0.5 * blaze) * tb);
+      ctx.globalAlpha = Math.min(1, (0.32 + 0.45 * t) * (1 + 0.5 * blaze) * tb);
       ctx.save();
       ctx.translate(gx, gy);
       ctx.rotate(p.angle);

@@ -16,3 +16,12 @@ export function mix(a: string, b: string, t: number): string {
     ca.b + (cb.b - ca.b) * t,
   )})`;
 }
+
+/** Like mix(), but returns a `#rrggbb` hex so the result can be fed back into hexRgb()/mix()
+ *  again (e.g. a palette-tinted ship accent that is then mixed toward white for hit-flash). */
+export function mixHex(a: string, b: string, t: number): string {
+  const ca = hexRgb(a);
+  const cb = hexRgb(b);
+  const ch = (x: number) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0');
+  return `#${ch(ca.r + (cb.r - ca.r) * t)}${ch(ca.g + (cb.g - ca.g) * t)}${ch(ca.b + (cb.b - ca.b) * t)}`;
+}

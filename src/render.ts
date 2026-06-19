@@ -38,7 +38,7 @@ import {
 import { drawNovaSpiralTelegraph, drawSovereignFinaleTint, drawBeaconCounterBeam, drawBossFinaleTint } from './render/boss';
 import { drawEnemyTells } from './render/enemyTells';
 import { drawSpear } from './render/spear';
-import { mix, hexRgb } from './render/colorMix';
+import { mix, mixHex, hexRgb } from './render/colorMix';
 import { beaconEnraged } from './bosses/beacon';
 
 // ── BIOMECHANICAL enemy art direction (Proposal B) ──────────────────────────
@@ -72,6 +72,14 @@ export interface RenderOpts {
   cipherAssist: boolean; // re-light the next cipher core (Casual / opt-in decode assist)
 }
 
+// How far the in-run background tint leans toward the BIOME vs the cosmetic PALETTE.
+// 0 = pure palette (biome ignored), 1 = pure biome (old behaviour, palette hidden).
+// 0.5 keeps both legible: the palette is always felt, biomes still shift the mood.
+const BIOME_TINT_LEAN = 0.5;
+// How far the player ship's signature accent leans toward the PALETTE accent. Kept low so
+// each ship's identity colour (roster read) survives while the palette is still felt on the hull.
+const SHIP_PALETTE_LEAN = 0.4;
+
 export class Renderer {
   private screen: HTMLCanvasElement;
   private sctx: CanvasRenderingContext2D;
@@ -98,6 +106,11 @@ export class Renderer {
   // setSkins() — the per-enemy draw path does a cheap map lookup, no string work.
   private skins = new Map<string, SkinDef | null>();
   private biomeTint: [string, string, string] | null = null;
+  // Effective in-run background tint = the cosmetic PALETTE blended with the active biome's
+  // tint (so the chosen palette is always visible in-game, while biomes still shift the mood).
+  // Recomputed only on setTheme/setBiomeTint, not per frame. effCity tints the skyline accent.
+  private effNebula: [string, string, string] = themeById('neon').nebula;
+  private effCity: string = themeById('neon').accent;
   // ── THE LAST LANCE one-bus (render half) — pushed each frame by setCoherence ──
   private coherence = 0;
   private focusPulse = 0;
@@ -117,6 +130,7 @@ export class Renderer {
 
   setTheme(t: ThemeDef): void {
     this.theme = t;
+    this.recomputeTint();
   }
 
   setTrail(t: TrailDef): void {
@@ -141,9 +155,23 @@ export class Renderer {
     }
   }
 
-  /** Override the nebula tint during a run (biome stage); null = use theme. */
+  /** Override the nebula tint during a run (biome stage); null = use the pure theme palette. */
   setBiomeTint(c: [string, string, string] | null): void {
     this.biomeTint = c;
+    this.recomputeTint();
+  }
+
+  /** Recompute the cached in-run background tint: the cosmetic PALETTE (theme) blended with
+   *  the active biome tint so the player's chosen palette stays visible during a run. Called
+   *  only on a theme/biome change (never per frame). On menus (biomeTint null) the pure
+   *  palette shows; in a run the two are mixed by BIOME_TINT_LEAN. */
+  private recomputeTint(): void {
+    const t = this.theme.nebula;
+    const b = this.biomeTint;
+    this.effNebula = b
+      ? [mixHex(t[0], b[0], BIOME_TINT_LEAN), mixHex(t[1], b[1], BIOME_TINT_LEAN), mixHex(t[2], b[2], BIOME_TINT_LEAN)]
+      : [t[0], t[1], t[2]];
+    this.effCity = b ? mixHex(this.theme.accent, b[1], BIOME_TINT_LEAN) : this.theme.accent;
   }
 
   /** THE ONE BUS (render half) — pushed each frame: the eased Coherence value +
@@ -428,7 +456,7 @@ export class Renderer {
     if (alpha <= 0.003) return;
     const ctx = this.bctx;
     const expo = bgExposure(c, this.reduceFlashingR);
-    const city = this.colorblindR ? '#aebfe0' : this.biomeTint ? this.biomeTint[1] : this.theme.accent;
+    const city = this.colorblindR ? '#aebfe0' : this.effCity;
     const win = this.colorblindR ? '#ffffff' : this.theme.accent2;
     const baseY = this.h;
     const drift = this.reduceMotionR ? 0 : this.bgT * 6;
@@ -518,7 +546,7 @@ export class Renderer {
     // drifting nebula clouds (biome tint during a run, else the cosmetic theme).
     // perf: each blob is a full-screen radial-gradient fill (the heaviest per-frame GPU
     // op) — at quality 1 ALL blobs draw (look unchanged); under load the count thins.
-    const nb = this.biomeTint ?? this.theme.nebula;
+    const nb = this.effNebula;
     const blobs: [number, number, string, number][] = [
       [0.26, 0.32, nb[0], 0.9],
       [0.72, 0.34, nb[1], 1.3],
@@ -2086,8 +2114,14 @@ export class Renderer {
   private drawPlayer(world: World): void {
     const ctx = this.bctx;
     const p = world.player;
-    // the active ship's signature accent (cosmetic; shape-coded for colorblind)
-    const shipAccent = shipById(world.shipId).accent;
+    // the active ship's signature accent (cosmetic; shape-coded for colorblind), leaned toward
+    // the equipped PALETTE so the chosen palette tints the hull/glow too. Kept a partial blend
+    // (SHIP_PALETTE_LEAN) so each ship's identity colour still reads. mixHex keeps it a hex so
+    // the downstream hit-flash mix(shipAccent, '#fff') still parses. colorblind keeps the raw
+    // signature accent (palette tinting would muddy the shape-independent colour read).
+    const shipAccent = this.colorblindR
+      ? shipById(world.shipId).accent
+      : mixHex(shipById(world.shipId).accent, this.theme.accent, SHIP_PALETTE_LEAN);
 
     // active POWER-UP aura — a coloured pulsing ring around the ship
     if (world.powerup.active) {
@@ -2291,7 +2325,7 @@ export class Renderer {
       const bandH = H * 0.16;
       const grad = sctx.createLinearGradient(0, H - bandH, 0, H);
       grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(1, this.colorblindR ? '#cfe2ff' : this.biomeTint ? this.biomeTint[1] : this.theme.accent);
+      grad.addColorStop(1, this.colorblindR ? '#cfe2ff' : this.effCity);
       sctx.globalCompositeOperation = 'lighter';
       sctx.globalAlpha = glow;
       sctx.fillStyle = grad;
