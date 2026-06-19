@@ -4,9 +4,9 @@
 // CROSS — a second beam perpendicular to the first (the praised beam, doubled).
 // Extracted from boss.ts; pure predicates up top, stateful update below.
 
-import { BEACON } from '../tune';
+import { BEACON, ZONE } from '../tune';
 import { norm } from '../vec';
-import { bossEnraged } from './util';
+import { bossEnraged, zoneTarget } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -38,7 +38,8 @@ export function updateBeacon(e: Enemy, world: World, dt: number): void {
   const cy = world.height / 2;
   const tx = cx + Math.cos(e.spawnTime * 0.35) * world.width * 0.14;
   const ty = cy + Math.sin(e.spawnTime * 0.5) * world.height * 0.14;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  const z = ZONE.enabled ? zoneTarget(world.player.x, world.player.y, world.width, world.height, tx, ty, ZONE.bias) : { tx, ty };
+  const [nx, ny] = norm(z.tx - e.x, z.ty - e.y);
   e.vx = nx * BEACON.moveSpeed;
   e.vy = ny * BEACON.moveSpeed;
   e.x += e.vx * dt;

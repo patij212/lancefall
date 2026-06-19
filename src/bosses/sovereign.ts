@@ -3,10 +3,11 @@
 // this file owns the side-effecting loop + the core/cipher spawn helpers. Split
 // out of boss.ts so the dispatch file stays thin (see ../bosses/* siblings).
 
-import { SOVEREIGN } from '../tune';
+import { SOVEREIGN, ZONE } from '../tune';
 import { cipherSeed, makeCipher } from '../cipher';
 import { norm } from '../vec';
 import { sovereignFinale, novaSpiralTelegraphFrac } from '../sovereign';
+import { zoneTarget } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -102,7 +103,11 @@ export function updateSovereign(e: Enemy, world: World, dt: number): void {
   const cy = world.height / 2;
   const tx = cx + Math.cos(e.spawnTime * 0.3) * world.width * 0.12;
   const ty = cy + Math.sin(e.spawnTime * 0.42) * world.height * 0.1;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  // zone the player only while ARMORED — keep the EXPOSE/finale punish windows fair
+  const z = ZONE.enabled && e.phase !== 2 && !sovereignFinale(e)
+    ? zoneTarget(world.player.x, world.player.y, world.width, world.height, tx, ty, ZONE.bias)
+    : { tx, ty };
+  const [nx, ny] = norm(z.tx - e.x, z.ty - e.y);
   e.vx = nx * SOVEREIGN.moveSpeed;
   e.vy = ny * SOVEREIGN.moveSpeed;
   e.x += e.vx * dt;

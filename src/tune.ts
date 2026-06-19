@@ -853,6 +853,15 @@ export const POWERUP_DROP = {
   pickupRadius: 26, // px — collect range
 };
 
+// ZONE TARGETING — drifting bosses nudge their drift target toward the player so a
+// turtled safe corner gets denied (zoneTarget in src/bosses/util.ts). Modest + clamped
+// so the readable lissajous wander survives. A global kill-switch + a per-frame bias.
+export const ZONE = {
+  enabled: true, // master switch for boss zone-targeting
+  bias: 0.25, // fraction of the way the drift target is nudged toward the player (small → keeps the wander)
+  margin: 60, // px the zoned target is kept inside the arena edges
+} as const;
+
 export const WARDEN = {
   baseHp: 12, // dash-hits
   hpPerInterval: 4, // +per boss appearance

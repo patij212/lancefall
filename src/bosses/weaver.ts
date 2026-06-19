@@ -2,9 +2,9 @@
 // rings with a moving safe-lane (phase 1). ENRAGED it opens TWO closing lanes.
 // Extracted from boss.ts; pure gap-index math up top, stateful update below.
 
-import { WEAVER } from '../tune';
+import { WEAVER, ZONE } from '../tune';
 import { norm } from '../vec';
-import { bossEnraged } from './util';
+import { bossEnraged, zoneTarget } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -53,7 +53,8 @@ export function updateWeaver(e: Enemy, world: World, dt: number): void {
   const cy = world.height / 2;
   const tx = cx + Math.cos(e.spawnTime * 0.4) * world.width * 0.16;
   const ty = cy + Math.sin(e.spawnTime * 0.55) * world.height * 0.16;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  const z = ZONE.enabled ? zoneTarget(world.player.x, world.player.y, world.width, world.height, tx, ty, ZONE.bias) : { tx, ty };
+  const [nx, ny] = norm(z.tx - e.x, z.ty - e.y);
   e.vx = nx * WEAVER.moveSpeed;
   e.vy = ny * WEAVER.moveSpeed;
   e.x += e.vx * dt;

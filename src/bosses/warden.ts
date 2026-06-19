@@ -4,9 +4,9 @@
 // turn). Extracted out of boss.ts; pure pattern-math helpers up top, stateful
 // update below (see sibling bosses/*.ts).
 
-import { WARDEN } from '../tune';
+import { WARDEN, ZONE } from '../tune';
 import { norm } from '../vec';
-import { bossEnraged } from './util';
+import { bossEnraged, zoneTarget } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -36,7 +36,8 @@ export function updateWarden(e: Enemy, world: World, dt: number): void {
   const cy = world.height / 2;
   const tx = cx + Math.cos(e.spawnTime * 0.5) * world.width * 0.22;
   const ty = cy + Math.sin(e.spawnTime * 0.7) * world.height * 0.18;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
+  const z = ZONE.enabled ? zoneTarget(world.player.x, world.player.y, world.width, world.height, tx, ty, ZONE.bias) : { tx, ty };
+  const [nx, ny] = norm(z.tx - e.x, z.ty - e.y);
   e.vx = nx * WARDEN.moveSpeed;
   e.vy = ny * WARDEN.moveSpeed;
   e.x += e.vx * dt;
