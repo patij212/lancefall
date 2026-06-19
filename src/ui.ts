@@ -470,7 +470,7 @@ export class UI {
   private sandboxOverlay!: HTMLElement;
   private sandboxText!: HTMLElement;
   private touchPauseBtn!: HTMLButtonElement;
-  private rebinding: 'dash' | 'overdrive' | 'pause' | null = null; // active key-capture, if any
+  private rebinding: 'dash' | 'overdrive' | 'parry' | 'pause' | null = null; // active key-capture, if any
   private announceEl!: HTMLElement;
   private choiceRow!: HTMLElement;
   private saveReplayBtn!: HTMLButtonElement;
@@ -2507,6 +2507,7 @@ export class UI {
       rule('Move', 'WASD / arrows / left stick'),
       rule('Dash', 'Hold to charge, release to spear through enemies (mouse / Space / RT)'),
       rule('I-frames', 'You are invincible mid-dash — dash through bullets and bosses'),
+      rule('Parry', 'Tap right-mouse / K / gamepad-B to deflect the bullets in a short arc ahead — no i-frames, and whiffing locks you briefly. Land it ON THE BEAT to double the payout'),
       rule('Combo', 'Chain kills before the timer runs out to multiply score — hit ×50 and your combo ERUPTS into a bullet-clearing nova'),
       rule('Graze', 'Skim bullets without being hit to refill stamina'),
       rule('DAYBREAK', 'Kills + grazes charge the bottom meter. When it reads READY, tap F (or gamepad LB) to break the cipher — a time-slowing, screen-clearing burst of light'),

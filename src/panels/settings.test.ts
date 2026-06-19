@@ -8,7 +8,7 @@ const settings = (): Settings =>
     master: 0.8, sfx: 0.8, music: 0.8, shake: 1, chromAberration: 0.6, hudScale: 1,
     particleDensity: 'med', soundtrack: 'aurora', dashStyle: 'lance',
     reduceFlashing: false, reduceMotion: false, colorblind: false, clarity: false,
-    rhythmAssist: false, rumble: true, keymap: { dash: [' '], overdrive: ['e'], pause: ['escape'] },
+    rhythmAssist: false, rumble: true, keymap: { dash: [' '], overdrive: ['e'], parry: ['k'], pause: ['escape'] },
   }) as unknown as Settings;
 
 const deps = (over: Partial<SettingsPanelDeps> = {}): SettingsPanelDeps => ({

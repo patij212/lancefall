@@ -9,7 +9,7 @@ import { defaultKeyBindings } from '../input';
 import { TRACKS, type SoundtrackId } from '../soundtracks';
 import type { Settings } from '../save';
 
-type RebindAction = 'dash' | 'overdrive' | 'pause';
+type RebindAction = 'dash' | 'overdrive' | 'parry' | 'pause';
 
 export interface SettingsPanelDeps {
   /** the live settings object (mutated in place by patch — held by reference). */
@@ -189,7 +189,7 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       toggle('Beat ring (rhythm assist)', s.rhythmAssist, (v) => deps.patch({ rhythmAssist: v }))) },
     { id: 'controls', name: 'CONTROLS', el: sect('controls',
       toggle('Controller rumble', s.rumble, (v) => deps.patch({ rumble: v })),
-      rebindRow('Dash', 'dash'), rebindRow('Overdrive', 'overdrive'), rebindRow('Pause', 'pause'),
+      rebindRow('Dash', 'dash'), rebindRow('Overdrive', 'overdrive'), rebindRow('Parry', 'parry'), rebindRow('Pause', 'pause'),
       el('div', { class: 'setting' }, resetKeys)) },
   ];
   const tabRow = el('div', { class: 'set-tabs' });
