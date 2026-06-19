@@ -1,3 +1,5 @@
+import { vocabulary } from './intercepts';
+
 // ── Pure logic (unit-tested in cockpitCipher.test.ts) ────────────────────────
 
 /** Clamp to the [0, 1] coherence range. */
@@ -281,6 +283,7 @@ function mountCipher(): { stop(): void } {
   let cockpitShown = false;
   let accentRgb: [number, number, number] = CYAN_RGB; // per-mode tint (lattice + scan beam)
   let choice = 'none'; // THE CHOICE from the save → coherence floor
+  let decryptFrac = 0; // master-cipher progress (decrypted vocabulary fraction) → coherence floor
   let burst = 0; // decode-burst envelope (0..1), spiked on DESCEND
   const mouse = { x: 0.5, y: 0.5 }; // normalized pointer (parallax)
   let buildings: Building[] = []; // neon skyline
@@ -330,6 +333,24 @@ function mountCipher(): { stop(): void } {
     }
   };
 
+  // Master-cipher progress (the decrypted fraction of the intercepts), read straight from the save
+  // like THE CHOICE — decoupled from game.ts. The more of the history you've decrypted, the more
+  // the city resolves grey→neon (the meta mirror of FIRST LIGHT). Defensive — never throws.
+  const readDecryptFrac = (): number => {
+    try {
+      const raw = localStorage.getItem('lancefall.save');
+      if (!raw) return 0;
+      const dw = (JSON.parse(raw) as { decryptedWords?: unknown }).decryptedWords;
+      if (!Array.isArray(dw)) return 0;
+      const vocab = vocabulary();
+      if (!vocab.length) return 0;
+      const have = new Set(dw);
+      return vocab.filter((w) => have.has(w)).length / vocab.length;
+    } catch {
+      return 0;
+    }
+  };
+
   // Per-mode accent rides --accent-rgb on .ck-main (set by ui.ts as a numeric triple).
   const readAccent = (): [number, number, number] => {
     const m = document.querySelector<HTMLElement>('.ck-main');
@@ -337,10 +358,13 @@ function mountCipher(): { stop(): void } {
     return parseAccentRgb(getComputedStyle(m).getPropertyValue('--accent-rgb').trim());
   };
 
-  // Effective coherence target: THE CHOICE sets a floor; new players defer to the boot --coh rise.
+  // Effective coherence target: THE CHOICE sets a floor; new players defer to the boot --coh rise;
+  // and the MASTER CIPHER raises the floor by how much of the history you've decrypted (a floor —
+  // it only ever adds light, the meta mirror of FIRST LIGHT). Full decryption ≈ a mostly-lit city.
   const targetCoh = (): number => {
     const cc = choiceCoherence(choice);
-    return cc !== null ? cc : readCoh();
+    const base = cc !== null ? cc : readCoh();
+    return clamp01(Math.max(base, decryptFrac * 0.85));
   };
 
   const rgbaT = (rgb: [number, number, number], a: number): string =>
@@ -699,6 +723,7 @@ function mountCipher(): { stop(): void } {
       cohReadAcc += dt;
       if (cohReadAcc >= 0.2) {
         cohReadAcc = 0;
+        decryptFrac = readDecryptFrac(); // keep the master-cipher floor live (decrypt in the console → title resolves)
         cohTarget = targetCoh();
         accentRgb = readAccent();
       }
@@ -750,6 +775,7 @@ function mountCipher(): { stop(): void } {
     canvas.style.display = 'block';
     ensureSize();
     if (!wasShown) choice = readChoice(); // re-read THE CHOICE only on (re)entry to the title
+    decryptFrac = readDecryptFrac(); // master-cipher floor (also primes the reduce-motion STILL frame)
     if (prefersReducedMotion()) {
       stopLoop();
       drawStill();
