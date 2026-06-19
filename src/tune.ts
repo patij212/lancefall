@@ -456,6 +456,7 @@ export const HOLLOW = {
   color: '#6ee7b7',
   echoColor: '#a7f3d0',
   moveSpeed: 50,
+  enrageFrac: 0.4, // below this HP frac: rings fire faster (the enraged boost) — behavior gate, single source of truth
   ringSpin: 0.6, // rad/s ring rotation
   ringEvery: 2.2, // s between concentric rings
   ringCount: 22,

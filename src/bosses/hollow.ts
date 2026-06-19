@@ -6,6 +6,7 @@
 // purely-defensive player eventually gets a window. Extracted from boss.ts.
 
 import { HOLLOW } from '../tune';
+import { bossEnraged } from './util';
 import { norm, clamp } from '../vec';
 import type { World } from '../world';
 import type { Enemy } from '../types';
@@ -46,7 +47,7 @@ export function updateHollow(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 1.5);
   if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
-  const enraged = e.hp / e.maxHp < 0.4;
+  const enraged = bossEnraged(e, HOLLOW.enrageFrac);
 
   // drift slowly near arena centre
   const cx = world.width / 2;
