@@ -292,6 +292,10 @@ export const ORBITER = {
   // that made mines the #1 source of player hits by far; a shorter linger keeps the
   // area-denial verb readable without paving the arena in permanent hazards)
   mineColor: '#67e8f9', // a cooler cyan so a parked mine reads apart from a flying bolt
+  mineZoneRadius: 34, // px: the VISIBLE denied-space ZONE drawn around a parked mine
+  // (enemy overhaul: AREA-DENIAL reads as space to steer around, not just a dot to dodge.
+  // RENDER-ONLY — the mine's lethal hitbox is still its small bullet radius; the zone is a
+  // generous, honest read so the orbiter controls space rather than landing cheap hits).
 };
 
 // Splitter — the PARRY's signature target (enemy overhaul §SPLITTER). The split is

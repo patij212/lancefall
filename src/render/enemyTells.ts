@@ -13,7 +13,7 @@
 
 import type { World } from '../world';
 import type { Enemy } from '../types';
-import { WISP } from '../tune';
+import { WISP, ORBITER } from '../tune';
 
 /** The post-scale render radius the body uses (mirrors render.ts drawEnemy). */
 function bodyRadius(e: Enemy): number {
@@ -222,6 +222,34 @@ function drawBrooderHatch(ctx: CanvasRenderingContext2D, e: Enemy, t: number, re
   ctx.restore();
 }
 
+/** ORBITER — parked mines read as a denied ZONE you steer around (area-denial), not just
+ *  a dot to dodge. A faint hazard disc + a dashed perimeter ring around each parked mine
+ *  (vx=vy=0, shot 'mine'). RENDER-ONLY: the mine's lethal hitbox is still its small bullet
+ *  radius — the zone is a generous, honest read. Gentle pulse gated by reduceMotion. */
+function drawMineZones(ctx: CanvasRenderingContext2D, world: World, t: number, reduceMotion: boolean): void {
+  const rz = ORBITER.mineZoneRadius;
+  const pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 2.5);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  world.bullets.forEachActive((b) => {
+    if (b.shot !== 'mine' || b.vx !== 0 || b.vy !== 0) return;
+    ctx.fillStyle = ORBITER.mineColor;
+    ctx.globalAlpha = 0.07 + 0.05 * pulse; // faint denied-space fill
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, rz, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = ORBITER.mineColor;
+    ctx.globalAlpha = 0.35 + 0.25 * pulse;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, rz, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+  ctx.restore();
+}
+
 /** Draw every active enemy's role tell. One call site in render.ts (drawEnemies). */
 export function drawEnemyTells(
   ctx: CanvasRenderingContext2D,
@@ -230,6 +258,7 @@ export function drawEnemyTells(
   reduceMotion: boolean,
   reduceFlashing: boolean,
 ): void {
+  drawMineZones(ctx, world, t, reduceMotion); // orbiter area-denial (parked-mine pre-pass)
   drawWispThreads(ctx, world, t, reduceMotion); // pack filaments (pairwise pre-pass)
   world.enemies.forEachActive((e) => {
     switch (e.kind) {
