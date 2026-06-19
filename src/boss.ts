@@ -23,6 +23,7 @@ import {
 // importers of './boss' (game.ts, cipherIntegration.test) keep working after the
 // extraction into src/bosses/*.
 export { beaconBeamActive, beaconEnraged, beaconSweepTightnessFrac };
+export { bossEnraged, bossEnrageFrac, getEnrageColor } from './bosses/util';
 export { mirrorbladeDashing };
 export { hollowSyncActive, cleanupHollowEchoes, openHollowWindow };
 export { spawnSovereignCores, spawnCipherRing, cleanupSovereignCores, countSovereignCores };
@@ -100,6 +101,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.fireTimer = 0;
   e.subPhase = 0;
   e.cipherExposed = 0;
+  e.enrageAnnounced = false; // reset the enrage-stinger latch (pooled objects may carry a stale flag)
   e.facing = Math.atan2(world.player.y - e.y, world.player.x - e.x); // WARDEN rear weak-point seed (harmless for others)
   world.bossAlive = true;
   world.boss = e;

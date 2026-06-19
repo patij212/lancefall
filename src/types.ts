@@ -112,6 +112,7 @@ export interface Enemy {
   cipherExposed?: number; // generic ring-cipher boss: >0 = punish window open (THE LONGEST DAY)
   facing?: number; // WARDEN: bounded-turn heading toward the player; its REAR arc is the weak-point
   ringTimer?: number; // SOVEREIGN: countdown to the next EXPOSED desperation ring (dodge-while-you-punish)
+  enrageAnnounced?: boolean; // boss: one-shot latch — the enrage-crossing stinger+flash has fired
 }
 
 /** Per-shot visual tag (playtest: bullets need identity per enemy + shot type, not colour

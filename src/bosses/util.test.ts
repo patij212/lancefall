@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { zoneTarget } from './util';
+import { zoneTarget, bossEnrageFrac, getEnrageColor } from './util';
 import { ZONE } from '../tune';
+import type { EnemyKind } from '../types';
+
+const BOSS_KINDS: EnemyKind[] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
+
+describe('enrage stinger helpers', () => {
+  it('every boss kind has a positive escalation fraction in (0,1]', () => {
+    for (const k of BOSS_KINDS) {
+      const f = bossEnrageFrac(k);
+      expect(f).toBeGreaterThan(0);
+      expect(f).toBeLessThanOrEqual(1);
+    }
+  });
+  it('Mirrorblade escalates higher (0.5) than the 0.4-enrage bosses', () => {
+    expect(bossEnrageFrac('mirrorblade')).toBeGreaterThan(bossEnrageFrac('warden'));
+  });
+  it('every boss kind has a non-empty enrage colour', () => {
+    for (const k of BOSS_KINDS) expect(getEnrageColor(k)).toMatch(/^#/);
+  });
+});
 
 describe('zoneTarget (deny the safe corner)', () => {
   const W = 800, H = 600;

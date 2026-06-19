@@ -1080,6 +1080,44 @@ export class AudioEngine {
     };
   }
 
+  /** ENRAGE stinger — a one-shot "it just got serious" cue when a boss crosses its
+   *  escalation threshold: a short sub-drop (weight) under a bright fifth-interval stab.
+   *  Conservative peaks (<= 0.3); pairs with the a11y-gated screen flash in game.ts. */
+  enrageStinger(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // sub-drop for weight
+    const sub = ctx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(120, t);
+    sub.frequency.exponentialRampToValueAtTime(55, t + 0.28);
+    const subG = ctx.createGain();
+    subG.gain.setValueAtTime(0.0001, t);
+    subG.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+    subG.gain.exponentialRampToValueAtTime(0.0006, t + 0.32);
+    sub.connect(subG);
+    subG.connect(this.sfxBus);
+    sub.start(t);
+    sub.stop(t + 0.34);
+    sub.onended = () => { sub.disconnect(); subG.disconnect(); };
+    // bright fifth-interval stab (a 5th: 660 + 990 Hz) — the "alert"
+    [660, 990].forEach((f) => {
+      const o = ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.setValueAtTime(f, t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.22);
+      o.connect(g);
+      g.connect(this.sfxBus);
+      o.start(t);
+      o.stop(t + 0.24);
+      o.onended = () => { o.disconnect(); g.disconnect(); };
+    });
+  }
+
   death(): void {
     const ctx = this.ctx;
     if (!ctx) return;

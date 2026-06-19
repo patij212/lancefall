@@ -18,7 +18,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, s
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindow, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
+import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindow, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
@@ -1438,8 +1438,16 @@ export class Game {
     // enemies + boss
     w.enemies.forEachActive((e) => {
       w.firingKind = e.kind; // attribute any bullets fired this update to this kind (LAST RUN dmg)
-      if (e.isBoss) updateBoss(e, w, dt);
-      else updateEnemy(e, w, dt);
+      if (e.isBoss) {
+        updateBoss(e, w, dt);
+        // ENRAGE stinger: one-shot audio + a11y-gated flash the moment the boss first
+        // crosses its escalation threshold — make the behavior shift FELT. Cosmetic; no rng.
+        if (!e.enrageAnnounced && bossEnraged(e, bossEnrageFrac(e.kind))) {
+          e.enrageAnnounced = true;
+          this.audio.enrageStinger();
+          this.renderer.flash(getEnrageColor(e.kind), 0.3);
+        }
+      } else updateEnemy(e, w, dt);
       // soft-clamp so nobody flies off forever
       const m = 60;
       e.x = Math.max(-m, Math.min(w.width + m, e.x));
