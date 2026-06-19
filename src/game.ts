@@ -18,7 +18,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, s
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
+import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindow, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
@@ -1886,6 +1886,10 @@ export class Game {
       this.audio.explosion(0.8, this.panFor(x));
       w.particles.ring(x, y, 90, '#fb7185', 0.35);
       this.shake.add(0.16);
+    } else if (e.kind === 'hollow_echo') {
+      // hunting an echo DESTABILISES the Hollow — EARN its vulnerability window now
+      // (replaces the old passive "wait for white"). No new world.rng draw.
+      if (w.boss && w.boss.kind === 'hollow') openHollowWindow(w.boss);
     }
 
     w.enemies.release(e);

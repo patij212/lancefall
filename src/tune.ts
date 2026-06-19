@@ -445,9 +445,10 @@ export const HOLLOW = {
   maxEchoes: 3, // echo clones seeded over the opening
   echoFireEvery: 1.9,
   echoBulletSpeed: 200,
-  syncEvery: 3.5, // s between Clone Sync cycles
+  syncEvery: 5.5, // s between PASSIVE Clone Sync cycles — long, so hunting echoes is the better path
   syncTelegraph: 0.9, // s of white-flash warning before the window
-  syncWindow: 1.0, // s the boss is damageable (dash through it)
+  syncWindow: 1.0, // s the boss is damageable (dash through it) on the passive cycle
+  echoSyncWindow: 1.4, // s of vulnerability EARNED by killing an echo (destabilises the Hollow on demand)
   fanBullets: 5,
   fanSpread: 0.3,
   fanBulletSpeed: 210,
