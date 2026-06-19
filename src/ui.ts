@@ -29,6 +29,7 @@ import { runShields } from './survival';
 import { drawShipSilhouette } from './shipModels';
 import { THEMES } from './themes';
 import { TRAILS } from './trails';
+import { SHIP_SKINS, shipSkinById, shipSkinName, drawShipSkin } from './shipSkins';
 import { PORTED_KINDS, skinsForKind, canUnlockSkin, skinUnlockHint } from './skins';
 import type { SkinDef } from './skins';
 import { skinKillProgress } from './achievements';
@@ -93,6 +94,9 @@ export interface UICallbacks {
   onUnlockTheme: (id: string) => void;
   onSelectTrail: (id: string) => void;
   onUnlockTrail: (id: string) => void;
+  /** equip / unlock a cosmetic ship-skin set ('none' = the plain hull) */
+  onSelectShipSkin: (shipId: string, setId: string) => void;
+  onUnlockShipSkin: (shipId: string, setId: string) => void;
   /** equip a ported enemy skin for a kind (cosmetic) */
   onSelectSkin: (kind: string, id: string) => void;
   /** tap a locked skin → explain the achievement gate (or equip if held) */
@@ -465,6 +469,8 @@ export class UI {
   private codexShowTab?: (key: string) => void; // switch the CODEX top tabs ('codex' | 'fall' | 'howto' | 'ach')
   private skinsPanel!: HTMLElement;
   private skinsBody!: HTMLElement;
+  private shipSkinsBody!: HTMLElement;
+  private skinsShowTab?: (key: string) => void; // switch the SKINS tabs ('ships' | 'bestiary')
   private creditsPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
   private heatPanel!: HTMLElement;
@@ -568,6 +574,17 @@ export class UI {
   private shipArt!: HTMLCanvasElement;
   private shipArtName!: HTMLElement;
   private shipArtDesc!: HTMLElement;
+  // ── loadout hangar glyph: live animation + pointer reactivity (mock-gallery parity) ──
+  private glyphState: { shipId: string; accent: string; setId: string } | null = null;
+  private glyphT = 0; // signature-animation clock
+  private glyphHover = 0; // eased 0..1 (pointer over the ring)
+  private glyphHoverTarget = 0;
+  private glyphPx = 0; // eased pointer offset −1..1 (x), drives the lean
+  private glyphPy = 0;
+  private glyphPxTarget = 0;
+  private glyphPyTarget = 0;
+  private glyphRaf = 0;
+  private glyphLast = 0;
   private ckShipRing!: HTMLElement; // §v7 loadout ship ring — carries the equipped hull accent (currentColor)
   private heatPipsWrap!: HTMLElement;
   private armorPipsWrap!: HTMLElement; // §v7 loadout ARMOR pips (effective shields for the selected Heat)
@@ -717,7 +734,7 @@ export class UI {
       [this.statsPanel, 'Lifetime stats'],
       [this.upgradesPanel, 'Upgrades'],
       [this.codexPanel, 'Bestiary codex'],
-      [this.skinsPanel, 'Bestiary skins'],
+      [this.skinsPanel, 'Skins'],
       [this.cosmeticsPanel, 'Customize cosmetics'],
       [this.creditsPanel, 'Credits'],
       [this.heatPanel, 'Heat ascension'],
@@ -1177,6 +1194,25 @@ export class UI {
       el('div', { class: 'ck-ship-orbit inner', 'aria-hidden': 'true' }),
       this.shipArt,
     );
+    // the hangar ship answers the pointer: hovering blooms its glow + accelerates its
+    // signature animation, and the hull leans toward the cursor (gallery-mock parity).
+    // Reduce-motion users get a calm frozen frame instead (startGlyphLoop honours motionOff).
+    this.ckShipRing.addEventListener('pointerenter', () => {
+      this.glyphHoverTarget = 1;
+      this.startGlyphLoop();
+    });
+    this.ckShipRing.addEventListener('pointerleave', () => {
+      this.glyphHoverTarget = 0;
+      this.glyphPxTarget = 0;
+      this.glyphPyTarget = 0;
+    });
+    this.ckShipRing.addEventListener('pointermove', (e) => {
+      const r = this.ckShipRing.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return;
+      this.glyphPxTarget = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+      this.glyphPyTarget = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+      this.startGlyphLoop();
+    });
     const shipDisplay = el(
       'div',
       { class: 'ck-ship-display' },
@@ -1265,12 +1301,12 @@ export class UI {
     };
     const customize = el('button', { class: 'ck-customize cust-btn', type: 'button' }, 'CUSTOMIZE');
     customize.addEventListener('click', () => this.openCosmetics());
-    // BESTIARY SKINS — a cosmetic (enemy reskins), so it lives here in COSMETICS beside CUSTOMIZE
-    // rather than buried inside the CUSTOMIZE modal. Opens the per-kind skin picker directly.
+    // SKINS — cosmetics (your ship hull + the enemy bestiary reskins), here in COSMETICS beside
+    // CUSTOMIZE. Opens the tabbed skins gallery (SHIPS first, then the enemy BESTIARY).
     const skinsBtn = el(
       'button',
-      { class: 'ck-customize cust-btn', type: 'button', title: 'BESTIARY SKINS — cosmetic enemy reskins. They change how a threat looks, never how it plays.' },
-      'BESTIARY SKINS',
+      { class: 'ck-customize cust-btn', type: 'button', title: 'SKINS — your ship-hull skins + the enemy bestiary reskins. Cosmetic: they change how things look, never how they play.' },
+      'SKINS',
     );
     skinsBtn.addEventListener('click', () => this.openSkins());
     const loadoutCol = el(
@@ -2312,22 +2348,149 @@ export class UI {
   /** Build the per-kind enemy-skin picker modal. The grid itself is rebuilt every
    *  open from the live save (refreshSkins) — this just lays out the shell. */
   private buildSkins(): void {
-    const h = el('h2', {}, 'BESTIARY SKINS');
-    const intro = el(
+    const h = el('h2', {}, 'SKINS');
+    // SHIPS tab (first) — the player-hull reskins: the plain hull + the 3 Solstice sets, shown on every ship.
+    const shipsIntro = el(
       'div',
       { class: 'codex-frag' },
-      'Cosmetic enemy reskins — they change how a threat LOOKS, never how it plays. Each kind has four takes; rarer ones unlock through achievements. (Phase 1: the five heroes.)',
+      'Your hull, reworn — three Solstice sets (grey cipher → the break → the longest day) tailored to each ship, plus the plain hull. Cosmetic: the skin shows in play and never changes how a run plays.',
     );
-    this.skinsBody = el('div', { class: 'codex-body' });
+    this.shipSkinsBody = el('div');
+    const shipsPane = el('div', { class: 'codex-pane' }, shipsIntro, this.shipSkinsBody);
+    // BESTIARY tab (second) — the enemy reskins (unchanged).
+    const bestIntro = el(
+      'div',
+      { class: 'codex-frag' },
+      'Cosmetic enemy reskins — they change how a threat LOOKS, never how it plays. Each kind has four takes; rarer ones unlock through achievements.',
+    );
+    this.skinsBody = el('div');
+    const bestiaryPane = el('div', { class: 'codex-pane hidden' }, bestIntro, this.skinsBody);
+    const panes: Record<string, HTMLElement> = { ships: shipsPane, bestiary: bestiaryPane };
+    const tabBtns = new Map<string, HTMLElement>();
+    const tabBar = el('div', { class: 'codex-tabs', role: 'tablist' });
+    this.skinsShowTab = (key: string): void => {
+      for (const k of Object.keys(panes)) panes[k].classList.toggle('hidden', k !== key);
+      for (const [k, btn] of tabBtns) btn.classList.toggle('active', k === key);
+    };
+    for (const [key, label] of [['ships', 'SHIPS'], ['bestiary', 'BESTIARY']] as [string, string][]) {
+      const btn = el('button', { class: 'btn-sm', type: 'button' }, label);
+      btn.addEventListener('click', () => this.skinsShowTab!(key));
+      tabBtns.set(key, btn);
+      tabBar.append(btn);
+    }
+    const body = el('div', { class: 'codex-body' }, shipsPane, bestiaryPane);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.skinsPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, intro, this.skinsBody, close);
+    const panel = el('div', { class: 'panel panel-wide' }, h, tabBar, body, close);
     this.skinsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private openSkins(): void {
+    this.refreshShipSkins();
     this.refreshSkins();
+    this.skinsShowTab?.('ships'); // SHIPS first
     this.openModal(this.skinsPanel);
+  }
+
+  /** Paint one ship-skin take to a card canvas: the actual ship wearing the set (or the plain
+   *  hull for 'none'), nose-up in a hangar glow. Frozen frame (reduceMotion) — never animates. */
+  private paintShipSkinPreview(canvas: HTMLCanvasElement, shipId: string, setId: string, accent: string): void {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const size = 96;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.translate(size / 2, size / 2);
+    const r = size * 0.42;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    g.addColorStop(0, accent + '44');
+    g.addColorStop(1, accent + '00');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    try {
+      if (setId === 'none') {
+        ctx.save();
+        ctx.rotate(-Math.PI / 2); // drawShipSilhouette is nose-+x → point it up
+        drawShipSilhouette(ctx, shipId, size * 0.3, { fill: '#0a0b0f', stroke: accent, lineWidth: 2.5, detail: accent, core: '#eaf2ff' });
+        ctx.restore();
+      } else {
+        // drawShipSkin is authored nose-up → already points up, no rotation
+        drawShipSkin(setId, shipId, ctx, size * 0.3, 1.2, { reduceMotion: true });
+      }
+    } catch {
+      /* a preview should never break the picker */
+    }
+  }
+
+  /** Rebuild the SHIPS tab from the live save: one row per ship, four take-cards (the plain hull
+   *  + the 3 Solstice sets), each rendering THAT ship in THAT skin. Equip is per-SET (a set applies
+   *  to whichever ship you fly), so the EQUIPPED highlight rides the chosen set across every row. */
+  refreshShipSkins(): void {
+    const s = this.saveRef;
+    if (!this.shipSkinsBody || !s) return;
+    const takes = [{ id: 'none', name: 'NONE' }, ...SHIP_SKINS.map((sk) => ({ id: sk.id, name: sk.name }))];
+    reconcile(
+      this.shipSkinsBody,
+      SHIPS,
+      (ship) => `ss:${ship.id}`,
+      (ship) => el('div', { class: 'skin-kind' },
+        el('div', { class: 'stats-label' }, ship.name),
+        el('div', { class: 'codex-grid skin-grid' }),
+      ),
+      (wrap, ship) => {
+        const grid = wrap.querySelector('.skin-grid') as HTMLElement;
+        const accent = ship.accent;
+        reconcile(
+          grid,
+          takes,
+          (take) => take.id,
+          (take) => {
+            const card = el('button', { class: 'codex-entry skin-card', type: 'button' });
+            card.style.setProperty('--accent', accent);
+            const canvas = el('canvas', { class: 'skin-preview' }) as HTMLCanvasElement;
+            this.paintShipSkinPreview(canvas, ship.id, take.id, accent);
+            card.append(
+              canvas,
+              el('div', { class: 'skin-name' }, take.id === 'none' ? 'NONE' : shipSkinName(ship.id, take.id)),
+              el('div', { class: 'skin-status' }),
+            );
+            card.addEventListener('click', () => {
+              if (card.dataset.shipowned !== '1') return; // can't buy a skin for a ship you don't own
+              if (card.dataset.unlocked === '1') this.cb.onSelectShipSkin(ship.id, take.id);
+              else this.cb.onUnlockShipSkin(ship.id, take.id);
+              this.refreshShipSkins(); // morph EQUIPPED onto this ship's chosen skin
+            });
+            return card;
+          },
+          (card, take) => {
+            const def = take.id === 'none' ? null : shipSkinById(take.id);
+            const label = take.id === 'none' ? 'NONE' : shipSkinName(ship.id, take.id);
+            const ctxName = def ? `${label} · ${def.name}` : label; // name + its set, for hover/aria context
+            const shipOwned = s.unlockedShips.includes(ship.id);
+            const owned = take.id === 'none' ? shipOwned : s.unlockedShipSkins.includes(`${ship.id}:${take.id}`);
+            const selected = (s.selectedShipSkins[ship.id] ?? 'none') === take.id;
+            const hint = take.id === 'none' ? 'Default' : (def?.unlockAch ? '★ ACHIEVEMENT' : `◆ ${(def?.unlockShards ?? 0).toLocaleString()}`);
+            card.dataset.shipowned = shipOwned ? '1' : '0';
+            card.dataset.unlocked = owned ? '1' : '0';
+            card.classList.toggle('selected', shipOwned && selected);
+            card.classList.toggle('locked', !owned);
+            card.classList.toggle('ship-locked', !shipOwned);
+            card.style.opacity = shipOwned ? '' : '0.4'; // darker until the ship is acquired
+            card.setAttribute('aria-pressed', String(shipOwned && selected));
+            card.setAttribute('aria-label', `${ship.name} — ${ctxName}${!shipOwned ? ', ship locked' : owned ? '' : ', locked'}`);
+            card.title = !shipOwned ? `${ctxName} — acquire ${ship.name} first` : owned ? ctxName : `${ctxName} — ${hint}`;
+            (card.querySelector('.skin-status') as HTMLElement).textContent = !shipOwned ? 'SHIP LOCKED' : owned ? (selected ? 'EQUIPPED' : 'tap to equip') : hint;
+          },
+        );
+      },
+    );
   }
 
   // ── CUSTOMIZE (cosmetics) modal — PALETTE + DASH TRAIL pickers ───────────────
@@ -2791,9 +2954,11 @@ export class UI {
       this.prevSelectedMode = null; // the reveal subsumes the first swap; don't double up
       this.startFirstLightIdle();
       this.scheduleFit(); // scale the cockpit composition to the viewport (desktop layout)
+      this.startGlyphLoop(); // resume the loadout hangar animation now that it is visible
     } else {
       this.title.classList.remove('boot-in');
       this.stopFirstLightIdle();
+      this.stopGlyphLoop(); // leaving the cockpit: halt the glyph rAF (no in-game cost)
       this.heroEl?.classList.remove('first-light');
       // leaving the cockpit: drop the fixed scaled composition so other screens flow normally.
       this.title.classList.remove('fitted');
@@ -2889,7 +3054,10 @@ export class UI {
 
     // ── LOADOUT: ship art + name/desc + HEAT pips ──
     const ship = shipById(save.selectedShip);
-    this.paintShipGlyph(this.shipArt, ship.id, ship.accent);
+    // hand the loadout glyph to its animation loop (the equipped skin breathes, reacts to the
+    // pointer, and paints itself); startGlyphLoop draws an immediate frame so there is no blank.
+    this.glyphState = { shipId: ship.id, accent: ship.accent, setId: save.selectedShipSkins[ship.id] ?? 'none' };
+    this.startGlyphLoop();
     this.shipArt.style.filter = `drop-shadow(0 0 12px ${ship.accent})`;
     // tint the whole ring assembly (glow backdrop + orbit rings + hangar floor) to the hull.
     this.ckShipRing.style.color = ship.accent;
@@ -3046,6 +3214,9 @@ export class UI {
         st.textContent = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : (star ? '★ ACHIEVEMENT' : `◆ ${trail.unlockShards.toLocaleString()}`);
       },
     );
+
+    // ── SHIP SKINS now live in their OWN dedicated SKINS modal (SHIPS tab — per-ship named
+    //    cards built by refreshShipSkins), no longer duplicated in the CUSTOMIZE cosmetics page. ──
 
     // loadout summary cards: the current palette + dash trail at a glance (open the CUSTOMIZE
     // modal for the full pickers). Swatch dots mirror the in-game colours of each cosmetic.
@@ -3391,7 +3562,27 @@ export class UI {
 
   /** Paint a ship's big silhouette into its hover-preview canvas (nose-up, in its accent).
    *  Hidden by default; the chip reveals it on hover (see .ship-preview in the CSS). */
-  private paintShipGlyph(canvas: HTMLCanvasElement, shipId: string, accent: string): void {
+  /** Frozen single hangar frame — used by the ship-select cards. The live loadout glyph
+   *  instead drives drawGlyphFrame from its own rAF loop (animated + pointer-reactive). */
+  private paintShipGlyph(canvas: HTMLCanvasElement, shipId: string, accent: string, setId = 'none'): void {
+    this.drawGlyphFrame(canvas, shipId, accent, setId, 1.2, 0, 0, 0, true);
+  }
+
+  /** Render one hangar-glyph frame. `t` advances the skin's signature animation; `hover`
+   *  (0..1) blooms the accent glow + grows the hull; `px`/`py` (−1..1) lean the hull toward
+   *  the pointer; `motionOff` freezes the idle sway/bob + the skin's internal motion. With
+   *  hover/px/py all 0 and motionOff true this reproduces the old static frame exactly. */
+  private drawGlyphFrame(
+    canvas: HTMLCanvasElement,
+    shipId: string,
+    accent: string,
+    setId: string,
+    t: number,
+    hover: number,
+    px: number,
+    py: number,
+    motionOff: boolean,
+  ): void {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const size = 128; // logical draw area; CSS displays it a touch smaller so it stays crisp
     canvas.width = Math.round(size * dpr);
@@ -3400,25 +3591,88 @@ export class UI {
     if (!ctx) return;
     ctx.scale(dpr, dpr);
     ctx.translate(size / 2, size / 2);
-    ctx.rotate(-Math.PI / 2); // nose up, like a ship in a hangar
+    // hangar glow — a centred circle (rotation-independent); hover adds an accent bloom
+    // whose centre drifts slightly with the pointer for a hint of depth.
     const r = size * 0.42;
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
-    g.addColorStop(0, accent + '55');
-    g.addColorStop(1, accent + '00');
+    ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = g;
+    const base = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    base.addColorStop(0, accent + '55');
+    base.addColorStop(1, accent + '00');
+    ctx.fillStyle = base;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    drawShipSilhouette(ctx, shipId, size * 0.3, {
-      fill: '#0a0b0f',
-      stroke: accent,
-      lineWidth: 2.5,
-      detail: accent,
-      core: '#eaf2ff',
-    });
+    if (hover > 0.01) {
+      const a = Math.round(64 * hover).toString(16).padStart(2, '0');
+      const bloom = ctx.createRadialGradient(px * 6, py * 6, 0, 0, 0, r * 1.18);
+      bloom.addColorStop(0, accent + a);
+      bloom.addColorStop(1, accent + '00');
+      ctx.fillStyle = bloom;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    // pointer lean + a gentle idle sway/bob; the hull grows a touch on hover (mock parity).
+    const sway = motionOff ? 0 : Math.sin(t * 0.6) * 0.05;
+    const bob = motionOff ? 0 : Math.sin(t * 0.9) * 1.4;
+    const lean = px * 0.16;
+    const s = size * 0.3 * (1 + 0.06 * hover);
+    ctx.save();
+    ctx.translate(px * 5, py * 5 - bob);
+    if (setId !== 'none') {
+      // the equipped skin (authored NOSE-UP → rotate only by the lean/sway)
+      ctx.rotate(sway + lean);
+      drawShipSkin(setId, shipId, ctx, s, t, { reduceMotion: motionOff });
+    } else {
+      ctx.rotate(-Math.PI / 2 + sway + lean); // drawShipSilhouette is nose-+x → point it up
+      drawShipSilhouette(ctx, shipId, s, { fill: '#0a0b0f', stroke: accent, lineWidth: 2.5, detail: accent, core: '#eaf2ff' });
+    }
+    ctx.restore();
   }
+
+  /** Kick (or re-kick) the loadout glyph's animation. Always paints one synchronous frame so
+   *  there is never a blank; under reduce-motion it stops there (calm frozen frame), otherwise
+   *  it schedules the rAF loop. Safe to call repeatedly — no-ops if already animating. */
+  private startGlyphLoop(): void {
+    const gs = this.glyphState;
+    if (!gs) return;
+    if (this.motionOff()) {
+      this.stopGlyphLoop();
+      this.drawGlyphFrame(this.shipArt, gs.shipId, gs.accent, gs.setId, 1.2, 0, 0, 0, true);
+      return;
+    }
+    if (this.glyphRaf) return; // already animating
+    // immediate frame (covers the just-revealed case before the first rAF tick)
+    this.drawGlyphFrame(this.shipArt, gs.shipId, gs.accent, gs.setId, this.glyphT, this.glyphHover, this.glyphPx, this.glyphPy, false);
+    this.glyphLast = 0;
+    this.glyphRaf = window.requestAnimationFrame(this.glyphLoop);
+  }
+
+  private stopGlyphLoop(): void {
+    if (this.glyphRaf) {
+      window.cancelAnimationFrame(this.glyphRaf);
+      this.glyphRaf = 0;
+    }
+  }
+
+  /** Per-frame: ease hover + pointer, advance the clock (faster while hovered), repaint.
+   *  Self-suspends when the cockpit is hidden (offsetParent null) so it never runs in-game;
+   *  show('title') / refreshSelectedRun re-kick it on return. */
+  private glyphLoop = (ts: number): void => {
+    this.glyphRaf = 0;
+    const gs = this.glyphState;
+    if (!gs || this.shipArt.offsetParent === null || this.motionOff()) return;
+    const dt = this.glyphLast ? Math.min(0.05, (ts - this.glyphLast) / 1000) : 0;
+    this.glyphLast = ts;
+    this.glyphHover += (this.glyphHoverTarget - this.glyphHover) * Math.min(1, dt * 8);
+    this.glyphPx += (this.glyphPxTarget - this.glyphPx) * Math.min(1, dt * 6);
+    this.glyphPy += (this.glyphPyTarget - this.glyphPy) * Math.min(1, dt * 6);
+    this.glyphT += dt * (1 + 2.5 * this.glyphHover);
+    this.drawGlyphFrame(this.shipArt, gs.shipId, gs.accent, gs.setId, this.glyphT, this.glyphHover, this.glyphPx, this.glyphPy, false);
+    this.glyphRaf = window.requestAnimationFrame(this.glyphLoop);
+  };
 
   /** §5 U2 — step the selected mode along the rail CARDS (keyboard/gamepad), skipping locked
    *  cards, restoring each card's remembered variant, persist, and re-focus the selected card. */

@@ -7,12 +7,14 @@
 // spread; missing new fields get their defaults. `base` is injected by the caller
 // to keep this module free of a runtime import cycle with save.ts.
 
-import type { SaveData } from './save';
+import type { SaveData, RunRecord } from './save';
 import { MODES } from './modes';
 import { PORTED_KINDS, defaultSkinId, skinById, canUnlockSkin } from './skins';
 import { GLOSS_IDS } from './gloss';
+import { SHIP_SKINS } from './shipSkins';
+import { SHIPS } from './ships';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -43,6 +45,11 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          default-fills to 0 via the spread; the per-field loop resets a
   //          non-finite hand-edit, and the clamp below forces a non-negative
   //          integer. No explicit transform needed.
+  // v7 → v8: added the cosmetic SHIP SKINS — per-(ship,set) ownership (unlockedShipSkins, keyed
+  //          `${shipId}:${setId}`) + a per-ship equipped-set record (selectedShipSkins). Additive:
+  //          an older save default-fills to ([], {}); the sanitizers below filter ownership to
+  //          real ship+set keys and the equipped record to sets the player actually owns. (A
+  //          pre-rework v8 dev save's set-only ids simply drop — those skins are re-acquired.)
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
   const out: SaveData = { ...base, ...data, version: SAVE_VERSION };
@@ -58,8 +65,8 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   for (const k of Object.keys(b)) {
     const bv = b[k];
     const ov = o[k];
-    if (k === 'selectedSkins') {
-      // a {string:string} record — NOT a number-record; sanitized below.
+    if (k === 'selectedSkins' || k === 'selectedShipSkins') {
+      // {string:string} records — NOT number-records; sanitized below.
       continue;
     } else if (Array.isArray(bv)) {
       if (!Array.isArray(ov)) o[k] = bv;
@@ -85,7 +92,7 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   if (typeof o.playStreak === 'number') o.playStreak = Math.max(0, Math.floor(o.playStreak));
   // v7 RECORDS — non-negative integers (whole seconds / counts); the generic loop above only
   // ensured they're finite numbers, so clamp a hand-edited negative/fractional value here.
-  for (const k of ['longestRunSec', 'fastestArenaSec', 'mostBossesOneRun']) {
+  for (const k of ['longestRunSec', 'fastestArenaSec', 'mostBossesOneRun', 'lifeTimeSec']) {
     if (typeof o[k] === 'number') o[k] = Math.max(0, Math.floor(o[k] as number));
   }
   // enemy SKINS — a {kind:skinId} record. Build a fresh map: every PORTED kind gets
@@ -99,6 +106,84 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // above already reset a non-array to []; this filters the CONTENTS so a hand-edited
   // blob can't bloat the set or inject a non-id (an unknown id would never match anyway).
   out.glossSeen = sanitizeGlossSeen(out.glossSeen);
+  // v8 ship-skin cosmetics — per-(ship,set) ownership keyed `${shipId}:${setId}`, plus the
+  // per-ship equipped-set record. Both are filtered to real ship + set ids; an equipped entry the
+  // player doesn't own (or for an unknown ship/set) is dropped → the plain hull.
+  out.unlockedShipSkins = sanitizeShipSkins(out.unlockedShipSkins);
+  out.selectedShipSkins = sanitizeSelectedShipSkins(out.selectedShipSkins, out.unlockedShipSkins);
+  // v9 DOSSIER tracking — runHistory ring (capped + per-record validated), playDays bounded to
+  // the 200 most-recent date keys, per-mode counts clamped to non-negative ints. Additive: the
+  // generic coerceNumberRecord pass already cleaned the {string:number} maps to finite values.
+  out.runHistory = sanitizeRunHistory(out.runHistory);
+  out.playDays = capPlayDays(out.playDays);
+  out.runsByMode = clampCounts(out.runsByMode);
+  out.winsByMode = clampCounts(out.winsByMode);
+  return out;
+}
+
+/** Coerce owned ship-skins to valid `${shipId}:${setId}` keys (a real ship + a real, non-'none'
+ *  set). Unknown / malformed entries are dropped; the result is deduped. Pure + total. */
+function sanitizeShipSkins(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ships = new Set<string>(SHIPS.map((s) => s.id));
+  const sets = new Set<string>(SHIP_SKINS.map((s) => s.id));
+  const out = raw.filter((x): x is string => {
+    if (typeof x !== 'string') return false;
+    const i = x.indexOf(':');
+    return i > 0 && ships.has(x.slice(0, i)) && sets.has(x.slice(i + 1));
+  });
+  return [...new Set<string>(out)];
+}
+
+/** Coerce the per-ship equipped-set record: a real ship → a set that ship actually OWNS (else
+ *  drop it → the plain hull). 'none' is the default and is never stored. Pure + total. */
+function sanitizeSelectedShipSkins(raw: unknown, owned: string[]): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const ships = new Set<string>(SHIPS.map((s) => s.id));
+  const ownedSet = new Set<string>(owned);
+  const src = raw as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  for (const ship of Object.keys(src)) {
+    if (!ships.has(ship)) continue;
+    const set = src[ship];
+    if (typeof set === 'string' && set !== 'none' && ownedSet.has(`${ship}:${set}`)) out[ship] = set;
+  }
+  return out;
+}
+
+/** Coerce a stored run-history blob to valid, capped RunRecords (newest-last, max 50). Pure + total. */
+function sanitizeRunHistory(raw: unknown): RunRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const out: RunRecord[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const score = num(o.score), wave = num(o.wave), sec = num(o.sec), heat = num(o.heat), combo = num(o.combo);
+    if (score === null || wave === null || sec === null || heat === null || combo === null) continue;
+    if (typeof o.mode !== 'string' || typeof o.date !== 'string') continue;
+    out.push({
+      score: Math.max(0, Math.floor(score)), wave: Math.max(0, Math.floor(wave)),
+      mode: o.mode, won: o.won === true,
+      sec: Math.max(0, Math.floor(sec)), heat: Math.max(0, Math.floor(heat)),
+      combo: Math.max(0, Math.floor(combo)), date: o.date,
+    });
+  }
+  return out.slice(-50);
+}
+
+/** Clamp a {string:number} record to non-negative integers (values are already finite). Pure. */
+function clampCounts(rec: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const k of Object.keys(rec)) out[k] = Math.max(0, Math.floor(rec[k]));
+  return out;
+}
+
+/** Keep the 200 most-recent YYYY-MM-DD keys (lexical sort == chronological), clamped. Pure. */
+function capPlayDays(rec: Record<string, number>): Record<string, number> {
+  const keys = Object.keys(rec).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().slice(-200);
+  const out: Record<string, number> = {};
+  for (const k of keys) out[k] = Math.max(0, Math.floor(rec[k]));
   return out;
 }
 

@@ -42,6 +42,7 @@ import { SHIPS, shipById } from './ships';
 import { THEMES, themeById } from './themes';
 import { TRAILS, trailById, trailParticleColor, canUnlockTrail } from './trails';
 import type { TrailDef } from './trails';
+import { shipSkinById, canUnlockShipSkin } from './shipSkins';
 import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina } from './dash';
@@ -225,6 +226,8 @@ export class Game {
       onUnlockTheme: (id) => this.unlockTheme(id),
       onSelectTrail: (id) => this.selectTrail(id),
       onUnlockTrail: (id) => this.unlockTrail(id),
+      onSelectShipSkin: (shipId, setId) => this.selectShipSkin(shipId, setId),
+      onUnlockShipSkin: (shipId, setId) => this.unlockShipSkin(shipId, setId),
       onSelectSkin: (kind, id) => this.selectSkin(kind, id),
       onUnlockSkin: (kind, id) => this.unlockSkin(kind, id),
       onBuyMeta: (id) => this.buyMeta(id),
@@ -262,6 +265,7 @@ export class Game {
     this.applySettings(this.settings);
     this.applyTheme();
     this.applySkins();
+    this.applyShipSkin();
     this.ui.refreshTitle(this.save);
   }
 
@@ -281,6 +285,12 @@ export class Game {
    *  boot and after any equip; the renderer resolves + caches per kind. */
   private applySkins(): void {
     this.renderer.setSkins(this.save.selectedSkins);
+  }
+
+  /** Push the equipped ship-skin set to the renderer (cosmetic). Called on boot + equip. */
+  private applyShipSkin(): void {
+    // the flown ship wears its OWN equipped skin (per-ship); missing → the plain hull
+    this.renderer.setShipSkin(this.save.selectedShipSkins[this.save.selectedShip] ?? 'none');
   }
 
   boot(): void {
@@ -890,6 +900,7 @@ export class Game {
     if (!this.save.unlockedShips.includes(id)) return;
     this.save.selectedShip = id;
     saveSave(this.save);
+    this.applyShipSkin(); // the newly-selected ship wears its own equipped skin
     this.ui.refreshTitle(this.save);
   }
 
@@ -953,6 +964,44 @@ export class Game {
     saveSave(this.save);
     this.applyTrail();
     this.ui.toast(`${trail.name} trail unlocked!`);
+    this.ui.refreshTitle(this.save);
+  }
+
+  /** Equip an owned ship-skin set ('none' = the plain hull). Re-validated so a stale click /
+   *  hand-edit can never persist an unowned id. Cosmetic. */
+  /** Equip a skin for ONE ship ('none' = the plain hull). Re-validated: the ship must be owned and
+   *  the skin acquired (or 'none'); a stale click / hand-edit can never persist an unowned combo. */
+  private selectShipSkin(shipId: string, setId: string): void {
+    if (!this.save.unlockedShips.includes(shipId)) return;
+    if (setId !== 'none' && !this.save.unlockedShipSkins.includes(`${shipId}:${setId}`)) return;
+    if (setId === 'none') delete this.save.selectedShipSkins[shipId];
+    else this.save.selectedShipSkins[shipId] = setId;
+    saveSave(this.save);
+    this.applyShipSkin();
+    this.ui.refreshTitle(this.save);
+  }
+
+  /** Buy / unlock a skin for ONE specific ship — individual, never a bundle. The ship must be
+   *  owned first; then shard sets spend shards at their threshold and achievement sets (FIRST
+   *  LIGHT, the Sovereign kill) are free once earned. On success the skin is equipped on that ship. */
+  private unlockShipSkin(shipId: string, setId: string): void {
+    if (!this.save.unlockedShips.includes(shipId)) {
+      this.ui.toast('Acquire the ship first');
+      return;
+    }
+    const skin = shipSkinById(setId);
+    const key = `${shipId}:${setId}`;
+    if (!skin || this.save.unlockedShipSkins.includes(key)) return;
+    if (!canUnlockShipSkin(skin, this.save.shards, this.save.achievements)) {
+      this.ui.toast(skin.unlockAch ? 'Defeat the Sovereign to unlock FIRST LIGHT' : `Need ${skin.unlockShards - this.save.shards} more shards`);
+      return;
+    }
+    if (!skin.unlockAch) this.save.shards -= skin.unlockShards; // achievement skins are free
+    this.save.unlockedShipSkins.push(key);
+    this.save.selectedShipSkins[shipId] = setId;
+    saveSave(this.save);
+    this.applyShipSkin();
+    this.ui.toast(`${skin.name} skin unlocked!`);
     this.ui.refreshTitle(this.save);
   }
 

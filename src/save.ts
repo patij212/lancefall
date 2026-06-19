@@ -68,6 +68,13 @@ export interface SaveData {
   unlockedTrails: string[];
   /** currently-selected dash-trail id */
   selectedTrail: string;
+  /** ship-skins the player OWNS, keyed `${shipId}:${setId}` — each ship's copy of a skin is
+   *  bought / unlocked individually (NOT a set-wide bundle). 'none' (the plain hull) is implicit
+   *  for any owned ship and is never stored here. */
+  unlockedShipSkins: string[];
+  /** equipped skin set PER SHIP (shipId → setId; missing / 'none' = the plain hull). The flown
+   *  ship's value is what render.ts wears; the loadout preview shows the selected ship's. */
+  selectedShipSkins: Record<string, string>;
   /** cosmetic enemy-skin selection per kind (EnemyKind → skinId). Unlocks derive
    *  from `achievements` (no separate unlockedSkins field — like dash trails);
    *  an unknown / locked id is coerced back to the kind's default by the sanitizer. */
@@ -237,6 +244,8 @@ export function defaultSave(): SaveData {
     selectedTheme: 'neon',
     unlockedTrails: ['pulse'],
     selectedTrail: 'pulse',
+    unlockedShipSkins: [],
+    selectedShipSkins: {},
     selectedSkins: defaultSelectedSkins(),
     lifeKills: 0,
     lifeBoss: 0,

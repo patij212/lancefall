@@ -157,6 +157,33 @@ describe('save migration', () => {
     expect(migrateSave({ version: 7, longestRunSec: 22.9 }, defaultSave()).longestRunSec).toBe(22);
   });
 
+  // ── v8 SHIP SKINS (cosmetic) — per-(ship,set) ownership + per-ship equip record ──
+  it('default-fills the ship-skin cosmetics to empty (no owned skins, plain hull) for a v7 save', () => {
+    const out = migrateSave({ version: 7, highScore: 1 }, defaultSave());
+    expect(out.version).toBe(SAVE_VERSION); // 8
+    expect(out.unlockedShipSkins).toEqual([]);
+    expect(out.selectedShipSkins).toEqual({});
+  });
+
+  it('keeps valid `${ship}:${set}` ownership keys + the equipped record, dropping unknowns', () => {
+    const out = migrateSave(
+      { version: 7, unlockedShipSkins: ['lance:encryption', 'glaive:key', 'bogus:encryption', 'lance:nope', 42], selectedShipSkins: { lance: 'encryption', glaive: 'key' } },
+      defaultSave(),
+    );
+    expect([...out.unlockedShipSkins].sort()).toEqual(['glaive:key', 'lance:encryption']); // bad ship/set + non-string dropped
+    expect(out.selectedShipSkins).toEqual({ lance: 'encryption', glaive: 'key' });
+  });
+
+  it('drops an equipped skin the ship does not own, plus unknown ships / none / junk blobs', () => {
+    // equipped firstlight on lance, but lance:firstlight is NOT owned → dropped
+    expect(migrateSave({ version: 7, unlockedShipSkins: ['lance:encryption'], selectedShipSkins: { lance: 'firstlight' } }, defaultSave()).selectedShipSkins).toEqual({});
+    // 'none' is the default (never stored); an unknown ship is dropped
+    expect(migrateSave({ version: 7, unlockedShipSkins: [], selectedShipSkins: { lance: 'none', nope: 'encryption' } }, defaultSave()).selectedShipSkins).toEqual({});
+    // non-array / non-object blobs degrade cleanly
+    expect(migrateSave({ version: 7, unlockedShipSkins: 'corrupt' }, defaultSave()).unlockedShipSkins).toEqual([]);
+    expect(migrateSave({ version: 7, selectedShipSkins: [1, 2] }, defaultSave()).selectedShipSkins).toEqual({});
+  });
+
   // ── v7 COMBAT lifetime counters — lifeGrazes / lifeDaybreaks / lifeLastBreath ride the
   //    generic number coerce loop (like lifeKills/lifeWins). ──
   it('default-fills the v7 combat counters to 0 and preserves / coerces real values', () => {

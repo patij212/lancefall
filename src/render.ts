@@ -13,6 +13,7 @@ import type { Enemy, Bullet, EnemyKind } from './types';
 import type { ThemeDef } from './themes';
 import { trailById, trailGhostColor } from './trails';
 import type { TrailDef } from './trails';
+import { drawShipSkin } from './shipSkins';
 import { skinById, defaultSkinId } from './skins';
 import type { Lod, SkinDef } from './skins';
 import { themeById } from './themes';
@@ -84,6 +85,9 @@ export class Renderer {
   private bgT = 0;
   private theme: ThemeDef = themeById('neon');
   private trail: TrailDef = trailById('pulse');
+  // Equipped cosmetic ship-skin SET id ('none' = the plain hull). Drawn over the player body
+  // ONLY in the calm state (no hit-flash / i-frame), so gameplay reads are never masked.
+  private shipSkin = 'none';
   // Equipped enemy SKINS, pre-resolved per kind to a SkinDef (cosmetic). null =
   // use the committed biomech fallback for that kind. Set once per run/equip via
   // setSkins() — the per-enemy draw path does a cheap map lookup, no string work.
@@ -112,6 +116,11 @@ export class Renderer {
 
   setTrail(t: TrailDef): void {
     this.trail = t;
+  }
+
+  /** Equip the cosmetic ship-skin set ('none' = the plain hull). Pure cosmetic. */
+  setShipSkin(id: string): void {
+    this.shipSkin = id;
   }
 
   /** Equip the player's enemy-skin selection (EnemyKind → skinId). Resolves each
@@ -2233,7 +2242,6 @@ export class Renderer {
     // distinct hull per ship is shape-coded so the roster reads without relying on colour.
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
     const sr = TUNE.player.spriteRadius * (p.phase === 'charging' ? 1 + 0.06 * Math.sin(p.charge * 30) : 1);
     // i-frame tell: a fast white blink normally, but under reduceFlashing a STEADY white
     // outline (no 40Hz toggle) so longer protection windows — e.g. the Grid-B first-run
@@ -2242,13 +2250,21 @@ export class Renderer {
     // hit-flash whites out the whole ship; the i-frame blink overrides the outline white.
     // Otherwise the hull + spine/bulkhead detail + cockpit glint all ride the ship accent.
     const plain = p.hitFlash <= 0 && !invuln;
-    drawShipSilhouette(ctx, world.shipId, sr, {
-      fill: p.hitFlash > 0 ? '#ffffff' : '#0a0b0f',
-      stroke: invuln || p.hitFlash > 0 ? '#ffffff' : shipAccent,
-      lineWidth: 2.5,
-      detail: plain ? mix(shipAccent, '#ffffff', 0.45) : null,
-      core: plain ? mix(shipAccent, '#ffffff', 0.6) : null,
-    });
+    if (plain && this.shipSkin !== 'none') {
+      // equipped cosmetic skin — authored NOSE-UP, so rotate by (angle + π/2) to face the aim.
+      // Drawn ONLY in the calm state; the flash / i-frame whites (below) are never masked.
+      ctx.rotate(p.angle + Math.PI / 2);
+      drawShipSkin(this.shipSkin, world.shipId, ctx, sr, this.bgT, { reduceMotion: this.reduceMotionR });
+    } else {
+      ctx.rotate(p.angle);
+      drawShipSilhouette(ctx, world.shipId, sr, {
+        fill: p.hitFlash > 0 ? '#ffffff' : '#0a0b0f',
+        stroke: invuln || p.hitFlash > 0 ? '#ffffff' : shipAccent,
+        lineWidth: 2.5,
+        detail: plain ? mix(shipAccent, '#ffffff', 0.45) : null,
+        core: plain ? mix(shipAccent, '#ffffff', 0.6) : null,
+      });
+    }
     ctx.restore();
   }
 
