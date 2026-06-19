@@ -3376,11 +3376,19 @@ export class UI {
     this.sandboxNote = el('div', { class: 'sandbox-note', role: 'status', 'aria-live': 'polite' }, '');
     const skip = el('button', { class: 'btn btn-ghost btn-sm sandbox-skip', type: 'button' }, 'SKIP ▸');
     skip.addEventListener('click', () => this.cb.onSkipSandbox());
+    // ALL the teaching text lives in the TOP band so it never covers the player/targets
+    // (they sit at screen centre). The SKIP stays pinned at the bottom.
     this.sandboxOverlay = el(
       'div',
       { class: 'screen sandbox-overlay hidden', 'aria-label': 'Dash practice' },
-      el('div', { class: 'sandbox-top' }, el('div', { class: 'sandbox-tag' }, 'DASH PRACTICE · no danger here'), this.sandboxPips),
-      el('div', { class: 'sandbox-mid' }, this.sandboxText, this.sandboxNote),
+      el(
+        'div',
+        { class: 'sandbox-top' },
+        el('div', { class: 'sandbox-tag' }, 'DASH PRACTICE · no danger here'),
+        this.sandboxPips,
+        this.sandboxText,
+        this.sandboxNote,
+      ),
       el('div', { class: 'sandbox-skip-wrap' }, skip),
     );
   }
@@ -3398,9 +3406,11 @@ export class UI {
     });
   }
 
-  /** Set (or clear) the small sub-line under the step text — the overcharge cue or the
-   *  'replay in Settings' note. No-op if unchanged (so a per-frame caller never churns). */
-  setSandboxNote(text: string): void {
+  /** Set (or clear) the sub-line under the step text — a deeper per-beat explanation, the
+   *  'replay in Settings' note, or (when `cue`) the gold HEAVY-overcharge cue. No-op if
+   *  unchanged (so a per-frame caller never churns). */
+  setSandboxNote(text: string, cue = false): void {
+    this.sandboxNote.classList.toggle('cue', cue && text.length > 0);
     if (this.sandboxNote.textContent === text) return;
     this.sandboxNote.textContent = text;
     this.sandboxNote.classList.toggle('show', text.length > 0);

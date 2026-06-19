@@ -550,12 +550,15 @@ export class Game {
     // flipping to "release!" the instant the overcharge arms (overchargeCue reads the live player).
     if (step === 'heavy') {
       const cue = overchargeCue(sw.player.charge, sw.player.overcharge);
-      this.ui.setSandboxNote(cue === 'armed' ? 'HEAVY READY — release!' : cue === 'hold' ? 'KEEP HOLDING → HEAVY' : '');
+      // the gold overcharge cue overrides the static sub once the player is charging to full
+      if (cue !== 'none') this.ui.setSandboxNote(cue === 'armed' ? 'HEAVY READY — release!' : 'KEEP HOLDING → HEAVY', true);
+      else this.ui.setSandboxNote(currentStep(sb).sub ?? '');
       if (cueTick && cue !== 'none') sw.particles.ring(sw.player.x, sw.player.y, sw.player.radius + 18, cue === 'armed' ? '#ffe08a' : '#ffd166', 0.3);
     } else if (step === 'done') {
       this.ui.setSandboxNote('Replay anytime in Settings ▸ Replay tutorial');
     } else {
-      this.ui.setSandboxNote('');
+      // parry / rhythm carry a deeper sub-explanation; other beats have none → clears
+      this.ui.setSandboxNote(currentStep(sb).sub ?? '');
     }
 
     // dash skewers: the dash segment crossing live dummies. A shielded blocker only breaks

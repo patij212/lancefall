@@ -43,8 +43,11 @@ export type SandboxTrigger =
 
 export interface SandboxStepDef {
   step: SandboxStep;
-  /** the DOM-overlay instruction text for this step */
+  /** the DOM-overlay instruction text for this step (the short, bold action line) */
   text: string;
+  /** optional deeper sub-explanation shown under the instruction (the WHY/HOW) — used for the
+   *  beats that need more than a one-liner (parry, rhythm). The Game surfaces it on the note line. */
+  sub?: string;
   /** the trigger that advances PAST this step */
   advanceOn: SandboxTrigger;
   /** seconds before this step auto-advances regardless (no-fail safety) */
@@ -62,8 +65,20 @@ export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
   { step: 'heavy', text: 'Hold PAST full to OVERCHARGE — a HEAVY thrust smashes through armour. Break the shielded one.', advanceOn: 'heavyDash', cap: 8 },
   { step: 'combo', text: 'Line them up — spear SEVERAL in one dash to build a COMBO.', advanceOn: 'comboDash', cap: 7 },
   { step: 'graze', text: 'Skim a shot WITHOUT being hit to refill stamina — dance close, you cannot be hurt here.', advanceOn: 'grazed', cap: 8 },
-  { step: 'parry', text: 'PARRY the incoming shot (right-click / K) to deflect it — and counter.', advanceOn: 'parried', cap: 7 },
-  { step: 'rhythm', text: 'Feel the pulse — DASH ON THE BEAT as the ring tightens. On-beat wakes the City and widens your guard.', advanceOn: 'onBeatDash', cap: 9 },
+  {
+    step: 'parry',
+    text: 'PARRY the incoming shot — right-click / K',
+    sub: 'A parry sweeps your aim arc: it deflects shots AND counter-strikes anything in front of you. Whiff it and you’re briefly open, so read the shot — and on-beat parries chain a streak.',
+    advanceOn: 'parried',
+    cap: 7,
+  },
+  {
+    step: 'rhythm',
+    text: 'DASH ON THE BEAT — release as the ring snaps shut',
+    sub: 'On-beat dashes (and parries) build COHERENCE: the City of Lancefall lights from grey to neon, the music blooms, and your parry guard widens. Off-beat still works — landing on the beat is the reward.',
+    advanceOn: 'onBeatDash',
+    cap: 9,
+  },
   { step: 'done', text: 'You hold the lance. Descend.', advanceOn: 'tick', cap: 1.5 },
 ] as const;
 

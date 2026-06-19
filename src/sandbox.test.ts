@@ -139,6 +139,16 @@ describe('deep sandbox — per-beat copy reads clearly', () => {
     const s = newSandbox();
     expect(sandboxText(s)).toBe(currentStep(s).text);
   });
+
+  it('the trickiest beats carry a deeper sub-explanation (parry + rhythm)', () => {
+    const sub = (step: SandboxStep) => (SANDBOX_STEPS.find((d) => d.step === step)!.sub ?? '').toLowerCase();
+    // parry: explains it deflects AND counters
+    expect(sub('parry').length).toBeGreaterThan(20);
+    expect(sub('parry')).toMatch(/counter|riposte|streak|arc/);
+    // rhythm: explains what on-beat DOES (coherence / the City)
+    expect(sub('rhythm').length).toBeGreaterThan(20);
+    expect(sub('rhythm')).toMatch(/coherence|city/);
+  });
 });
 
 describe('deep sandbox — per-beat target layouts (pure, deterministic, no rng)', () => {
