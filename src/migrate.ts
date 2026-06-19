@@ -106,6 +106,11 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // above already reset a non-array to []; this filters the CONTENTS so a hand-edited
   // blob can't bloat the set or inject a non-id (an unknown id would never match anyway).
   out.glossSeen = sanitizeGlossSeen(out.glossSeen);
+  // ACT TWO onboarding — the persisted `taught` set. Keys are open-ended (`verb:*` /
+  // `enemy:<kind>` / `boss:<kind>`), so unlike glossSeen we don't whitelist contents
+  // (an unknown key simply never matches a live teach); we only keep deduped strings.
+  // The generic loop above already reset a non-array to []. Additive → no version bump.
+  out.taught = sanitizeTaught(out.taught);
   // v8 ship-skin cosmetics — per-(ship,set) ownership keyed `${shipId}:${setId}`, plus the
   // per-ship equipped-set record. Both are filtered to real ship + set ids; an equipped entry the
   // player doesn't own (or for an unknown ship/set) is dropped → the plain hull.
@@ -185,6 +190,13 @@ function capPlayDays(rec: Record<string, number>): Record<string, number> {
   const out: Record<string, number> = {};
   for (const k of keys) out[k] = Math.max(0, Math.floor(rec[k]));
   return out;
+}
+
+/** Coerce the persisted act-two teach set to deduped strings (keys are open-ended). Capped
+ *  to a sane ceiling so a hand-edited blob can't bloat the save. Pure + total. */
+function sanitizeTaught(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((x): x is string => typeof x === 'string'))].slice(0, 200);
 }
 
 /** Coerce the persisted gloss-seen set to known, deduped GlossId strings. Pure + total. */

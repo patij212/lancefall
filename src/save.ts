@@ -156,6 +156,11 @@ export interface SaveData {
    *  (graze / overdrive / armor / coherence / fusion). Sanitized to known GlossId
    *  strings; an unknown id is dropped. Default []. */
   glossSeen: string[];
+  /** ACT TWO onboarding — keys of just-in-time teaches already shown ONCE EVER:
+   *  the depth verbs (`verb:heavy` / `verb:parry` / `verb:coherence`), enemy reads
+   *  (`enemy:<kind>`) and boss reads (`boss:<kind>`). Sanitized to a deduped string
+   *  list. Additive (no SAVE_VERSION bump — the generic loader tolerates it). Default []. */
+  taught: string[];
   // ── v7 RECORDS — peak single-run bests for the STATS dossier. Additive; written only at
   //    run-end via max/min. 0 = never set (rendered as "—" / "OFF"). ──
   /** longest single run, whole seconds (STATS "Longest Run") */
@@ -192,6 +197,7 @@ export interface Settings {
   colorblind: boolean;
   clarity: boolean; // high-contrast Clarity mode — tames the coherence visuals for readability
   rhythmAssist: boolean; // opt-in: the contracting beat-ring that teaches dash-on-the-beat
+  tutorialHints: boolean; // ACT TWO onboarding — surface just-in-time teaches (sandbox, verb/enemy/boss reads); off for veterans
   dashStyle: 'lance' | 'slingshot'; // dash style — Lance (default) or the Slingshot Tether
   soundtrack: SoundtrackId; // selectable soundtrack: AURORA (dreamy) or SURGE (aggressive)
   hudScale: number; // 0.8..1.4
@@ -281,6 +287,7 @@ export function defaultSave(): SaveData {
     playStreak: 0,
     seenSandbox: false,
     glossSeen: [],
+    taught: [],
     longestRunSec: 0,
     fastestArenaSec: 0,
     mostBossesOneRun: 0,
@@ -305,6 +312,7 @@ export function defaultSettings(): Settings {
     colorblind: false,
     clarity: false,
     rhythmAssist: false,
+    tutorialHints: true,
     dashStyle: 'lance',
     soundtrack: 'aurora',
     hudScale: 1,
@@ -371,6 +379,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     colorblind: bool(r.colorblind, d.colorblind),
     clarity: bool(r.clarity, d.clarity),
     rhythmAssist: bool(r.rhythmAssist, d.rhythmAssist),
+    tutorialHints: bool(r.tutorialHints, d.tutorialHints),
     dashStyle: oneOf(r.dashStyle, ['lance', 'slingshot'] as const, d.dashStyle),
     soundtrack: oneOf(r.soundtrack, ['aurora', 'surge'] as const, d.soundtrack),
     hudScale: num(r.hudScale, 0.8, 1.4, d.hudScale),

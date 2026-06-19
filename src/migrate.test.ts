@@ -74,6 +74,24 @@ describe('save migration', () => {
     expect(migrateSave({ version: 6, seenSandbox: 'yes' }, defaultSave()).seenSandbox).toBe(false);
   });
 
+  // ── act-two onboarding — taught set sanitize (additive, no version bump) ──
+  it('default-fills taught to [] for a save that predates it', () => {
+    expect(migrateSave({ version: 6, highScore: 1 }, defaultSave()).taught).toEqual([]);
+  });
+
+  it('preserves taught keys, dedupes, and drops non-strings', () => {
+    const out = migrateSave(
+      { version: 8, taught: ['verb:heavy', 'verb:heavy', 'enemy:darter', 7, null, 'boss:warden'] },
+      defaultSave(),
+    );
+    expect(out.taught).toEqual(['verb:heavy', 'enemy:darter', 'boss:warden']);
+  });
+
+  it('coerces a non-array taught to []', () => {
+    expect(migrateSave({ version: 8, taught: 'verb:heavy' }, defaultSave()).taught).toEqual([]);
+    expect(migrateSave({ version: 8, taught: 42 }, defaultSave()).taught).toEqual([]);
+  });
+
   // ── §1.7 jargon glosses — glossSeen sanitize ──
   it('default-fills glossSeen to [] for an old save', () => {
     expect(migrateSave({ version: 5, highScore: 1 }, defaultSave()).glossSeen).toEqual([]);
