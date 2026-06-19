@@ -4,9 +4,9 @@
 // turn). Extracted out of boss.ts; pure pattern-math helpers up top, stateful
 // update below (see sibling bosses/*.ts).
 
-import { WARDEN, ZONE, FINALE } from '../tune';
+import { WARDEN, ZONE, FINALE, ORB } from '../tune';
 import { norm } from '../vec';
-import { bossEnraged, zoneTarget, bossFinaleStart, finaleBurst } from './util';
+import { bossEnraged, zoneTarget, bossFinaleStart, finaleBurst, tickReflectableOrb } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -31,6 +31,7 @@ export function updateWarden(e: Enemy, world: World, dt: number): void {
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
   if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
   if (bossFinaleStart(e, FINALE.frac)) finaleBurst(e, world); // one-shot last-stand volley
+  tickReflectableOrb(e, world, ORB.warden, dt); // lob a parryable orb on a fixed cadence
 
   // lazy lissajous drift near arena center
   const cx = world.width / 2;

@@ -917,6 +917,15 @@ export const ZONE = {
   margin: 60, // px the zoned target is kept inside the arena edges
 } as const;
 
+// REFLECTABLE ORB — the parry-as-offense verb. Sovereign + Warden lob a big, slow,
+// telegraphed orb; a PARRY flings it back (reflectVelocity in src/reflect.ts) as a
+// player-owned bullet that chips the boss for reflectDamage. Timer-based spawn (no rng).
+export const ORB = {
+  sovereign: { spawnEvery: 3.4, speed: 95, radius: 14, color: '#fbbf24' }, // golden, curves under the well
+  warden: { spawnEvery: 4.2, speed: 80, radius: 13, color: '#ffd23b' }, // slower (boss #1, learn-friendly)
+  reflectDamage: 2, // dash-hits a reflected orb deals to the boss
+} as const;
+
 // FINALE THEATER — every non-Sovereign boss fires ONE survivable "last stand" ring the
 // moment its HP first crosses `frac`, with a guaranteed escape lane toward the player so
 // the kill feels earned, not cheap. (The Sovereign keeps its own sub-25% crescendo.)

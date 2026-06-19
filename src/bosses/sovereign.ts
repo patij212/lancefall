@@ -3,11 +3,11 @@
 // this file owns the side-effecting loop + the core/cipher spawn helpers. Split
 // out of boss.ts so the dispatch file stays thin (see ../bosses/* siblings).
 
-import { SOVEREIGN, ZONE } from '../tune';
+import { SOVEREIGN, ZONE, ORB } from '../tune';
 import { cipherSeed, makeCipher } from '../cipher';
 import { norm } from '../vec';
 import { sovereignFinale, novaSpiralTelegraphFrac } from '../sovereign';
-import { zoneTarget } from './util';
+import { zoneTarget, tickReflectableOrb } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -171,6 +171,7 @@ export function updateSovereign(e: Enemy, world: World, dt: number): void {
   }
 
   // armored — alternate CROWN BEAMS (phase 0) and NOVA SPIRAL (phase 1)
+  tickReflectableOrb(e, world, ORB.sovereign, dt); // lob a parryable orb (curves under the well); EXPOSE stays orb-free
   e.timer -= dt;
   if (e.timer <= 0) {
     e.phase = e.phase === 0 ? 1 : 0;

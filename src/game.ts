@@ -2,7 +2,8 @@
 // "feedback glue" that turns sim events into juice (audio + particles + shake +
 // slow-mo). Owns the World, Renderer, UI, Input, Audio, Scheduler, and Director.
 
-import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, CLUTCH, POWERUP_DROP, SURVIVAL } from './tune';
+import { FIXED_DT, MAX_SUBSTEPS, MUSIC_BPM, NG_PLUS, TUNE, COHERENCE, WARDEN, BEACON, BOMBER, WISP, MIRRORBLADE, ELITE, HOLLOW, SOVEREIGN, ORB, CLUTCH, POWERUP_DROP, SURVIVAL } from './tune';
+import { reflectVelocity, isReflectableOrb } from './reflect';
 import { World } from './world';
 import { Renderer, comboColor } from './render';
 import type { Camera } from './render';
@@ -1775,7 +1776,9 @@ export class Game {
       !!boss && boss.active && mirrorbladeStaggerable(boss)
       && parryArcContains(p.x, p.y, p.angle, boss.x, boss.y, PARRY.mirrorbladeReach, arc.halfAngle);
     if (staggered) staggerMirrorblade(boss!);
-    if ((swept.total === 0 && !staggered) || p.parryRewarded) return;
+    // REFLECTABLE ORB: fling any big boss orb in the arc back at the boss (parry-as-offense)
+    const reflected = this.reflectOrbsInArc(arc);
+    if ((swept.total === 0 && !staggered && reflected === 0) || p.parryRewarded) return;
     p.parryRewarded = true;
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
     const perfect = parryGrade(p.parryElapsed, PARRY.perfectWindow + w.stats.parryPerfectWindow) === 'perfect';
@@ -1823,6 +1826,30 @@ export class Game {
       (e) => { w.particles.burst(e.x, e.y, PARRY.riposteSparks, e.color); this.damageEnemy(e, PARRY.riposteDamage, false); },
       arc.reach, arc.halfAngle,
     );
+  }
+
+  /** Fling every parryable boss ORB inside the (effective) parry arc back at the boss as a
+   *  player-owned (friendly) bullet — parry-as-offense. Two passes (collect, then spawn) so we
+   *  never mutate the bullet pool mid-iteration. Returns the reflect count (a parry catch). */
+  private reflectOrbsInArc(arc: { reach: number; halfAngle: number }): number {
+    const w = this.world;
+    const p = w.player;
+    const boss = w.boss;
+    const orbs: Bullet[] = [];
+    w.bullets.forEachActive((b) => {
+      if (isReflectableOrb(b) && parryArcContains(p.x, p.y, p.angle, b.x, b.y, arc.reach, arc.halfAngle)) orbs.push(b);
+    });
+    for (const b of orbs) {
+      const speed = Math.hypot(b.vx, b.vy) || ORB.sovereign.speed;
+      const tx = boss ? boss.x : p.x + Math.cos(p.angle) * 200;
+      const ty = boss ? boss.y : p.y + Math.sin(p.angle) * 200;
+      const v = reflectVelocity(b.x, b.y, tx, ty, speed);
+      const fb = w.spawnBullet(b.x, b.y, v.vx, v.vy, b.radius, b.color, false);
+      if (fb) fb.friendly = true; // player-owned: damages the boss, never the player
+      w.bullets.release(b);
+      w.particles.burst(b.x, b.y, 8, b.color);
+    }
+    return orbs.length;
   }
 
   /** HERO moment — a perfect-frame AND on-beat parry: a mini radial CHAFF bullet-clear (boss
@@ -2375,7 +2402,7 @@ export class Game {
     // so the hottest loop in the game stays allocation-free.
     const sov = w.boss && w.boss.kind === 'sovereign' ? w.boss : null;
     w.bullets.forEachActive((b) => {
-      if (sov && b.fromBoss) {
+      if (sov && (b.fromBoss || b.friendly)) { // friendly reflected orbs curve under the well too
         const gx = sov.x - b.x;
         const gy = sov.y - b.y;
         const gd = Math.hypot(gx, gy) || 1;
@@ -2417,6 +2444,22 @@ export class Game {
         return;
       }
       if (!p.alive || this.dying) return;
+      // FRIENDLY reflected orb: damages the BOSS (if not armored), never the player
+      if (b.friendly) {
+        const tb = w.boss;
+        if (tb && tb.active && !this.spearBlocked(tb)) {
+          const bdx = tb.x - b.x;
+          const bdy = tb.y - b.y;
+          const rr = tb.radius + b.radius;
+          if (bdx * bdx + bdy * bdy <= rr * rr) {
+            this.damageEnemy(tb, ORB.reflectDamage, false);
+            w.particles.burst(b.x, b.y, 14, b.color);
+            w.particles.floatText(tb.x, tb.y - 34, 'REFLECTED', '#fbbf24', 1.1);
+            w.bullets.release(b);
+          }
+        }
+        return; // a friendly orb never hits or grazes the player
+      }
       const dx = p.x - b.x;
       const dy = p.y - b.y;
       const d2 = dx * dx + dy * dy;

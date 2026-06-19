@@ -389,6 +389,8 @@ export class World {
     b.homing = 0; // CRITICAL: reset on pool reuse, or a recycled SEEKER bolt keeps homing
     b.shot = shot; // visual archetype; always set so a recycled bullet never keeps a stale style
     b.fromKind = this.firingKind; // attribute to the firer for the LAST RUN damage breakdown
+    b.reflectable = false; // CRITICAL: reset on pool reuse, or a recycled bullet stays a parryable orb
+    b.friendly = false; // …or a recycled bullet stays player-owned and can't hit the player
     return b;
   }
 

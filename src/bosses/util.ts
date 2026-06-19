@@ -65,6 +65,18 @@ export function bossFinaleStart(e: Enemy, frac: number): boolean {
   return true;
 }
 
+/** Tick the reflectable-ORB spawn timer and lob one (a big slow telegraphed orb aimed at
+ *  the player, flagged reflectable so a PARRY can fling it back) when it's due. Timer-based
+ *  count-up — NO rng draw. `cfg` is ORB.sovereign / ORB.warden. */
+export function tickReflectableOrb(e: Enemy, world: World, cfg: { spawnEvery: number; speed: number; radius: number; color: string }, dt: number): void {
+  e.orbTimer = (e.orbTimer ?? 0) + dt;
+  if (e.orbTimer < cfg.spawnEvery) return;
+  e.orbTimer = 0;
+  const a = Math.atan2(world.player.y - e.y, world.player.x - e.x);
+  const b = world.spawnBullet(e.x, e.y, Math.cos(a) * cfg.speed, Math.sin(a) * cfg.speed, cfg.radius, cfg.color, true);
+  if (b) b.reflectable = true;
+}
+
 /** The per-kind FINALE burst config (bullets + speed). */
 function finaleConfig(kind: EnemyKind): { bullets: number; speed: number } {
   switch (kind) {

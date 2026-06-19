@@ -114,6 +114,7 @@ export interface Enemy {
   ringTimer?: number; // SOVEREIGN: countdown to the next EXPOSED desperation ring (dodge-while-you-punish)
   enrageAnnounced?: boolean; // boss: one-shot latch — the enrage-crossing stinger+flash has fired
   finaleTrig?: boolean; // boss: one-shot latch — the sub-threshold "last stand" volley has fired
+  orbTimer?: number; // SOVEREIGN/WARDEN: countup to the next reflectable ORB spawn (parry-as-offense)
 }
 
 /** Per-shot visual tag (playtest: bullets need identity per enemy + shot type, not colour
@@ -140,6 +141,10 @@ export interface Bullet {
   /** EnemyKind / boss-kind that fired this bullet (stamped at spawn from World.firingKind) for
    *  per-kind damage attribution in the LAST RUN debrief. '' = unattributed (e.g. elite aura). */
   fromKind?: string;
+  /** a big slow boss ORB the player can PARRY back (reflect). Reset false at spawn (pool safety). */
+  reflectable?: boolean;
+  /** a player-owned reflected orb: damages the boss, never the player. Reset false at spawn. */
+  friendly?: boolean;
 }
 
 export type ParticleKind = 'spark' | 'trail' | 'debris' | 'ring' | 'streak';
