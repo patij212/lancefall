@@ -51,33 +51,38 @@ test('a brand-new player sees the no-fail DASH SANDBOX on DESCEND, and SKIP star
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
-test('dashing through the targets completes the lesson and drops into a real run', async ({ page }) => {
+test('dashing advances the deep sandbox through its beats, then SKIP drops into a real run', async ({ page }) => {
   const errors = trackErrors(page);
   await freshSave(page);
 
   await page.goto('/');
   await page.getByRole('button', { name: /Descend/i }).click();
-  await expect(page.locator('.sandbox-overlay:not(.hidden)')).toBeVisible();
+  const overlay = page.locator('.sandbox-overlay:not(.hidden)');
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toContainText(/HOLD to charge/i); // beat 1
 
-  // drive the canvas like a player: aim to the RIGHT (toward the dummy targets), then
-  // HOLD (mousedown) → RELEASE (mouseup) to charge+dash. Repeat a few times; each dash
-  // advances the scripted teach. The sandbox is unfailable, so this can never die.
+  // drive the canvas like a player: aim RIGHT (toward the marks), HOLD → RELEASE to
+  // charge+dash. Each genuine dash advances the scripted teach. Unfailable → never dies.
   const canvas = page.locator('#game');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
-  const aimX = box.x + box.width * 0.7; // right of the centred player → toward the dummies
+  const aimX = box.x + box.width * 0.72; // toward the dummy marks
   const aimY = box.y + box.height * 0.5;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     await page.mouse.move(aimX, aimY);
     await page.mouse.down();
-    await page.waitForTimeout(180); // charge briefly
+    await page.waitForTimeout(260); // a long-ish charge so the dash actually reaches
     await page.mouse.up(); // release → dash
-    await page.waitForTimeout(220);
-    if (await page.locator('.sandbox-overlay').evaluate((e) => e.classList.contains('hidden'))) break;
+    await page.waitForTimeout(260);
   }
 
-  // the lesson completes → overlay hidden + the real run is live (HUD up).
-  await expect(page.locator('.sandbox-overlay')).toHaveClass(/hidden/, { timeout: 12_000 });
+  // PROGRESSION: real dashes moved the teach past the opening charge beat (the deep sandbox
+  // teaches many beats; we don't automate parry/heavy/rhythm here — we just prove it advances).
+  await expect(overlay).not.toContainText(/HOLD to charge your spear/i, { timeout: 6_000 });
+
+  // SKIP closes the (unfailable) teach and a real run begins (HUD visible, overlay hidden).
+  await page.locator('.sandbox-skip').click();
+  await expect(page.locator('.sandbox-overlay')).toHaveClass(/hidden/);
   await expect(page.locator('.hud')).not.toHaveClass(/hidden/);
 
   expect(errors, errors.join('\n')).toEqual([]);

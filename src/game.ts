@@ -80,8 +80,8 @@ import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf 
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
-import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, dummyLayout, currentStep, SANDBOX_TARGET_SKEWERS } from './sandbox';
-import type { SandboxState } from './sandbox';
+import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, currentStep, sandboxBeatTargets } from './sandbox';
+import type { SandboxState, SandboxStep } from './sandbox';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
@@ -187,7 +187,10 @@ export class Game {
   private sandbox: SandboxState | null = null;
   private sandboxWorld: World | null = null;
   private sandboxMode: RunConfig = MODES[0];
-  private sandboxDummyDashId = -1; // last dash that scored a sandbox skewer (one per dash)
+  private sandboxDashKills = 0; // dummies skewered by the CURRENT dash (reset each dash; drives the combo beat)
+  private sandboxSetupStep: SandboxStep | null = null; // the beat whose targets/bullets are currently staged
+  private sandboxBeatEntryDashId = -1; // player.dashId when the active beat began — a dash counts only if NEWER
+  //  (so one dash can't blow through several beats; each dash-success beat needs its OWN fresh dash)
   // Grid B — no-fail opening grace, ONLY on a brand-new player's first run. A PURE
   // wall-clock gate that tops up i-frames so the dash can be learned before dying;
   // never touches world.rng / spawns, so the Daily stays deterministic.
@@ -409,49 +412,65 @@ export class Game {
     }
   }
 
-  /** Enter the sandbox state: build a dedicated throwaway world, spawn inert dummy
-   *  targets, make the player unfailable, and surface the first teach step in the DOM
-   *  overlay. Audio is unlocked so the dash/whoosh sells the verb. No this.world / no
-   *  seeded rng is touched here — the real run is untouched until finishSandbox(). */
+  /** Enter the sandbox state: build a dedicated throwaway world, stage the FIRST beat,
+   *  make the player unfailable, and surface the first teach step. Audio is unlocked so
+   *  the dash/whoosh sells the verb (and the rhythm beat can sync the beat clock). No
+   *  this.world / no seeded rng is touched — the real run is untouched until finishSandbox(). */
   private startSandbox(cfg: RunConfig): void {
     this.audio.ensure();
     this.ui.hideSoundHint();
     this.sandboxMode = cfg;
     this.sandbox = newSandbox();
-    this.sandboxDummyDashId = -1;
+    this.sandboxDashKills = 0;
+    this.sandboxSetupStep = null;
     // a SEPARATE world on a throwaway, NON-seeded rng — it can never perturb the run.
     const sw = new World(createRng(0x5A4D_B0C5)); // "SANDBOX" — a fixed throwaway seed
     sw.reset(window.innerWidth, window.innerHeight);
-    sw.player.x = window.innerWidth * 0.32;
+    sw.player.x = window.innerWidth * 0.28;
     sw.player.y = window.innerHeight * 0.5;
     sw.player.iframe = 1e9; // truly unfailable for the whole teach
-    // inert dummy targets — a harmless kind we never tick AI on (the sandbox runs its
-    // own loop, not this.step), so they fire nothing and can't move into the player.
-    const cx = window.innerWidth * 0.32;
-    const cy = window.innerHeight * 0.5;
-    for (const d of dummyLayout()) {
-      const e = sw.spawnEnemy('drifter', cx + d.dx, cy + d.dy, 1, 1, false, false, 0);
-      if (e) {
-        e.scale = 1; // already popped in (no entrance tween needed here)
-        e.hp = 1; // a single skewer pops it
-        e.maxHp = 1;
-      }
-    }
     this.sandboxWorld = sw;
+    this.setupSandboxBeat(sw, currentStep(this.sandbox).step); // stage the first beat's targets
+    // a fresh beat-clock epoch so the rhythm beat grades against THIS sandbox's transport
+    this.beat = new BeatClock(makeGrid(MUSIC_BPM));
     this.renderer.setGhost(null, 0);
     this.renderer.setBiomeTint(null);
     this.renderer.setCoherence(0.7, 0, 0, 0); // a calm, mostly-lit teach (no FALL wash)
     this.input.clearHeld(); // never auto-charge from a held key carried in from the menu
     this.audio.startDrone();
-    this.audio.duckMusic(true);
+    this.audio.duckMusic(true); // music quiet until the rhythm beat lifts it
     this.state = 'sandbox';
     this.ui.showSandbox(sandboxText(this.sandbox));
   }
 
-  /** One display-frame of the sandbox: drive the dummy world's player (charge/dash),
-   *  detect skewers, advance the pure step machine, then render the throwaway world
-   *  through the EXISTING renderer (canvas) with the DOM overlay on top. Hands off to
-   *  the real start() the instant the lesson completes. */
+  /** Stage one beat on the throwaway world: clear the board, then spawn that beat's dummy
+   *  targets (and mark a HEAVY blocker). Bullet-driven beats (graze/parry) and the rhythm
+   *  beat are topped up per-frame in stepSandboxFrame. Pure layout + cosmetic spawns; no rng. */
+  private setupSandboxBeat(sw: World, step: SandboxStep): void {
+    sw.enemies.forEachActive((e) => sw.enemies.release(e));
+    sw.bullets.forEachActive((b) => sw.bullets.release(b));
+    // recentre the player to the start anchor each beat so every layout below has the same,
+    // predictable runway — otherwise carry-momentum drift across beats strands the geometry
+    // (e.g. the player pinned at the right wall can't line up the combo row). Cosmetic; no rng.
+    sw.player.x = sw.width * 0.28;
+    sw.player.y = sw.height * 0.5;
+    sw.player.vx = 0; sw.player.vy = 0;
+    sw.player.phase = 'idle'; sw.player.charge = 0; sw.player.overcharge = 0;
+    const px = sw.player.x, py = sw.player.y;
+    for (const t of sandboxBeatTargets(step)) {
+      const e = sw.spawnEnemy('drifter', px + t.dx, py + t.dy, 1, 1, t.shielded ?? false, false, 0);
+      if (e) { e.scale = 1; e.hp = 1; e.maxHp = 1; e.shielded = t.shielded ?? false; }
+    }
+    this.sandboxSetupStep = step;
+    // a dash counts for this beat only if it STARTS now or later — so an in-progress dash
+    // from the previous beat can't auto-clear this beat's freshly-spawned target.
+    this.sandboxBeatEntryDashId = sw.player.dashId;
+  }
+
+  /** One display-frame of the sandbox: stage the active beat, drive the dummy world's
+   *  player, detect that beat's success, advance the pure step machine, then render the
+   *  throwaway world through the EXISTING renderer with the DOM overlay on top. Hands off
+   *  to the real start() the instant the lesson completes. Never touches the real run / rng. */
   private stepSandboxFrame(realDt: number): void {
     const sw = this.sandboxWorld;
     const sb = this.sandbox;
@@ -459,12 +478,20 @@ export class Game {
       this.finishSandbox();
       return;
     }
-    // fixed-ish player update on the frame dt (clamped) — no spawns, no rng draws.
+    const step = currentStep(sb).step;
+    if (this.sandboxSetupStep !== step) this.setupSandboxBeat(sw, step); // (re)stage on a beat change
+
     const dt = Math.min(realDt, 0.05);
     resetEvents(this.ev);
     const wasCharging = sw.player.phase === 'charging';
     updatePlayer(sw.player, this.input.state, dt, sw.stats, sw.width, sw.height, this.ev, this.settings.dashStyle === 'slingshot', 0);
     sw.player.iframe = 1e9; // keep it unfailable even as updatePlayer decrements i-frames
+
+    // keep a pure beat clock running so the RHYTHM beat can grade an on-beat dash; the
+    // music started in startSandbox lets it sync (gradeRelease is 'off' until synced).
+    this.beat.advance(realDt);
+    if (this.audio.activeBpm !== this.beat.grid.bpm) this.beat.retempo(this.audio.activeBpm);
+    if (this.audio.musicRunning) this.beat.reconcile(this.audio.musicTime, realDt);
 
     // sell the verb with the existing audio cues (no sim coupling)
     if (this.ev.beganCharge) this.audio.startCharge();
@@ -475,73 +502,105 @@ export class Game {
       this.audio.whoosh();
       this.shake.add(TUNE.juice.traumaDash);
       sw.particles.streaks(sw.player.x, sw.player.y, sw.player.dashDirX, sw.player.dashDirY, '#5beaff');
+      this.sandboxDashKills = 0; // a new dash — start a fresh kill tally for the combo beat
     }
     if (this.ev.landed) sw.particles.dust(sw.player.x, sw.player.y, '#22d3ee');
 
-    // detect a skewer: the dash/landing segment crossing any live dummy. One skewer
-    // per dash (dashId-tagged) so a single dash can't double-count.
-    let skewer = false;
-    const dashing = sw.player.phase === 'dashing' || this.ev.landed;
-    if (dashing && sw.player.dashId !== this.sandboxDummyDashId) {
+    // integrate the throwaway-world bullets ourselves — the sandbox doesn't run the real
+    // updateBullets, so graze/parry shots would otherwise sit still. Pure motion + cull; no rng.
+    sw.bullets.forEachActive((b) => {
+      b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+      if (b.life <= 0 || b.x < -60 || b.x > sw.width + 60 || b.y < -60 || b.y > sw.height + 60) sw.bullets.release(b);
+    });
+
+    // ── per-beat success detection (cosmetic; reads the throwaway world, no rng) ──
+    const ev = { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer: false,
+      reached: false, heavyDash: false, comboDash: false, grazed: false, parried: false, onBeatDash: false };
+
+    // dash skewers: the dash segment crossing live dummies. A shielded blocker only breaks
+    // to a HEAVY (overcharged) dash; a plain dash clangs and teaches the overcharge. Only a
+    // dash STARTED during this beat counts (freshDash) — beats stay isolated, one dash each.
+    const freshDash = sw.player.dashId > this.sandboxBeatEntryDashId;
+    const dashing = (sw.player.phase === 'dashing' || this.ev.landed) && freshDash;
+    if (dashing) {
       const ax = sw.player.dashFromX, ay = sw.player.dashFromY, bx = sw.player.x, by = sw.player.y;
+      const heavy = sw.player.dashHeavy;
       sw.enemies.forEachActive((e) => {
-        if (skewer || !e.active) return;
-        if (segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, 16)) {
-          skewer = true;
-          this.sandboxDummyDashId = sw.player.dashId;
-          // pop it with the existing juice (cosmetic; throwaway world)
-          sw.particles.burst(e.x, e.y, 22, e.color);
-          sw.particles.floatText(e.x, e.y - 16, 'SKEWER', '#5beaff', 0.9);
-          this.shake.add(TUNE.juice.traumaKill);
-          this.scheduler.requestHitstop(0.06);
-          this.audio.thunk(12, this.panFor(e.x));
-          sw.enemies.release(e);
+        if (!e.active || !segCircleHit(ax, ay, bx, by, e.x, e.y, e.radius, 16)) return;
+        if (e.shielded && !heavy) {
+          if (step === 'heavy') { sw.particles.ring(e.x, e.y, e.radius + 12, '#9fb4d8', 0.22); this.audio.thunk(2, this.panFor(e.x)); }
+          return; // a plain dash can't crack armour
         }
+        ev.skewer = true;
+        this.sandboxDashKills += 1;
+        if (e.shielded) ev.heavyDash = true;
+        sw.particles.burst(e.x, e.y, 22, e.color);
+        sw.particles.floatText(e.x, e.y - 16, e.shielded ? 'HEAVY!' : 'SKEWER', e.shielded ? '#ffd166' : '#5beaff', 0.95);
+        this.shake.add(TUNE.juice.traumaKill);
+        this.scheduler.requestHitstop(0.05);
+        this.audio.thunk(12, this.panFor(e.x));
+        sw.enemies.release(e);
       });
+      if (step === 'reach' && ev.skewer) ev.reached = true; // the only mark on the reach beat is the far one
+      if (this.sandboxDashKills >= 2) ev.comboDash = true; // a single dash skewered the line
+    }
+    if (ev.skewer) sw.player.killsThisDash = this.sandboxDashKills; // mirror for any read-back
+
+    // GRAZE beat — feed slow drifting shots and reward a near-miss (the player is unfailable)
+    if (step === 'graze') {
+      this.feedSandboxGrazeBullets(sw);
+      const gr = sw.stats.grazeRadius;
+      const px = sw.player.x, py = sw.player.y, hitR = sw.player.radius;
+      sw.bullets.forEachActive((b) => {
+        if (ev.grazed) return;
+        const d2 = (px - b.x) * (px - b.x) + (py - b.y) * (py - b.y);
+        const rr = gr + b.radius;
+        if (d2 <= rr * rr && d2 > (hitR + b.radius) * (hitR + b.radius)) ev.grazed = true;
+      });
+      if (ev.grazed) { sw.particles.graze(px, py); this.audio.graze(); sw.particles.floatText(px, py - 30, 'GRAZE', '#3df0ff', 0.9); }
     }
 
-    // ACT TWO — the PARRY beat. On the parry step, lob ONE slow, telegraphed shot at the
-    // player; pressing PARRY (ev.parryFired) deflects it and advances. No-fail: the step
-    // caps out on its own, and the player is unfailable. Throwaway world → no rng concern.
-    let parried = false;
-    if (currentStep(sb).step === 'parry') {
-      if (sw.bullets.activeCount === 0) {
-        const px = sw.player.x, py = sw.player.y;
-        const sx = px + 260, sy = py - 36; // from the upper-right, into the aim arc
-        const a = Math.atan2(py - sy, px - sx);
-        const sp = 95; // slow + readable
-        const b = sw.spawnBullet(sx, sy, Math.cos(a) * sp, Math.sin(a) * sp, 9, '#ff7b9c', false, 'orb');
-        if (b) b.reflectable = true;
+    // RHYTHM beat — light music + the beat ring, grade the dash, bloom coherence on-beat
+    let beatRing = false;
+    if (step === 'rhythm') {
+      this.audio.duckMusic(false); // lift the bed so the pulse is audible
+      beatRing = !this.settings.reduceFlashing && !this.settings.reduceMotion;
+      if (this.ev.dashFired && freshDash) {
+        const grade = gradeRelease(this.beat.beatError(), this.beat.synced, 1);
+        if (grade !== 'off') {
+          ev.onBeatDash = true;
+          const perfect = grade === 'perfect';
+          this.renderer.setCoherence(1, 1, 1, 0); // the City wakes
+          sw.particles.floatText(sw.player.x, sw.player.y - 34, perfect ? 'PERFECT' : 'ON BEAT', perfect ? '#fde047' : '#67e8f9', 0.95);
+          if (beatRing) this.ui.flashBeatPip(perfect);
+        }
       }
+    }
+
+    // PARRY beat — telegraphed shot; a deflect (parryFired) is the success (handled in resolveSandboxParry)
+    let parried = false;
+    if (step === 'parry') {
+      this.feedSandboxParryBullet(sw);
       if (this.ev.parryFired) {
         parried = true;
         sw.bullets.forEachActive((b) => { sw.particles.burst(b.x, b.y, 16, '#ffd166'); sw.bullets.release(b); });
         this.audio.parry(true);
         this.shake.add(0.1);
       }
-    } else if (sw.bullets.activeCount > 0) {
-      sw.bullets.forEachActive((b) => sw.bullets.release(b)); // keep the board clean off the parry beat
     }
+    ev.parried = parried;
 
     sw.particles.update(dt);
 
-    // advance the pure step machine; relabel the overlay text on a step change
-    const prev = sb;
-    const next = stepSandbox(prev, dt, { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer, parried });
+    // advance the pure step machine; relabel the overlay on a step change
+    const next = stepSandbox(sb, dt, ev);
     this.sandbox = next;
     this.ui.setSandboxText(sandboxText(next));
     // the sandbox parry teaches the verb for real — mark it so the contextual fallback (and a
-    // later sandbox replay) never re-teach `verb:parry` redundantly. Cosmetic save write; no rng.
+    // later replay) never re-teach `verb:parry` redundantly. Cosmetic save write; no rng.
     if (parried && !this.save.taught.includes('verb:parry')) {
       this.save.taught.push('verb:parry');
       saveSave(this.save);
-    }
-
-    // re-arm dummies if the player skewered both before the lesson auto-advances, so
-    // there's always a target to chain (keeps the "again!" beat satisfying).
-    if (skewer && next.skewers < SANDBOX_TARGET_SKEWERS && sw.enemies.activeCount === 0) {
-      const e = sw.spawnEnemy('drifter', sw.width * 0.6, sw.height * 0.5, 1, 1, false, false, 0);
-      if (e) { e.scale = 1; e.hp = 1; e.maxHp = 1; }
     }
 
     if (sandboxComplete(next)) {
@@ -557,12 +616,38 @@ export class Game {
       caScale: this.settings.chromAberration,
       reduceMotion: this.settings.reduceMotion,
       clarity: this.settings.clarity,
-      beatRing: false,
-      beatPhase: 0,
+      beatRing,
+      beatPhase: this.beat.beatPhase(),
       slingshot: this.settings.dashStyle === 'slingshot',
       firstLight: 0,
       cipherAssist: false,
     });
+  }
+
+  /** GRAZE beat — keep two slow shots drifting past the player (inside the graze ring, outside
+   *  the hitbox) so a near-miss reliably registers. The player is unfailable, so they can't be
+   *  hurt skimming them. Fixed lanes (no rng); the throwaway world is GC'd at hand-off. */
+  private feedSandboxGrazeBullets(sw: World): void {
+    if (sw.bullets.activeCount > 0) return;
+    const px = sw.player.x, py = sw.player.y;
+    const off = Math.max(sw.player.radius + 14, sw.stats.grazeRadius * 0.6); // skim distance
+    const sp = 120; // slow + readable
+    for (const dy of [-off, off]) {
+      const b = sw.spawnBullet(px + 460, py + dy, -sp, 0, 7, '#8bd0ff', false, 'orb');
+      if (b) b.life = 12;
+    }
+  }
+
+  /** PARRY beat — keep ONE slow, telegraphed, reflectable shot heading into the aim arc so the
+   *  player has something to deflect. Re-spawns once it leaves; player unfailable. No rng. */
+  private feedSandboxParryBullet(sw: World): void {
+    if (sw.bullets.activeCount > 0) return;
+    const px = sw.player.x, py = sw.player.y;
+    const sx = px + 300, sy = py - 44;
+    const a = Math.atan2(py - sy, px - sx);
+    const sp = 95;
+    const b = sw.spawnBullet(sx, sy, Math.cos(a) * sp, Math.sin(a) * sp, 9, '#ff7b9c', false, 'orb');
+    if (b) { b.reflectable = true; b.life = 12; }
   }
 
   /** Leave the sandbox (completed OR skipped): mark it seen so it never repeats, drop

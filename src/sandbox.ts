@@ -1,26 +1,42 @@
-// DASH SANDBOX (PERFECT_10_SPEC §1.2) — the no-fail onboarding screen.
+// DASH SANDBOX — the no-fail onboarding screen.
 //
-// A ~5–8s teaching state shown to brand-new players the very FIRST time they press
-// DESCEND, BEFORE the real run begins. It teaches the single core verb — HOLD to
-// charge, RELEASE to spear — on inert dummy targets the player cannot die on, then
-// hands off to the EXISTING start(cfg) path with a clean, fully-seeded world.
+// A teaching state shown to brand-new players the very FIRST time they press DESCEND,
+// BEFORE the real run begins. It teaches the game's depth one beat at a time on a
+// throwaway world the player cannot die on, then hands off to the EXISTING start(cfg)
+// path with a clean, fully-seeded world. Seven beats, each demonstrating a real
+// mechanic and advancing ONLY on genuine success:
 //
-// This module is PURE: step progression, the completion predicate, target layout,
-// and the gating/skip logic are plain functions with NO DOM, NO audio, and — most
-// importantly — NO rng. The seeded run's determinism is sacred; nothing here draws
-// from (or even reads) any rng stream, so the subsequent start(cfg) seeds the world
-// EXACTLY as it does today. The Game wires these functions to a dedicated, throwaway
-// sandbox World so this.world (the real run) is never touched until start() resets it.
+//   1 charge   — HOLD to charge (the longer you hold, the farther you fly)
+//   2 release  — RELEASE to dash
+//   3 reach    — charge DEPTH: a full charge reaches a far mark
+//   4 heavy    — hold PAST full to OVERCHARGE a HEAVY thrust through armour
+//   5 combo    — skewer SEVERAL in one dash
+//   6 graze    — skim a shot to refill stamina
+//   7 parry    — deflect a shot (and counter)
+//   8 rhythm   — dash ON THE BEAT → COHERENCE (the City wakes, the guard widens)
+//   + done     — close-out
+//
+// This module is PURE: step progression, the completion predicate, per-beat target
+// layout, and the gating/skip logic are plain functions with NO DOM, NO audio, and —
+// most importantly — NO rng. The seeded run's determinism is sacred; nothing here
+// draws from (or even reads) any rng stream, so the subsequent start(cfg) seeds the
+// world EXACTLY as it does today (the Daily stays bit-identical). The Game wires these
+// to a dedicated throwaway World so this.world (the real run) is never touched until
+// start() resets it; the Game computes each success boolean below from that world.
 
 /** The scripted teach steps, in order. Each step is gated by a TRIGGER the player
  *  must satisfy to advance; a per-step time cap auto-advances so the screen can
  *  never stall (no-fail also means no-stuck). */
-export type SandboxStep = 'charge' | 'release' | 'chain' | 'parry' | 'done';
+export type SandboxStep =
+  | 'charge' | 'release' | 'reach' | 'heavy' | 'combo' | 'graze' | 'parry' | 'rhythm' | 'done';
 
-/** What unblocks the current step. 'charge' waits for the player to begin charging,
- *  'release' for a committed dash, 'chain' for a skewer (a dummy hit), 'parry' for a
- *  successful deflect, 'done' for the closing beat (cap-only). */
-export type SandboxTrigger = 'beganCharge' | 'dashed' | 'skewer' | 'parried' | 'tick';
+/** What unblocks the current step — the success the Game detects on the throwaway world:
+ *  beganCharge (started charging) · dashed (committed a dash) · reached (skewered the FAR
+ *  mark, only possible on a long charge) · heavyDash (a dash with the overcharge armed) ·
+ *  comboDash (a single dash skewering ≥2) · grazed (a near-miss) · parried (a deflect) ·
+ *  onBeatDash (a dash graded on-beat) · tick (the closing beat — cap-only). */
+export type SandboxTrigger =
+  | 'beganCharge' | 'dashed' | 'reached' | 'heavyDash' | 'comboDash' | 'grazed' | 'parried' | 'onBeatDash' | 'tick';
 
 export interface SandboxStepDef {
   step: SandboxStep;
@@ -32,42 +48,57 @@ export interface SandboxStepDef {
   cap: number;
 }
 
-// Tuned for a tight ~5–8s teach. Caps sum well under the spec's upper bound while
-// each step still advances the instant its trigger fires (usually far sooner).
+// Generous per-step caps: each beat advances the instant its success fires (usually
+// far sooner), and a player who's stuck on one beat is never trapped — it caps out
+// and moves on. An engaged player walks the whole teach in ~25–40s; the caps only
+// matter when someone freezes (and SKIP is always available).
 export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
-  { step: 'charge', text: 'HOLD to charge your spear', advanceOn: 'beganCharge', cap: 6 },
-  { step: 'release', text: 'RELEASE to spear the target', advanceOn: 'dashed', cap: 6 },
-  { step: 'chain', text: 'Nice — again! Skewer the next one', advanceOn: 'skewer', cap: 4.5 },
-  // ACT TWO — the second verb. A dummy lobs ONE slow, telegraphed shot; deflecting it
-  // (right-click / K) advances. Still no-fail: the cap auto-advances if they don't.
-  { step: 'parry', text: 'PARRY the incoming shot (right-click / K) to deflect it', advanceOn: 'parried', cap: 4.5 },
-  { step: 'done', text: "You've got it. Descending…", advanceOn: 'tick', cap: 1.2 },
+  { step: 'charge', text: 'HOLD to charge your spear — the longer you hold, the farther you fly.', advanceOn: 'beganCharge', cap: 6 },
+  { step: 'release', text: 'RELEASE to dash forward and spear the mark.', advanceOn: 'dashed', cap: 6 },
+  { step: 'reach', text: 'Charge FULLY, then release — a long charge is a long dash. Reach the far mark.', advanceOn: 'reached', cap: 7 },
+  { step: 'heavy', text: 'Hold PAST full to OVERCHARGE — a HEAVY thrust smashes through armour. Break the shielded one.', advanceOn: 'heavyDash', cap: 8 },
+  { step: 'combo', text: 'Line them up — spear SEVERAL in one dash to build a COMBO.', advanceOn: 'comboDash', cap: 7 },
+  { step: 'graze', text: 'Skim a shot WITHOUT being hit to refill stamina — dance close, you cannot be hurt here.', advanceOn: 'grazed', cap: 8 },
+  { step: 'parry', text: 'PARRY the incoming shot (right-click / K) to deflect it — and counter.', advanceOn: 'parried', cap: 7 },
+  { step: 'rhythm', text: 'Feel the pulse — DASH ON THE BEAT as the ring tightens. On-beat wakes the City and widens your guard.', advanceOn: 'onBeatDash', cap: 9 },
+  { step: 'done', text: 'You hold the lance. Descend.', advanceOn: 'tick', cap: 1.5 },
 ] as const;
 
-/** Hard ceiling on the whole sandbox (seconds) — even if every trigger somehow
- *  stalls, the sandbox auto-completes by this time. Comfortably within the ≤10s
- *  feel target once triggers fire normally; this is the absolute backstop (raised
- *  from 9 to give the added PARRY beat room when a player is slow on one step). */
-export const SANDBOX_MAX_TIME = 11;
+/** Absolute backstop (seconds) on the whole sandbox — pure defence-in-depth above the
+ *  sum of the per-step caps, so the per-step caps are what drive normal completion and
+ *  this only ever matters if the step machine were somehow wedged. */
+export const SANDBOX_MAX_TIME = 90;
 
-/** How many skewers complete the lesson (the spec's "after ~1–2 skewers"). */
-export const SANDBOX_TARGET_SKEWERS = 2;
-
-/** A single inert dummy target's spawn layout (relative to arena center). The Game
- *  spawns a harmless enemy kind here that fires nothing and can't hurt the player. */
-export interface DummyLayout {
-  /** offset from arena center, in px */
+/** A spawn position (offset from the player) for a beat's dummy target, plus optional
+ *  flags the Game reads when spawning (a SHIELDED blocker only a HEAVY dash breaks). */
+export interface SandboxTarget {
+  /** offset from the player, in px */
   dx: number;
   dy: number;
+  /** an armoured blocker — only a HEAVY (overcharged) dash kills it (the 'heavy' beat) */
+  shielded?: boolean;
 }
 
-/** Two dummy targets flanking the player at center — one to spear, one to chain.
- *  Pure: a fixed layout, no rng, so the teach is identical every time. */
-export function dummyLayout(): DummyLayout[] {
-  return [
-    { dx: 220, dy: -40 },
-    { dx: 360, dy: 70 },
-  ];
+/** The dummy targets to spawn for a given beat (pure, no rng → identical every time).
+ *  Beats that teach with bullets or the beat clock (graze / parry / rhythm) and the
+ *  close-out spawn no dummies. The Game positions these relative to the player. */
+export function sandboxBeatTargets(step: SandboxStep): SandboxTarget[] {
+  switch (step) {
+    case 'charge':
+    case 'release':
+      return [{ dx: 210, dy: -10 }]; // one near mark for the core verb
+    case 'reach':
+      // far — well beyond a short dash, but inside a full charge's reach (TUNE.dash.maxLen 560)
+      return [{ dx: 470, dy: 0 }];
+    case 'heavy':
+      return [{ dx: 240, dy: 0, shielded: true }]; // a blocker the HEAVY thrust phases through
+    case 'combo':
+      // collinear, dead ahead — a single straight dash skewers all three (a vertical spread
+      // would let a forward dash miss the flankers, stranding the beat on its cap).
+      return [{ dx: 200, dy: 0 }, { dx: 310, dy: 0 }, { dx: 420, dy: 0 }];
+    default:
+      return []; // graze / parry / rhythm / done — bullets or the beat, not dummies
+  }
 }
 
 /** The running sandbox state. Plain data — the Game owns one of these while in the
@@ -79,7 +110,7 @@ export interface SandboxState {
   stepTime: number;
   /** seconds elapsed over the whole sandbox (drives SANDBOX_MAX_TIME) */
   totalTime: number;
-  /** dummy skewers landed so far */
+  /** dummy skewers landed so far (cosmetic running tally) */
   skewers: number;
   /** latched once complete so the hand-off to start() fires exactly once */
   done: boolean;
@@ -95,12 +126,25 @@ export function currentStep(s: SandboxState): SandboxStepDef {
   return SANDBOX_STEPS[i];
 }
 
-/** Per-step events observed this sim step (all booleans; pure inputs). */
+/** Per-step success signals observed this sim step (all booleans; pure inputs the Game
+ *  computes from the throwaway world). `skewer` is the generic "hit a dummy this frame"
+ *  used only for the running tally; the BEAT triggers are the specific successes. */
 export interface SandboxEvents {
   beganCharge: boolean;
   dashed: boolean;
   skewer: boolean;
+  /** skewered the FAR mark (only reachable on a long charge) — the 'reach' beat */
+  reached: boolean;
+  /** a dash with the overcharge armed (dashHeavy) — the 'heavy' beat */
+  heavyDash: boolean;
+  /** a single dash that skewered ≥2 — the 'combo' beat */
+  comboDash: boolean;
+  /** a bullet skimmed without a hit — the 'graze' beat */
+  grazed: boolean;
+  /** a successful deflect — the 'parry' beat */
   parried: boolean;
+  /** a dash graded on-beat against the beat clock — the 'rhythm' beat */
+  onBeatDash: boolean;
 }
 
 /** Does `ev` satisfy the trigger that advances PAST the given step? */
@@ -110,10 +154,18 @@ function triggerMet(def: SandboxStepDef, ev: SandboxEvents): boolean {
       return ev.beganCharge;
     case 'dashed':
       return ev.dashed;
-    case 'skewer':
-      return ev.skewer;
+    case 'reached':
+      return ev.reached;
+    case 'heavyDash':
+      return ev.heavyDash;
+    case 'comboDash':
+      return ev.comboDash;
+    case 'grazed':
+      return ev.grazed;
     case 'parried':
       return ev.parried;
+    case 'onBeatDash':
+      return ev.onBeatDash;
     case 'tick':
       return false; // 'done' advances only by its cap
   }
