@@ -154,6 +154,54 @@ function drawWispThreads(ctx: CanvasRenderingContext2D, world: World, t: number,
   ctx.restore();
 }
 
+/** DARTER — the counter-lunge tell. WINDUP (phase 1): a charging spike + arrowhead along
+ *  the LOCKED counter line previews exactly where it will lunge, brightening as it commits
+ *  (the bait/punish read). COUNTER (phase 2): a motion streak behind the lunge. Strobe
+ *  gated by a11y flags. */
+function drawDarterCounter(ctx: CanvasRenderingContext2D, e: Enemy, t: number, reduceMotion: boolean, reduceFlashing: boolean): void {
+  const r = bodyRadius(e);
+  if (e.phase === 1) {
+    const tele = e.telegraph || 0;
+    const pulse = reduceFlashing || reduceMotion ? 0.8 : 0.5 + 0.5 * Math.abs(Math.sin(t * 22));
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.rotate(e.angle); // the locked counter line ("along your dash")
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#ff7a99'; // darter red, lifted
+    ctx.globalAlpha = 0.3 + 0.6 * tele * pulse;
+    ctx.lineWidth = 2 + 3 * tele;
+    const reach = r + 10 + 34 * tele;
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.lineTo(reach, 0);
+    ctx.stroke();
+    ctx.beginPath(); // arrowhead — where the lunge goes
+    ctx.moveTo(reach, 0);
+    ctx.lineTo(reach - 9, -6);
+    ctx.moveTo(reach, 0);
+    ctx.lineTo(reach - 9, 6);
+    ctx.stroke();
+    ctx.globalAlpha = 0.25 + 0.4 * tele; // brace ring
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 4 + 3 * tele, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  } else if (e.phase === 2) {
+    const a = Math.atan2(e.vy, e.vx) || e.angle;
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#ffd0db';
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-Math.cos(a) * r * 2, -Math.sin(a) * r * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 /** Draw every active enemy's role tell. One call site in render.ts (drawEnemies). */
 export function drawEnemyTells(
   ctx: CanvasRenderingContext2D,
@@ -173,6 +221,9 @@ export function drawEnemyTells(
         break;
       case 'bomber':
         drawBomberArming(ctx, e, t, reduceMotion, reduceFlashing);
+        break;
+      case 'darter':
+        drawDarterCounter(ctx, e, t, reduceMotion, reduceFlashing);
         break;
       default:
         break;

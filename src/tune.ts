@@ -260,11 +260,22 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   sovereign_core: { kind: 'sovereign_core', hp: 1, radius: 15, color: '#fde047', baseScore: 150 },
 };
 
+// Darter — a DASH-DUELIST (enemy overhaul). It no longer lunges on a blind timer; it
+// COUNTER-lunges along your line ONLY when you dash TOWARD it (within counterRange + a
+// cone). A generous wind-up flash telegraphs the counter; then it commits a coasting
+// lunge and is left wide-open in recovery (easy parry/dash). Bait it, then punish —
+// weaving past (a dash NOT aimed at it) is always safe. TAME-FIRST: modest lunge speed,
+// long wind-up, a cooldown between counters; tune up only if it feels toothless.
+// Logic lives in src/enemies/darter.ts (pure detect helper + the state machine).
 export const DARTER = {
-  windup: 0.5, // telegraph before a lunge
-  cadence: 2.2, // seconds between lunges
-  lungeSpeed: 460,
-  lungeTime: 0.4,
+  patrolSpeed: 95, // slow dueling approach while it waits for a dash to bait
+  counterRange: 280, // px: a dash aimed within this distance can trigger a counter
+  counterCos: 0.5, // cos(60°) — the half-cone the dash must fall inside (wide = predictable)
+  counterWindup: 0.42, // s of telegraphed brace before the lunge (the bait/punish window)
+  counterSpeed: 360, // the committed lunge speed (tame; coasts along your dash line)
+  counterTime: 0.32, // s the lunge travels
+  recoverTime: 0.5, // s of wide-open vulnerability after the lunge (parry/dash bait)
+  cooldown: 1.6, // s before it can counter again (so it can't counter every dash)
 };
 
 // Orbiter — circles the player and fires aimed shots. Its distinct VERB: every

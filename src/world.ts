@@ -4,7 +4,7 @@
 import { Pool } from './pool';
 import { SpatialHash } from './collision';
 import { Particles } from './particles';
-import { TUNE, ENEMY_DEFS, DARTER, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER, HERALD, SEEKER_TUNE } from './tune';
+import { TUNE, ENEMY_DEFS, DRIFTER_TUNE, SHADE_TUNE, ELITE, POWERUP_DROP, BROODER, HERALD, SEEKER_TUNE } from './tune';
 import { deriveStats } from './perks';
 import { evoApplier } from './evolutions';
 import { makeOverdrive, resetOverdrive } from './overdrive';
@@ -341,8 +341,7 @@ export class World {
     e.color = def.color;
     e.baseScore = def.baseScore;
     e.timer =
-      kind === 'darter' ? DARTER.cadence
-      : kind === 'drifter' ? DRIFTER_TUNE.repositionTime
+      kind === 'drifter' ? DRIFTER_TUNE.repositionTime
       : kind === 'shade' ? SHADE_TUNE.strikeCadence
       : kind === 'brooder' ? BROODER.spawnEvery // wait before the first hatch
       : kind === 'herald' ? HERALD.repositionTime // strafe before the first wall
@@ -353,6 +352,7 @@ export class World {
     e.subPhase = 0; // CRITICAL: the pool recycles slots — a stale subPhase (from a
     // prior brooder/boss) would otherwise make a fresh brooder hatch nothing
     e.fireCount = 0; // verb-cadence counter — reset so a recycled slot starts its cadence fresh
+    e.fireTimer = 0; // reset the re-fire/counter cooldown (DARTER counter-lunge, LANCER double-tap)
     e.angle = angle ?? this.rng.range(0, Math.PI * 2);
     e.spawnTime = 0;
     e.hitFlash = 0;

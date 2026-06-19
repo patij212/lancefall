@@ -1,8 +1,9 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER, BOMBER } from './tune';
+import { ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER, BOMBER } from './tune';
 import { norm, clamp } from './vec';
+import { updateDarter } from './enemies/darter';
 import type { World } from './world';
 import type { Enemy, EnemyKind } from './types';
 
@@ -37,7 +38,7 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
   const p = world.player;
   switch (e.kind) {
     case 'darter':
-      darter(e, world, dt);
+      updateDarter(e, world, dt);
       break;
     case 'orbiter':
       orbiter(e, world, dt);
@@ -120,38 +121,6 @@ function chaser(e: Enemy, px: number, py: number, dt: number): void {
   const base = e.kind === 'mini' ? (e.phase === 1 ? SPLITTER.showerSpeed : 150) : 70;
   steerToward(e, px, py, base * e.speedMul);
   void dt;
-}
-
-function darter(e: Enemy, world: World, dt: number): void {
-  const p = world.player;
-  if (e.phase === 0) {
-    // approach
-    steerToward(e, p.x, p.y, 120 * e.speedMul);
-    e.timer -= dt;
-    e.telegraph = e.timer < DARTER.windup ? clamp(1 - e.timer / DARTER.windup, 0, 1) : 0;
-    if (e.telegraph > 0) {
-      // brace before the lunge
-      e.vx *= 0.3;
-      e.vy *= 0.3;
-    }
-    if (e.timer <= 0) {
-      const [nx, ny] = norm(p.x - e.x, p.y - e.y);
-      e.vx = nx * DARTER.lungeSpeed * e.speedMul;
-      e.vy = ny * DARTER.lungeSpeed * e.speedMul;
-      e.phase = 1;
-      e.timer = DARTER.lungeTime;
-      e.telegraph = 0;
-    }
-  } else {
-    // lunging
-    e.timer -= dt;
-    if (e.timer <= 0) {
-      e.phase = 0;
-      e.timer = DARTER.cadence;
-      e.vx *= 0.2;
-      e.vy *= 0.2;
-    }
-  }
 }
 
 function orbiter(e: Enemy, world: World, dt: number): void {
