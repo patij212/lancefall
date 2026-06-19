@@ -40,23 +40,11 @@ export function cappedRefund(want: number, refundThisDash: number, dashCost: num
   return Math.max(0, Math.min(want, dashCost - refundThisDash));
 }
 
-/** True only for a full (100%) charge — the HEAVY LANCE arm condition. Charge pins
- *  at 1.0 once held to full, so this is a stable hold state, not a timing window. */
-export function isFullCharge(charge: number): boolean {
-  return charge >= TUNE.dash.heavyChargeMin - 1e-6;
-}
-
-/** Where a heavy dash STOPS when it bites a boss/elite: a standoff `dist` from the
- *  boss centre, on the side the player (px,py) is already on — so the spear stabs the
- *  body but you don't faceplant into a contact-lethal boss. Falls back to the dash
- *  heading (dirX,dirY) when the player is dead-centre on the boss. */
-export function biteInStop(
-  bossX: number, bossY: number, px: number, py: number, dirX: number, dirY: number, dist: number,
-): { toX: number; toY: number } {
-  let gx = px - bossX, gy = py - bossY;
-  let gd = Math.hypot(gx, gy);
-  if (gd < 1e-3) { gx = dirX; gy = dirY; gd = Math.hypot(gx, gy) || 1; }
-  return { toX: bossX + (gx / gd) * dist, toY: bossY + (gy / gd) * dist };
+/** True once a SUSTAINED overcharge (holding past full charge) reaches the heavy arm
+ *  window — the HEAVY LANCE condition. A normal full-charge release (overcharge 0) is
+ *  NOT heavy; you must keep holding ~heavyOverchargeTime longer to arm it. */
+export function isHeavyArmed(overcharge: number): boolean {
+  return overcharge >= TUNE.dash.heavyOverchargeTime - 1e-6;
 }
 
 export function canDash(stamina: number, cost: number = TUNE.stamina.dashCost): boolean {

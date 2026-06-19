@@ -104,7 +104,7 @@ function makePlayer(): Player {
     perfectThreadFired: false,
     refundThisDash: 0,
     dashHeavy: false,
-    dashBitIn: false,
+    overcharge: 0,
     iframe: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment,
     regenDelay: 0,

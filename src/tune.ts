@@ -29,11 +29,12 @@ export const TUNE = {
     iframeGrace: 0.13, // extra invuln after travel ends — softens landing in a crowd, flows into dash-chaining
     hitboxRadius: 22, // swept-capsule radius (the spear)
     carrySpeed: 540, // post-dash momentum carried into drift
-    // HEAVY LANCE — a full (100%) charge arms a heavier thrust: bonus damage + a
-    // "bite-in" that sticks a boss/elite instead of overshooting (see dash.ts/game.ts).
-    heavyChargeMin: 1.0, // ONLY a full 100% charge arms the heavy (charge pins at 1.0 when held)
-    heavyDamageBonus: 1, // additive dash damage on a full-charge heavy (modest — stacks with pierce/IMPALER)
-    heavyBiteInGap: 12, // px the heavy dash STOPS clear of a boss/elite body (no faceplant onto a lethal hull)
+    // HEAVY LANCE — hold PAST full charge (a sustained overcharge) to arm a power-thrust:
+    // +damage and extra i-frames so it phases safely THROUGH the pattern. It passes
+    // through and out like a normal dash — no positional stick, so it never plants you.
+    heavyOverchargeTime: 0.45, // s to keep holding AFTER full charge to arm the heavy (~2x normal charge time)
+    heavyDamageBonus: 1, // additive dash damage on a heavy (modest — stacks with pierce/IMPALER)
+    heavyIframeBonus: 0.2, // extra seconds of i-frame on a heavy — phase safely through the dense pattern
   },
 
   stamina: {

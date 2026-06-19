@@ -4,7 +4,7 @@
 // shake). No DOM/audio here.
 
 import { TUNE } from './tune';
-import { chargeToLen, dashDuration, canDash, effectiveDashCost, regenStamina, maxStamina, isFullCharge } from './dash';
+import { chargeToLen, dashDuration, canDash, effectiveDashCost, regenStamina, maxStamina, isHeavyArmed } from './dash';
 import { loadDrift, slingshotLen, slingshotDuration } from './slingshot';
 import { clamp, angleDiff, norm } from './vec';
 import type { Player, InputState } from './types';
@@ -82,14 +82,19 @@ export function updatePlayer(
       // never reached the charging branch (it isn't held now). Fire an instant minimum
       // dash so a quick tap is snappy and a sub-frame tap is never silently dropped.
       p.charge = 0; // minimum charge → chargeToLen(0) === TUNE.dash.minLen
+      p.overcharge = 0; // a tap is never a heavy
       fireDash(p, aimAngle, input, stats, width, height, ev, slingshot, insetFrac);
     } else if (input.dashHeld && canDash(p.stamina, effectiveDashCost(stats.dashCostMul, stats.staminaSegments))) {
       if (p.phase !== 'charging') {
         p.phase = 'charging';
         p.charge = 0;
+        p.overcharge = 0;
         ev.beganCharge = true;
       }
       p.charge = clamp(p.charge + dt / TUNE.dash.chargeTimeMax, 0, 1);
+      // HEAVY LANCE: once at full, keep holding to build the overcharge that arms the heavy
+      if (p.charge >= 1 - 1e-6) p.overcharge = Math.min(TUNE.dash.heavyOverchargeTime, p.overcharge + dt);
+      else p.overcharge = 0;
       if (slingshot) {
         // SLINGSHOT load — drift backward against the tether (away from aim), so
         // loading a big snap leaves you briefly exposed. The risk for the reward.
@@ -176,12 +181,13 @@ function fireDash(
   p.grazesThisDash = 0; // PERFECT THREAD: fresh graze tally for this dash
   p.perfectThreadFired = false; // re-arm the once-per-dash reward
   p.refundThisDash = 0; // reset the Siphon per-dash refund budget
-  p.dashHeavy = isFullCharge(p.charge); // HEAVY LANCE: a full 100% charge arms bonus dmg + bite-in
-  p.dashBitIn = false; // re-arm the once-per-dash bite-in
-  p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(travel)
+  p.dashHeavy = isHeavyArmed(p.overcharge); // HEAVY LANCE: armed by a SUSTAINED overcharge (held past full)
+  // a heavy gets extra i-frames so it phases safely THROUGH the pattern (passes through, no stick)
+  p.iframe = p.dashDuration + TUNE.dash.iframeGrace + (p.dashHeavy ? TUNE.dash.heavyIframeBonus : 0);
   p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout
   p.charge = 0;
+  p.overcharge = 0;
   ev.dashFired = true;
   ev.dashLen = len;
 }
@@ -193,12 +199,8 @@ function advanceDash(p: Player, dt: number, stats: RunStats, ev: PlayerEvents): 
   p.y = p.dashFromY + (p.dashToY - p.dashFromY) * t;
   if (t >= 1) {
     p.phase = 'idle';
-    // A HEAVY LANCE bite-in PLANTS you at the standoff — kill the fly-through momentum,
-    // or the carry (which points along the heading, INTO the boss) drags you off the
-    // standoff and onto the contact-lethal hull. A normal dash keeps its carry.
-    const carry = p.dashBitIn ? 0 : TUNE.dash.carrySpeed;
-    p.vx = p.dashDirX * carry;
-    p.vy = p.dashDirY * carry;
+    p.vx = p.dashDirX * TUNE.dash.carrySpeed;
+    p.vy = p.dashDirY * TUNE.dash.carrySpeed;
     p.regenDelay = stats.regenDelay;
     ev.landed = true;
   }

@@ -15,7 +15,7 @@ function freshPlayer(): Player {
     phase: 'idle', charge: 0, dashTime: 0, dashDuration: 0,
     dashFromX: 0, dashFromY: 0, dashToX: 0, dashToY: 0, dashDirX: 1, dashDirY: 0,
     dashId: 0, killsThisDash: 0, grazesThisDash: 0, perfectThreadFired: false,
-    refundThisDash: 0, dashHeavy: false, dashBitIn: false, iframe: 0,
+    refundThisDash: 0, dashHeavy: false, overcharge: 0, iframe: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment, regenDelay: 0,
     alive: true, hitFlash: 0, shields: 0, maxShields: 0,
   };
@@ -86,29 +86,36 @@ describe('tap-dash floor', () => {
   });
 });
 
-describe('HEAVY LANCE bite-in plants the player (no carry into the boss)', () => {
-  function dashingPlayer(bitIn: boolean): Player {
+describe('HEAVY LANCE overcharge (hold past full to arm)', () => {
+  const stats = deriveStats({});
+  function chargeHeld(seconds: number): Player {
     const p = freshPlayer();
-    p.phase = 'dashing';
-    p.dashBitIn = bitIn;
-    p.dashFromX = 500; p.dashFromY = 500;
-    p.dashToX = 560; p.dashToY = 500;
-    p.dashDirX = 1; p.dashDirY = 0;
-    p.dashTime = 0; p.dashDuration = TUNE.dash.minDuration;
+    for (let t = 0; t < seconds; t += 1 / 120) {
+      updatePlayer(p, freshInput({ dashHeld: true }), 1 / 120, stats, 2000, 2000, freshEvents());
+    }
     return p;
   }
 
-  it('a bite-in dash lands with ZERO carry velocity (it plants, not flies through)', () => {
-    const p = dashingPlayer(true);
-    updatePlayer(p, freshInput(), 0.1, deriveStats({}), 1000, 1000, freshEvents());
-    expect(p.phase).toBe('idle');
-    expect(Math.hypot(p.vx, p.vy)).toBeCloseTo(0); // no momentum to drag it onto the lethal hull
+  it('holding PAST full charge arms the heavy (+flag and extra i-frames)', () => {
+    const p = chargeHeld(TUNE.dash.chargeTimeMax + TUNE.dash.heavyOverchargeTime + 0.05);
+    expect(p.charge).toBeCloseTo(1);
+    expect(p.overcharge).toBeCloseTo(TUNE.dash.heavyOverchargeTime); // accrued, capped at the window
+    updatePlayer(p, freshInput({ dashHeld: false }), 1 / 120, stats, 2000, 2000, freshEvents());
+    expect(p.dashHeavy).toBe(true);
+    expect(p.iframe).toBeGreaterThan(TUNE.dash.iframeGrace + TUNE.dash.heavyIframeBonus * 0.5); // got the bonus
   });
 
-  it('a NORMAL dash still carries momentum (regression guard)', () => {
-    const p = dashingPlayer(false);
-    updatePlayer(p, freshInput(), 0.1, deriveStats({}), 1000, 1000, freshEvents());
-    expect(p.phase).toBe('idle');
-    expect(Math.hypot(p.vx, p.vy)).toBeCloseTo(TUNE.dash.carrySpeed); // unchanged for normal dashes
+  it('releasing at full charge withOUT a sustained overcharge is NOT heavy', () => {
+    const p = chargeHeld(TUNE.dash.chargeTimeMax + 0.02); // reached full, but no real hold past it
+    expect(p.overcharge).toBeLessThan(TUNE.dash.heavyOverchargeTime);
+    updatePlayer(p, freshInput({ dashHeld: false }), 1 / 120, stats, 2000, 2000, freshEvents());
+    expect(p.dashHeavy).toBe(false);
+  });
+
+  it('a quick TAP is never heavy (stale overcharge is cleared before firing)', () => {
+    const p = freshPlayer();
+    p.overcharge = TUNE.dash.heavyOverchargeTime; // pretend a prior aborted charge left it armed
+    updatePlayer(p, freshInput({ dashTapped: true }), 1 / 120, stats, 2000, 2000, freshEvents());
+    expect(p.dashHeavy).toBe(false);
   });
 });

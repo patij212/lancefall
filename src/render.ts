@@ -2211,20 +2211,24 @@ export class Renderer {
       ctx.lineTo(len - 4, -7);
       ctx.closePath();
       ctx.fill();
-      // HEAVY LANCE READY — a full 100% charge arms the heavy thrust: the spear locks to
-      // a solid amber line + a bright tip so the arm-moment is unmistakable. a11y: a
-      // steady glow (never a strobe) so it survives reduceFlashing.
-      if (p.charge >= TUNE.dash.heavyChargeMin - 1e-6) {
-        ctx.strokeStyle = 'rgba(253,224,71,0.85)';
-        ctx.lineWidth = 3.5;
+      // HEAVY LANCE OVERCHARGE — once at full charge, keep holding: an amber glow FILLS
+      // along the spear as the overcharge builds, then locks solid + a bright tip when the
+      // heavy arms. a11y: a steady fill/glow (never a strobe) so it survives reduceFlashing.
+      if (p.charge >= 1 - 1e-6 && TUNE.dash.heavyOverchargeTime > 0) {
+        const prog = Math.min(1, p.overcharge / TUNE.dash.heavyOverchargeTime);
+        const armed = prog >= 1 - 1e-6;
+        ctx.strokeStyle = armed ? 'rgba(253,224,71,0.9)' : `rgba(253,224,71,${0.2 + 0.5 * prog})`;
+        ctx.lineWidth = 2 + 1.5 * prog;
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(len, 0);
+        ctx.lineTo(len * prog, 0); // the amber fills toward the tip as you overcharge
         ctx.stroke();
-        ctx.fillStyle = 'rgba(255,240,150,0.95)';
-        ctx.beginPath();
-        ctx.arc(len, 0, 5, 0, Math.PI * 2);
-        ctx.fill();
+        if (armed) {
+          ctx.fillStyle = 'rgba(255,240,150,0.95)';
+          ctx.beginPath();
+          ctx.arc(len, 0, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       // SLINGSHOT — the load tether stretched BACKWARD (the tension you're building)
       if (this.slingshotR) {

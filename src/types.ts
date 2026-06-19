@@ -55,8 +55,8 @@ export interface Player {
   grazesThisDash: number; // bullets grazed in this SINGLE dash (PERFECT THREAD risk/reward verb)
   perfectThreadFired: boolean; // one-shot latch: PERFECT THREAD rewards at most once per dash
   refundThisDash: number; // stamina refunded so far this dash (Siphon), capped per dash
-  dashHeavy: boolean; // HEAVY LANCE: this dash fired at a full 100% charge (bonus dmg + bite-in)
-  dashBitIn: boolean; // one-shot latch: a heavy dash has already bitten into a boss/elite this dash
+  dashHeavy: boolean; // HEAVY LANCE: this dash fired heavy (armed by a sustained overcharge) → +dmg, +i-frames
+  overcharge: number; // seconds held PAST full charge this charge (arms the heavy at heavyOverchargeTime)
   iframe: number; // seconds of invulnerability remaining
 
   stamina: number; // 0..maxStamina

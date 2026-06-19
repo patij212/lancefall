@@ -8,8 +8,7 @@ import {
   effectiveDashCost,
   regenStamina,
   cappedRefund,
-  isFullCharge,
-  biteInStop,
+  isHeavyArmed,
 } from './dash';
 import { TUNE } from './tune';
 
@@ -118,38 +117,10 @@ describe('cappedRefund — per-dash refund budget (kills the perpetual-dash loop
   });
 });
 
-describe('HEAVY LANCE — full-charge (100%) bonus + bite-in', () => {
-  it('arms ONLY at a full 100% charge', () => {
-    expect(isFullCharge(1.0)).toBe(true);
-    expect(isFullCharge(0.999)).toBe(false); // 99.9% is NOT heavy — you must hold to full
-    expect(isFullCharge(0.5)).toBe(false);
-  });
-
-  it('bite-in STOPS at a standoff from the boss centre (no faceplant onto a lethal body)', () => {
-    // boss at (100,0); player on the near side at (60,0); standoff 50 → stop 50 from centre, near side
-    const r = biteInStop(100, 0, 60, 0, 1, 0, 50);
-    expect(r.toX).toBeCloseTo(50);
-    expect(r.toY).toBeCloseTo(0);
-  });
-
-  it('bite-in keeps the player on the side they are already on (no reverse through the boss)', () => {
-    // player overshot to the far side (140,0) → stop stays on the far side at standoff 50 → x=150
-    const r = biteInStop(100, 0, 140, 0, 1, 0, 50);
-    expect(r.toX).toBeCloseTo(150);
-    expect(r.toY).toBeCloseTo(0);
-  });
-
-  it('the bite-in standoff ALWAYS clears the boss contact-lethal ring (no faceplant)', () => {
-    // boss contact kills when dist(player,boss) < player.radius + boss.radius*0.85 (game.ts).
-    // game.ts uses standoff = bossR + player.radius + heavyBiteInGap; prove it clears the ring
-    // for every boss size in the roster.
-    for (const bossR of [22, 38, 42, 44, 50]) {
-      const standoff = bossR + TUNE.player.radius + TUNE.dash.heavyBiteInGap;
-      const lethal = TUNE.player.radius + bossR * 0.85;
-      const stop = biteInStop(0, 0, 100, 0, 1, 0, standoff);
-      const dist = Math.hypot(stop.toX, stop.toY);
-      expect(dist).toBeCloseTo(standoff); // biteInStop lands exactly `standoff` from centre
-      expect(dist).toBeGreaterThan(lethal); // …which is outside the lethal contact ring
-    }
+describe('HEAVY LANCE — armed by a sustained overcharge (hold past full)', () => {
+  it('arms ONLY once the overcharge window is reached', () => {
+    expect(isHeavyArmed(TUNE.dash.heavyOverchargeTime)).toBe(true);
+    expect(isHeavyArmed(TUNE.dash.heavyOverchargeTime - 0.05)).toBe(false); // not held past full long enough
+    expect(isHeavyArmed(0)).toBe(false); // released at full charge, no overcharge → NOT heavy
   });
 });
