@@ -76,6 +76,21 @@ export const TUNE = {
     trauma: 0.18, // a small shake kick
   },
 
+  // PARRY — the second verb. A short, aim-directed deflect arc. Catches the bullets
+  // INSIDE the arc only (no blanket i-frames — that's dash's job). Whiffing commits
+  // you to a recovery window. On-beat parries double the payout — the beat's teeth.
+  parry: {
+    active: 0.12, // s the deflect arc is live
+    recover: 0.22, // s after the window: no dash/parry (the whiff risk)
+    cooldown: 0.5, // s from parry start before another parry
+    reach: 70, // px wedge length in front of aim
+    halfAngle: 0.62, // rad half-width of the wedge (~71°)
+    staminaReward: 28, // refund per successful parry (off-beat)
+    comboReward: 2, // combo added per successful parry (off-beat)
+    overdriveReward: 0.05, // overdrive meter per parry (off-beat)
+    bossBudget: 2, // max BOSS bullets one parry may deflect
+  },
+
   juice: {
     hitstopBase: 0.045, // s, single kill
     hitstopPerExtra: 0.012,
@@ -467,6 +482,9 @@ export const SURVIVAL = {
   pushRadius: 250, // ARMOR bullet-shove radius
   push: 240, // ARMOR bullet-shove magnitude
 } as const;
+
+/** PARRY tuning — aliased out of TUNE so parry.ts can import it by name (like RIPOSTE). */
+export const PARRY = TUNE.parry;
 
 // OVERDRIVE — a combo-charged ultimate. Fill the meter (kills + grazes), then
 // unleash a screen-clearing time-dilated nova. The power-fantasy release.
@@ -933,8 +951,18 @@ export const SOVEREIGN = {
   coreCount: 3,
   coreOrbitRadius: 132,
   coreOrbitSpin: 0.78, // rad/s — a touch slower so the cipher cores are dash-able under fire
-  coreWeakBonus: 4, // dash-damage chunk dealt to the crown when a core shatters
-  exposeDuration: 5.5, // s the body is vulnerable after the cipher breaks (longer = fewer cycles)
+  coreWeakBonus: 5, // dash-damage chunk dealt to the crown when a core shatters (cheaper cores → more expose beats → more climaxes)
+  exposeDuration: 3.5, // s the body is vulnerable after the cipher breaks (shorter → more frequent punish windows)
+  finaleFrac: 0.25, // below this HP frac: cores stop reforming, body stays open, beams+spiral fire WITH the expose ring — the crescendo
+  finaleFireMul: 1.7, // armored beams/spiral fire this much slower during the finale (a thinned crescendo, not a wall)
+  // EXPOSED desperation ring — a slow readable ring fired alongside the aimed fans so
+  // the punish window is a TRADE (dodge WHILE you punish), not a free DPS check.
+  exposeRingEvery: 0.9, // s between desperation rings during EXPOSED
+  exposeRingBullets: 18,
+  exposeRingSpeed: 150,
+  // NOVA SPIRAL wind-up — the spiral used to appear with ZERO warning; now a fixed
+  // tracer telegraph leads it (subPhase 0 = wind-up, 1 = live). No new rng draw.
+  spiralTelegraph: 0.6, // s of rotating tracer wind-up before the spiral arms
   // armored phase cadence
   phaseDuration: 7,
   // PHASE 0 — CROWN BEAMS: a rotating star of diameter beams (telegraph→fire→off)
