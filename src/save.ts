@@ -379,6 +379,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     keymap: {
       dash: keyList(km.dash, dk.dash),
       overdrive: keyList(km.overdrive, dk.overdrive),
+      parry: keyList(km.parry, dk.parry),
       pause: keyList(km.pause, dk.pause),
     },
   };

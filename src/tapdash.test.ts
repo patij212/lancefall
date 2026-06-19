@@ -25,7 +25,7 @@ function freshInput(over: Partial<InputState> = {}): InputState {
   return {
     moveX: 0, moveY: 0, aimX: 600, aimY: 500,
     dashHeld: false, dashReleased: false, dashTapped: false,
-    pausePressed: false, overdrivePressed: false, selectIndex: -1, anyPressed: false,
+    pausePressed: false, overdrivePressed: false, parryPressed: false, selectIndex: -1, anyPressed: false,
     ...over,
   };
 }

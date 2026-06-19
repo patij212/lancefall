@@ -103,6 +103,7 @@ export interface Enemy {
   fireCount: number; // generic per-enemy fire/cycle counter for VERB cadence (HERALD wide-gate; subPhase is taken there)
   cipherExposed?: number; // generic ring-cipher boss: >0 = punish window open (THE LONGEST DAY)
   facing?: number; // WARDEN: bounded-turn heading toward the player; its REAR arc is the weak-point
+  ringTimer?: number; // SOVEREIGN: countdown to the next EXPOSED desperation ring (dodge-while-you-punish)
 }
 
 /** Per-shot visual tag (playtest: bullets need identity per enemy + shot type, not colour
@@ -205,6 +206,8 @@ export interface InputState {
   pausePressed: boolean;
   /** edge: OVERDRIVE ultimate activation pressed this frame */
   overdrivePressed: boolean;
+  /** edge: PARRY (second verb) pressed this frame — RMB / k / gamepad-B */
+  parryPressed: boolean;
   /** perk-draft selection edge: 0/1/2 or -1 */
   selectIndex: number;
   anyPressed: boolean; // any start input (to leave title)

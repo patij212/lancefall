@@ -14,6 +14,7 @@ interface GamepadVibration {
 export interface KeyBindings {
   dash: string[];
   overdrive: string[];
+  parry: string[];
   pause: string[];
 }
 
@@ -21,6 +22,7 @@ export function defaultKeyBindings(): KeyBindings {
   return {
     dash: [' ', 'j'],
     overdrive: ['f', 'shift'],
+    parry: ['k'],
     pause: ['escape', 'p'],
   };
 }
@@ -35,6 +37,7 @@ export class InputManager {
   private dashTapEdge = false; // latched on any dash press; survives until the next poll so a sub-frame tap is never dropped
   private pauseEdge = false;
   private overdriveEdge = false;
+  private parryEdge = false;
   private selectEdge = -1;
   private menuEdge = 0; // §5 U2 — relative title mode-card nav (-1 left / +1 right); consumed on the title
   private variantEdge = 0; // mode-consolidation — title variant pill flip (-1 up / +1 down)
@@ -67,6 +70,7 @@ export class InputManager {
     dashTapped: false,
     pausePressed: false,
     overdrivePressed: false,
+    parryPressed: false,
     selectIndex: -1,
     anyPressed: false,
   };
@@ -84,6 +88,7 @@ export class InputManager {
       this.anyEdge = true;
       if (this.keymap.pause.includes(k)) this.pauseEdge = true;
       if (this.keymap.overdrive.includes(k)) this.overdriveEdge = true; // OVERDRIVE ultimate
+      if (this.keymap.parry.includes(k)) this.parryEdge = true; // PARRY second verb
       if (this.keymap.dash.includes(k)) this.dashTapEdge = true; // latch the tap so a sub-frame press isn't dropped
       if (k === '1') this.selectEdge = 0;
       if (k === '2') this.selectEdge = 1;
@@ -114,12 +119,18 @@ export class InputManager {
       this.hasMouse = true;
       rectPoint(e.clientX, e.clientY);
     });
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // free RMB for PARRY
     this.canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) {
         this.mouseDown = true;
         this.hasMouse = true;
         this.anyEdge = true;
         this.dashTapEdge = true; // a quick click+release between polls still fires a tap-dash
+        rectPoint(e.clientX, e.clientY);
+      } else if (e.button === 2) {
+        this.parryEdge = true; // right-mouse → PARRY
+        this.anyEdge = true;
+        this.hasMouse = true;
         rectPoint(e.clientX, e.clientY);
       }
     });
@@ -218,6 +229,7 @@ export class InputManager {
       if (gp.dash) dashHeld = true;
       if (gp.pauseEdge) this.pauseEdge = true;
       if (gp.overdriveEdge) this.overdriveEdge = true;
+      if (gp.parryEdge) this.parryEdge = true;
       if (gp.anyEdge) this.anyEdge = true;
     }
 
@@ -234,10 +246,12 @@ export class InputManager {
 
     s.pausePressed = this.pauseEdge;
     s.overdrivePressed = this.overdriveEdge;
+    s.parryPressed = this.parryEdge;
     s.selectIndex = this.selectEdge;
     s.anyPressed = this.anyEdge;
     this.pauseEdge = false;
     this.overdriveEdge = false;
+    this.parryEdge = false;
     this.selectEdge = -1;
     this.anyEdge = false;
     return s;
@@ -258,6 +272,7 @@ export class InputManager {
     this.menuEdge = 0;
     this.variantEdge = 0;
     this.overdriveEdge = false;
+    this.parryEdge = false;
   }
 
   /** Apply a (possibly partial / user-rebound) key map. Each action falls back to its
@@ -270,6 +285,7 @@ export class InputManager {
     this.keymap = {
       dash: pick(km?.dash, d.dash),
       overdrive: pick(km?.overdrive, d.overdrive),
+      parry: pick(km?.parry, d.parry),
       pause: pick(km?.pause, d.pause),
     };
   }
@@ -311,7 +327,7 @@ export class InputManager {
 
   private prevGpButtons: boolean[] = [];
   private pollGamepad():
-    | { moveX: number; moveY: number; aimX: number; aimY: number; dash: boolean; pauseEdge: boolean; overdriveEdge: boolean; anyEdge: boolean }
+    | { moveX: number; moveY: number; aimX: number; aimY: number; dash: boolean; pauseEdge: boolean; overdriveEdge: boolean; parryEdge: boolean; anyEdge: boolean }
     | null {
     if (!navigator.getGamepads) return null;
     const pads = navigator.getGamepads();
@@ -325,12 +341,14 @@ export class InputManager {
     const start = btn(9);
     let pauseEdge = false;
     let overdriveEdge = false;
+    let parryEdge = false;
     let anyEdge = false;
     for (let i = 0; i < pad.buttons.length; i++) {
       const pressed = pad.buttons[i]?.pressed ?? false;
       if (pressed && !this.prevGpButtons[i]) {
         anyEdge = true;
         if (i === 9) pauseEdge = true;
+        if (i === 1) parryEdge = true; // gamepad B → PARRY
         if (i === 4) overdriveEdge = true; // LB/L1 → OVERDRIVE
         if (i === 0) {
           this.startEdge = true;
@@ -351,6 +369,7 @@ export class InputManager {
       dash,
       pauseEdge: pauseEdge && start,
       overdriveEdge,
+      parryEdge,
       anyEdge,
     };
   }
