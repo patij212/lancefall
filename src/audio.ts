@@ -915,6 +915,61 @@ export class AudioEngine {
     };
   }
 
+  /** PARRY — a short, sharp metallic *ting*: inharmonic partials + a high noise transient.
+   *  Brighter/higher on-beat. `hero` adds a bright chord sting for the perfect+on-beat apex.
+   *  Cosmetic only (Math.random for the noise tail, like every SFX — never world.rng). */
+  parry(onBeat: boolean, hero = false): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const base = onBeat ? 3200 : 2400;
+    const ratios = [1, 2.76, 5.4]; // inharmonic (bell/metal) partials
+    for (let i = 0; i < ratios.length; i++) {
+      const osc = ctx.createOscillator();
+      osc.type = i === 0 ? 'triangle' : 'square';
+      osc.frequency.value = base * ratios[i];
+      const g = ctx.createGain();
+      g.gain.setValueAtTime((i === 0 ? 0.16 : 0.05) * (onBeat ? 1.25 : 1), t);
+      g.gain.exponentialRampToValueAtTime(0.0006, t + (i === 0 ? 0.09 : 0.05));
+      osc.connect(g);
+      g.connect(this.sfxBus);
+      osc.start(t);
+      osc.stop(t + 0.12);
+      osc.onended = () => { osc.disconnect(); g.disconnect(); };
+    }
+    // metallic "click" transient
+    const n = this.noiseSource();
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'highpass';
+    nf.frequency.value = 3000;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.12, t);
+    ng.gain.exponentialRampToValueAtTime(0.0005, t + 0.03);
+    n.connect(nf);
+    nf.connect(ng);
+    ng.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.05);
+    n.onended = () => { n.disconnect(); nf.disconnect(); ng.disconnect(); };
+    // hero chord sting — a bright triad swell for the perfect+on-beat hero moment
+    if (hero) {
+      for (const mul of [1, 1.26, 1.5, 2]) {
+        const o = ctx.createOscillator();
+        o.type = 'triangle';
+        o.frequency.value = 523.25 * mul; // C major-ish, voiced up
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.09, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + 0.5);
+        o.connect(g);
+        g.connect(this.sfxBus);
+        o.start(t);
+        o.stop(t + 0.55);
+        o.onended = () => { o.disconnect(); g.disconnect(); };
+      }
+    }
+  }
+
   pickup(streak: number): void {
     const ctx = this.ctx;
     if (!ctx) return;

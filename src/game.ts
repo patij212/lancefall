@@ -32,7 +32,7 @@ import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
-import { parrySweep, applyParryReward } from './parry';
+import { parrySweep, applyParryReward, parryEnemySweep, parryShove, parryCooldownAfter, boundedGuardShave } from './parry';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield, runShields } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
@@ -157,6 +157,7 @@ export class Game {
   private lastTime = 0;
   private candidates: Enemy[] = [];
   private chainBuf: Enemy[] = []; // separate buffer so chain explosions don't clobber the dash-hit loop
+  private parryWasActive = false; // edge-detect the active-window close to fizzle a whiff
   private riposteBossBuf: Bullet[] = []; // boss bullets a Riposte dash intersects, sorted then spent against the budget
   private dashSlowmoTriggered = false;
   private dying = false;
@@ -1736,21 +1737,69 @@ export class Game {
     w.bullets.release(b);
   }
 
-  /** PARRY — deflect bullets inside the aim arc; first deflect pays the reward (DOUBLED
-   *  on the beat — the beat's first mechanical teeth). a11y-gated at draw. */
+  /** PARRY — deflect bullets in the aim arc, RIPOSTE enemies in it (a parry KILLS), pay the
+   *  reward (DOUBLED on the beat), and break a boss's guard. A success FLOWS (short cooldown);
+   *  an empty whiff fizzles + eats the long cooldown. Math lives in parry.ts; this orchestrates
+   *  the side effects. All flash/freeze a11y-gated. */
   private resolveParry(): void {
     const w = this.world;
     const p = w.player;
-    if (!p.parryActive) return;
+    if (!p.parryActive) {
+      // active window just closed with no catch → a whiff: a faint fizzle (the long cooldown
+      // was already set at the parry entry, so spamming is punished; a success shortens it).
+      if (this.parryWasActive && !p.parryRewarded) this.audio.parry(false);
+      this.parryWasActive = false;
+      return;
+    }
+    this.parryWasActive = true;
     const swept = parrySweep<Bullet>(p.x, p.y, p.angle, w.stats.dashShatterBossBudget || PARRY.bossBudget,
       (visit) => w.bullets.forEachActive(visit),
-      (b) => this.breakBullet(b, b.fromBoss ? 4 : 2, RIPOSTE.shatterScore));
+      (b) => this.breakBullet(b, b.fromBoss ? 5 : 3, RIPOSTE.shatterScore));
     if (swept.total === 0 || p.parryRewarded) return;
     p.parryRewarded = true;
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
+    this.riposteArc(); // counter-burst enemies in the arc — chaff POP (combo/particles), elites chip
     applyParryReward(p, w, this.coherence, w.stats.staminaSegments, onBeat);
-    this.audio.graze();
+    p.parryCooldown = parryCooldownAfter(true); // success flows
+    this.shoveBulletsNearby(); // defensive breathing-room push on the un-parried bullets
+    if (swept.boss > 0 && w.boss && w.boss.active) {
+      w.boss.timer = boundedGuardShave(w.boss.timer, swept.boss, PARRY.bossGuardShave, 0); // posture-break
+    }
+    // JUICE — distinct metallic ting, a flash, a freeze-frame (a11y-gated)
+    this.audio.parry(onBeat);
+    if (!this.settings.reduceMotion) this.scheduler.requestHitstop(PARRY.freezeFrame);
+    if (!this.settings.reduceFlashing) this.renderer.flash(onBeat ? '#fde047' : '#a5f3fc', 0.1);
+    this.shake.add(TUNE.juice.traumaGraze * 2);
+    this.input.rumble(0.15, 0.3, 60);
     w.particles.floatText(p.x, p.y - 40, onBeat ? 'PARRY!' : 'parry', onBeat ? '#fde047' : '#67e8f9', onBeat ? 1 : 0.8);
+  }
+
+  /** RIPOSTE — counter-burst non-boss enemies inside the parry arc (geometry-targeted). Kills
+   *  weak chaff (→ combo + particles) and chips elites. Bosses are handled by the guard-shave,
+   *  not direct chip, so an ARMORED boss is never damaged through its guard. */
+  private riposteArc(): void {
+    const w = this.world;
+    const p = w.player;
+    const r = PARRY.reach;
+    w.hash.rebuild(w.enemies.items);
+    w.hash.queryAABB(p.x - r, p.y - r, p.x + r, p.y + r, this.chainBuf);
+    parryEnemySweep<Enemy>(
+      p.x, p.y, p.angle,
+      (visit) => { for (const e of this.chainBuf) if (e.active && !e.isBoss && e.kind !== 'sovereign_core') visit(e); },
+      (e) => { w.particles.burst(e.x, e.y, PARRY.riposteSparks, e.color); this.damageEnemy(e, PARRY.riposteDamage, false); },
+    );
+  }
+
+  /** Defensive shove — nudge the remaining (un-parried) bullets near the player outward a
+   *  little on a successful parry. Deterministic (pure player→bullet direction). */
+  private shoveBulletsNearby(): void {
+    const w = this.world;
+    const p = w.player;
+    w.bullets.forEachActive((b) => {
+      const s = parryShove(p.x, p.y, b.x, b.y, PARRY.shovePush, PARRY.shoveRadius);
+      b.vx += s.dvx;
+      b.vy += s.dvy;
+    });
   }
 
   /** Can the spear (a dash OR its afterimage ghost) damage this enemy right now?
