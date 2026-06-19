@@ -4,6 +4,7 @@
 // by VOCABULARY: cracking a word reveals every occurrence across all transmissions (you build the
 // key — cryptanalysis-true), so Fragments are a perpetual sink and the history is told by decoding.
 import type { SaveData } from './save';
+import { fragmentBalance } from './lore';
 
 export interface Intercept {
   id: string;
@@ -197,4 +198,31 @@ export function tokenView(save: SaveData, token: string): { text: string; decryp
   const decrypted = !word || isWordDecrypted(save, word);
   const text = decrypted ? token : token.replace(/[a-z0-9]+/gi, (m) => cipherWord(m));
   return { text, decrypted, word, cost: wordCost(word) };
+}
+
+// ── the decrypt action + lore-on-completion (pure save mutators) ─────────────
+
+/** Decrypt one vocabulary word: charge round(cost*costMul) Fragments (min 1 for a real word) and
+ *  reveal it everywhere. Returns false (no-op) if already decrypted or unaffordable. The ONLY
+ *  writes are fragmentsSpent + decryptedWords — pure save mutation, no rng. */
+export function decryptWord(save: SaveData, word: string, costMul = 1): boolean {
+  if (!word || isWordDecrypted(save, word)) return false;
+  const cost = Math.max(1, Math.round(wordCost(word) * costMul));
+  if (fragmentBalance(save) < cost) return false;
+  save.fragmentsSpent += cost;
+  save.decryptedWords.push(word);
+  return true;
+}
+
+/** Push the loreLink of every now-fully-decrypted intercept not already remembered. Returns the
+ *  newly-unlocked lore ids (for a toast). Idempotent. Pure save mutation. */
+export function syncInterceptLore(save: SaveData): string[] {
+  const out: string[] = [];
+  for (const ic of INTERCEPTS) {
+    if (ic.loreLink && isInterceptComplete(save, ic) && !save.stillpointLore.includes(ic.loreLink)) {
+      save.stillpointLore.push(ic.loreLink);
+      out.push(ic.loreLink);
+    }
+  }
+  return out;
 }

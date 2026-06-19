@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   INTERCEPTS, wordKey, wordCost, vocabulary, cipherWord,
   isWordDecrypted, interceptWords, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView,
+  decryptWord, syncInterceptLore,
 } from './intercepts';
-import { loreById } from './lore';
+import { loreById, fragmentBalance } from './lore';
 import { defaultSave } from './save';
 
 const withWords = (...w: string[]) => ({ ...defaultSave(), decryptedWords: w });
+const richSave = (frags: number) => ({ ...defaultSave(), stillpointFragments: Array.from({ length: frags }, (_, i) => `f${i}`) });
 
 describe('intercepts — catalog + word primitives', () => {
   it('has a rich, well-formed catalog; every loreLink is a real LoreEntry', () => {
@@ -90,5 +92,37 @@ describe('intercepts — the vocabulary economy', () => {
     expect(tokenView(withWords(word), tok).text).toBe(tok);
     expect(tokenView(withWords(), tok).decrypted).toBe(false);
     expect(tokenView(withWords(), tok).text).not.toBe(tok);
+  });
+});
+
+describe('intercepts — decrypt action', () => {
+  it('decryptWord spends exactly wordCost and reveals the word; refuses if unaffordable', () => {
+    const s = richSave(10);
+    const w = interceptWords(INTERCEPTS[0]).find((x) => wordCost(x) > 1)!;
+    const before = fragmentBalance(s);
+    expect(decryptWord(s, w)).toBe(true);
+    expect(isWordDecrypted(s, w)).toBe(true);
+    expect(fragmentBalance(s)).toBe(before - wordCost(w));
+    expect(decryptWord(s, w)).toBe(false); // already decrypted → no double-charge
+    const poor = { ...defaultSave(), stillpointFragments: [] as string[] };
+    expect(decryptWord(poor, w)).toBe(false); // can't afford
+    expect(isWordDecrypted(poor, w)).toBe(false);
+  });
+
+  it('a costMul (Bombe discount) reduces the charge but never below 1 for a real word', () => {
+    const s = richSave(20);
+    const w = interceptWords(INTERCEPTS[0]).find((x) => wordCost(x) >= 4)!;
+    const before = fragmentBalance(s);
+    decryptWord(s, w, 0.5);
+    expect(before - fragmentBalance(s)).toBe(Math.max(1, Math.round(wordCost(w) * 0.5)));
+  });
+
+  it('syncInterceptLore unlocks a linked LoreEntry once its intercept is fully decrypted', () => {
+    const ic = INTERCEPTS.find((i) => i.loreLink)!;
+    const s = { ...defaultSave(), decryptedWords: interceptWords(ic) };
+    const unlocked = syncInterceptLore(s);
+    expect(unlocked).toContain(ic.loreLink);
+    expect(s.stillpointLore).toContain(ic.loreLink);
+    expect(syncInterceptLore(s)).toEqual([]); // idempotent — no re-unlock
   });
 });
