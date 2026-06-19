@@ -925,6 +925,7 @@ export const BEACON = {
   fanSpread: 0.28,
   fanRest: 1.7,
   fanBulletSpeed: 215,
+  enrageFrac: 0.4, // below this HP frac: the sweep gains a perpendicular 2nd beam (a rotating cross)
 } as const;
 
 // THE CIPHER-LOCK — the code-breaking layer (an ode to Turing). Cosmetic-feedback

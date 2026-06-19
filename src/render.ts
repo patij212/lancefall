@@ -37,7 +37,8 @@ import {
 } from './renderMath';
 // NEW boss-rework telegraph/finale overlays (kept OUT of this file — drawn in the
 // boss-centre frame). render.ts only delegates; no inline drawing was added.
-import { drawNovaSpiralTelegraph, drawSovereignFinaleTint } from './render/boss';
+import { drawNovaSpiralTelegraph, drawSovereignFinaleTint, drawBeaconCounterBeam } from './render/boss';
+import { beaconEnraged } from './bosses/beacon';
 
 // ── BIOMECHANICAL enemy art direction (Proposal B) ──────────────────────────
 // Enemies/bosses render as "living machines": their shape-coded silhouette
@@ -1803,6 +1804,8 @@ export class Renderer {
       }
       ctx.restore();
     }
+    // NEW: enraged perpendicular counter-beam (the rotating cross — drawn in render/boss.ts)
+    drawBeaconCounterBeam(ctx, e, beaconEnraged(e));
     // broken signal-ring veins (front arc, the lie's dead signal)
     ctx.save();
     beginVeins(ctx, col, this.bioPulse(white) * 0.6, flash);

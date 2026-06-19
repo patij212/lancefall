@@ -18,7 +18,7 @@ import { intensity, enemySpeedMul, bulletSpeedMul, maxConcurrent, eliteChance, s
 import { updatePlayer, resetEvents } from './player';
 import type { PlayerEvents } from './player';
 import { updateEnemy, splitInto } from './enemies';
-import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
+import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
@@ -2440,10 +2440,11 @@ export class Game {
     // the boss). Dash i-frames already exclude us from this check, so you can
     // dash THROUGH the beam.
     if (w.boss && beaconBeamActive(w.boss)) {
-      const dx = p.x - w.boss.x;
-      const dy = p.y - w.boss.y;
-      const perp = Math.abs(dx * -Math.sin(w.boss.angle) + dy * Math.cos(w.boss.angle));
-      if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie('the beam', w.boss.kind);
+      // ENRAGED the sweep is a rotating CROSS — a 2nd perpendicular diameter (arms=2).
+      const arms = beaconEnraged(w.boss) ? 2 : 1;
+      if (beamHitsPoint(w.boss.x, w.boss.y, w.boss.angle, arms, BEACON.beamWidth / 2 + p.radius, p.x, p.y)) {
+        this.playerDie('the beam', w.boss.kind);
+      }
     }
     // Sovereign CROWN BEAMS: a rotating star of diameter beams. Dash i-frames
     // already exclude us, so you can dash through the safe wedges.

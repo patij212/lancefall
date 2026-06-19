@@ -5,7 +5,7 @@
 // sites in render.ts stay one-liner delegations. No allocation per frame; motion
 // is gated by the passed `reduceMotion` flag (a11y) — telegraphs stay legible.
 
-import { SOVEREIGN } from '../tune';
+import { SOVEREIGN, BEACON } from '../tune';
 import { sovereignFinale } from '../sovereign';
 import type { Enemy } from '../types';
 
@@ -46,5 +46,27 @@ export function drawSovereignFinaleTint(ctx: CanvasRenderingContext2D, e: Enemy,
   ctx.beginPath();
   ctx.arc(0, 0, e.radius * (1.7 + 0.12 * pulse), 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+/** BEACON enraged counter-beam — the perpendicular 2nd diameter (the rotating cross
+ *  the low-HP sweep gains). Mirrors the +π/2 arm in beamHitsPoint(arms=2). Drawn in
+ *  the boss-centre frame; telegraphs/fires in lockstep with the primary beam. */
+export function drawBeaconCounterBeam(ctx: CanvasRenderingContext2D, e: Enemy, enraged: boolean): void {
+  if (!enraged || e.kind !== 'beacon' || e.phase !== 0 || e.subPhase === 2) return;
+  const active = e.subPhase === 1;
+  const tele = e.telegraph || 0;
+  const w = active ? BEACON.beamWidth : 5;
+  ctx.save();
+  ctx.rotate(e.angle + Math.PI / 2); // the perpendicular diameter
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = active ? 0.85 : 0.25 + 0.45 * tele;
+  ctx.fillStyle = active ? '#bfefff' : '#38bdf8';
+  ctx.fillRect(-3000, -w / 2, 6000, w);
+  if (active) {
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-3000, -w / 6, 6000, w / 3);
+  }
   ctx.restore();
 }
