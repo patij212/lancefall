@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeOverdrive, resetOverdrive, chargeFromKill, chargeFromGraze, tickOverdrive, canActivate, activateOverdrive } from './overdrive';
+import { makeOverdrive, resetOverdrive, chargeFromKill, chargeFromGraze, chargeOverdrive, tickOverdrive, canActivate, activateOverdrive } from './overdrive';
 import { OVERDRIVE } from './tune';
 
 describe('overdrive', () => {
@@ -24,7 +24,16 @@ describe('overdrive', () => {
     od.cooldown = 5;
     chargeFromKill(od, 30);
     chargeFromGraze(od);
+    chargeOverdrive(od, 0.5);
     expect(od.meter).toBe(0);
+  });
+
+  it('chargeOverdrive adds an explicit amount, clamped to 1', () => {
+    const od = makeOverdrive();
+    chargeOverdrive(od, 0.3);
+    expect(od.meter).toBeCloseTo(0.3);
+    chargeOverdrive(od, 5);
+    expect(od.meter).toBe(1);
   });
 
   it('activation requires a full meter and no cooldown', () => {

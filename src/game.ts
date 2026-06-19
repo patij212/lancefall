@@ -32,10 +32,11 @@ import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
+import { parrySweep, applyParryReward } from './parry';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield, runShields } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
-import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE, ONBOARD } from './tune';
+import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE, ONBOARD, PARRY } from './tune';
 import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
@@ -1431,6 +1432,7 @@ export class Game {
       w.ghostTimer -= dt;
       this.resolveGhostHits();
     }
+    this.resolveParry(); // PARRY second verb — deflect bullets in the aim arc (no-op unless active)
 
     // enemies + boss
     w.enemies.forEachActive((e) => {
@@ -1656,9 +1658,7 @@ export class Game {
           if (bossBudget > 0) bossHits.push(b); // defer: spend the budget nearest-first
           return;
         }
-        w.particles.burst(b.x, b.y, 2, b.color);
-        w.score += RIPOSTE.shatterScore;
-        w.bullets.release(b);
+        this.breakBullet(b, 2, RIPOSTE.shatterScore);
       });
       if (bossBudget > 0 && bossHits.length > 0) {
         // nearest the dash origin first — clears the shots most in the player's path
@@ -1671,9 +1671,7 @@ export class Game {
           if (bossBudget <= 0) break;
           if (!b.active) continue;
           bossBudget--;
-          w.particles.burst(b.x, b.y, 4, b.color);
-          w.score += RIPOSTE.bossShatterScore;
-          w.bullets.release(b);
+          this.breakBullet(b, 4, RIPOSTE.bossShatterScore);
         }
       }
     }
@@ -1725,9 +1723,34 @@ export class Game {
     w.bullets.forEachActive((b) => {
       if (b.fromBoss) return;
       if (!segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, b.x, b.y, b.radius, r)) return;
-      w.particles.burst(b.x, b.y, 2, b.color);
-      w.bullets.release(b);
+      this.breakBullet(b, 2, 0);
     });
+  }
+
+  /** Destroy a hostile bullet — one shatter path shared by Riposte, the Afterimage ghost,
+   *  and the PARRY arc (spark burst + optional score + release). */
+  private breakBullet(b: Bullet, sparks: number, score: number): void {
+    const w = this.world;
+    w.particles.burst(b.x, b.y, sparks, b.color);
+    if (score) w.score += score;
+    w.bullets.release(b);
+  }
+
+  /** PARRY — deflect bullets inside the aim arc; first deflect pays the reward (DOUBLED
+   *  on the beat — the beat's first mechanical teeth). a11y-gated at draw. */
+  private resolveParry(): void {
+    const w = this.world;
+    const p = w.player;
+    if (!p.parryActive) return;
+    const n = parrySweep<Bullet>(p.x, p.y, p.angle, w.stats.dashShatterBossBudget || PARRY.bossBudget,
+      (visit) => w.bullets.forEachActive(visit),
+      (b) => this.breakBullet(b, b.fromBoss ? 4 : 2, RIPOSTE.shatterScore));
+    if (n === 0 || p.parryRewarded) return;
+    p.parryRewarded = true;
+    const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
+    applyParryReward(p, w, this.coherence, w.stats.staminaSegments, onBeat);
+    this.audio.graze();
+    w.particles.floatText(p.x, p.y - 40, onBeat ? 'PARRY!' : 'parry', onBeat ? '#fde047' : '#67e8f9', onBeat ? 1 : 0.8);
   }
 
   /** Can the spear (a dash OR its afterimage ghost) damage this enemy right now?

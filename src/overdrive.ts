@@ -35,6 +35,12 @@ export function chargeFromGraze(od: OverdriveState): void {
   od.meter = Math.min(1, od.meter + OVERDRIVE.chargePerGraze);
 }
 
+/** Add an explicit amount to the meter (e.g. a PARRY reward). No charge while cooling down. */
+export function chargeOverdrive(od: OverdriveState, amount: number): void {
+  if (od.cooldown > 0 || od.meter >= 1) return;
+  od.meter = Math.min(1, od.meter + amount);
+}
+
 export function tickOverdrive(od: OverdriveState, dt: number): void {
   if (od.cooldown > 0) od.cooldown = Math.max(0, od.cooldown - dt);
   if (od.lockTimer > 0) od.lockTimer = Math.max(0, od.lockTimer - dt);

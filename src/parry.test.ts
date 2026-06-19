@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { parryArcContains, parryReward, parryDeflectsBoss } from './parry';
-import { PARRY } from './tune';
+import { parryArcContains, parryReward, parryDeflectsBoss, parrySweep, applyParryReward } from './parry';
+import { PARRY, TUNE } from './tune';
+import { makeOverdrive } from './overdrive';
+import { newCoherence } from './coherence';
+
+type B = { x: number; y: number; fromBoss: boolean };
 
 describe('parry arc', () => {
   const px = 0,
@@ -56,5 +60,77 @@ describe('parry boss-deflect budget', () => {
   });
   it('clamps a build budget above the PARRY cap', () => {
     expect(parryDeflectsBoss(99, PARRY.bossBudget)).toBe(false);
+  });
+});
+
+describe('parry sweep', () => {
+  const run = (bullets: B[], aim = 0) => {
+    const destroyed: B[] = [];
+    const n = parrySweep<B>(
+      0,
+      0,
+      aim,
+      PARRY.bossBudget,
+      (visit) => bullets.forEach(visit),
+      (b) => destroyed.push(b),
+    );
+    return { n, destroyed };
+  };
+
+  it('deflects only chaff bullets inside the arc', () => {
+    const inside: B = { x: PARRY.reach - 5, y: 0, fromBoss: false };
+    const behind: B = { x: -(PARRY.reach - 5), y: 0, fromBoss: false };
+    const far: B = { x: PARRY.reach + 50, y: 0, fromBoss: false };
+    const { n, destroyed } = run([inside, behind, far]);
+    expect(n).toBe(1);
+    expect(destroyed).toEqual([inside]);
+  });
+
+  it('caps boss-bullet deflects at the budget', () => {
+    const boss = (i: number): B => ({ x: PARRY.reach - 10 - i, y: 0, fromBoss: true });
+    const many = [boss(0), boss(1), boss(2), boss(3)]; // 4 in-arc boss bullets
+    const { n, destroyed } = run(many);
+    expect(n).toBe(PARRY.bossBudget); // never exceeds the boss cap
+    expect(destroyed.length).toBe(PARRY.bossBudget);
+  });
+
+  it('a whiff (nothing in arc) deflects nothing', () => {
+    const { n, destroyed } = run([{ x: 0, y: PARRY.reach + 10, fromBoss: false }]);
+    expect(n).toBe(0);
+    expect(destroyed).toEqual([]);
+  });
+});
+
+describe('applyParryReward', () => {
+  const setup = () => ({
+    player: { stamina: 0 },
+    combo: { combo: 5, comboTimer: 0, bestComboRun: 5, overdrive: makeOverdrive() },
+    coh: newCoherence(),
+  });
+
+  it('off-beat grants the base reward', () => {
+    const { player, combo, coh } = setup();
+    applyParryReward(player, combo, coh, 3, false);
+    expect(player.stamina).toBe(PARRY.staminaReward);
+    expect(combo.combo).toBe(5 + PARRY.comboReward);
+    expect(combo.bestComboRun).toBe(5 + PARRY.comboReward);
+    expect(combo.comboTimer).toBe(TUNE.combo.window);
+    expect(combo.overdrive.meter).toBeCloseTo(PARRY.overdriveReward);
+    expect(coh.value).toBeGreaterThan(0);
+  });
+
+  it('on-beat doubles the stamina/combo/overdrive payout', () => {
+    const { player, combo, coh } = setup();
+    applyParryReward(player, combo, coh, 3, true);
+    expect(player.stamina).toBe(PARRY.staminaReward * 2);
+    expect(combo.combo).toBe(5 + PARRY.comboReward * 2);
+    expect(combo.overdrive.meter).toBeCloseTo(PARRY.overdriveReward * 2);
+  });
+
+  it('clamps the stamina refund to the bar max', () => {
+    const { player, combo, coh } = setup();
+    player.stamina = 290; // near a 3-segment (300) bar
+    applyParryReward(player, combo, coh, 3, true);
+    expect(player.stamina).toBe(300);
   });
 });
