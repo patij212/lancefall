@@ -7,6 +7,7 @@ import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN, CIPHER } from '
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
+import { updateWarden } from './bosses/warden';
 import {
   updateSovereign,
   spawnSovereignCores,
@@ -36,15 +37,6 @@ const BOSS_CYCLE: Enemy['kind'][] = ['warden', 'weaver', 'beacon', 'mirrorblade'
  *  older save can't mislabel a non-boss as 'THE WARDEN'. */
 export function isBossKind(kind: string): boolean {
   return (BOSS_CYCLE as string[]).includes(kind);
-}
-
-/** Rotate `cur` toward `target` by at most `maxStep` radians (shortest direction). */
-function turnToward(cur: number, target: number, maxStep: number): number {
-  let d = target - cur;
-  d = Math.atan2(Math.sin(d), Math.cos(d)); // shortest signed delta
-  if (d > maxStep) d = maxStep;
-  else if (d < -maxStep) d = -maxStep;
-  return cur + d;
 }
 
 /** Is the Beacon's sweep beam currently lethal? (active sub-phase of sweep). */
@@ -152,76 +144,6 @@ export function isBossLethal(e: Enemy): boolean {
   if (e.kind === 'mirrorblade') return mirrorbladeDashing(e);
   if (e.kind === 'hollow') return false;
   return true;
-}
-
-function updateWarden(e: Enemy, world: World, dt: number): void {
-  e.spawnTime += dt;
-  if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
-  if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
-
-  // lazy lissajous drift near arena center
-  const cx = world.width / 2;
-  const cy = world.height / 2;
-  const tx = cx + Math.cos(e.spawnTime * 0.5) * world.width * 0.22;
-  const ty = cy + Math.sin(e.spawnTime * 0.7) * world.height * 0.18;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
-  e.vx = nx * WARDEN.moveSpeed;
-  e.vy = ny * WARDEN.moveSpeed;
-  e.x += e.vx * dt;
-  e.y += e.vy * dt;
-
-  // FACING — the keeper watches you, but turns at a bounded rate, so a quick flank
-  // dash can catch its exposed REAR (the weak-point; see resolveDashHits + render).
-  const wantFace = Math.atan2(world.player.y - e.y, world.player.x - e.x);
-  e.facing = turnToward(e.facing ?? wantFace, wantFace, WARDEN.turnRate * dt);
-
-  // phase swap
-  e.timer -= dt;
-  if (e.timer <= 0) {
-    e.phase = (e.phase + 1) % 2;
-    e.timer = WARDEN.phaseDuration;
-    e.fireTimer = 0;
-    e.subPhase = 0;
-  }
-
-  // health-driven intensity: low HP fires a touch faster
-  const hpFrac = e.hp / e.maxHp;
-  const rate = hpFrac < 0.34 ? 0.8 : 1;
-
-  e.fireTimer -= dt;
-  if (e.phase === 0) {
-    // rotating spiral
-    while (e.fireTimer <= 0) {
-      const sp = WARDEN.spiralBulletSpeed;
-      const a = e.angle;
-      world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#ff6b95', true);
-      world.spawnBullet(e.x, e.y, Math.cos(a + Math.PI) * sp, Math.sin(a + Math.PI) * sp, 7, '#ff6b95', true);
-      e.angle += WARDEN.spiralSpin;
-      e.fireTimer += WARDEN.spiralBulletEvery * rate;
-    }
-  } else {
-    // aimed fans then a rest window
-    if (e.fireTimer <= 0) {
-      if (e.subPhase < WARDEN.fanShots) {
-        const p = world.player;
-        const base = Math.atan2(p.y - e.y, p.x - e.x);
-        const sp = WARDEN.fanBulletSpeed;
-        const half = (WARDEN.fanBullets - 1) / 2;
-        for (let i = 0; i < WARDEN.fanBullets; i++) {
-          const a = base + (i - half) * WARDEN.fanSpread;
-          world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#ffd23b', true);
-        }
-        e.subPhase++;
-        e.fireTimer = WARDEN.fanGap;
-      } else {
-        e.subPhase = 0;
-        e.fireTimer = WARDEN.fanRest;
-      }
-    }
-  }
-
-  // color shifts toward white as HP drops
-  e.telegraph = 1 - hpFrac;
 }
 
 function updateWeaver(e: Enemy, world: World, dt: number): void {

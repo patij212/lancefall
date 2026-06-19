@@ -856,6 +856,7 @@ export const WARDEN = {
   turnRate: 1.6, // rad/s the warden rotates its facing toward the player
   rearArc: 2.094, // 120° (full) bonus-damage zone centered on its rear; ±half is the gate
   rearMultiplier: 3, // dash damage × this inside the rear arc
+  enrageFrac: 0.4, // below this HP frac: 4-spoke spiral + a rear back-spray (behavior, not just rate)
 } as const;
 
 // Second boss: the WEAVER — a pinwheel/ring boss, distinct from the Warden.
