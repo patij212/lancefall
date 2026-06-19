@@ -896,7 +896,8 @@ export const MIRRORBLADE = {
   fanBullets: 3,
   fanSpread: 0.3,
   fanBulletSpeed: 230,
-  // enrage (HP < 50%)
+  // enrage (HP < 50%) — the MODEL the other bosses' behavior-enrage generalises from
+  enrageFrac: 0.5,
   windupFast: 0.45,
   recoverFast: 0.6,
   // THE IMITATION GAME (render): the boss wears the player's ship silhouette, drawn
