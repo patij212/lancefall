@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cipherSeed, makeCipher, dashCipherCore, ciphertext } from './cipher';
+import { cipherSeed, makeCipher, dashCipherCore, ciphertext, cipherClassFor } from './cipher';
 
 const isPermutation = (a: number[], n: number) =>
   a.length === n && new Set(a).size === n && a.every((v) => v >= 0 && v < n);
@@ -69,5 +69,33 @@ describe('cipher — the deterministic code-breaking layer', () => {
     const ct = ciphertext(c);
     expect(ct).toEqual(c.order.map((slot) => c.glyphs[slot]));
     expect(isPermutation(ct, 4)).toBe(true);
+  });
+});
+
+describe('cipher classes — the deduce-verb tagging', () => {
+  it('makeCipher defaults to substitution and records its seed (additive, non-breaking)', () => {
+    const seed = cipherSeed(123, 4);
+    const c = makeCipher(4, seed);
+    expect(c.cls).toBe('substitution');
+    expect(c.seed).toBe(seed >>> 0);
+  });
+
+  it('makeCipher carries the requested class; generation is unchanged by it', () => {
+    const seed = cipherSeed(123, 4);
+    const sub = makeCipher(4, seed, 'substitution');
+    const rot = makeCipher(4, seed, 'rotor');
+    expect(rot.cls).toBe('rotor');
+    // the SAME seed yields the SAME glyph/order permutations regardless of class —
+    // the class is a VIEW tag only, so the seeded sim can never diverge by class.
+    expect(rot.order).toEqual(sub.order);
+    expect(rot.glyphs).toEqual(sub.glyphs);
+  });
+
+  it('cipherClassFor maps each ring boss to its escalating class', () => {
+    expect(cipherClassFor('warden')).toBe('caesar');
+    expect(cipherClassFor('weaver')).toBe('substitution');
+    expect(cipherClassFor('beacon')).toBe('partial');
+    expect(cipherClassFor('sovereign')).toBe('rotor');
+    expect(cipherClassFor('darter')).toBe('substitution'); // unknown → plain key
   });
 });

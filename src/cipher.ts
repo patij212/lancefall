@@ -7,6 +7,11 @@
 // scoring stream (world.rng) is never touched. No DOM, no ctx; fully unit-tested.
 import { createRng } from './rng';
 
+/** Which CLASS of cipher a lock presents. Drives ONLY the decode VIEW (how the key reads) —
+ *  never the reducer or the seeded generation, so it can't perturb the sim. An ode to the
+ *  history of cryptanalysis: a Caesar crib, a full substitution, a partial/earned key, a rotor. */
+export type CipherClass = 'caesar' | 'substitution' | 'partial' | 'rotor';
+
 export interface CipherState {
   /** glyph id shown on the core at orbit-slot i (a permutation of 0..n-1) */
   glyphs: number[];
@@ -17,6 +22,10 @@ export interface CipherState {
   /** cosmetic: 1 right after a wrong dash, decays in render — never gates sim */
   wrongFlash: number;
   solved: boolean;
+  /** which cipher class this lock is (VIEW-only; default 'substitution' = legacy behaviour) */
+  cls: CipherClass;
+  /** the seed this cipher was built from — per-class view params derive from it, purely */
+  seed: number;
 }
 
 /** Stable 32-bit seed from (runSeed, bossWave) — pure, no rng draw. A given
@@ -30,13 +39,15 @@ export function cipherSeed(runSeed: number, bossWave: number): number {
 
 /** Build a cipher for `n` cores from a deterministic seed, using its OWN
  *  generators (independent glyph + order permutations). */
-export function makeCipher(n: number, seed: number): CipherState {
+export function makeCipher(n: number, seed: number, cls: CipherClass = 'substitution'): CipherState {
   return {
     glyphs: shuffle(n, createRng((seed ^ 0xa5a5a5a5) >>> 0)),
     order: shuffle(n, createRng(seed >>> 0)),
     progress: 0,
     wrongFlash: 0,
     solved: false,
+    cls,
+    seed: seed >>> 0,
   };
 }
 
@@ -75,4 +86,17 @@ export function dashCipherCore(c: CipherState, slot: number): DashResult {
 /** The ciphertext the player must read, as glyph ids in required dash order. */
 export function ciphertext(c: CipherState): number[] {
   return c.order.map((slot) => c.glyphs[slot]);
+}
+
+/** The cipher CLASS a boss presents (pure data). Warden teaches the crib (Caesar), Weaver the
+ *  full substitution, Beacon the partial/earned key, the Sovereign the stepping rotor. Anything
+ *  else falls to the plain substitution key. VIEW-only — never read by the sim/reducer. */
+export function cipherClassFor(bossKind: string): CipherClass {
+  switch (bossKind) {
+    case 'warden': return 'caesar';
+    case 'weaver': return 'substitution';
+    case 'beacon': return 'partial';
+    case 'sovereign': return 'rotor';
+    default: return 'substitution';
+  }
 }
