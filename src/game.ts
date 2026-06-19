@@ -1715,6 +1715,15 @@ export class Game {
         this.damageEnemy(e, w.stats.dashDamage, true);
       }
     }
+    // Afterimage also shreds CHAFF bullets crossing the lingering ghost — the
+    // defensive half of the trap-perk fix. Boss bullets are immune (only Riposte
+    // breaks those, on a budget), so the ghost can't trivialise a boss pattern.
+    w.bullets.forEachActive((b) => {
+      if (b.fromBoss) return;
+      if (!segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, b.x, b.y, b.radius, r)) return;
+      w.particles.burst(b.x, b.y, 2, b.color);
+      w.bullets.release(b);
+    });
   }
 
   /** Can the spear (a dash OR its afterimage ghost) damage this enemy right now?

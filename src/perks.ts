@@ -262,7 +262,8 @@ export function deriveStats(
   }
 
   const ai = stacks.afterimage ?? 0;
-  if (ai > 0) s.afterimageSec = 0.35 + 0.15 * (ai - 1);
+  // un-trapped: longer-lived ghost (0.6s→0.9s); the ghost also shreds chaff bullets (game.ts resolveGhostHits)
+  if (ai > 0) s.afterimageSec = 0.6 + 0.3 * (ai - 1);
 
   const tt = stacks.timethief ?? 0;
   if (tt > 0) {
@@ -272,7 +273,9 @@ export function deriveStats(
 
   s.dashDamage += stacks.pierce ?? 0;
   s.killStaminaRefund += 20 * (stacks.siphon ?? 0);
-  s.comboWindowBonus += 0.6 * (stacks.slipstream ?? 0);
+  const ss = stacks.slipstream ?? 0;
+  s.comboWindowBonus += 0.6 * ss;
+  s.grazeComboBonus += 0.15 * ss; // un-trapped: also helps graze-flow/kiting builds, not just chain-kill styles
 
   const nv = stacks.nova ?? 0;
   if (nv > 0) s.dashNovaRadius = 90 + 30 * (nv - 1);
