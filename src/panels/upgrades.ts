@@ -8,6 +8,7 @@
 import { el, reconcile } from './dom';
 import type { SaveData } from '../save';
 import { META_NODES, metaNode, nodeCost } from '../meta';
+import type { Panel } from './panel';
 
 interface Branch {
   name: string;
@@ -168,3 +169,41 @@ export function buildUpgradesShell(onBuy: (id: string) => void): { root: HTMLEle
 
   return { root, update };
 }
+
+const UPG_ICON =
+  '<svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+export interface UpgradesPanelDeps {
+  /** buy/level a meta node by id. */
+  onBuy: (id: string) => void;
+  /** dismiss the modal (DONE). */
+  onClose: () => void;
+}
+
+/** The UPGRADES meta-tree modal: a fixed shell + a live shard-balance pill. The tree itself is the
+ *  buildUpgradesShell morph-in-place widget, built lazily on first open and re-`update`d each open
+ *  (a purchase re-calls open, so nodes re-tint/relevel without reflashing the whole tree). */
+export function buildUpgradesPanel(deps: UpgradesPanelDeps): Panel {
+  const icon = el('div', { class: 'panel-head-icon' });
+  icon.innerHTML = UPG_ICON;
+  const titles = el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'PERMANENT META-TREE'), el('h2', { class: 'panel-head-title' }, 'UPGRADES'));
+  const balanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
+  const head = el('div', { class: 'panel-head' }, icon, titles, balanceEl);
+  const body = el('div', { class: 'upg-body' });
+  body.id = 'upg-body';
+  const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+  close.addEventListener('click', () => deps.onClose());
+  const root = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, el('div', { class: 'panel panel-wide' }, head, body, close));
+
+  let shell: { root: HTMLElement; update: (s: SaveData) => void } | null = null;
+  const open = (save: SaveData): void => {
+    balanceEl.textContent = `◆ ${save.shards.toLocaleString()} shards`;
+    if (!shell) {
+      shell = buildUpgradesShell((id) => deps.onBuy(id));
+      body.replaceChildren(shell.root);
+    }
+    shell.update(save);
+  };
+  return { root, open };
+}
+

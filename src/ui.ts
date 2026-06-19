@@ -15,7 +15,7 @@ import type { EventChoice } from './events';
 import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchAchievementRarity, type AchRarity } from './api';
-import { renderStats } from './panels/stats';
+import { buildStatsPanel } from './panels/stats';
 import { lastRunForMode, fmtAgo, breakdownEntries } from './panels/statsDerive';
 import { renderAchievements } from './panels/achievements';
 import { comboColor } from './render';
@@ -50,7 +50,7 @@ import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
 import { renderBestiary, renderCipherLegend } from './panels/codex';
-import { buildUpgradesShell } from './panels/upgrades';
+import { buildUpgradesPanel } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
@@ -441,7 +441,6 @@ export class UI {
   private pause!: HTMLElement;
   private pauseBuild!: HTMLElement;
   private pauseStatsEl!: HTMLElement;
-  private upgBalanceEl!: HTMLElement;
   private shipBalanceEl!: HTMLElement;
   private cosmBalanceEl!: HTMLElement;
   private gameover!: HTMLElement;
@@ -452,7 +451,6 @@ export class UI {
   private settingsPanel!: HTMLElement;
   private statsPanel!: HTMLElement;
   private upgradesPanel!: HTMLElement;
-  private upgShell?: { root: HTMLElement; update: (s: SaveData) => void }; // meta-tree shell, built once
   private codexPanel!: HTMLElement;
   private codexMemories!: HTMLElement;
   private codexMemGrid?: HTMLElement; // reconciled memories grid (built once, morphed on decrypt)
@@ -1897,57 +1895,29 @@ export class UI {
     this.settingsPanel = this.settingsModal.root;
   }
 
+  private statsP!: Panel;
   private buildStats(): void {
-    const icon = el('div', { class: 'panel-head-icon' });
-    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V11M10 20V5M16 20v-8M22 20H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LIFETIME DOSSIER'), el('h2', { class: 'panel-head-title' }, 'STATS')));
-    const body = el('div', { class: 'stats-body' });
-    body.id = 'stats-body';
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.statsPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
-    this.statsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.statsP = buildStatsPanel({ onClose: () => this.closeModal(this.statsPanel) });
+    this.statsPanel = this.statsP.root;
   }
 
   private openStats(): void {
-    const s = this.saveRef;
-    if (!s) return;
-    const body = this.statsPanel.querySelector('#stats-body')!;
-    body.replaceChildren(...renderStats(s)); // lifetime dossier; the achievement grid lives in CODEX now
+    if (!this.saveRef) return;
+    this.statsP.open(this.saveRef); // lifetime dossier; the achievement grid lives in CODEX now
     this.openModal(this.statsPanel);
   }
 
+  private upg!: Panel;
   private buildUpgrades(): void {
-    // polished head (mock .modal-head): icon + eyebrow/title + a live shard balance pill.
-    const icon = el('div', { class: 'panel-head-icon' });
-    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const titles = el('div', { class: 'panel-head-titles' },
-      el('div', { class: 'panel-eyebrow' }, 'PERMANENT META-TREE'),
-      el('h2', { class: 'panel-head-title' }, 'UPGRADES'),
-    );
-    this.upgBalanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
-    const head = el('div', { class: 'panel-head' }, icon, titles, this.upgBalanceEl);
-    const body = el('div', { class: 'upg-body' });
-    body.id = 'upg-body';
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.upgradesPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
-    this.upgradesPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.upg = buildUpgradesPanel({ onBuy: (id) => this.cb.onBuyMeta(id), onClose: () => this.closeModal(this.upgradesPanel) });
+    this.upgradesPanel = this.upg.root;
   }
 
   openUpgrades(): void {
-    const s = this.saveRef;
-    if (!s) return;
-    // the meta-tree (panels/upgrades) — shell built ONCE, then morphed in place. buyMeta
-    // re-calls this method, so a purchase re-tints/relevels the affected nodes without the
-    // whole tree reflashing. openModal stays (idempotent) to keep the existing focus behavior.
-    const body = this.upgradesPanel.querySelector('#upg-body')!;
-    this.upgBalanceEl.textContent = `◆ ${s.shards.toLocaleString()} shards`;
-    if (!this.upgShell) {
-      this.upgShell = buildUpgradesShell((id) => this.cb.onBuyMeta(id));
-      body.replaceChildren(this.upgShell.root);
-    }
-    this.upgShell.update(s);
+    if (!this.saveRef) return;
+    // buyMeta re-calls this to re-tint/relevel after a purchase; the panel morphs in place +
+    // openModal is idempotent, so the tree + focus stay put.
+    this.upg.open(this.saveRef);
     this.openModal(this.upgradesPanel);
   }
 

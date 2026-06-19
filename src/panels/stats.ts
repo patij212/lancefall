@@ -11,6 +11,7 @@ import { ACHIEVEMENTS } from '../achievements';
 import { bossName } from '../boss';
 import { modeById } from '../modes';
 import { heatLevel } from '../heat';
+import type { Panel } from './panel';
 import { SHIPS } from '../ships';
 import { THEMES } from '../themes';
 import { TRAILS } from '../trails';
@@ -494,3 +495,27 @@ export function renderStats(s: SaveData): HTMLElement[] {
   setTimeout(() => setupReveal(sections), 0);
   return sections;
 }
+
+const STATS_ICON =
+  '<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V11M10 20V5M16 20v-8M22 20H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+export interface StatsPanelDeps {
+  /** dismiss the modal (DONE). */
+  onClose: () => void;
+}
+
+/** The STATS lifetime-dossier modal: a fixed shell whose body is (re)rendered by renderStats on
+ *  each open (the dossier reflects the live save). */
+export function buildStatsPanel(deps: StatsPanelDeps): Panel {
+  const icon = el('div', { class: 'panel-head-icon' });
+  icon.innerHTML = STATS_ICON;
+  const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LIFETIME DOSSIER'), el('h2', { class: 'panel-head-title' }, 'STATS')));
+  const body = el('div', { class: 'stats-body' });
+  body.id = 'stats-body';
+  const close = el('button', { class: 'btn btn-primary' }, 'DONE');
+  close.addEventListener('click', () => deps.onClose());
+  const root = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, el('div', { class: 'panel panel-wide' }, head, body, close));
+  const open = (save: SaveData): void => { body.replaceChildren(...renderStats(save)); };
+  return { root, open };
+}
+
