@@ -225,6 +225,18 @@ export function tokenView(save: SaveData, token: string): { text: string; decryp
   return { text, decrypted, word, cost: wordCost(word) };
 }
 
+/** Is there at least one still-undecrypted word the player can afford right now (at the given cost
+ *  multiplier)? Drives the THE BOMBE nav pip — "decryption waiting". Pure, save-side, no rng. */
+export function hasAffordableDecrypt(save: SaveData, costMul = 1): boolean {
+  const bal = fragmentBalance(save);
+  if (bal <= 0) return false;
+  for (const w of vocabulary()) {
+    if (isWordDecrypted(save, w)) continue;
+    if (Math.max(1, Math.round(wordCost(w) * costMul)) <= bal) return true;
+  }
+  return false;
+}
+
 // ── the decrypt action + lore-on-completion (pure save mutators) ─────────────
 
 /** Decrypt one vocabulary word: charge round(cost*costMul) Fragments (min 1 for a real word) and

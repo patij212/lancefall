@@ -1007,6 +1007,76 @@ export class AudioEngine {
     });
   }
 
+  // ── THE BOMBE — codebreaker console sfx (all routed through sfxBus → gated by sfx volume) ──
+
+  /** A light, glassy rising tick per word decrypted; pitch rises with the intercept's progress
+   *  (0..1) so a transmission "climbs" as it resolves. */
+  decryptTick(progress = 0): void {
+    const p = Math.max(0, Math.min(1, progress));
+    const f = 560 + p * 620; // 560 → 1180 Hz as the message fills in
+    this.voice({ type: 'triangle', freq: f, freqEnd: f * 1.5, glide: 0.04, cutoff: 3200, q: 0.7, attack: 0.004, decay: 0.13, peak: 0.1 });
+    // a faint upper sparkle so it reads as "a piece of the key clicked into place"
+    this.voice({ type: 'sine', freq: f * 2, attack: 0.002, decay: 0.07, peak: 0.04, at: this.ctx ? this.ctx.currentTime + 0.01 : undefined });
+  }
+
+  /** A heavier, warm major chord when a whole transmission decrypts — the "signal restored" reward. */
+  transmissionChord(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const notes = [392, 494, 587, 784]; // G major, voiced up — triumphant but soft
+    notes.forEach((f, i) =>
+      this.voice({ type: 'sawtooth', freq: f, detune: 7, cutoff: 2400, cutoffEnd: 1400, q: 0.8, attack: 0.02, decay: 0.95, peak: 0.12, at: t + i * 0.05 }),
+    );
+  }
+
+  /** A mechanical clunk when the Bombe is built / upgraded — a drum dropping into place. */
+  bombeClunk(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    // low body thunk
+    const osc = ctx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(0.34, t + 0.008);
+    og.gain.exponentialRampToValueAtTime(0.0006, t + 0.16);
+    osc.connect(og);
+    og.connect(this.sfxBus);
+    osc.start(t);
+    osc.stop(t + 0.18);
+    // a short filtered-noise mechanical click on top (the rotor seating)
+    const n = this.noiseSource();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2200;
+    bp.Q.value = 1.4;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.16, t + 0.004);
+    ng.gain.exponentialRampToValueAtTime(0.0006, t + 0.06);
+    n.connect(bp);
+    bp.connect(ng);
+    ng.connect(this.sfxBus);
+    n.start(t);
+    n.stop(t + 0.07);
+    osc.onended = () => { osc.disconnect(); og.disconnect(); };
+    n.onended = () => { n.disconnect(); bp.disconnect(); ng.disconnect(); };
+  }
+
+  /** A bright two-note ascending sting when a console puzzle is solved. */
+  puzzleSting(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.voice({ type: 'triangle', freq: 659, cutoff: 3200, attack: 0.005, decay: 0.14, peak: 0.12, at: t });
+    this.voice({ type: 'triangle', freq: 988, cutoff: 3600, attack: 0.005, decay: 0.22, peak: 0.13, at: t + 0.08 });
+    this.voice({ type: 'sine', freq: 1976, attack: 0.002, decay: 0.1, peak: 0.05, at: t + 0.1 });
+  }
+
   explosion(size = 1, pan = 0): void {
     const ctx = this.ctx;
     if (!ctx) return;

@@ -364,7 +364,30 @@ function mountCipher(): { stop(): void } {
   const targetCoh = (): number => {
     const cc = choiceCoherence(choice);
     const base = cc !== null ? cc : readCoh();
-    return clamp01(Math.max(base, decryptFrac * 0.85));
+    // THE LONGEST DAY — at full decryption the city is radiant (a near-fully-lit floor), the meta
+    // twin of FIRST LIGHT; below that the master cipher only ever ADDS light (never dims).
+    const decryptFloor = decryptFrac >= 1 ? 0.98 : decryptFrac * 0.85;
+    return clamp01(Math.max(base, decryptFloor));
+  };
+
+  // THE LONGEST DAY one-time celebration — the first time we observe a fully-decrypted master cipher
+  // in a session-with-the-cockpit-up, spike a sustained decode bloom (reuses the DESCEND burst path,
+  // a11y-gated like everything here). Persisted so it only blooms once, ever. Defensive — never throws.
+  let longestDayDone = false;
+  try {
+    longestDayDone = localStorage.getItem('lancefall.longestday') === '1';
+  } catch {
+    /* storage may be unavailable — treat as not-yet-celebrated */
+  }
+  const maybeCelebrateLongestDay = (): void => {
+    if (longestDayDone || decryptFrac < 1) return;
+    longestDayDone = true;
+    burst = 1; // the radiant decode bloom (held under reduce-motion via the STILL frame; no strobe)
+    try {
+      localStorage.setItem('lancefall.longestday', '1');
+    } catch {
+      /* best-effort persistence */
+    }
   };
 
   const rgbaT = (rgb: [number, number, number], a: number): string =>
@@ -724,6 +747,7 @@ function mountCipher(): { stop(): void } {
       if (cohReadAcc >= 0.2) {
         cohReadAcc = 0;
         decryptFrac = readDecryptFrac(); // keep the master-cipher floor live (decrypt in the console → title resolves)
+        maybeCelebrateLongestDay();
         cohTarget = targetCoh();
         accentRgb = readAccent();
       }
@@ -776,6 +800,7 @@ function mountCipher(): { stop(): void } {
     ensureSize();
     if (!wasShown) choice = readChoice(); // re-read THE CHOICE only on (re)entry to the title
     decryptFrac = readDecryptFrac(); // master-cipher floor (also primes the reduce-motion STILL frame)
+    maybeCelebrateLongestDay();
     if (prefersReducedMotion()) {
       stopLoop();
       drawStill();

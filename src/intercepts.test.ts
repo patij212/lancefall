@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   INTERCEPTS, wordKey, wordCost, vocabulary, cipherWord, wordRarity, transmissionsComplete,
   isWordDecrypted, interceptWords, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView,
-  decryptWord, syncInterceptLore,
+  decryptWord, syncInterceptLore, hasAffordableDecrypt,
 } from './intercepts';
 import { loreById, fragmentBalance } from './lore';
 import { defaultSave } from './save';
@@ -132,6 +132,13 @@ describe('intercepts — decrypt action', () => {
     const before = fragmentBalance(s);
     decryptWord(s, w, 0.5);
     expect(before - fragmentBalance(s)).toBe(Math.max(1, Math.round(wordCost(w) * 0.5)));
+  });
+
+  it('hasAffordableDecrypt is true only when a word is undecrypted AND affordable', () => {
+    expect(hasAffordableDecrypt(defaultSave())).toBe(false); // no fragments
+    expect(hasAffordableDecrypt(richSave(10))).toBe(true); // can afford the cheapest
+    const allDone = { ...defaultSave(), stillpointFragments: Array.from({ length: 99 }, (_, i) => `f${i}`), decryptedWords: vocabulary() };
+    expect(hasAffordableDecrypt(allDone)).toBe(false); // nothing left to decrypt
   });
 
   it('syncInterceptLore unlocks a linked LoreEntry once its intercept is fully decrypted', () => {

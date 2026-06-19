@@ -53,7 +53,9 @@ import { renderBestiary, renderCipherLegend } from './panels/codex';
 import { buildUpgradesPanel } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
-import { buildBombePanel } from './panels/bombe';
+import { buildBombePanel, type BombePanel } from './panels/bombe';
+import { hasAffordableDecrypt } from './intercepts';
+import { bombeCostMul } from './bombe';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
 import type { Panel } from './panels/panel';
 import { buildCreditsPanel } from './panels/credits';
@@ -468,6 +470,7 @@ export class UI {
   private skinsShowTab?: (key: string) => void; // switch the SKINS tabs ('ships' | 'bestiary')
   private creditsPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
+  private bombeNavBtn?: HTMLElement; // THE BOMBE nav button — its pip lights when decryption is affordable
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
   private leaderPanel!: HTMLElement;
@@ -1368,7 +1371,7 @@ export class UI {
       // BUILD is reached from the loadout BUILD row (this.openArchetype) — no duplicate nav entry.
       // THE FALL (story) + HOW TO (manual) are tabs inside the CODEX hub now — no separate buttons.
       navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — the bestiary + lore, THE FALL (the story), HOW TO PLAY, and your achievements.'),
-      navBtn('bombe', 'THE BOMBE', () => this.openBombe(), 'THE BOMBE — the codebreaker console: decrypt the intercepts, build the machine, break the city back into meaning.'),
+      (this.bombeNavBtn = navBtn('bombe', 'THE BOMBE', () => this.openBombe(), 'THE BOMBE — the codebreaker console: decrypt the intercepts, build the machine, break the city back into meaning.')),
       // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
       // backed list; the panel + openDuelWithCode deep-link stay in the code, just unadvertised.
       el('div', { class: 'ck-nav-div' }),
@@ -2581,8 +2584,9 @@ export class UI {
     this.openModal(this.heatPanel);
   }
 
-  private bombe!: Panel;
+  private bombe!: BombePanel;
   private bombePanel!: HTMLElement;
+  private bombeOvernight: string[] = []; // THE BOMBE — words cracked overnight, shown once on next open
   private buildBombe(): void {
     this.bombe = buildBombePanel({
       onDecrypt: (id) => this.cb.onDecryptWord(id),
@@ -2593,9 +2597,16 @@ export class UI {
     this.bombePanel = this.bombe.root;
   }
 
-  openBombe(): void {
+  /** THE BOMBE — stash the words the Bombe cracked overnight; surfaced once on the next console open. */
+  noteBombeOvernight(words: string[]): void {
+    if (words.length) this.bombeOvernight = words.slice();
+  }
+
+  /** Open THE BOMBE. `justDecrypted` (the word a fresh decrypt cracked) ripples the cross-reveal. */
+  openBombe(justDecrypted?: string): void {
     if (!this.saveRef) return;
-    this.bombe.open(this.saveRef);
+    this.bombe.open(this.saveRef, { justDecrypted, overnight: this.bombeOvernight });
+    this.bombeOvernight = []; // consumed — only the first open after a run shows the readout
     this.openModal(this.bombePanel);
   }
 
@@ -2697,6 +2708,10 @@ export class UI {
 
   refreshTitle(save: SaveData): void {
     this.saveRef = save;
+
+    // THE BOMBE nav pip — glow (gold) when there's affordable decryption waiting; a discovery nudge.
+    this.bombeNavBtn?.querySelector('.ck-nav-pip')
+      ?.classList.toggle('gold', hasAffordableDecrypt(save, bombeCostMul(save.bombeLevel)));
 
     // ── coerce an invalid/locked selection ONCE so the rail always has a valid card ──
     // (e.g. a Nightmare/Solstice selection from before it was earned). Every mode is now a

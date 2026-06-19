@@ -22,8 +22,8 @@ import { updateEnemy, splitInto, shadeLethal } from './enemies';
 import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindowWithBeat, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor, mirrorbladeStaggerable, staggerMirrorblade } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign, sovereignCoreBonusForBeat } from './sovereign';
 import { dashCipherCore } from './cipher';
-import { INTERCEPTS, nextWordInIntercept, decryptWord, syncInterceptLore } from './intercepts';
-import { bombeCostMul, upgradeBombe as bombeUpgrade, solvePuzzle, runBombe } from './bombe';
+import { INTERCEPTS, nextWordInIntercept, decryptWord, syncInterceptLore, interceptProgress, transmissionsComplete, masterProgress } from './intercepts';
+import { bombeCostMul, upgradeBombe as bombeUpgrade, solvePuzzleReward, runBombe, CRYPTANALYST_TRAIL } from './bombe';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, longestDayBonus, perfectThreadReady, perfectThreadScore } from './combat';
 import { crossedComboTier } from './comboTiers';
@@ -52,7 +52,7 @@ import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina, effectiveDashCost, cappedRefund } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
-import { evaluate as evalAchievements } from './achievements';
+import { evaluate as evalAchievements, metaAchContext } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
 import type { RunConfig } from './modes';
 import { milestoneAt, milestoneShardReward } from './milestones';
@@ -134,6 +134,7 @@ export class Game {
   private deathCause = 'a bullet';
   private deathKind = ''; // §v9 the killing blow's EnemyKind/boss-kind when known (LAST RUN "killed by")
   private nudgedHandle = false; // show the "set a handle" leaderboard nudge once per session
+  private lastOvernightCrack: string[] = []; // THE BOMBE — words it cracked at the last run-end (the "it ran overnight" readout)
 
   /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
   private coherence = newCoherence();
@@ -377,7 +378,9 @@ export class Game {
     this.world.particles.density = this.baseDensity * this.perfScale;
     // reduce-motion disables decorative UI animations/transitions (CSS)
     document.documentElement.classList.toggle('reduce-motion', s.reduceMotion);
+    document.documentElement.classList.toggle('reduce-flashing', s.reduceFlashing); // a11y — soft cross-fades, no strobe (THE BOMBE decrypt flash etc.)
     document.documentElement.classList.toggle('clarity', s.clarity); // §5.4 a11y — high-contrast hook for the DOM UI (cockpit/sandbox/panels)
+    document.documentElement.classList.toggle('colorblind', s.colorblind); // a11y — colorblind-safe accents for the DOM UI
     this.ui.setTutorialHints(s.tutorialHints); // ACT TWO — gate the first-appearance jargon glosses on the hints toggle
   }
 
@@ -3225,7 +3228,14 @@ export class Game {
         this.save.dailyAttemptDate = today;
         this.save.dailyAttempts = r.attempts + 1;
       }
-      runBombe(this.save); // THE BOMBE cracks the cheapest words "overnight" (free; no-op until built)
+      this.lastOvernightCrack = runBombe(this.save); // THE BOMBE cracks the cheapest words "overnight" (free; no-op until built)
+      if (this.lastOvernightCrack.length) this.ui.noteBombeOvernight(this.lastOvernightCrack); // surfaced once on next console open
+      this.evalMetaAchievements(); // a transmission may have completed overnight (re-check meta achievements)
+      // DISCOVERABILITY — the first run-end carrying a Fragment, point the player at the console (once ever).
+      if (!this.save.taught.includes('bombe:intro') && fragmentBalance(this.save) >= 1) {
+        this.save.taught.push('bombe:intro');
+        this.ui.toast('◆ INTERCEPT RECEIVED — decrypt the fall in THE BOMBE');
+      }
       saveSave(this.save);
     }
     // fire-and-forget online leaderboard submission (no-op if not configured).
@@ -3310,6 +3320,35 @@ export class Game {
     this.ui.refreshMemories();
   }
 
+  /** Evaluate + award the decryption (meta) achievements from the current save state (the console
+   *  has no run, so we synthesize a meta-only AchCtx). Toasts each newly-earned one + grants the
+   *  cryptanalyst's CIPHER trail. Save-side; no rng. */
+  private evalMetaAchievements(): void {
+    const newAch = evalAchievements(
+      this.save.achievements,
+      metaAchContext({
+        decryptedCount: masterProgress(this.save).done,
+        transmissionsComplete: transmissionsComplete(this.save),
+        bombeLevel: this.save.bombeLevel,
+        puzzlesSolvedCount: this.save.solvedPuzzles.length,
+        masterFrac: masterProgress(this.save).frac,
+      }),
+    );
+    for (const a of newAch) {
+      this.save.achievements.push(a.id);
+      this.ui.toast(`ACHIEVEMENT — ${a.name}`);
+      // THE LONGEST DAY (100% master cipher) — the marquee payoff, the meta twin of winning. Fires
+      // once (gated by the achievement set). The cockpit backdrop already blooms grey→neon as the
+      // master cipher fills; this is the moment it completes.
+      if (a.id === 'mastercipher') this.ui.toast('THE LONGEST DAY — the city remembers everything');
+      // the cryptanalyst (all puzzles solved) earns the CIPHER dash-trail — a real cosmetic
+      if (a.id === 'cryptanalyst' && !this.save.unlockedTrails.includes(CRYPTANALYST_TRAIL)) {
+        this.save.unlockedTrails.push(CRYPTANALYST_TRAIL);
+        this.ui.toast('CIPHER trail unlocked!');
+      }
+    }
+  }
+
   /** THE BOMBE — decrypt the cheapest undecrypted word of an intercept (spends Fragments, with the
    *  Bombe's cost discount). Unlocks a linked memory when a transmission completes. Save-side; no rng. */
   private decryptIntercept(interceptId: string): void {
@@ -3317,26 +3356,36 @@ export class Game {
     if (!ic) return;
     const word = nextWordInIntercept(this.save, ic);
     if (!word || !decryptWord(this.save, word, bombeCostMul(this.save.bombeLevel))) return;
-    for (const id of syncInterceptLore(this.save)) this.ui.toast(`MEMORY DECRYPTED — ${loreById(id)?.title ?? ''}`);
+    // sound: a rising tick that climbs with this transmission's progress
+    this.audio.decryptTick(interceptProgress(this.save, ic).done / Math.max(1, interceptProgress(this.save, ic).total));
+    const completed = syncInterceptLore(this.save);
+    for (const id of completed) this.ui.toast(`MEMORY DECRYPTED — ${loreById(id)?.title ?? ''}`);
+    if (completed.length) this.audio.transmissionChord(); // a transmission fully resolved — the reward chord
+    this.evalMetaAchievements();
     saveSave(this.save);
     this.ui.refreshMemories();
-    this.ui.openBombe();
+    this.ui.openBombe(word); // pass the just-cracked word so the panel can ripple the cross-reveal
   }
 
   /** THE BOMBE — build / upgrade the auto-crack meta-tool (spends Fragments). */
   private upgradeBombe(): void {
     if (!bombeUpgrade(this.save)) return;
+    this.audio.bombeClunk();
+    this.evalMetaAchievements();
     saveSave(this.save);
     this.ui.openBombe();
   }
 
-  /** THE BOMBE — submit a console cryptanalysis puzzle; a correct first solve grants a free crack. */
+  /** THE BOMBE — submit a console cryptanalysis puzzle; a correct first solve grants a REAL reward
+   *  (a free word + Fragments) + a sting. Save-side; no rng. */
   private solveConsolePuzzle(puzzleId: string, guess: string): void {
-    if (!solvePuzzle(this.save, puzzleId, guess)) return;
-    runBombe(this.save); // reward: a free word-crack
+    const r = solvePuzzleReward(this.save, puzzleId, guess);
+    if (!r.solved) return;
+    this.audio.puzzleSting();
+    this.ui.toast(`CIPHER SOLVED — ${r.crackedWord ? `revealed “${r.crackedWord}” · ` : ''}◆${r.fragments} Fragments`);
+    this.evalMetaAchievements();
     saveSave(this.save);
-    this.ui.toast('CIPHER SOLVED');
-    this.ui.openBombe();
+    this.ui.openBombe(r.crackedWord ?? undefined);
   }
 
   /** Toggle NG+ for the next run (only once unlocked by a Sovereign kill). */
