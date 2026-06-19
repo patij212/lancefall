@@ -166,16 +166,17 @@ function bloomer(e: Enemy, world: World, dt: number): void {
     e.timer = BLOOMER.ringCadence;
     e.telegraph = 0;
     const n = BLOOMER.ringCount;
-    const off = world.rng.range(0, Math.PI * 2);
+    // ring offset = the bloomer's FIXED phase (e.angle, seeded at spawn) → bullets sit at
+    // stable angles, so only the GAP appears to move. Zero world.rng in the verb (the old
+    // per-bloom random rotation is gone) → the seeded Daily stays bit-identical.
+    const off = e.angle;
     const sp = BLOOMER.bulletSpeed * e.bulletMul;
-    // VERB (§3.3): every brokenEvery-th bloom OMITS a contiguous arc of brokenArc bullets,
-    // leaving an obvious safe WEDGE to stand in — a breather in the turret's ring spam.
-    // subPhase counts blooms → deterministic; the wedge START rides it (no extra rng draw).
+    // EVERY bloom leaves a safe WEDGE, and the wedge ROTATES by wedgeStep slots each bloom
+    // (subPhase counts blooms) → a smooth, trackable gap: "read the gap, move into it."
     e.subPhase++;
-    const broken = e.subPhase % BLOOMER.brokenEvery === 0;
-    const wedge = broken ? e.subPhase % n : -1; // first omitted slot
+    const wedge = ((e.subPhase * BLOOMER.wedgeStep) % n + n) % n; // first omitted slot, rotating
     for (let i = 0; i < n; i++) {
-      if (broken && (i - wedge + n) % n < BLOOMER.brokenArc) continue; // the safe wedge
+      if ((i - wedge + n) % n < BLOOMER.brokenArc) continue; // the safe wedge (always present)
       const a = off + (i / n) * Math.PI * 2;
       world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#ffd23b', false);
     }

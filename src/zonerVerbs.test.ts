@@ -41,24 +41,6 @@ function run(w: World, e: Enemy, seconds: number): { x: number; y: number; vx: n
   return shots;
 }
 
-/** Drive one enemy and record the size of each fire VOLLEY (count of bullets that went
- *  active in the same frame) — for verbs whose bullet COUNT varies per shot. */
-function wallVolleys(w: World, e: Enemy, seconds: number): number[] {
-  const seen = new Set<number>();
-  const volleys: number[] = [];
-  const steps = Math.round(seconds / DT);
-  for (let i = 0; i < steps; i++) {
-    let fresh = 0;
-    updateEnemy(e, w, DT);
-    w.bullets.forEachActive((b) => {
-      const idx = w.bullets.items.indexOf(b);
-      if (!seen.has(idx)) { seen.add(idx); fresh++; }
-    });
-    if (fresh > 0) volleys.push(fresh);
-  }
-  return volleys;
-}
-
 describe('ORBITER verb — drops a parked mine every Nth shot', () => {
   it('every mineEvery-th shot is stationary (vx=vy=0) and a distinct color', () => {
     const w = freshWorld();
@@ -205,14 +187,72 @@ describe('HERALD wide gate — every Nth wall opens a doubled safe lane (a breat
   });
 });
 
-describe('BLOOMER broken ring — every Nth bloom drops an arc, leaving a safe wedge', () => {
-  it('every brokenEvery-th bloom fires brokenArc fewer bullets than a full ring', () => {
+describe('BLOOMER rotating wedge — every bloom leaves a safe wedge that walks predictably', () => {
+  /** Drive the bloomer and record each bloom's fresh-bullet HEADINGS (one array per volley). */
+  function bloomAngles(w: World, e: Enemy, blooms: number): number[][] {
+    const seen = new Set<number>();
+    const volleys: number[][] = [];
+    const steps = Math.round((BLOOMER.ringCadence * (blooms + 1) + 0.6) / DT);
+    for (let s = 0; s < steps; s++) {
+      const fresh: number[] = [];
+      updateEnemy(e, w, DT);
+      w.bullets.forEachActive((b) => {
+        const idx = w.bullets.items.indexOf(b);
+        if (!seen.has(idx)) {
+          seen.add(idx);
+          fresh.push(Math.atan2(b.vy, b.vx));
+        }
+      });
+      if (fresh.length) volleys.push(fresh);
+    }
+    return volleys;
+  }
+  /** Centre angle of the single largest angular gap in a volley (the safe wedge). */
+  function gapCentre(angles: number[]): number {
+    const s = [...angles].sort((a, b) => a - b);
+    let best = -1;
+    let centre = 0;
+    for (let i = 0; i < s.length; i++) {
+      const a = s[i];
+      const next = i === s.length - 1 ? s[0] + Math.PI * 2 : s[i + 1];
+      const gap = next - a;
+      if (gap > best) {
+        best = gap;
+        centre = a + gap / 2;
+      }
+    }
+    return Math.atan2(Math.sin(centre), Math.cos(centre)); // normalise to [-π,π]
+  }
+
+  it('EVERY bloom omits brokenArc bullets, leaving a safe wedge (always a breather)', () => {
     const w = freshWorld();
     const e = w.spawnEnemy('bloomer', 640, 360, 1, 1, false, false, 0)!;
-    const volleys = wallVolleys(w, e, BLOOMER.ringCadence * (BLOOMER.brokenEvery + 1) + 0.6);
-    expect(volleys.length).toBeGreaterThanOrEqual(BLOOMER.brokenEvery); // bloomed several times
-    expect(volleys).toContain(BLOOMER.ringCount); // a full ring
-    expect(volleys).toContain(BLOOMER.ringCount - BLOOMER.brokenArc); // a broken ring (the wedge)
+    const volleys = bloomAngles(w, e, 4);
+    expect(volleys.length).toBeGreaterThanOrEqual(3);
+    for (const v of volleys) expect(v.length).toBe(BLOOMER.ringCount - BLOOMER.brokenArc); // always broken
+  });
+
+  it('the safe wedge ROTATES by a consistent step each bloom (track the gap)', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('bloomer', 640, 360, 1, 1, false, false, 0)!;
+    const centres = bloomAngles(w, e, 5).map(gapCentre);
+    expect(centres.length).toBeGreaterThanOrEqual(3);
+    const signedStep = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+    const expected = (BLOOMER.wedgeStep / BLOOMER.ringCount) * Math.PI * 2;
+    for (let i = 1; i < centres.length; i++) {
+      // the gap advances by the SAME predictable step every bloom (not random jumps)
+      expect(signedStep(centres[i - 1], centres[i])).toBeCloseTo(expected, 4);
+    }
+  });
+
+  it('the bloomer verb draws ZERO world.rng (the old random ring rotation is gone)', () => {
+    const w = freshWorld(7);
+    const ref = createRng(7);
+    const e = w.spawnEnemy('bloomer', 640, 360, 1, 1, false, false, 0)!; // explicit angle → no rng
+    expect(w.rng.next()).toBe(ref.next());
+    const steps = Math.round((BLOOMER.ringCadence * 5) / DT);
+    for (let i = 0; i < steps; i++) updateEnemy(e, w, DT); // several blooms
+    expect(w.rng.next()).toBe(ref.next()); // bloomer advanced world.rng zero times
   });
 });
 

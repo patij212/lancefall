@@ -330,16 +330,20 @@ export const BROODER = {
   edgeFrac: 0.4, // perimeter-ellipse radius as a fraction of the arena → near the wall
 };
 
+// Bloomer — a RING-READ turret (enemy overhaul). EVERY bloom now leaves a safe WEDGE,
+// and that wedge ROTATES by a fixed step each bloom, so the turret reads as "track the gap
+// and move into it" rather than "dodge random spam." The ring offset is the bloomer's
+// fixed phase (e.angle, seeded at spawn), so the bullets sit at stable angles and only the
+// GAP walks — fully predictable. Deterministic: the verb draws ZERO world.rng (it used to
+// roll a random ring rotation per bloom; that draw is gone → the Daily stays bit-identical).
 export const BLOOMER = {
   ringCount: 12,
   ringCadence: 2.4,
   windup: 0.4,
   bulletSpeed: 180,
   driftSpeed: 30,
-  // VERB (§3.3): every brokenEvery-th bloom OMITS a contiguous arc of brokenArc bullets,
-  // leaving an obvious safe WEDGE to stand in — a readable breather in the ring spam.
-  brokenEvery: 3,
-  brokenArc: 3, // bullets dropped (of ringCount) → a ~quarter-ring opening
+  brokenArc: 3, // bullets dropped (of ringCount) → a generous ~quarter-ring opening, ALWAYS
+  wedgeStep: 1, // slots the safe wedge advances each bloom → a smooth, trackable rotation
 };
 
 // Lancer — a long-range sniper. Its distinct VERB: a DOUBLE-TAP — after the first
