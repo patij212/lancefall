@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
 import { spawnSovereignCores, spawnCipherRing, bossUsesRingCipher, updateBoss } from './boss';
-import { makeCipher, cipherSeed, dashCipherCore } from './cipher';
+import { makeCipher, cipherSeed, dashCipherCore, cipherClassFor } from './cipher';
 import { SOVEREIGN, CIPHER } from './tune';
 
 // The boss→cipher wiring (boss.ts) + the determinism invariant: the cipher order
@@ -122,5 +122,30 @@ describe('THE LONGEST DAY — generic ring cipher', () => {
     const b = setup(); // identical world.rng draws, but NO ring armed
     const noRing = b.w.rng.next();
     expect(afterRing).toBe(noRing); // arming the ring consumed no world.rng
+  });
+});
+
+describe('cipher class wiring — the right class per boss, still rng-free', () => {
+  it('a generic ring boss is armed with its boss-kind class (Warden → caesar)', () => {
+    const w = new World(createRng(0xfeed));
+    w.reset(800, 600);
+    w.seed = 12345;
+    const boss = w.spawnEnemy('darter', 400, 300, 1, 1, false)!;
+    boss.kind = 'warden';
+    boss.isBoss = true;
+    boss.bossWave = 1;
+    spawnCipherRing(w, boss, CIPHER.ringCount);
+    expect(w.cipher!.cls).toBe(cipherClassFor('warden')); // 'caesar'
+  });
+
+  it('the Sovereign arms the rotor class', () => {
+    const w = new World(createRng(0xfeed));
+    w.reset(800, 600);
+    w.seed = 777;
+    const boss = w.spawnEnemy('darter', 400, 300, 1, 1, false)!;
+    boss.kind = 'sovereign';
+    boss.bossWave = 6;
+    spawnSovereignCores(w, boss);
+    expect(w.cipher!.cls).toBe('rotor');
   });
 });

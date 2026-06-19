@@ -4,7 +4,7 @@
 // out of boss.ts so the dispatch file stays thin (see ../bosses/* siblings).
 
 import { SOVEREIGN, ZONE, ORB } from '../tune';
-import { cipherSeed, makeCipher } from '../cipher';
+import { cipherSeed, makeCipher, cipherClassFor } from '../cipher';
 import { norm } from '../vec';
 import { sovereignFinale, novaSpiralTelegraphFrac } from '../sovereign';
 import { zoneTarget, tickReflectableOrb } from './util';
@@ -50,7 +50,7 @@ export function spawnSovereignCores(world: World, boss: Enemy): void {
   // CIPHER-LOCK: the cores become a keypad. The decoded order comes from a stable
   // hash of (seed, bossWave) via a LOCAL generator — shared on a Daily seed and
   // NEVER drawing world.rng, so the scoring stream stays bit-identical.
-  world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle));
+  world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle), cipherClassFor(boss.kind));
   world.cipherCycle++; // each re-lock is a fresh code
 }
 
@@ -72,7 +72,7 @@ export function spawnCipherRing(world: World, boss: Enemy, n: number): void {
     }
   }
   boss.cipherExposed = 0;
-  world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle));
+  world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle), cipherClassFor(boss.kind));
   world.cipherCycle++; // each re-lock is a fresh code
 }
 
