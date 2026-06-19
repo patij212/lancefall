@@ -5,7 +5,6 @@
 import type { World } from './world';
 import { el, iconEl, stat, reconcile } from './panels/dom';
 import type { Settings, SaveData } from './save';
-import { sanitizeHandle } from './save';
 import { defaultKeyBindings } from './input';
 import { PERKS, deriveStats } from './perks';
 import type { PerkDef, RunStats } from './perks';
@@ -18,7 +17,7 @@ import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
 import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
-import { leaderboardEnabled, fetchLeaderboard, fetchAchievementRarity, type AchRarity } from './api';
+import { leaderboardEnabled, fetchAchievementRarity, type AchRarity } from './api';
 import { renderStats } from './panels/stats';
 import { renderAchievements } from './panels/achievements';
 import { comboColor } from './render';
@@ -55,6 +54,9 @@ import { POWERUPS } from './powerups';
 import { renderBestiary, renderCipherLegend } from './panels/codex';
 import { buildUpgradesShell } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
+import { buildHeatPanel } from './panels/heat';
+import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
+import type { Panel } from './panels/panel';
 import { audioCredits } from './audioManifest';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
@@ -2667,97 +2669,19 @@ export class UI {
     );
   }
 
+  private heat!: Panel;
   private buildHeat(): void {
-    const icon = el('div', { class: 'panel-head-icon' });
-    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3c2.2 3 4 5.2 4 8.2a4 4 0 0 1-8 0c0-1.1.4-2.1 1.1-3 .3 1 .9 1.6 1.7 1.7C12.2 8.8 11 6 12 3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
-    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'ASCENSION LADDER'), el('h2', { class: 'panel-head-title' }, 'HEAT')));
-    const lead = el('p', { class: 'panel-lead' }, 'An optional ascension ladder — more pressure, more score. Heat 0 is free and fair; the rest is the veteran’s chase. Score multiplier by level →');
-    const curve = el('div', { class: 'heat-mult' });
-    curve.id = 'heat-curve';
-    const grid = el('div', { class: 'p-grid cols2' });
-    grid.id = 'heat-grid';
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.heatPanel));
-    const body = el('div', { class: 'heat-body' }, lead, curve, grid, close);
-    const panel = el('div', { class: 'panel panel-wide' }, head, body);
-    this.heatPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.heat = buildHeatPanel({
+      // selecting a level persists it (which repaints the loadout) then re-renders the open ladder
+      onSelect: (lvl) => { this.cb.onHeatChange(lvl); this.heat.open(this.saveRef!); },
+      onClose: () => this.closeModal(this.heatPanel),
+    });
+    this.heatPanel = this.heat.root;
   }
 
   openHeat(): void {
-    const s = this.saveRef;
-    if (!s) return;
-    const maxMul = HEAT_LEVELS[HEAT_LEVELS.length - 1].scoreMul;
-    // score-multiplier CURVE (mock .heat-mult) — difficulty → reward at a glance; selected lit.
-    const curve = this.heatPanel.querySelector('#heat-curve')!;
-    curve.replaceChildren();
-    for (const lvl of HEAT_LEVELS) {
-      const bar = el('div', { class: 'heat-mult-bar' + (s.selectedHeat === lvl.level ? ' on' : '') });
-      bar.style.height = `${Math.round((lvl.scoreMul / maxMul) * 100)}%`;
-      bar.style.background = lvl.accent;
-      bar.style.color = lvl.accent;
-      bar.title = `H${lvl.level} ${lvl.name} — ×${lvl.scoreMul.toFixed(2)} score`;
-      curve.append(bar);
-    }
-    const grid = this.heatPanel.querySelector('#heat-grid')!;
-    grid.replaceChildren();
-    for (const lvl of HEAT_LEVELS) {
-      const selected = s.selectedHeat === lvl.level;
-      const hx = lvl.accent.replace('#', '');
-      const n = parseInt(hx.length === 3 ? hx.split('').map((c) => c + c).join('') : hx, 16);
-      const card = el('button', { class: 'p-card heat-pcard' + (selected ? ' sel' : ''), type: 'button' });
-      card.style.setProperty('--ca', lvl.accent);
-      card.style.setProperty('--ca-rgb', `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`);
-      const dot = el('span', { class: 'p-dot' });
-      dot.style.background = lvl.accent;
-      dot.style.color = lvl.accent;
-      const mult = el('span', { class: 'heat-card-mult' }, `×${lvl.scoreMul.toFixed(2)}`);
-      const top = el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, `HEAT ${lvl.level} · ${lvl.name}`), mult);
-      if (lvl.level === 0) {
-        // HEAT 0 has no modifiers, so it spends that slot as the LEGEND: WHAT the ladder turns
-        // up (the other cards show by HOW MUCH). Heat applies identically in every mode — stacked
-        // on that mode's own rules — so this key is mode-agnostic. Spans both columns to read as a
-        // banner rather than a stunted card next to HEAT 1.
-        card.style.gridColumn = '1 / -1';
-        const dims: [string, string][] = [
-          ['SPEED', 'Enemies & bullets move faster'],
-          ['DENSITY', 'More enemies on screen'],
-          ['BOSSES', 'Bosses arrive sooner'],
-          ['REVIVES', 'Fewer second-wind revives'],
-          ['ARMOR', 'Fewer shield pips — each soaks one lethal hit'],
-          ['GRAZE', 'Tighter near-miss reward window'],
-        ];
-        const legend = el('div', { class: 'heat-legend' });
-        for (const [k, meaning] of dims) {
-          legend.append(el('div', { class: 'heat-legend-row' }, el('span', { class: 'heat-legend-k' }, k), el('span', { class: 'heat-legend-d' }, meaning)));
-        }
-        card.append(
-          top,
-          el('div', { class: 'p-card-desc' }, 'The baseline — every dial at standard. Raising Heat trades safety for more score & shards. What each level turns up:'),
-          legend,
-          el('div', { class: 'heat-legend-foot' }, 'Same modifiers in every mode — they stack on top of that mode’s own rules.'),
-        );
-      } else {
-        // k/v modifier grid — the mechanical cost behind the prose (mock .heat-mods).
-        const mods: [string, string][] = [];
-        if (lvl.enemySpeedAdd > 0) mods.push(['SPEED', `+${Math.round(lvl.enemySpeedAdd * 100)}%`]);
-        if (lvl.spawnMulMod < 1) mods.push(['DENSITY', `+${Math.round((1 - lvl.spawnMulMod) * 100)}%`]);
-        if (lvl.bossIntervalMod < 1) mods.push(['BOSSES', `+${Math.round((1 - lvl.bossIntervalMod) * 100)}%`]);
-        if (lvl.revivesLost > 0) mods.push(['REVIVES', `−${lvl.revivesLost}`]);
-        if (lvl.shieldsLost > 0) mods.push(['ARMOR', `−${lvl.shieldsLost}`]);
-        if (lvl.grazeRadiusMod < 1) mods.push(['GRAZE', `−${Math.round((1 - lvl.grazeRadiusMod) * 100)}%`]);
-        const modGrid = el('div', { class: 'heat-mods' });
-        modGrid.style.gridTemplateColumns = `repeat(${Math.min(3, mods.length)}, 1fr)`;
-        for (const [k, v] of mods) {
-          modGrid.append(el('div', { class: 'heat-mod' }, el('div', { class: 'k' }, k), el('div', { class: 'v bad' }, v)));
-        }
-        card.append(top, el('div', { class: 'p-card-desc' }, lvl.desc), modGrid);
-      }
-      card.addEventListener('click', () => {
-        this.cb.onHeatChange(lvl.level);
-        this.openHeat(); // re-render selection
-      });
-      grid.append(card);
-    }
+    if (!this.saveRef) return;
+    this.heat.open(this.saveRef);
     this.openModal(this.heatPanel);
   }
 
@@ -2829,150 +2753,18 @@ export class UI {
     this.openModal(this.archetypePanel);
   }
 
+  private leader!: LeaderboardPanel;
   private buildLeaderboard(): void {
-    const icon = el('div', { class: 'panel-head-icon' });
-    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M9 8h6v13H9zM3 13h6v8H3zM15 5h6v16h-6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
-    const head = el('div', { class: 'panel-head' }, icon, el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LEADERBOARDS'), el('h2', { class: 'panel-head-title' }, 'RANKS')));
-    const body = el('div', { class: 'leader-body' });
-    body.id = 'leader-body';
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.leaderPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, head, body, close);
-    this.leaderPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.leader = buildLeaderboardPanel({
+      onSetHandle: (raw) => this.cb.onSetHandle(raw),
+      onClose: () => this.closeModal(this.leaderPanel),
+    });
+    this.leaderPanel = this.leader.root;
   }
 
   openLeaderboard(prompt = false): void {
-    const s = this.saveRef;
-    if (!s) return;
-    const body = this.leaderPanel.querySelector('#leader-body')!;
-    body.replaceChildren();
-
-    // playtest (Nick): a "name your run" framing when opened right after a run with no handle
-    if (prompt) body.append(el('div', { class: 'leader-prompt' }, '★ Name your run — your scores post as ANON until you set a handle.'));
-
-    // handle field — always available (names ghost replays + online submissions). Live preview
-    // + char counter so you see exactly what will save (and that blank → ANON) AS YOU TYPE,
-    // not only on blur. Both listeners route through the shared sanitizeHandle.
-    const nameWrap = el('div', { class: 'leader-name' });
-    const label = el('label', {}, 'Your handle');
-    const input = el('input', { type: 'text', maxlength: '16', value: s.handle, placeholder: 'ACE' }) as HTMLInputElement;
-    const hint = el('div', { class: 'leader-hint' });
-    const refreshHint = () => {
-      const clean = sanitizeHandle(input.value);
-      hint.textContent = clean ? `Saves as “${clean}” · ${clean.length}/16` : 'Leave blank to post as ANON';
-    };
-    refreshHint();
-    input.addEventListener('input', refreshHint); // live feedback as you type
-    input.addEventListener('change', () => { this.cb.onSetHandle(input.value); refreshHint(); }); // commit on blur/Enter
-    nameWrap.append(label, input, hint);
-    body.append(nameWrap);
-    if (prompt) requestAnimationFrame(() => input.focus());
-
-    if (!leaderboardEnabled()) {
-      body.append(el('div', { class: 'event-flavor' }, 'Online leaderboards are not configured for this build. Your scores are saved locally; set a handle so they\'re ready when boards go live.'));
-      this.openModal(this.leaderPanel);
-      return;
-    }
-
-    // candour over a cheat-cap: the game is client-authoritative, so be honest about it
-    // (a developer audience respects that more than a silently spoofable "global" board).
-    body.append(
-      el('div', { class: 'event-flavor leader-note' }, '🛈 Community board — scores are client-reported and unverified.'),
-    );
-
-    const modeRow = el('div', { class: 'leader-modes' });
-    const scopeRow = el('div', { class: 'leader-modes' });
-    const listWrap = el('div', { class: 'leader-list' }, el('div', { class: 'event-flavor' }, 'Loading…'));
-    // must mirror src/modes.ts MODES (and the worker's MODES allow-set) so every
-    // submittable mode is also viewable — ARENA + SOLSTICE PROTOCOL were submitted
-    // but had no board tab.
-    const modes: { id: string; name: string }[] = [
-      { id: 'endless', name: 'ENDLESS' }, { id: 'arena', name: 'ARENA' }, { id: 'daily', name: 'ECHO OF THE FALL' }, { id: 'weekly', name: 'WEEKLY SIEGE' }, { id: 'nightmare', name: 'NIGHTMARE' }, { id: 'bossrush', name: 'BOSS RUSH' }, { id: 'longestday', name: 'SOLSTICE PROTOCOL' },
-    ];
-    let curMode = 'endless';
-    let curWeekly = false;
-    let loadSeq = 0; // monotonic token — only the most recent tab/scope load may render (stale responses are dropped)
-    const allBtn = el('button', { class: 'btn btn-ghost btn-sm' }, 'ALL-TIME');
-    const wkBtn = el('button', { class: 'btn btn-ghost btn-sm' }, '★ THIS WEEK');
-    const load = async () => {
-      const seq = ++loadSeq;
-      const weekly = curWeekly && curMode !== 'daily'; // daily is already date-scoped
-      scopeRow.classList.toggle('hidden', curMode === 'daily');
-      allBtn.classList.toggle('btn-primary', !weekly);
-      wkBtn.classList.toggle('btn-primary', weekly);
-      // mark the active mode tab (mock parity + tells you which board you're on)
-      for (const b of Array.from(modeRow.children)) b.classList.toggle('btn-primary', (b as HTMLElement).dataset.mode === curMode);
-      // DIM the current board in place rather than clearing it. Clearing collapses the list
-      // to a one-line "Loading…", and the vertically-centred modal then re-centres on the
-      // shorter panel — a visible jump, repeated on every tab change (the jitter). With the
-      // list at a fixed CSS height, keeping content keeps the panel rock-steady while fetching.
-      listWrap.classList.add('is-loading');
-      listWrap.setAttribute('aria-busy', 'true');
-      const entries = await fetchLeaderboard(curMode, curMode === 'daily' ? dateString() : undefined, weekly);
-      if (seq !== loadSeq || !listWrap.isConnected) return; // superseded by a newer tab, or the panel closed — drop this stale render
-      listWrap.classList.remove('is-loading');
-      listWrap.removeAttribute('aria-busy');
-      listWrap.replaceChildren();
-      listWrap.scrollTop = 0; // a freshly loaded board always starts at the top
-      if (entries.length === 0) {
-        listWrap.append(el('div', { class: 'event-flavor' }, weekly ? 'No scores this week yet — be the first.' : 'No scores yet — be the first.'));
-        return;
-      }
-      // PODIUM (mock-mainui) — the top 3 as a medal podium, gold centered + tallest.
-      const top = entries.slice(0, 3);
-      const medals = ['🥇', '🥈', '🥉'];
-      const order = top.length >= 3 ? [1, 0, 2] : top.map((_, i) => i); // silver · gold · bronze
-      const podium = el('div', { class: 'leader-podium' });
-      for (const i of order) {
-        const e = top[i];
-        podium.append(el('div', { class: `podium-spot podium-${i + 1}` },
-          el('div', { class: 'podium-medal' }, medals[i]),
-          el('div', { class: 'podium-name' }, e.name || '—'),
-          el('div', { class: 'podium-score' }, e.score.toLocaleString()),
-          // wave/heat meta under each podium score (mock pod-w).
-          el('div', { class: 'podium-wave' }, `w${e.wave}${e.heat ? ` · H${e.heat}` : ''}`),
-        ));
-      }
-      listWrap.append(podium);
-
-      // STANDING (mock): the player's own position on this board. The backend serves only the
-      // top entries (no global rank/percentile), so this is HONEST + board-relative — it shows
-      // when your handle appears in the visible board, otherwise a keep-climbing nudge. No
-      // fabricated "top X%". A non-ANON handle is required to disambiguate your row.
-      const myHandle = sanitizeHandle(s.handle);
-      const mine = myHandle ? entries.find((e) => e.name === myHandle) : undefined;
-      if (mine) {
-        listWrap.append(el('div', { class: 'leader-standing' },
-          el('div', { class: 'standing-rank' }, `#${mine.rank ?? entries.indexOf(mine) + 1}`),
-          el('div', { class: 'standing-txt' }, 'Your best — ', el('b', {}, mine.score.toLocaleString())),
-          el('div', { class: 'standing-pct' }, `of ${entries.length}+ shown`),
-        ));
-      } else if (myHandle) {
-        listWrap.append(el('div', { class: 'leader-standing unranked' },
-          el('div', { class: 'standing-txt' }, "You're not on the top board for this mode yet — post a higher run to claim a spot."),
-        ));
-      }
-
-      entries.forEach((e, i) => {
-        listWrap.append(el('div', { class: 'leader-row' },
-          el('span', { class: 'leader-rank' }, `#${e.rank ?? i + 1}`),
-          el('span', { class: 'leader-handle' }, e.name || '—'),
-          el('span', { class: 'leader-score' }, e.score.toLocaleString()),
-          el('span', { class: 'leader-meta' }, `w${e.wave}${e.heat ? ` · H${e.heat}` : ''}`),
-        ));
-      });
-    };
-    allBtn.addEventListener('click', () => { curWeekly = false; void load(); });
-    wkBtn.addEventListener('click', () => { curWeekly = true; void load(); });
-    scopeRow.append(allBtn, wkBtn);
-    for (const m of modes) {
-      const b = el('button', { class: 'btn btn-ghost btn-sm', 'data-mode': m.id }, m.name);
-      // the WEEKLY SIEGE board is canonically the this-week scope — default to it on select
-      b.addEventListener('click', () => { curMode = m.id; if (m.id === 'weekly') curWeekly = true; void load(); });
-      modeRow.append(b);
-    }
-    body.append(modeRow, scopeRow, listWrap);
-    void load();
+    if (!this.saveRef) return;
+    this.leader.open(this.saveRef, prompt);
     this.openModal(this.leaderPanel);
   }
 
