@@ -53,6 +53,7 @@ import { renderBestiary, renderCipherLegend } from './panels/codex';
 import { buildUpgradesPanel } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
+import { buildBombePanel } from './panels/bombe';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
 import type { Panel } from './panels/panel';
 import { buildCreditsPanel } from './panels/credits';
@@ -97,6 +98,12 @@ export interface UICallbacks {
   onUnlockSkin: (kind: string, id: string) => void;
   onBuyMeta: (id: string) => void;
   onUnlockLore: (id: string) => void;
+  /** THE BOMBE — decrypt the cheapest word of an intercept (spend Fragments) */
+  onDecryptWord: (interceptId: string) => void;
+  /** THE BOMBE — build/upgrade the auto-crack meta-tool */
+  onUpgradeBombe: () => void;
+  /** THE BOMBE — submit a console-puzzle answer */
+  onSolvePuzzle: (puzzleId: string, guess: string) => void;
   onToggleNgPlus: () => void;
   onCreateChallenge: () => void;
   onAcceptChallenge: (code: string) => void;
@@ -354,6 +361,7 @@ const NAV_ICONS: Record<string, string> = {
   ranks: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M3 14c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.5"/></svg>`,
   stats: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="9" width="3" height="5" rx="0.5" stroke="currentColor" stroke-width="1.2"/><rect x="6.5" y="6" width="3" height="8" rx="0.5" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="3" width="3" height="11" rx="0.5" stroke="currentColor" stroke-width="1.2"/></svg>`,
   codex: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 9h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+  bombe: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M8.2 8.2 13 13M11 11l1.6-.5M12.5 12.5l.5-1.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`,
   fall: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2c0 0-5 3-5 7a5 5 0 0010 0C13 5 8 2 8 2z" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M6 9l2 2 4-4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/></svg>`,
   duel: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 7a5 5 0 0110 0v6.5L11 12l-3 2-3-2-2 1.5Z" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>`,
   settings: `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.2 3.2l1 1M11.8 11.8l1 1M11.8 3.2l-1 1M4.2 11.8l-1 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>`,
@@ -666,6 +674,7 @@ export class UI {
     this.buildCosmetics();
     this.buildCredits();
     this.buildHeat();
+    this.buildBombe();
     this.buildArchetype();
     this.buildLeaderboard();
     this.buildDuel();
@@ -676,7 +685,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.bombePanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -726,6 +735,7 @@ export class UI {
       [this.cosmeticsPanel, 'Customize cosmetics'],
       [this.creditsPanel, 'Credits'],
       [this.heatPanel, 'Heat ascension'],
+      [this.bombePanel, 'THE BOMBE'],
       [this.archetypePanel, 'Build archetype'],
       [this.leaderPanel, 'Leaderboard'],
       [this.duelPanel, 'Seed duel'],
@@ -1358,6 +1368,7 @@ export class UI {
       // BUILD is reached from the loadout BUILD row (this.openArchetype) — no duplicate nav entry.
       // THE FALL (story) + HOW TO (manual) are tabs inside the CODEX hub now — no separate buttons.
       navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — the bestiary + lore, THE FALL (the story), HOW TO PLAY, and your achievements.'),
+      navBtn('bombe', 'THE BOMBE', () => this.openBombe(), 'THE BOMBE — the codebreaker console: decrypt the intercepts, build the machine, break the city back into meaning.'),
       // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
       // backed list; the panel + openDuelWithCode deep-link stay in the code, just unadvertised.
       el('div', { class: 'ck-nav-div' }),
@@ -2568,6 +2579,24 @@ export class UI {
     if (!this.saveRef) return;
     this.heat.open(this.saveRef);
     this.openModal(this.heatPanel);
+  }
+
+  private bombe!: Panel;
+  private bombePanel!: HTMLElement;
+  private buildBombe(): void {
+    this.bombe = buildBombePanel({
+      onDecrypt: (id) => this.cb.onDecryptWord(id),
+      onUpgradeBombe: () => this.cb.onUpgradeBombe(),
+      onSolvePuzzle: (id, guess) => this.cb.onSolvePuzzle(id, guess),
+      onClose: () => this.closeModal(this.bombePanel),
+    });
+    this.bombePanel = this.bombe.root;
+  }
+
+  openBombe(): void {
+    if (!this.saveRef) return;
+    this.bombe.open(this.saveRef);
+    this.openModal(this.bombePanel);
   }
 
   private archetype!: Panel;

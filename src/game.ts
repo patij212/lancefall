@@ -22,6 +22,8 @@ import { updateEnemy, splitInto, shadeLethal } from './enemies';
 import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEnraged, hollowSyncActive, isBossLethal, cleanupHollowEchoes, openHollowWindowWithBeat, cleanupSovereignCores, countSovereignCores, spawnCipherRing, bossUsesRingCipher, bossEnraged, bossEnrageFrac, getEnrageColor, mirrorbladeStaggerable, staggerMirrorblade } from './boss';
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign, sovereignCoreBonusForBeat } from './sovereign';
 import { dashCipherCore } from './cipher';
+import { INTERCEPTS, nextWordInIntercept, decryptWord, syncInterceptLore } from './intercepts';
+import { bombeCostMul, upgradeBombe as bombeUpgrade, solvePuzzle, runBombe } from './bombe';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, longestDayBonus, perfectThreadReady, perfectThreadScore } from './combat';
 import { crossedComboTier } from './comboTiers';
@@ -235,6 +237,9 @@ export class Game {
       onChoice: (c) => this.makeChoice(c),
       onSaveReplay: () => this.shareReplay(),
       onUnlockLore: (id) => this.unlockLore(id),
+      onDecryptWord: (interceptId) => this.decryptIntercept(interceptId),
+      onUpgradeBombe: () => this.upgradeBombe(),
+      onSolvePuzzle: (puzzleId, guess) => this.solveConsolePuzzle(puzzleId, guess),
       onToggleNgPlus: () => this.toggleNgPlus(),
       onCreateChallenge: () => this.createChallenge(),
       onAcceptChallenge: (code) => this.acceptChallenge(code),
@@ -3220,6 +3225,7 @@ export class Game {
         this.save.dailyAttemptDate = today;
         this.save.dailyAttempts = r.attempts + 1;
       }
+      runBombe(this.save); // THE BOMBE cracks the cheapest words "overnight" (free; no-op until built)
       saveSave(this.save);
     }
     // fire-and-forget online leaderboard submission (no-op if not configured).
@@ -3302,6 +3308,35 @@ export class Game {
     this.save.stillpointLore.push(id);
     saveSave(this.save);
     this.ui.refreshMemories();
+  }
+
+  /** THE BOMBE — decrypt the cheapest undecrypted word of an intercept (spends Fragments, with the
+   *  Bombe's cost discount). Unlocks a linked memory when a transmission completes. Save-side; no rng. */
+  private decryptIntercept(interceptId: string): void {
+    const ic = INTERCEPTS.find((i) => i.id === interceptId);
+    if (!ic) return;
+    const word = nextWordInIntercept(this.save, ic);
+    if (!word || !decryptWord(this.save, word, bombeCostMul(this.save.bombeLevel))) return;
+    for (const id of syncInterceptLore(this.save)) this.ui.toast(`MEMORY DECRYPTED — ${loreById(id)?.title ?? ''}`);
+    saveSave(this.save);
+    this.ui.refreshMemories();
+    this.ui.openBombe();
+  }
+
+  /** THE BOMBE — build / upgrade the auto-crack meta-tool (spends Fragments). */
+  private upgradeBombe(): void {
+    if (!bombeUpgrade(this.save)) return;
+    saveSave(this.save);
+    this.ui.openBombe();
+  }
+
+  /** THE BOMBE — submit a console cryptanalysis puzzle; a correct first solve grants a free crack. */
+  private solveConsolePuzzle(puzzleId: string, guess: string): void {
+    if (!solvePuzzle(this.save, puzzleId, guess)) return;
+    runBombe(this.save); // reward: a free word-crack
+    saveSave(this.save);
+    this.ui.toast('CIPHER SOLVED');
+    this.ui.openBombe();
   }
 
   /** Toggle NG+ for the next run (only once unlocked by a Sovereign kill). */
