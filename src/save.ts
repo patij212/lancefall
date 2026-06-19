@@ -184,6 +184,13 @@ export interface SaveData {
   /** most-recent completed run PER MODE (one entry per mode id) — the cockpit "LAST RUN" debrief.
    *  Array (not a map) so the migrate generic loop preserves it as-is. */
   lastRuns: LastRunDetail[];
+  // ── THE BOMBE (Plan 2) — the meta decryption layer. All additive; save-side only (no rng). ──
+  /** cracked vocabulary words (lowercased keys) — a word decrypted here resolves across every intercept */
+  decryptedWords: string[];
+  /** THE BOMBE meta-tool level (0 = not built); higher = cheaper words + more run-end auto-cracks */
+  bombeLevel: number;
+  /** ids of console cryptanalysis puzzles already solved (once-ever; unlocks their rewards) */
+  solvedPuzzles: string[];
 }
 
 export interface Settings {
@@ -297,6 +304,9 @@ export function defaultSave(): SaveData {
     runsByMode: {},
     winsByMode: {},
     lastRuns: [],
+    decryptedWords: [],
+    bombeLevel: 0,
+    solvedPuzzles: [],
   };
 }
 

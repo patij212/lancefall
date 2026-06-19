@@ -337,3 +337,22 @@ describe('save migration', () => {
     expect(migrateSave(JSON.parse(JSON.stringify(s)), defaultSave())).toEqual(s);
   });
 });
+
+describe('migrate — BOMBE meta fields (additive)', () => {
+  it('defaults the three new fields and survives a missing/garbage blob', () => {
+    const d = migrateSave({}, defaultSave());
+    expect(d.decryptedWords).toEqual([]);
+    expect(d.bombeLevel).toBe(0);
+    expect(d.solvedPuzzles).toEqual([]);
+    const g = migrateSave({ decryptedWords: 'x', bombeLevel: -3.5, solvedPuzzles: 7 }, defaultSave());
+    expect(g.decryptedWords).toEqual([]); // non-array → reset
+    expect(g.bombeLevel).toBe(0); // negative/fractional → clamped to 0
+    expect(g.solvedPuzzles).toEqual([]);
+  });
+  it('keeps valid string-array contents (deduped) and a sane bombeLevel', () => {
+    const m = migrateSave({ decryptedWords: ['light', 'light', 'dawn'], bombeLevel: 2, solvedPuzzles: ['p1'] }, defaultSave());
+    expect(m.decryptedWords.sort()).toEqual(['dawn', 'light']);
+    expect(m.bombeLevel).toBe(2);
+    expect(m.solvedPuzzles).toEqual(['p1']);
+  });
+});

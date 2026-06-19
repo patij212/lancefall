@@ -111,6 +111,12 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // (an unknown key simply never matches a live teach); we only keep deduped strings.
   // The generic loop above already reset a non-array to []. Additive → no version bump.
   out.taught = sanitizeTaught(out.taught);
+  // Plan 2 BOMBE — additive. decryptedWords/solvedPuzzles are open-ended string sets (deduped,
+  // capped like `taught`); bombeLevel is a non-negative integer (the generic loop only ensured it's
+  // a finite number). No version bump — the generic loader already default-filled them.
+  out.decryptedWords = sanitizeTaught(out.decryptedWords);
+  out.solvedPuzzles = sanitizeTaught(out.solvedPuzzles);
+  if (typeof out.bombeLevel === 'number') out.bombeLevel = Math.max(0, Math.floor(out.bombeLevel));
   // v8 ship-skin cosmetics — per-(ship,set) ownership keyed `${shipId}:${setId}`, plus the
   // per-ship equipped-set record. Both are filtered to real ship + set ids; an equipped entry the
   // player doesn't own (or for an unknown ship/set) is dropped → the plain hull.
