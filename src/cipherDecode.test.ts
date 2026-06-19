@@ -44,3 +44,16 @@ describe('cipherDecode — a real, solvable substitution view', () => {
     expect(cipherSymbol(0)).not.toBe(cipherSymbol(1));
   });
 });
+
+describe('decodeView — extended, class-aware shape', () => {
+  it('substitution is unchanged: full key, all revealed, no rotor', () => {
+    const c = makeCipher(5, cipherSeed(20260621, 97), 'substitution');
+    const v = decodeView(c);
+    expect(v.cls).toBe('substitution');
+    expect(v.rotorOffset).toBe(0);
+    expect(v.revealed).toEqual([true, true, true, true, true]);
+    // the legacy solve property still holds (read the full key in order → solve)
+    expect(v.key.length).toBe(5);
+    expect(new Set(v.symbolForSlot).size).toBe(5);
+  });
+});
