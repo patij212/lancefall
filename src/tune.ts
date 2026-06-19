@@ -354,9 +354,16 @@ export const BOMBER = {
   armTime: 0.55, // s of telegraphed charge after arming before it self-detonates
 };
 
+// Wisp — a WEAVE-SWARM (enemy overhaul). A tight, erratic pack: SLOW (a graze treat,
+// not a threat) and dash-through-able (one sweep clears the cluster), weaving on a
+// dual-frequency wobble so it never beelines. A faint light-thread links nearby wisps
+// (drawn in enemyTells) — a read that says "don't camp the middle of the cluster."
 export const WISP = {
   packSize: 5,
   wobble: 36, // crescent spread so a pack is dash-through-able
+  approachSpeed: 150, // slow close-in (down from a 210 beeline) → graze/sweep fodder
+  weaveSpeed: 4, // rad/s the weave phase advances
+  threadDist: 96, // px: nearby wisps within this get a linking light-thread (render only)
 };
 
 // Drifter — a mid-range zoner that fires a 3-bullet arc fan (outer bullets slower

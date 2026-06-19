@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
 import { updateEnemy, splitInto, shadeLethal } from './enemies';
-import { SPLITTER, SHADE_TUNE, BOMBER } from './tune';
+import { SPLITTER, SHADE_TUNE, BOMBER, WISP } from './tune';
 import type { Enemy } from './types';
 
 // ENEMY OVERHAUL — Phase 1 (the 6 reworked chasers). Each enemy gets a distinct
@@ -180,5 +180,40 @@ describe('BOMBER — don\'t-greed kamikaze (arm in range, self-detonate a blast 
     for (let i = 0; i < steps && e.active; i++) updateEnemy(e, w, DT);
     expect(e.active).toBe(false); // it detonated
     expect(w.rng.next()).toBe(ref.next()); // and consumed zero world.rng doing so
+  });
+});
+
+describe('WISP — weave-swarm (slow, erratic, a graze treat not a threat)', () => {
+  it('approaches the player overall but is SLOW (a graze/sweep-able pack, no beeline)', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('wisp', 1000, 360, 1, 1, false, false, 0)!;
+    const d0 = Math.hypot(e.x - w.player.x, e.y - w.player.y);
+    for (let i = 0; i < 180; i++) {
+      updateEnemy(e, w, DT);
+      expect(Math.hypot(e.vx, e.vy)).toBeLessThanOrEqual(WISP.approachSpeed + 1e-3); // never faster than the slow cap
+    }
+    const d1 = Math.hypot(e.x - w.player.x, e.y - w.player.y);
+    expect(d1).toBeLessThan(d0); // net closes in
+  });
+
+  it('WEAVES — its heading is not a constant beeline (it changes frame to frame)', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('wisp', 1000, 360, 1, 1, false, false, 0)!;
+    const headings: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      updateEnemy(e, w, DT);
+      headings.push(Math.atan2(e.vy, e.vx));
+    }
+    const spread = Math.max(...headings) - Math.min(...headings);
+    expect(spread).toBeGreaterThan(0.15); // a real weave, not a straight line
+  });
+
+  it('the wisp verb draws ZERO world.rng (Daily-safe)', () => {
+    const w = freshWorld(7);
+    const ref = createRng(7);
+    const e = w.spawnEnemy('wisp', 1000, 360, 1, 1, false, false, 0)!; // explicit angle → no rng
+    expect(w.rng.next()).toBe(ref.next());
+    for (let i = 0; i < 600; i++) updateEnemy(e, w, DT);
+    expect(w.rng.next()).toBe(ref.next());
   });
 });

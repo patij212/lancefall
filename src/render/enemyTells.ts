@@ -13,6 +13,7 @@
 
 import type { World } from '../world';
 import type { Enemy } from '../types';
+import { WISP } from '../tune';
 
 /** The post-scale render radius the body uses (mirrors render.ts drawEnemy). */
 function bodyRadius(e: Enemy): number {
@@ -119,6 +120,40 @@ function drawBomberArming(ctx: CanvasRenderingContext2D, e: Enemy, t: number, re
   ctx.restore();
 }
 
+/** WISP — a faint light-thread links nearby wisps in a pack, so the swarm reads as a
+ *  cluster (and "don't camp the middle"). A pre-pass: collect the wisps, link any pair
+ *  within threadDist. Few wisps on screen → the pairwise cost is trivial. */
+function drawWispThreads(ctx: CanvasRenderingContext2D, world: World, t: number, reduceMotion: boolean): void {
+  const wisps: Enemy[] = [];
+  world.enemies.forEachActive((e) => {
+    if (e.kind === 'wisp') wisps.push(e);
+  });
+  if (wisps.length < 2) return;
+  const maxD2 = WISP.threadDist * WISP.threadDist;
+  const breath = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(t * 3);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = '#a5f3fc'; // pale cyan filament
+  ctx.lineWidth = 1;
+  for (let i = 0; i < wisps.length; i++) {
+    for (let j = i + 1; j < wisps.length; j++) {
+      const a = wisps[i];
+      const b = wisps[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > maxD2) continue;
+      // fade with distance — the thread thins as the pair drifts apart
+      ctx.globalAlpha = (0.12 + 0.22 * breath) * (1 - d2 / maxD2);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 /** Draw every active enemy's role tell. One call site in render.ts (drawEnemies). */
 export function drawEnemyTells(
   ctx: CanvasRenderingContext2D,
@@ -127,6 +162,7 @@ export function drawEnemyTells(
   reduceMotion: boolean,
   reduceFlashing: boolean,
 ): void {
+  drawWispThreads(ctx, world, t, reduceMotion); // pack filaments (pairwise pre-pass)
   world.enemies.forEachActive((e) => {
     switch (e.kind) {
       case 'splitter':

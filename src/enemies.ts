@@ -465,10 +465,14 @@ function bomber(e: Enemy, world: World, dt: number): void {
 
 function wisp(e: Enemy, world: World, dt: number): void {
   const p = world.player;
-  e.angle += 4 * dt;
-  const tx = p.x + Math.cos(e.angle) * WISP.wobble;
-  const ty = p.y + Math.sin(e.angle) * WISP.wobble;
-  steerToward(e, tx, ty, 210 * e.speedMul);
+  e.angle += WISP.weaveSpeed * dt;
+  // erratic DUAL-frequency weave around the player so the pack never beelines — a graze
+  // TREAT, not a beam at your face. Slow approach → dash-through-able / graze fodder.
+  // Deterministic (e.angle + e.spawnTime phase), zero world.rng.
+  const w = WISP.wobble;
+  const tx = p.x + Math.cos(e.angle) * w + Math.cos(e.angle * 2.3 + e.spawnTime) * w * 0.5;
+  const ty = p.y + Math.sin(e.angle) * w + Math.sin(e.angle * 1.7 + e.spawnTime) * w * 0.5;
+  steerToward(e, tx, ty, WISP.approachSpeed * e.speedMul);
 }
 
 function drifter(e: Enemy, world: World, dt: number): void {
