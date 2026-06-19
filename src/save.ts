@@ -152,6 +152,9 @@ export interface SaveData {
   runsByMode: Record<string, number>;
   /** mode id → runs won (per-mode win rate = winsByMode / runsByMode) */
   winsByMode: Record<string, number>;
+  /** most-recent completed run PER MODE (one RunRecord per mode id) — the cockpit "LAST RUN"
+   *  readout. Array (not a map) so the migrate generic loop preserves it as-is. */
+  lastRuns: RunRecord[];
 }
 
 export interface Settings {
@@ -260,6 +263,7 @@ export function defaultSave(): SaveData {
     lifeTimeSec: 0,
     runsByMode: {},
     winsByMode: {},
+    lastRuns: [],
   };
 }
 

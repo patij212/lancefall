@@ -93,3 +93,23 @@ export function modeStats(s: SaveData): ModeStat[] {
   }
   return out.sort((a, b) => b.plays - a.plays);
 }
+
+/** The player's most-recent completed run in `modeId`, or null if they've never finished one.
+ *  Defensive against a malformed stored entry (missing mode). */
+export function lastRunForMode(s: SaveData, modeId: string): RunRecord | null {
+  return s.lastRuns.find((r) => r && typeof r === 'object' && r.mode === modeId) ?? null;
+}
+
+/** A YYYY-MM-DD date → a terse relative stamp vs `now` ("today" / "yesterday" / "5d ago" / "3w ago"). */
+export function fmtAgo(date: string, now: Date): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return '';
+  const then = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((today.getTime() - then.getTime()) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}

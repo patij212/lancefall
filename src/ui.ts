@@ -19,6 +19,7 @@ import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchAchievementRarity, type AchRarity } from './api';
 import { renderStats } from './panels/stats';
+import { lastRunForMode, fmtAgo } from './panels/statsDerive';
 import { renderAchievements } from './panels/achievements';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
@@ -553,6 +554,7 @@ export class UI {
   private centerSec!: HTMLElement; // "SELECTED RUN" section label (carries mode accent)
   private infoBar!: HTMLElement;
   private rewardRow!: HTMLElement;
+  private lastRunBox!: HTMLElement; // §v9 cockpit per-mode "LAST RUN" readout (above DESCEND)
   private descendSub!: HTMLElement;
   private descendModeLine!: HTMLElement; // §v7 the mode·ship·heat·mutator line under the kbd hints
   private descendOverlay!: HTMLElement; // §v7 fixed "INITIATING DESCENT" takeover (mock sequence)
@@ -1106,6 +1108,7 @@ export class UI {
     this.heroEl = hero;
     this.infoBar = el('div', { class: 'ck-infobar' });
     this.rewardRow = el('div', { class: 'ck-rewards' });
+    this.lastRunBox = el('div', { class: 'ck-lastrun', 'aria-live': 'polite' });
 
     // DESCEND = the renamed/restyled PLAY button. REUSE this.playBtn + its existing handler.
     // Flanking chevrons (mock) point into the hexagon button; aria-hidden so the label reads clean.
@@ -1148,6 +1151,7 @@ export class UI {
       hero,
       this.infoBar,
       this.rewardRow,
+      this.lastRunBox,
       el('div', { class: 'ck-descend-wrap' }, play),
       this.descendSub,
     );
@@ -3235,6 +3239,37 @@ export class UI {
     this.rewardRow.append(rewardChip('shards', 'REWARD', brief.reward));
     const board = !modeRanked(m) ? 'OFF-BOARD' : m.seedKind === 'date' ? 'DAILY RANKED' : m.seedKind === 'week' ? 'WEEKLY RANKED' : 'RANKED';
     this.rewardRow.append(rewardChip('board' + (modeRanked(m) ? '' : ' off'), 'LEADERBOARD', board));
+
+    // LAST RUN — the player's most-recent run in THIS mode (robust per-mode via save.lastRuns).
+    // Defensive reads: a hand-edited/garbage array entry renders as 0/— rather than throwing.
+    this.lastRunBox.replaceChildren();
+    this.lastRunBox.style.setProperty('--accent', accent);
+    const last = lastRunForMode(save, m.id);
+    if (!last) {
+      this.lastRunBox.append(
+        el('div', { class: 'ck-lr-head' }, el('span', {}, 'LAST RUN')),
+        el('div', { class: 'ck-lr-empty' }, 'No runs in this mode yet — descend to set your mark.'),
+      );
+    } else {
+      const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+      const mmss = (s2: number) => `${Math.floor(s2 / 60)}:${String(Math.floor(s2 % 60)).padStart(2, '0')}`;
+      const cell = (val: string, label: string, cls = '') =>
+        el('div', { class: `ck-lr-cell ${cls}` }, el('div', { class: 'ck-lr-v' }, val), el('div', { class: 'ck-lr-l' }, label));
+      this.lastRunBox.append(
+        el('div', { class: 'ck-lr-head' },
+          el('span', {}, 'LAST RUN'),
+          el('span', { class: 'ck-lr-when' }, fmtAgo(typeof last.date === 'string' ? last.date : '', new Date())),
+        ),
+        el('div', { class: 'ck-lr-cells' },
+          cell(last.won === true ? 'WON' : 'FELL', 'OUTCOME', last.won === true ? 'won' : 'lost'),
+          cell(n(last.score).toLocaleString(), 'SCORE', 'accent'),
+          cell(`W${n(last.wave)}`, 'DESCENT'),
+          cell(`×${n(last.combo)}`, 'COMBO'),
+          cell(mmss(n(last.sec)), 'TIME'),
+          cell(n(last.heat) > 0 ? `H${n(last.heat)}` : 'OFF', 'HEAT'),
+        ),
+      );
+    }
 
     // DESCEND sub-line: mode · ship · Heat N (+ mutator on seeded)
     const ship = shipById(save.selectedShip);

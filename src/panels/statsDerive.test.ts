@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { defaultSave, type SaveData, type RunRecord } from '../save';
-import { radarAxes, archetypeName, trendDeltaPct, fmtDuration, heatmapWindow, modeStats } from './statsDerive';
+import { radarAxes, archetypeName, trendDeltaPct, fmtDuration, heatmapWindow, modeStats, lastRunForMode, fmtAgo } from './statsDerive';
 
 const save = (o: Partial<SaveData> = {}): SaveData => ({ ...defaultSave(), ...o });
 const rec = (o: Partial<RunRecord> = {}): RunRecord =>
@@ -62,5 +62,25 @@ describe('modeStats', () => {
     expect(ms[0].id).toBe('arena');
     expect(ms[0].winPct).toBe(0);
     expect(ms[1]).toMatchObject({ id: 'casual', plays: 4, winPct: 50, best: 3000 });
+  });
+});
+
+describe('lastRunForMode', () => {
+  it('returns the matching mode entry or null', () => {
+    const s = save({ lastRuns: [rec({ mode: 'arena', score: 999 }), rec({ mode: 'casual', score: 5 })] });
+    expect(lastRunForMode(s, 'arena')?.score).toBe(999);
+    expect(lastRunForMode(s, 'casual')?.score).toBe(5);
+    expect(lastRunForMode(s, 'daily')).toBeNull();
+  });
+});
+
+describe('fmtAgo', () => {
+  it('formats relative days vs now', () => {
+    const now = new Date(2026, 5, 18); // June 18 2026 local
+    expect(fmtAgo('2026-06-18', now)).toBe('today');
+    expect(fmtAgo('2026-06-17', now)).toBe('yesterday');
+    expect(fmtAgo('2026-06-13', now)).toBe('5d ago');
+    expect(fmtAgo('2026-06-04', now)).toBe('2w ago');
+    expect(fmtAgo('not-a-date', now)).toBe('');
   });
 });

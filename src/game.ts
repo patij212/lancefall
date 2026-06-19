@@ -2574,11 +2574,15 @@ export class Game {
       this.save.lifeLastBreath += w.clutch.lastBreathUses;
       // v9 DOSSIER — bounded run history (last 50, newest last) + lifetime activity for the STATS
       // graphs. Plain push/assign only (determinism-safe); genuine runs only (this !inChallenge block).
-      this.save.runHistory.push({
+      const runRec = {
         score: w.score, wave, mode: this.mode.id, won,
         sec: Math.floor(w.time), heat: this.runHeat, combo: w.bestComboRun, date: playedDay,
-      });
+      };
+      this.save.runHistory.push(runRec);
       if (this.save.runHistory.length > 50) this.save.runHistory = this.save.runHistory.slice(-50);
+      // most-recent run PER MODE (one entry / mode) — the cockpit "LAST RUN" readout. Array form
+      // so the migrate generic loop preserves it (an object-map would be wiped by coerceNumberRecord).
+      this.save.lastRuns = [runRec, ...this.save.lastRuns.filter((r) => r.mode !== this.mode.id)];
       this.save.playDays[playedDay] = (this.save.playDays[playedDay] ?? 0) + 1;
       this.save.lifeTimeSec += Math.floor(w.time);
       this.save.runsByMode[this.mode.id] = (this.save.runsByMode[this.mode.id] ?? 0) + 1;
