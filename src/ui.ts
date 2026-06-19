@@ -62,14 +62,8 @@ import { buildArchetypePanel } from './panels/archetype';
 import { buildSettingsPanel, type SettingsPanel } from './panels/settings';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
-import {
-  type ShareGif,
-  canCopyImage,
-  canShareFile,
-  copyImageToClipboard,
-  shareImageFile,
-  downloadGif,
-} from './replay';
+import { type ShareGif } from './replay';
+import { buildSharePanel, type SharePanel } from './panels/share';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
@@ -481,10 +475,6 @@ export class UI {
   private choiceRow!: HTMLElement;
   private saveReplayBtn!: HTMLButtonElement;
   private sharePanel!: HTMLElement;
-  private shareImg!: HTMLImageElement;
-  private shareBody!: HTMLElement;
-  private shareActions!: HTMLElement;
-  private shareUrl = '';
   private announceTimer = 0;
   private saveRef: SaveData | null = null;
   /** §v7 — cached global achievement-rarity aggregate (fetched lazily on first STATS open) */
@@ -3658,101 +3648,30 @@ export class UI {
   }
 
   // ── SHARE GIF — in-page preview + copy/share/download ──────────────────────
+  private share!: SharePanel;
   private buildShare(): void {
-    const h = el('h2', {}, 'SHARE YOUR RUN');
-    this.shareImg = el('img', { class: 'share-img', alt: 'Your watermarked run clip' }) as HTMLImageElement;
-    this.shareBody = el('div', { class: 'share-body' }, this.shareImg);
-    this.shareActions = el('div', { class: 'share-actions' });
-    const close = el('button', { class: 'btn btn-ghost' }, 'CLOSE');
-    close.addEventListener('click', () => this.closeShare());
-    const panel = el('div', { class: 'panel' }, h, this.shareBody, this.shareActions, close);
-    panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-modal', 'true');
-    panel.setAttribute('aria-label', 'Share your run');
-    this.sharePanel = el('div', { class: 'screen screen-dim screen-modal hidden' }, panel);
+    this.share = buildSharePanel({ toast: (m) => this.toast(m), onClose: () => this.closeModal(this.sharePanel) });
+    this.sharePanel = this.share.root;
     // Esc-close (or any closeModal path) must also revoke the preview blob — register the
     // teardown so it runs identically however the panel is dismissed.
-    this.modalOnClose.set(this.sharePanel, () => {
-      this.shareBody.classList.remove('share-loading');
-      this.revokeShare();
-    });
+    this.modalOnClose.set(this.sharePanel, () => this.share.teardown());
   }
 
   /** Called the moment SHARE GIF is pressed — open the modal with a spinner. */
   beginShareReplay(): void {
-    this.revokeShare();
-    this.shareImg.classList.add('hidden');
-    this.shareActions.replaceChildren();
-    this.shareBody.classList.add('share-loading');
-    this.shareBody.setAttribute('data-msg', 'encoding clip…');
+    this.share.beginSpinner();
     this.openModal(this.sharePanel);
   }
 
   /** The encode finished — show the watermarked preview + share/copy/download. */
   showSharePreview(gif: ShareGif): void {
-    this.revokeShare();
-    this.shareUrl = URL.createObjectURL(gif.blob);
-    this.shareImg.src = this.shareUrl;
-    this.shareImg.classList.remove('hidden');
-    this.shareBody.classList.remove('share-loading');
-    this.shareBody.removeAttribute('data-msg');
-
-    this.shareActions.replaceChildren();
-    // Primary affordance: OS share sheet if available (mobile + some desktops),
-    // else copy-image-to-clipboard, else fall straight to download.
-    if (canShareFile(gif.blob)) {
-      const share = el('button', { class: 'btn btn-primary' }, '⤴ SHARE');
-      share.addEventListener('click', () => {
-        void shareImageFile(gif.blob, gif.caption).then((ok) => {
-          if (ok) this.toast('Shared!');
-        });
-      });
-      this.shareActions.append(share);
-    }
-    if (canCopyImage()) {
-      const copy = el('button', { class: 'btn btn-primary' }, '⧉ COPY IMAGE');
-      copy.addEventListener('click', () => {
-        void copyImageToClipboard(gif.blob).then((ok) =>
-          this.toast(ok ? 'GIF copied — paste it anywhere!' : 'Copy unavailable — downloading instead'),
-        );
-        if (!canCopyImage()) downloadGif(gif.blob);
-      });
-      this.shareActions.append(copy);
-    }
-    const dl = el('button', { class: 'btn btn-ghost' }, '⬇ DOWNLOAD');
-    dl.addEventListener('click', () => downloadGif(gif.blob));
-    this.shareActions.append(dl);
-    // Always offer copying the caption text too (works fully offline).
-    const txt = el('button', { class: 'btn btn-ghost' }, '⧉ COPY TEXT');
-    txt.addEventListener('click', () => {
-      try {
-        void navigator.clipboard?.writeText(gif.caption);
-        this.toast('Caption copied!');
-      } catch {
-        this.toast(gif.caption);
-      }
-    });
-    this.shareActions.append(txt);
+    this.share.showPreview(gif);
   }
 
   /** Encode failed / nothing to share — tell the player, keep the modal closed. */
   failShareReplay(): void {
-    this.closeShare();
-    this.toast('Could not build the clip — try again after a run.');
-  }
-
-  private closeShare(): void {
-    // teardown runs via the modalOnClose hook registered in buildShare(), so an Esc-close
-    // cleans up identically to the CLOSE button.
     this.closeModal(this.sharePanel);
-  }
-
-  private revokeShare(): void {
-    if (this.shareUrl) {
-      URL.revokeObjectURL(this.shareUrl);
-      this.shareUrl = '';
-    }
-    this.shareImg.removeAttribute('src');
+    this.toast('Could not build the clip — try again after a run.');
   }
 
   toast(msg: string): void {
