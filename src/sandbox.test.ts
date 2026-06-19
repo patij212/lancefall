@@ -140,14 +140,18 @@ describe('deep sandbox — per-beat copy reads clearly', () => {
     expect(sandboxText(s)).toBe(currentStep(s).text);
   });
 
-  it('the trickiest beats carry a deeper sub-explanation (parry + rhythm)', () => {
+  it('every TEACHING beat carries a deeper sub-explanation (only the close-out has none)', () => {
+    for (const d of SANDBOX_STEPS) {
+      if (d.step === 'done') { expect(d.sub).toBeUndefined(); continue; }
+      expect((d.sub ?? '').trim().length).toBeGreaterThan(20);
+    }
+  });
+  it('the trickiest beats name their key idea in the sub', () => {
     const sub = (step: SandboxStep) => (SANDBOX_STEPS.find((d) => d.step === step)!.sub ?? '').toLowerCase();
-    // parry: explains it deflects AND counters
-    expect(sub('parry').length).toBeGreaterThan(20);
-    expect(sub('parry')).toMatch(/counter|riposte|streak|arc/);
-    // rhythm: explains what on-beat DOES (coherence / the City)
-    expect(sub('rhythm').length).toBeGreaterThan(20);
-    expect(sub('rhythm')).toMatch(/coherence|city/);
+    expect(sub('parry')).toMatch(/counter|riposte|streak|arc/); // deflect AND counter
+    expect(sub('rhythm')).toMatch(/coherence|city/); // what on-beat DOES
+    expect(sub('graze')).toMatch(/stamina/); // why you graze
+    expect(sub('heavy')).toMatch(/invuln|phas|through|armour|armor/); // the heavy payoff
   });
 });
 

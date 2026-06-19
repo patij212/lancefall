@@ -59,12 +59,48 @@ export interface SandboxStepDef {
 // and moves on. An engaged player walks the whole teach in ~25–40s; the caps only
 // matter when someone freezes (and SKIP is always available).
 export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
-  { step: 'charge', text: 'HOLD to charge your spear — the longer you hold, the farther you fly.', advanceOn: 'beganCharge', cap: 6 },
-  { step: 'release', text: 'RELEASE to dash forward and spear the mark.', advanceOn: 'dashed', cap: 6 },
-  { step: 'reach', text: 'Charge FULLY, then release — a long charge is a long dash. Reach the far mark.', advanceOn: 'reached', cap: 7 },
-  { step: 'heavy', text: 'Hold PAST full to OVERCHARGE — a HEAVY thrust smashes through armour. Break the shielded one.', advanceOn: 'heavyDash', cap: 8 },
-  { step: 'combo', text: 'Line them up — spear SEVERAL in one dash to build a COMBO.', advanceOn: 'comboDash', cap: 7 },
-  { step: 'graze', text: 'Skim a shot WITHOUT being hit to refill stamina — dance close, you cannot be hurt here.', advanceOn: 'grazed', cap: 8 },
+  {
+    step: 'charge',
+    text: 'HOLD to charge your spear — the longer you hold, the farther you fly.',
+    sub: 'The dash is your whole game: it’s your only attack AND your dodge. You’re invulnerable mid-dash, so you strike and evade in one motion.',
+    advanceOn: 'beganCharge',
+    cap: 6,
+  },
+  {
+    step: 'release',
+    text: 'RELEASE to dash forward and spear the mark.',
+    sub: 'You launch toward where you’re aiming. Anything you pass through is skewered — there’s no separate “shoot” button; the dash itself is the kill.',
+    advanceOn: 'dashed',
+    cap: 6,
+  },
+  {
+    step: 'reach',
+    text: 'Charge FULLY, then release — a long charge is a long dash. Reach the far mark.',
+    sub: 'Read the gap before you commit: charge just enough to reach your target. Under-charge and you fall short; over-charge and you fly past into danger.',
+    advanceOn: 'reached',
+    cap: 7,
+  },
+  {
+    step: 'heavy',
+    text: 'Hold PAST full to OVERCHARGE — a HEAVY thrust smashes through armour. Break the shielded one.',
+    sub: 'A heavy dash hits harder and grants extra invulnerability, phasing safely THROUGH dense patterns and armour — the cost is the longer hold to arm it.',
+    advanceOn: 'heavyDash',
+    cap: 8,
+  },
+  {
+    step: 'combo',
+    text: 'Line them up — spear SEVERAL in one dash to build a COMBO.',
+    sub: 'Killing without pausing climbs your combo multiplier and charges OVERDRIVE. Keep the chain alive by always lining up the next target before the last falls.',
+    advanceOn: 'comboDash',
+    cap: 7,
+  },
+  {
+    step: 'graze',
+    text: 'Skim a shot WITHOUT being hit to refill stamina — dance close, you cannot be hurt here.',
+    sub: 'Grazing — passing a hair from a bullet — refills the stamina your dashes spend. Flirting with danger is exactly how you earn more dashes.',
+    advanceOn: 'grazed',
+    cap: 8,
+  },
   {
     step: 'parry',
     text: 'PARRY the incoming shot — right-click / K',
