@@ -186,6 +186,12 @@ export interface RunStats {
   reviveTokens: number; // revives available per run (base 0)
   startPerks: number; // random perks granted at run start (base 0)
   baseShields: number; // ARMOR shields granted per run (v6 §7; Heat strips via shieldsLost)
+  // PARRY meta branch — permanent guard upgrades (base 0; stack on top of coherence widening)
+  parryReach: number; // +px to the parry arc reach (Long Guard)
+  parryHalfAngle: number; // +rad to the parry arc half-angle (Wide Guard)
+  parryRecover: number; // −s off the parry recovery window (Quick Recover)
+  parryStreakWindow: number; // +s the on-beat parry streak survives (Streak Memory)
+  parryPerfectWindow: number; // +s to the perfect-frame timing window (PERFECT FRAME capstone)
 }
 
 /** Derive the full run stat block from base TUNE + permanent meta + ship + perks.
@@ -234,6 +240,11 @@ export function deriveStats(
     reviveTokens: 0,
     startPerks: 0,
     baseShields: SURVIVAL.defaultShields,
+    parryReach: 0,
+    parryHalfAngle: 0,
+    parryRecover: 0,
+    parryStreakWindow: 0,
+    parryPerfectWindow: 0,
   };
 
   if (metaApply) metaApply(s); // permanent meta-progression foundation

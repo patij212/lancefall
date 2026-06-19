@@ -16,6 +16,7 @@ function freshPlayer(): Player {
     dashId: 0, killsThisDash: 0, grazesThisDash: 0, perfectThreadFired: false,
     refundThisDash: 0, dashHeavy: false, overcharge: 0, iframe: 0,
     parryTime: 0, parryCooldown: 0, parryActive: false, parryRewarded: false,
+    parryElapsed: 0, parryStreak: 0, parryStreakTimer: 0,
     stamina: TUNE.stamina.segments * TUNE.stamina.perSegment, regenDelay: 0,
     alive: true, hitFlash: 0, shields: 0, maxShields: 0,
   };

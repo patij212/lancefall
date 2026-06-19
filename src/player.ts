@@ -53,9 +53,15 @@ export function updatePlayer(
   // PARRY timers — the cooldown gates re-use; the parryTime lock spans the active
   // window then a recovery tail (the whiff risk: no dash/parry until it elapses).
   if (p.parryCooldown > 0) p.parryCooldown = Math.max(0, p.parryCooldown - dt);
+  if (p.parryStreakTimer > 0) {
+    p.parryStreakTimer = Math.max(0, p.parryStreakTimer - dt);
+    if (p.parryStreakTimer === 0) p.parryStreak = 0; // streak decays if you stop parrying on-beat
+  }
+  const parryRecover = Math.max(0.05, TUNE.parry.recover - stats.parryRecover); // Quick Recover meta shortens the whiff tail
   if (p.parryTime > 0) {
     p.parryTime = Math.max(0, p.parryTime - dt);
-    p.parryActive = p.parryTime > TUNE.parry.recover; // live during the leading window, recovery after
+    p.parryElapsed += dt; // time since the window opened — drives perfect-frame grading
+    p.parryActive = p.parryTime > parryRecover; // live during the leading window, recovery after
   } else {
     p.parryActive = false;
   }
@@ -88,8 +94,9 @@ export function updatePlayer(
     // ── PARRY entry ── open the deflect window from idle/drift only (never mid-charge),
     // and not while locked (active+recovery) or cooling down — a committed defensive read.
     if (input.parryPressed && p.phase !== 'charging' && !inParryLock && p.parryCooldown <= 0) {
-      p.parryTime = TUNE.parry.active + TUNE.parry.recover;
+      p.parryTime = TUNE.parry.active + parryRecover;
       p.parryActive = true;
+      p.parryElapsed = 0; // fresh window for perfect-frame grading
       p.parryCooldown = TUNE.parry.cooldown;
       p.parryRewarded = false; // re-arm the once-per-parry reward latch
       ev.parryFired = true;

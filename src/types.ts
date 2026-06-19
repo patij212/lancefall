@@ -62,6 +62,9 @@ export interface Player {
   parryCooldown: number; // seconds from parry start before another parry may fire
   parryActive: boolean; // the deflect arc is live this step (game.ts runs the sweep)
   parryRewarded: boolean; // one-shot latch: a parry pays its reward at most once
+  parryElapsed: number; // seconds since this parry opened (for perfect-frame grading)
+  parryStreak: number; // consecutive on-beat parries (scales reward; feeds coherence)
+  parryStreakTimer: number; // seconds the streak survives before it decays to 0
   iframe: number; // seconds of invulnerability remaining
 
   stamina: number; // 0..maxStamina

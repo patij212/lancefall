@@ -4,8 +4,9 @@
 // LANCE overcharge fill / SLINGSHOT load tether), and the PARRY deflect arc. All juice
 // is a11y-gated (steady alpha, never a per-frame strobe). No allocation per frame.
 
-import { TUNE, PARRY } from '../tune';
+import { TUNE } from '../tune';
 import type { World } from '../world';
+import { effectiveParryArc } from '../parry';
 import { trailGhostColor, type TrailDef } from '../trails';
 import { trailBrightness, spearNeonLift } from '../renderMath';
 import { shipModel, traceShipPath } from '../shipModels';
@@ -151,20 +152,24 @@ export function drawSpear(ctx: CanvasRenderingContext2D, world: World, d: SpearD
   // The on-beat success FLASH is the existing player-anchored beat ring (coherenceBeatFlash),
   // so here we only draw the arc itself. a11y: steady alpha keyed to the window, no strobe.
   if (p.parryActive) {
+    // the EFFECTIVE arc: coherence + meta widen it toward a full circle (flow-state made visible)
+    const arc = effectiveParryArc(d.coherence, world.stats.parryReach, world.stats.parryHalfAngle);
     const activeFrac = Math.max(0, Math.min(1, (p.parryTime - TUNE.parry.recover) / TUNE.parry.active));
+    const flow = Math.max(0, Math.min(1, d.coherence)); // cyan → gold + thicker as the guard widens
     const a = d.reduceFlashing ? 0.4 : 0.3 + 0.45 * activeFrac; // bright at the open, easing across the window
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = a;
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.arc(0, 0, PARRY.reach, -PARRY.halfAngle, PARRY.halfAngle);
+    ctx.arc(0, 0, arc.reach, -arc.halfAngle, arc.halfAngle);
     ctx.closePath();
-    ctx.fillStyle = `rgba(103,232,249,${a * 0.22})`;
+    ctx.fillStyle = 'rgba(103,232,249,0.22)';
     ctx.fill();
-    ctx.strokeStyle = `rgba(165,243,252,${a})`;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = flow > 0.5 ? mix('#a5f3fc', '#fde047', (flow - 0.5) * 2) : '#a5f3fc';
+    ctx.lineWidth = 2 + 1.5 * flow;
     ctx.stroke();
     ctx.restore();
   }

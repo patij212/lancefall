@@ -32,7 +32,7 @@ import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
-import { parrySweep, applyParryReward, parryEnemySweep, parryShove, parryCooldownAfter, boundedGuardShave } from './parry';
+import { parrySweep, applyParryReward, parryEnemySweep, parryShove, parryCooldownAfter, boundedGuardShave, effectiveParryArc, parryStreakNext, parryGrade } from './parry';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
 import { consumeShield, regenShield, runShields } from './survival';
 import { tickPowerup, activatePowerup, rollPowerup, POWERUPS } from './powerups';
@@ -1745,49 +1745,78 @@ export class Game {
     const w = this.world;
     const p = w.player;
     if (!p.parryActive) {
-      // active window just closed with no catch → a whiff: a faint fizzle (the long cooldown
-      // was already set at the parry entry, so spamming is punished; a success shortens it).
-      if (this.parryWasActive && !p.parryRewarded) this.audio.parry(false);
+      // active window just closed with no catch → a whiff: a faint fizzle + broken streak (the
+      // long cooldown was set at entry, so spamming is punished; a success shortens it).
+      if (this.parryWasActive && !p.parryRewarded) { this.audio.parry(false); p.parryStreak = 0; }
       this.parryWasActive = false;
       return;
     }
     this.parryWasActive = true;
+    // the EFFECTIVE arc: base + permanent meta + the TEMPORARY coherence widening (flow widens the guard)
+    const arc = effectiveParryArc(this.coherence.value, w.stats.parryReach, w.stats.parryHalfAngle);
     const swept = parrySweep<Bullet>(p.x, p.y, p.angle, w.stats.dashShatterBossBudget || PARRY.bossBudget,
       (visit) => w.bullets.forEachActive(visit),
-      (b) => this.breakBullet(b, b.fromBoss ? 5 : 3, RIPOSTE.shatterScore));
+      (b) => this.breakBullet(b, b.fromBoss ? 5 : 3, RIPOSTE.shatterScore),
+      arc.reach, arc.halfAngle);
     if (swept.total === 0 || p.parryRewarded) return;
     p.parryRewarded = true;
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
-    this.riposteArc(); // counter-burst enemies in the arc — chaff POP (combo/particles), elites chip
-    applyParryReward(p, w, this.coherence, w.stats.staminaSegments, onBeat);
+    const perfect = parryGrade(p.parryElapsed, PARRY.perfectWindow + w.stats.parryPerfectWindow) === 'perfect';
+    const hero = perfect && onBeat; // the apex: BOTH timing AND rhythm
+    // streak: an on-beat parry builds it (capped) + feeds coherence; off-beat/whiff resets it
+    p.parryStreak = parryStreakNext(p.parryStreak, onBeat, true);
+    p.parryStreakTimer = PARRY.streakWindow + w.stats.parryStreakWindow;
+    this.riposteArc(arc); // counter-burst enemies in the (widened) arc — chaff POP, elites chip
+    applyParryReward(p, w, this.coherence, w.stats.staminaSegments, onBeat, p.parryStreak);
     p.parryCooldown = parryCooldownAfter(true); // success flows
     this.shoveBulletsNearby(); // defensive breathing-room push on the un-parried bullets
     if (swept.boss > 0 && w.boss && w.boss.active) {
       w.boss.timer = boundedGuardShave(w.boss.timer, swept.boss, PARRY.bossGuardShave, 0); // posture-break
     }
-    // JUICE — distinct metallic ting, a flash, a freeze-frame (a11y-gated)
-    this.audio.parry(onBeat);
+    if (hero) this.heroParry(); // perfect+on-beat → mini radial chaff-clear + coherence surge + chord sting
+    // JUICE — distinct metallic ting (hero chord), a flash, a freeze-frame (a11y-gated)
+    this.audio.parry(onBeat, hero);
     if (!this.settings.reduceMotion) this.scheduler.requestHitstop(PARRY.freezeFrame);
-    if (!this.settings.reduceFlashing) this.renderer.flash(onBeat ? '#fde047' : '#a5f3fc', 0.1);
-    this.shake.add(TUNE.juice.traumaGraze * 2);
+    if (!this.settings.reduceFlashing) this.renderer.flash(hero ? '#ffffff' : onBeat ? '#fde047' : '#a5f3fc', hero ? 0.18 : 0.1);
+    this.shake.add(TUNE.juice.traumaGraze * (hero ? 5 : 2));
     this.input.rumble(0.15, 0.3, 60);
-    w.particles.floatText(p.x, p.y - 40, onBeat ? 'PARRY!' : 'parry', onBeat ? '#fde047' : '#67e8f9', onBeat ? 1 : 0.8);
+    const label = hero ? 'PERFECT PARRY' : onBeat ? (p.parryStreak > 1 ? `PARRY ×${p.parryStreak}` : 'PARRY!') : 'parry';
+    w.particles.floatText(p.x, p.y - 40, label, hero ? '#ffffff' : onBeat ? '#fde047' : '#67e8f9', hero ? 1.3 : onBeat ? 1 : 0.8);
   }
 
-  /** RIPOSTE — counter-burst non-boss enemies inside the parry arc (geometry-targeted). Kills
-   *  weak chaff (→ combo + particles) and chips elites. Bosses are handled by the guard-shave,
-   *  not direct chip, so an ARMORED boss is never damaged through its guard. */
-  private riposteArc(): void {
+  /** RIPOSTE — counter-burst non-boss enemies inside the (effective) parry arc. Kills weak
+   *  chaff (→ combo + particles) and chips elites. Bosses are handled by the guard-shave, not
+   *  direct chip, so an ARMORED boss is never damaged through its guard. */
+  private riposteArc(arc: { reach: number; halfAngle: number }): void {
     const w = this.world;
     const p = w.player;
-    const r = PARRY.reach;
+    const r = arc.reach;
     w.hash.rebuild(w.enemies.items);
     w.hash.queryAABB(p.x - r, p.y - r, p.x + r, p.y + r, this.chainBuf);
     parryEnemySweep<Enemy>(
       p.x, p.y, p.angle,
       (visit) => { for (const e of this.chainBuf) if (e.active && !e.isBoss && e.kind !== 'sovereign_core') visit(e); },
       (e) => { w.particles.burst(e.x, e.y, PARRY.riposteSparks, e.color); this.damageEnemy(e, PARRY.riposteDamage, false); },
+      arc.reach, arc.halfAngle,
     );
+  }
+
+  /** HERO moment — a perfect-frame AND on-beat parry: a mini radial CHAFF bullet-clear (boss
+   *  patterns stay lethal), a coherence surge, and a slow-mo flourish. Rare + earned. a11y-gated. */
+  private heroParry(): void {
+    const w = this.world;
+    const p = w.player;
+    const r2 = PARRY.heroClearRadius * PARRY.heroClearRadius;
+    w.bullets.forEachActive((b) => {
+      if (b.fromBoss) return;
+      const dx = b.x - p.x;
+      const dy = b.y - p.y;
+      if (dx * dx + dy * dy < r2) this.breakBullet(b, 1, 0);
+    });
+    this.coherence.value = Math.min(1, this.coherence.value + PARRY.heroCohSurge);
+    w.particles.ring(p.x, p.y, PARRY.heroClearRadius, '#ffffff', 0.5);
+    if (!this.settings.reduceMotion) this.scheduler.requestSlowmo(0);
+    this.ui.announce('PERFECT PARRY', '#fde047');
   }
 
   /** Defensive shove — nudge the remaining (un-parried) bullets near the player outward a
