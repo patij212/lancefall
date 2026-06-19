@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { zoneTarget, bossEnrageFrac, getEnrageColor } from './util';
-import { ZONE } from '../tune';
-import type { EnemyKind } from '../types';
+import { zoneTarget, bossEnrageFrac, getEnrageColor, bossFinaleStart } from './util';
+import { ZONE, FINALE } from '../tune';
+import type { Enemy, EnemyKind } from '../types';
 
 const BOSS_KINDS: EnemyKind[] = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'];
 
@@ -18,6 +18,23 @@ describe('enrage stinger helpers', () => {
   });
   it('every boss kind has a non-empty enrage colour', () => {
     for (const k of BOSS_KINDS) expect(getEnrageColor(k)).toMatch(/^#/);
+  });
+});
+
+describe('bossFinaleStart (last-stand edge-detect)', () => {
+  const mk = (over: Partial<Enemy>): Enemy => ({ kind: 'warden', hp: 100, maxHp: 100, finaleTrig: false, ...over } as Enemy);
+  it('fires exactly ONCE as HP crosses below the threshold, then never again', () => {
+    const e = mk({ hp: 100, maxHp: 100 });
+    expect(bossFinaleStart(e, FINALE.frac)).toBe(false); // healthy
+    e.hp = FINALE.frac * 100 - 0.1; // just dropped below
+    expect(bossFinaleStart(e, FINALE.frac)).toBe(true); // fires once
+    expect(e.finaleTrig).toBe(true);
+    expect(bossFinaleStart(e, FINALE.frac)).toBe(false); // latched — never repeats
+    e.hp = 0; // even at death
+    expect(bossFinaleStart(e, FINALE.frac)).toBe(false);
+  });
+  it('does not fire above the threshold', () => {
+    expect(bossFinaleStart(mk({ hp: 50, maxHp: 100 }), FINALE.frac)).toBe(false);
   });
 });
 

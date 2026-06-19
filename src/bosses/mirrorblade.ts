@@ -4,9 +4,9 @@
 // recover AND chains a second quick lunge. Extracted from boss.ts unchanged; the
 // pure mirrorbladeDashing predicate lives here too.
 
-import { MIRRORBLADE } from '../tune';
+import { MIRRORBLADE, FINALE } from '../tune';
 import { norm, clamp } from '../vec';
-import { bossEnraged } from './util';
+import { bossEnraged, bossFinaleStart, finaleBurst } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -19,6 +19,7 @@ export function updateMirrorblade(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
   if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+  if (bossFinaleStart(e, FINALE.frac)) finaleBurst(e, world); // one-shot last-stand volley
 
   const p = world.player;
   const enraged = bossEnraged(e, MIRRORBLADE.enrageFrac);

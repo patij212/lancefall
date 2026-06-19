@@ -2,9 +2,9 @@
 // rings with a moving safe-lane (phase 1). ENRAGED it opens TWO closing lanes.
 // Extracted from boss.ts; pure gap-index math up top, stateful update below.
 
-import { WEAVER, ZONE } from '../tune';
+import { WEAVER, ZONE, FINALE } from '../tune';
 import { norm } from '../vec';
-import { bossEnraged, zoneTarget } from './util';
+import { bossEnraged, zoneTarget, bossFinaleStart, finaleBurst } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
 
@@ -47,6 +47,7 @@ export function updateWeaver(e: Enemy, world: World, dt: number): void {
   e.spawnTime += dt;
   if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
   if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+  if (bossFinaleStart(e, FINALE.frac)) finaleBurst(e, world); // one-shot last-stand volley
 
   // slow drift near arena center
   const cx = world.width / 2;

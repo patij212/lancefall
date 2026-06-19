@@ -49,6 +49,24 @@ export function drawSovereignFinaleTint(ctx: CanvasRenderingContext2D, e: Enemy,
   ctx.restore();
 }
 
+/** Generic FINALE tint for the five non-Sovereign bosses once their last-stand volley
+ *  has fired (e.finaleTrig). A pulsing rim in the boss's signature colour — the felt
+ *  "this is the end" cue. The Sovereign uses drawSovereignFinaleTint instead (it never
+ *  sets finaleTrig), so this stays a no-op for it. reduceMotion → steady alpha. */
+export function drawBossFinaleTint(ctx: CanvasRenderingContext2D, e: Enemy, reduceMotion: boolean): void {
+  if (!e.finaleTrig) return;
+  const pulse = reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(e.spawnTime * 8);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.16 + 0.2 * pulse;
+  ctx.strokeStyle = e.color;
+  ctx.lineWidth = 3 + 3 * pulse;
+  ctx.beginPath();
+  ctx.arc(0, 0, e.radius * (1.6 + 0.12 * pulse), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** BEACON enraged counter-beam — the perpendicular 2nd diameter (the rotating cross
  *  the low-HP sweep gains). Mirrors the +π/2 arm in beamHitsPoint(arms=2). Drawn in
  *  the boss-centre frame; telegraphs/fires in lockstep with the primary beam. */

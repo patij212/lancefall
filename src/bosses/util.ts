@@ -1,6 +1,7 @@
 // Shared boss helpers. Pure — no rng, no side effects (the determinism contract:
 // low-HP escalation is an HP predicate, never a fresh world.rng draw).
-import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN, ZONE } from '../tune';
+import { WARDEN, WEAVER, BEACON, MIRRORBLADE, HOLLOW, SOVEREIGN, ZONE, FINALE } from '../tune';
+import type { World } from '../world';
 import type { Enemy, EnemyKind } from '../types';
 
 /** Universal low-HP ENRAGE gate: below `frac` of max HP a boss changes BEHAVIOR
@@ -51,5 +52,44 @@ export function getEnrageColor(kind: EnemyKind): string {
     case 'hollow': return HOLLOW.color;
     case 'sovereign': return SOVEREIGN.color;
     default: return WARDEN.color;
+  }
+}
+
+/** FINALE edge-detect: fires true exactly ONCE, the first frame a boss's HP drops below
+ *  `frac`, latching e.finaleTrig so the last-stand volley never repeats. Pure (HP read +
+ *  a one-shot flag flip), no rng — bit-identical on a replay. */
+export function bossFinaleStart(e: Enemy, frac: number): boolean {
+  if (e.finaleTrig) return false;
+  if (e.hp / e.maxHp >= frac) return false;
+  e.finaleTrig = true;
+  return true;
+}
+
+/** The per-kind FINALE burst config (bullets + speed). */
+function finaleConfig(kind: EnemyKind): { bullets: number; speed: number } {
+  switch (kind) {
+    case 'weaver': return FINALE.weaver;
+    case 'beacon': return FINALE.beacon;
+    case 'mirrorblade': return FINALE.mirrorblade;
+    case 'hollow': return FINALE.hollow;
+    default: return FINALE.warden;
+  }
+}
+
+/** The one-shot "last stand" volley: a full ring in the boss's signature colour with a
+ *  guaranteed safe lane centred on the player (so it's always survivable — a felt last
+ *  gasp, not a cheap-shot wall). Deterministic: the lane is the pure boss→player angle,
+ *  no rng draw. Call once, gated by bossFinaleStart. */
+export function finaleBurst(e: Enemy, world: World): void {
+  const cfg = finaleConfig(e.kind);
+  const toPlayer = Math.atan2(world.player.y - e.y, world.player.x - e.x);
+  const n = cfg.bullets;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    // omit the wedge facing the player — a guaranteed dash-out lane
+    let d = a - toPlayer;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    if (Math.abs(d) < FINALE.gapHalf) continue;
+    world.spawnBullet(e.x, e.y, Math.cos(a) * cfg.speed, Math.sin(a) * cfg.speed, 7, e.color, true);
   }
 }

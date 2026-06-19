@@ -102,6 +102,7 @@ export function spawnBoss(world: World, count: number, force?: Enemy['kind']): E
   e.subPhase = 0;
   e.cipherExposed = 0;
   e.enrageAnnounced = false; // reset the enrage-stinger latch (pooled objects may carry a stale flag)
+  e.finaleTrig = false; // reset the last-stand finale-volley latch (pooled reuse)
   e.facing = Math.atan2(world.player.y - e.y, world.player.x - e.x); // WARDEN rear weak-point seed (harmless for others)
   world.bossAlive = true;
   world.boss = e;
