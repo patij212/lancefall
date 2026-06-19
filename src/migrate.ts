@@ -114,7 +114,10 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // Plan 2 BOMBE — additive. decryptedWords/solvedPuzzles are open-ended string sets (deduped,
   // capped like `taught`); bombeLevel is a non-negative integer (the generic loop only ensured it's
   // a finite number). No version bump — the generic loader already default-filled them.
-  out.decryptedWords = sanitizeTaught(out.decryptedWords);
+  // decryptedWords holds up to the FULL intercept vocabulary (~265 words) — its cap must clear
+  // that or THE LONGEST DAY (100% master cipher) becomes unreachable. 1024 future-proofs new
+  // intercepts without bounding a legitimate complete decryption.
+  out.decryptedWords = sanitizeTaught(out.decryptedWords, 1024);
   out.solvedPuzzles = sanitizeTaught(out.solvedPuzzles);
   if (typeof out.bombeLevel === 'number') out.bombeLevel = Math.max(0, Math.floor(out.bombeLevel));
   // v8 ship-skin cosmetics — per-(ship,set) ownership keyed `${shipId}:${setId}`, plus the
@@ -200,9 +203,9 @@ function capPlayDays(rec: Record<string, number>): Record<string, number> {
 
 /** Coerce the persisted act-two teach set to deduped strings (keys are open-ended). Capped
  *  to a sane ceiling so a hand-edited blob can't bloat the save. Pure + total. */
-function sanitizeTaught(raw: unknown): string[] {
+function sanitizeTaught(raw: unknown, cap = 200): string[] {
   if (!Array.isArray(raw)) return [];
-  return [...new Set(raw.filter((x): x is string => typeof x === 'string'))].slice(0, 200);
+  return [...new Set(raw.filter((x): x is string => typeof x === 'string'))].slice(0, cap);
 }
 
 /** Coerce the persisted gloss-seen set to known, deduped GlossId strings. Pure + total. */

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { migrateSave, SAVE_VERSION } from './migrate';
 import { defaultSave } from './save';
+import { vocabulary, masterProgress } from './intercepts';
 import { TUNE } from './tune';
 import { skinById } from './skins';
 
@@ -354,5 +355,12 @@ describe('migrate — BOMBE meta fields (additive)', () => {
     expect(m.decryptedWords.sort()).toEqual(['dawn', 'light']);
     expect(m.bombeLevel).toBe(2);
     expect(m.solvedPuzzles).toEqual(['p1']);
+  });
+  it('does NOT cap decryptedWords below the full intercept vocabulary (THE LONGEST DAY must be reachable)', () => {
+    const vocab = vocabulary();
+    expect(vocab.length).toBeGreaterThan(200); // the bug: a 200-cap made 100% impossible
+    const m = migrateSave({ decryptedWords: vocab.slice() }, defaultSave());
+    expect(m.decryptedWords.length).toBe(vocab.length); // every word survives the load
+    expect(masterProgress(m).frac).toBe(1); // 100% master cipher achievable
   });
 });
