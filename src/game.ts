@@ -31,7 +31,8 @@ import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
-import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT } from './onboarding';
+import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT, verbTeachFor, enemyReadFor, bossReadFor } from './onboarding';
+import type { TeachHit } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
 import { parrySweep, applyParryReward, parryEnemySweep, parryShove, parryCooldownAfter, boundedGuardShave, effectiveParryArc, parryStreakNext, parryGrade, parryArcContains } from './parry';
 import { tickClutch, canLastBreath, triggerLastBreath, resetErupt, eruptMilestone } from './clutch';
@@ -79,7 +80,7 @@ import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf 
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
-import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, dummyLayout, SANDBOX_TARGET_SKEWERS } from './sandbox';
+import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, dummyLayout, currentStep, SANDBOX_TARGET_SKEWERS } from './sandbox';
 import type { SandboxState } from './sandbox';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
@@ -175,6 +176,10 @@ export class Game {
   private runHeat = 0; // heat level locked in for the active run
   private onboarding = false; // first-run progressive tutorial active
   private onboardStep = 0;
+  // ACT TWO — enemy KINDS already considered for a first-sighting read THIS SESSION, so the
+  // per-frame enemy scan short-circuits after the first encounter (the once-ever persistence
+  // lives in save.taught; this just bounds the per-frame work). Cosmetic; no rng.
+  private actTwoSeenKinds = new Set<string>();
   // §1.2 DASH SANDBOX — the no-fail first-run teach. A DEDICATED throwaway World +
   // its own non-seeded rng, so the teach NEVER touches this.world or the seeded run
   // streams; the run begins only once the sandbox hands off to start(cfg), which
@@ -239,6 +244,7 @@ export class Game {
       onArchetypeChange: (id) => this.setArchetype(id),
       onSelectMode: (id) => this.selectMode(id),
       onToggleCityMemory: (v) => { this.save.cityMemoryMeter = v; saveSave(this.save); },
+      onReplayTutorial: () => this.replayTutorial(),
       onMarkGloss: (id) => { if (!this.save.glossSeen.includes(id)) { this.save.glossSeen.push(id); saveSave(this.save); } },
       onSetHandle: (name) => this.setHandle(name),
       onSkipSandbox: () => this.finishSandbox(),
@@ -356,6 +362,7 @@ export class Game {
     // reduce-motion disables decorative UI animations/transitions (CSS)
     document.documentElement.classList.toggle('reduce-motion', s.reduceMotion);
     document.documentElement.classList.toggle('clarity', s.clarity); // §5.4 a11y — high-contrast hook for the DOM UI (cockpit/sandbox/panels)
+    this.ui.setTutorialHints(s.tutorialHints); // ACT TWO — gate the first-appearance jargon glosses on the hints toggle
   }
 
   /** Adaptive perf: average frame time over ~0.5s windows and scale particle
@@ -387,7 +394,9 @@ export class Game {
    *  Determinism: the sandbox runs on a SEPARATE throwaway World and NEVER touches
    *  this.world or any seeded rng stream, so start(cfg) below seeds exactly as today. */
   private descend(cfg: RunConfig): void {
-    if (shouldShowSandbox(this.save.seenSandbox, this.settings.reduceMotion)) {
+    // ACT TWO — the no-fail teach is gated by the Tutorial hints toggle too (a veteran who turned
+    // hints off skips straight into the run, just like a returning player or reduce-motion).
+    if (this.settings.tutorialHints && shouldShowSandbox(this.save.seenSandbox, this.settings.reduceMotion)) {
       this.startSandbox(cfg);
     } else {
       // even when we skip the teach (returning player or reduce-motion), record it as
@@ -491,13 +500,42 @@ export class Game {
       });
     }
 
+    // ACT TWO — the PARRY beat. On the parry step, lob ONE slow, telegraphed shot at the
+    // player; pressing PARRY (ev.parryFired) deflects it and advances. No-fail: the step
+    // caps out on its own, and the player is unfailable. Throwaway world → no rng concern.
+    let parried = false;
+    if (currentStep(sb).step === 'parry') {
+      if (sw.bullets.activeCount === 0) {
+        const px = sw.player.x, py = sw.player.y;
+        const sx = px + 260, sy = py - 36; // from the upper-right, into the aim arc
+        const a = Math.atan2(py - sy, px - sx);
+        const sp = 95; // slow + readable
+        const b = sw.spawnBullet(sx, sy, Math.cos(a) * sp, Math.sin(a) * sp, 9, '#ff7b9c', false, 'orb');
+        if (b) b.reflectable = true;
+      }
+      if (this.ev.parryFired) {
+        parried = true;
+        sw.bullets.forEachActive((b) => { sw.particles.burst(b.x, b.y, 16, '#ffd166'); sw.bullets.release(b); });
+        this.audio.parry(true);
+        this.shake.add(0.1);
+      }
+    } else if (sw.bullets.activeCount > 0) {
+      sw.bullets.forEachActive((b) => sw.bullets.release(b)); // keep the board clean off the parry beat
+    }
+
     sw.particles.update(dt);
 
     // advance the pure step machine; relabel the overlay text on a step change
     const prev = sb;
-    const next = stepSandbox(prev, dt, { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer });
+    const next = stepSandbox(prev, dt, { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer, parried });
     this.sandbox = next;
     this.ui.setSandboxText(sandboxText(next));
+    // the sandbox parry teaches the verb for real — mark it so the contextual fallback (and a
+    // later sandbox replay) never re-teach `verb:parry` redundantly. Cosmetic save write; no rng.
+    if (parried && !this.save.taught.includes('verb:parry')) {
+      this.save.taught.push('verb:parry');
+      saveSave(this.save);
+    }
 
     // re-arm dummies if the player skewered both before the lesson auto-advances, so
     // there's always a target to chain (keeps the "again!" beat satisfying).
@@ -650,6 +688,7 @@ export class Game {
     this.dying = false;
     this.pendingDraft = false;
     this.bossWarned = false;
+    this.actTwoSeenKinds.clear(); // re-evaluate first-sighting reads each run (persisted gate still fires once ever)
     this.pendingEvent = null;
     this.dashSlowmoTriggered = false;
     this.announcedEvos.clear();
@@ -683,9 +722,11 @@ export class Game {
     if (this.ghostRace) this.ui.toast(`◌ Racing ${this.ghostRace.name || 'your best'} · ${this.ghostRace.score.toLocaleString()}`);
     this.replay.start(this.canvas);
 
-    // first-run progressive onboarding — hints surface as you perform each action
+    // first-run progressive onboarding — hints surface as you perform each action.
+    // Gated by the Tutorial hints toggle: a veteran who turned it off gets no first-run
+    // sequence (and seenTutorial stays unset, so re-enabling hints later still teaches).
     this.firstRunGrace = 0;
-    if (!this.save.seenTutorial) {
+    if (!this.save.seenTutorial && this.settings.tutorialHints) {
       this.save.seenTutorial = true;
       saveSave(this.save);
       this.onboarding = true;
@@ -699,9 +740,10 @@ export class Game {
     } else {
       this.onboarding = false;
     }
-    // C5 — teach dash-on-the-beat for the first few runs (a soft nudge, not a default flip)
+    // C5 — teach dash-on-the-beat for the first few runs (a soft nudge, not a default flip).
+    // The teaching beat-ring is part of the tutorial layer, so it honours the hints toggle too.
     const teach = beatTeachState(this.save.firstRunsBeatHint, COHERENCE.firstRunsBeatRing, COHERENCE.firstRunsBeatHintRuns);
-    this.showBeatRingThisRun = teach.ring;
+    this.showBeatRingThisRun = teach.ring && this.settings.tutorialHints;
     this.beatHintShownThisRun = !teach.hint; // already-shown if no hint is due this run
   }
 
@@ -713,6 +755,32 @@ export class Game {
     this.ui.toast(h.text);
     this.onboardStep++;
     if (this.onboardStep >= ONBOARDING_STEPS) this.onboarding = false;
+  }
+
+  /** ACT TWO — surface a just-in-time teach ONCE EVER, then persist its key. A no-op when
+   *  there's nothing to teach (already taught / unknown kind) or the player turned hints off.
+   *  Reuses the existing toast surface; mutates only the save (never world.rng → the seeded
+   *  sim and the Daily are untouched). The `taught` push happens BEFORE the toast so a
+   *  same-frame re-check can't double-fire it. */
+  private teach(hit: TeachHit | null): void {
+    if (!hit || !this.settings.tutorialHints) return;
+    if (this.save.taught.includes(hit.key)) return; // defensive: already recorded
+    this.save.taught.push(hit.key);
+    saveSave(this.save);
+    this.ui.toast(hit.text);
+  }
+
+  /** ACT TWO — "Replay tutorial": clear every persisted teach flag so the whole first-run
+   *  experience (sandbox + verb/enemy/boss reads + jargon glosses + dash-on-beat nudge) re-arms
+   *  on the next descent. Touches only the save (never world.rng). */
+  private replayTutorial(): void {
+    this.save.taught = [];
+    this.save.glossSeen = [];
+    this.save.seenSandbox = false;
+    this.save.seenTutorial = false;
+    this.save.firstRunsBeatHint = 0;
+    saveSave(this.save);
+    this.actTwoSeenKinds.clear();
   }
 
   /** The narrator surfaces a terse second-person line on the existing
@@ -1271,9 +1339,18 @@ export class Game {
         // this.world directly (cw isn't assigned until below this block).
         this.world.particles.floatText(this.world.player.x, this.world.player.y - 34, perfect ? 'PERFECT' : 'ON BEAT', perfect ? '#fde047' : '#67e8f9', perfect ? 0.95 : 0.75);
         if (!this.settings.reduceFlashing) this.ui.flashBeatPip(perfect);
-        if (!this.beatHintShownThisRun) {
-          this.beatHintShownThisRun = true;
-          this.ui.toast(BEAT_HINT_TEXT); // C5 — one-time nudge: you just hit the beat
+        // ACT TWO — the COHERENCE / on-beat teach fires ONCE EVER (persisted) the first time
+        // an action lands on the beat; it takes precedence over the per-run BEAT_HINT_TEXT
+        // nudge so the two never stack. Both are suppressed when tutorial hints are off.
+        if (this.settings.tutorialHints) {
+          const coh = verbTeachFor('onBeatAction', this.save.taught);
+          if (coh) {
+            this.teach(coh);
+            this.beatHintShownThisRun = true; // the richer line stands in for this run's nudge
+          } else if (!this.beatHintShownThisRun) {
+            this.beatHintShownThisRun = true;
+            this.ui.toast(BEAT_HINT_TEXT); // C5 — one-time nudge: you just hit the beat
+          }
         }
       }
       if (grade === 'perfect' && !this.settings.reduceFlashing)
@@ -1409,6 +1486,11 @@ export class Game {
     w.sdInset = suddenDeathInset(this.director.bossCount, this.mode.rules);
     updatePlayer(w.player, this.input.state, dt, w.stats, w.width, w.height, this.ev, this.settings.dashStyle === 'slingshot', w.sdInset);
     this.handlePlayerEvents(wasCharging);
+    // ACT TWO — HEAVY: the first time the player holds a charge all the way to full, teach
+    // the overcharge thrust (hold PAST full). Reads only the player's charge state — no rng.
+    if (w.player.phase === 'charging' && w.player.charge >= 1 - 1e-6) {
+      this.teach(verbTeachFor('fullCharge', this.save.taught));
+    }
 
     // Grid B — first-run no-fail grace (pure time gate). Tops up i-frames AFTER the
     // player update decrements them but BEFORE any collision check, so all existing
@@ -1450,7 +1532,16 @@ export class Game {
           this.audio.enrageStinger();
           this.renderer.flash(getEnrageColor(e.kind), 0.3);
         }
-      } else updateEnemy(e, w, dt);
+      } else {
+        updateEnemy(e, w, dt);
+        // ACT TWO — first-sighting read for a reworked/keeper enemy. The session set bounds
+        // the scan to once per kind; the persisted save.taught makes the teach once-ever.
+        // Cosmetic (a toast + a save write) — reads only e.kind, never touches world.rng.
+        if (this.settings.tutorialHints && !this.actTwoSeenKinds.has(e.kind)) {
+          this.actTwoSeenKinds.add(e.kind);
+          this.teach(enemyReadFor(e.kind, this.save.taught));
+        }
+      }
       // soft-clamp so nobody flies off forever
       const m = 60;
       e.x = Math.max(-m, Math.min(w.width + m, e.x));
@@ -1783,6 +1874,8 @@ export class Game {
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
     const perfect = parryGrade(p.parryElapsed, PARRY.perfectWindow + w.stats.parryPerfectWindow) === 'perfect';
     const hero = perfect && onBeat; // the apex: BOTH timing AND rhythm
+    // ACT TWO — an on-beat parry also teaches the COHERENCE/on-beat loop (once ever, persisted).
+    if (onBeat) this.teach(verbTeachFor('onBeatAction', this.save.taught));
     // streak: an on-beat parry builds it (capped) + feeds coherence; off-beat/whiff resets it
     p.parryStreak = parryStreakNext(p.parryStreak, onBeat, true);
     p.parryStreakTimer = PARRY.streakWindow + w.stats.parryStreakWindow;
@@ -2392,6 +2485,12 @@ export class Game {
     const p = w.player;
     const grazeR = w.stats.grazeRadius;
     const hitR = p.radius;
+    // ACT TWO — PARRY (contextual fallback): the first incoming shot the player could deflect
+    // teaches the parry, IF the sandbox didn't already (shared key `verb:parry`). The flag is
+    // computed once and short-circuits the moment parry is taught, so the hot loop pays nothing
+    // afterward. Cosmetic; reads positions only (no rng).
+    const teachParry = this.settings.tutorialHints && p.alive && !this.save.taught.includes('verb:parry');
+    const parryTeachR2 = teachParry ? (w.stats.parryReach + 40) * (w.stats.parryReach + 40) : 0;
     // BIOME RULE (THE EMBERWALL) — accelerate every live bullet along its heading.
     // Per-frame speed boost: scale the velocity so its magnitude grows by accel*dt
     // while the direction is preserved. Deterministic (no rng); affects sim + render
@@ -2463,6 +2562,8 @@ export class Game {
       const dx = p.x - b.x;
       const dy = p.y - b.y;
       const d2 = dx * dx + dy * dy;
+      // ACT TWO — a parryable shot just came within reach: teach the parry once (no-op once taught)
+      if (teachParry && d2 <= parryTeachR2) this.teach(verbTeachFor('parryable', this.save.taught));
       // hit
       if (p.iframe <= 0 && d2 <= (hitR + b.radius) * (hitR + b.radius)) {
         this.playerDie(b.fromBoss ? 'a boss bullet' : 'a bullet', b.fromKind ?? '');
@@ -3145,6 +3246,9 @@ export class Game {
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
     if (boss) this.narrateOne('toast', NARRATOR.bossApproach[boss.kind]);
+    // ACT TWO — a one-line mechanic read on this boss's FIRST arrival ever (persisted; the
+    // narrator flavour above is per-encounter, this teaches the fight). Cosmetic; no rng.
+    if (boss) this.teach(bossReadFor(boss.kind, this.save.taught));
     // teach the Sovereign's core gimmick on arrival
     if (boss?.kind === 'sovereign') {
       w.particles.floatText(w.width / 2, w.height / 2 + 90, 'SHATTER THE CORES', '#fde047', 1.2);

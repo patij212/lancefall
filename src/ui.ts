@@ -106,6 +106,8 @@ export interface UICallbacks {
   onArchetypeChange: (id: string) => void;
   onSelectMode: (id: string) => void;
   onToggleCityMemory: (v: boolean) => void;
+  /** ACT TWO — replay the whole onboarding: clear the persisted teach flags so the next descent re-teaches. */
+  onReplayTutorial: () => void;
   /** §1.7 — a first-appearance jargon gloss was shown; persist it as seen (once-ever) */
   onMarkGloss: (id: string) => void;
   onSetHandle: (name: string) => void;
@@ -490,6 +492,9 @@ export class UI {
   private glossActive = false;
   private glossTimer = 0;
   private glossSeenSession = new Set<GlossId>();
+  /** ACT TWO — the Tutorial hints toggle. When off, first-appearance jargon glosses are
+   *  suppressed (game.ts gates the verb/enemy/boss teaches in parallel). Default true. */
+  private tutorialHints = true;
 
   // hud refs
   private scoreEl!: HTMLElement;
@@ -937,9 +942,14 @@ export class UI {
    *  id was already shown (this session OR persisted) — once ever. Reserves the id in
    *  the session set immediately so a per-frame trigger can't enqueue it twice before
    *  it drains. */
+  /** Toggle the first-appearance jargon glosses (the Tutorial hints setting). */
+  setTutorialHints(on: boolean): void {
+    this.tutorialHints = on;
+  }
+
   private queueGloss(id: GlossId): void {
     const s = this.saveRef;
-    if (!s || this.glossSeenSession.has(id) || s.glossSeen.includes(id)) return;
+    if (!this.tutorialHints || !s || this.glossSeenSession.has(id) || s.glossSeen.includes(id)) return;
     this.glossSeenSession.add(id);
     this.glossQueue.push(id);
     this.pumpGloss();
@@ -1880,6 +1890,7 @@ export class UI {
       cityMemory: () => this.saveRef?.cityMemoryMeter ?? true,
       onToggleCityMemory: (v) => this.cb.onToggleCityMemory(v),
       setRebinding: (a) => { this.rebinding = a; },
+      onReplayTutorial: () => this.cb.onReplayTutorial(),
       onClose: () => this.closeSettings(),
     });
     this.settingsPanel = this.settingsModal.root;

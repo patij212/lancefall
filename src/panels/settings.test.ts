@@ -8,11 +8,11 @@ const settings = (): Settings =>
     master: 0.8, sfx: 0.8, music: 0.8, shake: 1, chromAberration: 0.6, hudScale: 1,
     particleDensity: 'med', soundtrack: 'aurora', dashStyle: 'lance',
     reduceFlashing: false, reduceMotion: false, colorblind: false, clarity: false,
-    rhythmAssist: false, rumble: true, keymap: { dash: [' '], overdrive: ['e'], parry: ['k'], pause: ['escape'] },
+    rhythmAssist: false, tutorialHints: true, rumble: true, keymap: { dash: [' '], overdrive: ['e'], parry: ['k'], pause: ['escape'] },
   }) as unknown as Settings;
 
 const deps = (over: Partial<SettingsPanelDeps> = {}): SettingsPanelDeps => ({
-  settings: settings(), patch: vi.fn(), cityMemory: () => true, onToggleCityMemory: vi.fn(), setRebinding: vi.fn(), onClose: vi.fn(), ...over,
+  settings: settings(), patch: vi.fn(), cityMemory: () => true, onToggleCityMemory: vi.fn(), setRebinding: vi.fn(), onReplayTutorial: vi.fn(), onClose: vi.fn(), ...over,
 });
 
 const toggleInput = (root: HTMLElement, label: string) =>
@@ -63,6 +63,25 @@ describe('buildSettingsPanel', () => {
     mem = true;
     panel.syncCityMemory();
     expect(toggleInput(panel.root, 'City memory meter').checked).toBe(true);
+  });
+
+  it('the Tutorial hints toggle patches tutorialHints', () => {
+    const d = deps();
+    const panel = buildSettingsPanel(d);
+    const t = toggleInput(panel.root, 'Tutorial hints');
+    expect(t.checked).toBe(true);
+    t.checked = false;
+    t.dispatchEvent(new Event('change'));
+    expect(d.patch).toHaveBeenCalledWith({ tutorialHints: false });
+  });
+
+  it('Replay tutorial → onReplayTutorial, then the button disables', () => {
+    const d = deps();
+    const panel = buildSettingsPanel(d);
+    const btn = [...panel.root.querySelectorAll('.setting button')].find((b) => b.textContent === 'Replay tutorial') as HTMLButtonElement;
+    btn.click();
+    expect(d.onReplayTutorial).toHaveBeenCalled();
+    expect(btn.disabled).toBe(true);
   });
 
   it('DONE → onClose', () => {

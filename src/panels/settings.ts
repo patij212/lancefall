@@ -21,6 +21,9 @@ export interface SettingsPanelDeps {
   onToggleCityMemory: (v: boolean) => void;
   /** signal the host a key-capture is in flight (null = done) so its key handler ignores keys. */
   setRebinding: (action: RebindAction | null) => void;
+  /** ACT TWO — clear the persisted teach flags (taught set + seenSandbox + glosses + first-run
+   *  flags) so the whole onboarding replays from scratch on the next descent. */
+  onReplayTutorial: () => void;
   /** dismiss the modal (DONE). */
   onClose: () => void;
 }
@@ -133,6 +136,16 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
   const cityMemRow = toggle('City memory meter', deps.cityMemory(), (v) => deps.onToggleCityMemory(v));
   const cityMemInput = cityMemRow.querySelector('input') as HTMLInputElement;
 
+  // ACT TWO — Tutorial hints toggle + a one-tap "Replay tutorial" that re-arms the whole
+  // onboarding (sandbox + verb/enemy/boss reads + glosses) on the next descent.
+  const replayBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Replay tutorial') as HTMLButtonElement;
+  replayBtn.addEventListener('click', () => {
+    deps.onReplayTutorial();
+    replayBtn.textContent = 'Tutorial reset ✓';
+    replayBtn.disabled = true;
+  });
+  const replayRow = el('label', { class: 'setting' }, el('span', {}, 'Onboarding'), replayBtn);
+
   // ── key rebinding (keyboard only; gamepad/touch unchanged) ──
   let rebinding: RebindAction | null = null;
   const rebindBtns: Array<{ action: RebindAction; btn: HTMLButtonElement }> = [];
@@ -180,6 +193,8 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       chromaS.row, densityWrap) },
     { id: 'gameplay', name: 'GAMEPLAY', el: sect('gameplay',
       toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) => deps.patch({ dashStyle: v ? 'slingshot' : 'lance' })),
+      toggle('Tutorial hints', s.tutorialHints, (v) => deps.patch({ tutorialHints: v })),
+      replayRow,
       cityMemRow) },
     { id: 'access', name: 'ACCESS', el: sect('access',
       toggle('Reduce flashing', s.reduceFlashing, (v) => deps.patch({ reduceFlashing: v })),
