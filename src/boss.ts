@@ -8,6 +8,7 @@ import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy } from './types';
 import { updateWarden } from './bosses/warden';
+import { updateWeaver } from './bosses/weaver';
 import {
   updateSovereign,
   spawnSovereignCores,
@@ -144,62 +145,6 @@ export function isBossLethal(e: Enemy): boolean {
   if (e.kind === 'mirrorblade') return mirrorbladeDashing(e);
   if (e.kind === 'hollow') return false;
   return true;
-}
-
-function updateWeaver(e: Enemy, world: World, dt: number): void {
-  e.spawnTime += dt;
-  if (e.scale < 1) e.scale = Math.min(1, e.scale + dt * 2);
-  if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
-
-  // slow drift near arena center
-  const cx = world.width / 2;
-  const cy = world.height / 2;
-  const tx = cx + Math.cos(e.spawnTime * 0.4) * world.width * 0.16;
-  const ty = cy + Math.sin(e.spawnTime * 0.55) * world.height * 0.16;
-  const [nx, ny] = norm(tx - e.x, ty - e.y);
-  e.vx = nx * WEAVER.moveSpeed;
-  e.vy = ny * WEAVER.moveSpeed;
-  e.x += e.vx * dt;
-  e.y += e.vy * dt;
-
-  e.timer -= dt;
-  if (e.timer <= 0) {
-    e.phase = (e.phase + 1) % 2;
-    e.timer = WEAVER.phaseDuration;
-    e.fireTimer = 0;
-    e.subPhase = 0;
-  }
-
-  const hpFrac = e.hp / e.maxHp;
-  e.telegraph = 1 - hpFrac;
-  const rate = hpFrac < 0.34 ? 0.8 : 1;
-
-  e.fireTimer -= dt;
-  if (e.phase === 0) {
-    // PINWHEEL: rotating arms
-    while (e.fireTimer <= 0) {
-      e.angle += WEAVER.pinwheelSpin * WEAVER.pinwheelEvery;
-      const sp = WEAVER.pinwheelBulletSpeed;
-      for (let i = 0; i < WEAVER.armCount; i++) {
-        const a = e.angle + (i / WEAVER.armCount) * Math.PI * 2;
-        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#c084fc', true);
-      }
-      e.fireTimer += WEAVER.pinwheelEvery * rate;
-    }
-  } else {
-    // PULSE RINGS with a randomly-placed safe lane to dash through
-    if (e.fireTimer <= 0) {
-      const n = WEAVER.ringBullets;
-      const gapStart = Math.floor(world.rng.next() * n);
-      const sp = WEAVER.ringBulletSpeed;
-      for (let i = 0; i < n; i++) {
-        if ((i - gapStart + n) % n < WEAVER.ringGap) continue; // safe lane
-        const a = (i / n) * Math.PI * 2;
-        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#d8b4fe', true);
-      }
-      e.fireTimer = WEAVER.ringEvery * rate;
-    }
-  }
 }
 
 function updateBeacon(e: Enemy, world: World, dt: number): void {

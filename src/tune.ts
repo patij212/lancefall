@@ -877,6 +877,8 @@ export const WEAVER = {
   ringBullets: 26,
   ringGap: 3, // consecutive omitted bullets = the safe lane
   ringBulletSpeed: 165,
+  enrageFrac: 0.4, // below this HP frac: pulse rings open TWO closing lanes (behavior, not just rate)
+  gapDriftStep: 1, // indices the enraged 2nd lane drifts toward the 1st per ring (counter, no rng)
 } as const;
 
 // Fourth boss: the MIRRORBLADE — a dash-duelist that lunges like the player.
