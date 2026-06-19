@@ -32,6 +32,14 @@ export function effectiveDashCost(costMul: number, segments: number): number {
   return Math.min(TUNE.stamina.dashCost * costMul, segments * TUNE.stamina.perSegment);
 }
 
+/** Stamina a refund source may grant on THIS dash, clamped so the running total
+ *  (`refundThisDash`, shared by kill-refund + Time Thief) never exceeds one dash's
+ *  cost. This kills the perpetual-dash loop while keeping the snowball: a good chain
+ *  refills ONE dash, but can never bank surplus to dash across an empty arena. */
+export function cappedRefund(want: number, refundThisDash: number, dashCost: number): number {
+  return Math.max(0, Math.min(want, dashCost - refundThisDash));
+}
+
 export function canDash(stamina: number, cost: number = TUNE.stamina.dashCost): boolean {
   return stamina >= cost - 1e-6;
 }

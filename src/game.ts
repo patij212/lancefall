@@ -45,7 +45,7 @@ import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
 import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
-import { maxStamina } from './dash';
+import { maxStamina, effectiveDashCost, cappedRefund } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
@@ -1683,8 +1683,15 @@ export class Game {
         this.shake.add(p.killsThisDash >= 6 ? TUNE.juice.traumaChain6 : TUNE.juice.traumaChain3);
       this.cam.zoom = Math.max(this.cam.zoom, 1.05);
       if (w.stats.timeThiefStamina > 0) {
-        const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
-        w.player.stamina = Math.min(max, w.player.stamina + w.stats.timeThiefStamina);
+        // route Time Thief through the SAME per-dash refund budget as kill-refund so it
+        // can't bypass the cap and re-open the perpetual loop (it used to add +40 flat)
+        const dashCost = effectiveDashCost(w.stats.dashCostMul, w.stats.staminaSegments);
+        const give = cappedRefund(w.stats.timeThiefStamina, p.refundThisDash, dashCost);
+        if (give > 0) {
+          const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
+          p.stamina = Math.min(max, p.stamina + give);
+          p.refundThisDash += give;
+        }
       }
     }
   }
@@ -1777,14 +1784,14 @@ export class Game {
     if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
     chargeFromKill(w.overdrive, w.combo); // build the OVERDRIVE meter
 
-    // Siphon: dash-kills refund stamina — but CAPPED to ~1 segment per dash so a
-    // chain/AoE kill spree can't refund the whole bar (the near-infinite-dash loop).
-    // A direct spear kill still gives a full ~1-segment refund; chained kills top up
-    // only the remaining budget.
+    // Siphon: dash-kills refund stamina — but CAPPED to one dash's cost per dash, a
+    // budget SHARED with Time Thief (above), so a chain/AoE spree + Time Thief can't
+    // refund past a single dash and sustain the near-infinite-dash loop. A good chain
+    // refills ONE dash; it can never bank surplus to dash across an empty arena.
     if (fromDash && w.stats.killStaminaRefund > 0) {
       const p = w.player;
-      const budget = Math.max(0, TUNE.stamina.perSegment - p.refundThisDash);
-      const give = Math.min(w.stats.killStaminaRefund, budget);
+      const dashCost = effectiveDashCost(w.stats.dashCostMul, w.stats.staminaSegments);
+      const give = cappedRefund(w.stats.killStaminaRefund, p.refundThisDash, dashCost);
       if (give > 0) {
         const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
         p.stamina = Math.min(max, p.stamina + give);

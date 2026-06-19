@@ -7,6 +7,7 @@ import {
   canDash,
   effectiveDashCost,
   regenStamina,
+  cappedRefund,
 } from './dash';
 import { TUNE } from './tune';
 
@@ -83,5 +84,34 @@ describe('stamina', () => {
   it('regen never exceeds max', () => {
     const r = regenStamina(295, 0, 1, 300, 75);
     expect(r.stamina).toBe(300);
+  });
+});
+
+describe('cappedRefund — per-dash refund budget (kills the perpetual-dash loop)', () => {
+  it('caps the TOTAL per-dash refund (kills + Time Thief) to one dash cost', () => {
+    const cost = TUNE.stamina.dashCost; // 100
+    let refunded = 0;
+    // Siphon×2 + PERPETUAL ⇒ 60 stamina per kill
+    let g = cappedRefund(60, refunded, cost);
+    refunded += g;
+    expect(g).toBe(60);
+    // a second chained kill wants 60 more, but only 40 of the budget remains
+    g = cappedRefund(60, refunded, cost);
+    refunded += g;
+    expect(g).toBe(40);
+    // Time Thief's +40 now finds the budget exhausted — the old uncapped leak is closed
+    g = cappedRefund(40, refunded, cost);
+    refunded += g;
+    expect(g).toBe(0);
+    expect(refunded).toBe(cost); // exactly one dash refilled, never banks surplus for traversal
+  });
+
+  it('never returns negative once the budget is already spent', () => {
+    expect(cappedRefund(40, 120, 100)).toBe(0);
+  });
+
+  it('tracks the ACTUAL dash cost (a cheap HASTE dash tops up less, not a full segment)', () => {
+    // a HASTE dash costs 60 → a refund can restore at most that 60, not a fixed 100
+    expect(cappedRefund(100, 0, 60)).toBe(60);
   });
 });
