@@ -1,7 +1,7 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { DARTER, ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER } from './tune';
+import { DARTER, ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER, BOMBER } from './tune';
 import { norm, clamp } from './vec';
 import type { World } from './world';
 import type { Enemy, EnemyKind } from './types';
@@ -431,12 +431,36 @@ function lancer(e: Enemy, world: World, dt: number): void {
   }
 }
 
-function bomber(e: Enemy, world: World, _dt: number): void {
+function bomber(e: Enemy, world: World, dt: number): void {
   const p = world.player;
-  steerToward(e, p.x, p.y, 135 * e.speedMul);
-  // arm pulse for render when close to the player
-  const d2 = (p.x - e.x) ** 2 + (p.y - e.y) ** 2;
-  e.telegraph = d2 < 150 * 150 ? 1 : 0;
+  if (e.phase === 0) {
+    // RUSH — close the distance fast; ARM once inside armRange
+    steerToward(e, p.x, p.y, 135 * e.speedMul);
+    const d2 = (p.x - e.x) ** 2 + (p.y - e.y) ** 2;
+    e.telegraph = 0;
+    if (d2 < BOMBER.armRange * BOMBER.armRange) {
+      e.phase = 1;
+      e.timer = BOMBER.armTime;
+    }
+  } else {
+    // ARMED — a telegraphed charge, then SELF-DETONATE the blast ring (the don't-greed
+    // punish). Creep toward the player so the blast still pressures a camper. Killing it
+    // first (from range / a dash-through) pops the same ring via killEnemy — fair either way.
+    steerToward(e, p.x, p.y, 45 * e.speedMul);
+    e.timer -= dt;
+    e.telegraph = clamp(1 - e.timer / BOMBER.armTime, 0, 1);
+    if (e.timer <= 0) {
+      // ring offset is DETERMINISTIC (e.spawnTime) — zero world.rng on this player-timed
+      // path keeps the seeded Daily bit-identical. firingKind is 'bomber' (set by the loop).
+      const off = e.spawnTime * 5.3;
+      const sp = BOMBER.bulletSpeed * e.bulletMul;
+      for (let i = 0; i < BOMBER.detonateCount; i++) {
+        const a = off + (i / BOMBER.detonateCount) * Math.PI * 2;
+        world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#fb7185', false);
+      }
+      world.enemies.release(e); // it consumed itself in the blast (no kill credit — kill it for points)
+    }
+  }
 }
 
 function wisp(e: Enemy, world: World, dt: number): void {

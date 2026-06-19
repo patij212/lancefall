@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
 import { updateEnemy, splitInto, shadeLethal } from './enemies';
-import { SPLITTER, SHADE_TUNE } from './tune';
+import { SPLITTER, SHADE_TUNE, BOMBER } from './tune';
 import type { Enemy } from './types';
 
 // ENEMY OVERHAUL — Phase 1 (the 6 reworked chasers). Each enemy gets a distinct
@@ -136,5 +136,49 @@ describe('SHADE — a timing-duel (harmless while drifting, lethal only mid-stri
     expect(w.rng.next()).toBe(ref.next());
     for (let i = 0; i < 1200; i++) updateEnemy(e, w, DT); // ~20s: several full strike cycles
     expect(w.rng.next()).toBe(ref.next()); // shade advanced world.rng zero times
+  });
+});
+
+describe('BOMBER — don\'t-greed kamikaze (arm in range, self-detonate a blast ring)', () => {
+  it('rushes (phase 0), then ARMS (phase 1) once inside armRange', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('bomber', 640, 200, 1, 1, false, false, 0)!; // 160px away → just outside armRange
+    expect(e.phase).toBe(0);
+    let armed = false;
+    for (let i = 0; i < 120 && !armed; i++) {
+      updateEnemy(e, w, DT);
+      if (e.phase === 1) armed = true;
+    }
+    expect(armed).toBe(true); // it closed the distance and armed
+    expect(e.timer).toBeGreaterThan(0); // a charge window is counting down
+  });
+
+  it('SELF-DETONATES a full bullet ring after armTime, then removes itself', () => {
+    const w = freshWorld();
+    // park it INSIDE armRange so it arms on the first tick
+    const e = w.spawnEnemy('bomber', 640, 360 + BOMBER.armRange - 20, 1, 1, false, false, 0)!;
+    let ringBefore = 0;
+    w.bullets.forEachActive(() => ringBefore++);
+    const steps = Math.ceil(BOMBER.armTime / DT) + 3;
+    // mirror the real loop: only ACTIVE enemies get updated (forEachActive), so a
+    // self-detonated bomber is not re-ticked into a second blast
+    for (let i = 0; i < steps && e.active; i++) updateEnemy(e, w, DT);
+    let ring = 0;
+    w.bullets.forEachActive((b) => {
+      if (Math.hypot(b.vx, b.vy) > 0) ring++;
+    });
+    expect(ring - ringBefore).toBe(BOMBER.detonateCount); // the full blast ring fired
+    expect(e.active).toBe(false); // consumed itself in the blast
+  });
+
+  it('the self-detonation draws ZERO world.rng (Daily-safe)', () => {
+    const w = freshWorld(7);
+    const ref = createRng(7);
+    const e = w.spawnEnemy('bomber', 640, 360 + BOMBER.armRange - 20, 1, 1, false, false, 0)!;
+    expect(w.rng.next()).toBe(ref.next());
+    const steps = Math.ceil(BOMBER.armTime / DT) + 3;
+    for (let i = 0; i < steps && e.active; i++) updateEnemy(e, w, DT);
+    expect(e.active).toBe(false); // it detonated
+    expect(w.rng.next()).toBe(ref.next()); // and consumed zero world.rng doing so
   });
 });

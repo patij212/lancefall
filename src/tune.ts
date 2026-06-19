@@ -342,10 +342,16 @@ export const LANCER = {
   doubleTapDelay: 0.22, // s between the two bolts of the double-tap
 };
 
+// Bomber — a DON'T-GREED kamikaze (enemy overhaul). It rushes in; once it closes to
+// armRange it ARMS (a clear charge tell), and if not killed it SELF-DETONATES a bullet
+// ring (the blast, not just a body-check). Counterplay: kill it from RANGE (any kill
+// still pops the warned ring), or dash THROUGH it so the blast lands behind you. The
+// arming charge is the tell — greeding a melee right next to it is the punish.
 export const BOMBER = {
   detonateCount: 14,
   bulletSpeed: 200,
-  armRange: 150, // pulses faster when this close
+  armRange: 150, // distance at which it ARMS (and the pulse tell ramps in)
+  armTime: 0.55, // s of telegraphed charge after arming before it self-detonates
 };
 
 export const WISP = {

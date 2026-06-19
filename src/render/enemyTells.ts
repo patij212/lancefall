@@ -90,6 +90,35 @@ function drawShadeStrike(ctx: CanvasRenderingContext2D, e: Enemy, t: number, red
   ctx.restore();
 }
 
+/** BOMBER — the don't-greed arming tell. While ARMED (phase 1) a charge ring CONTRACTS
+ *  onto the body and the pulse quickens as detonation nears, with a hot core in the last
+ *  beat. The read: get out / dash through before it blows. Strobe gated by a11y flags. */
+function drawBomberArming(ctx: CanvasRenderingContext2D, e: Enemy, t: number, reduceMotion: boolean, reduceFlashing: boolean): void {
+  if (e.phase !== 1) return;
+  const tele = e.telegraph || 0;
+  const r = bodyRadius(e);
+  const blink = reduceFlashing || reduceMotion ? 0.7 : 0.5 + 0.5 * Math.abs(Math.sin(t * (8 + 30 * tele)));
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  ctx.globalCompositeOperation = 'lighter';
+  const rr = r + 30 * (1 - tele); // tightens onto the body as it nears the blast
+  ctx.strokeStyle = '#fda4af';
+  ctx.globalAlpha = 0.3 + 0.6 * tele * blink;
+  ctx.lineWidth = 2 + 3 * tele;
+  ctx.beginPath();
+  ctx.arc(0, 0, rr, 0, Math.PI * 2);
+  ctx.stroke();
+  if (tele > 0.6) {
+    // hot core in the final beat — the "it's about to go" read
+    ctx.fillStyle = '#fff1f2';
+    ctx.globalAlpha = ((tele - 0.6) / 0.4) * blink;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /** Draw every active enemy's role tell. One call site in render.ts (drawEnemies). */
 export function drawEnemyTells(
   ctx: CanvasRenderingContext2D,
@@ -105,6 +134,9 @@ export function drawEnemyTells(
         break;
       case 'shade':
         drawShadeStrike(ctx, e, t, reduceMotion, reduceFlashing);
+        break;
+      case 'bomber':
+        drawBomberArming(ctx, e, t, reduceMotion, reduceFlashing);
         break;
       default:
         break;
