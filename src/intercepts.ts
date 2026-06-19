@@ -153,3 +153,48 @@ export function cipherWord(word: string): string {
   }
   return out;
 }
+
+// ── the vocabulary decryption economy ───────────────────────────────────────
+
+export function isWordDecrypted(save: SaveData, word: string): boolean {
+  return save.decryptedWords.includes(word);
+}
+
+/** The unique decryptable words in one intercept (lowercased keys). */
+export function interceptWords(ic: Intercept): string[] {
+  const set = new Set<string>();
+  for (const t of ic.tokens) { const w = wordKey(t); if (w) set.add(w); }
+  return [...set];
+}
+
+export function interceptProgress(save: SaveData, ic: Intercept): { done: number; total: number } {
+  const words = interceptWords(ic);
+  return { done: words.filter((w) => isWordDecrypted(save, w)).length, total: words.length };
+}
+
+export function isInterceptComplete(save: SaveData, ic: Intercept): boolean {
+  const { done, total } = interceptProgress(save, ic);
+  return total > 0 && done === total;
+}
+
+export function masterProgress(save: SaveData): { done: number; total: number; frac: number } {
+  const vocab = vocabulary();
+  const done = vocab.filter((w) => isWordDecrypted(save, w)).length;
+  return { done, total: vocab.length, frac: vocab.length ? done / vocab.length : 0 };
+}
+
+/** The cheapest still-undecrypted word in an intercept (the "decrypt next" + Bombe target). */
+export function nextWordInIntercept(save: SaveData, ic: Intercept): string | null {
+  const undone = interceptWords(ic).filter((w) => !isWordDecrypted(save, w));
+  if (!undone.length) return null;
+  return undone.reduce((best, w) => (wordCost(w) < wordCost(best) ? w : best), undone[0]);
+}
+
+/** How a token renders in the console: plaintext if its word is decrypted (or it's punctuation),
+ *  else the glyph cipher. `word` is its key ('' for punctuation), `cost` its decrypt price. */
+export function tokenView(save: SaveData, token: string): { text: string; decrypted: boolean; word: string; cost: number } {
+  const word = wordKey(token);
+  const decrypted = !word || isWordDecrypted(save, word);
+  const text = decrypted ? token : token.replace(/[a-z0-9]+/gi, (m) => cipherWord(m));
+  return { text, decrypted, word, cost: wordCost(word) };
+}
