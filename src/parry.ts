@@ -7,15 +7,59 @@ import { maxStamina } from './dash';
 import { chargeOverdrive, type OverdriveState } from './overdrive';
 import { coherenceBeatKick, coherenceBeatFlash, type CoherenceState } from './coherence';
 
-/** True if a bullet at (bx,by) lies inside the parry wedge cast from (px,py) toward `aim`. */
-export function parryArcContains(px: number, py: number, aim: number, bx: number, by: number): boolean {
+/** True if a point at (bx,by) lies inside the parry wedge cast from (px,py) toward `aim`.
+ *  `reach`/`halfAngle` default to the base arc but are widened by coherence + meta at the
+ *  call site (see effectiveParryArc) — at the apex halfAngle reaches π (a full 360° guard). */
+export function parryArcContains(
+  px: number,
+  py: number,
+  aim: number,
+  bx: number,
+  by: number,
+  reach: number = PARRY.reach,
+  halfAngle: number = PARRY.halfAngle,
+): boolean {
   const dx = bx - px;
   const dy = by - py;
   const dist = Math.hypot(dx, dy);
-  if (dist > PARRY.reach) return false;
+  if (dist > reach) return false;
   if (dist < 1e-6) return true; // origin-coincident counts as in-arc
+  if (halfAngle >= Math.PI) return true; // full-circle guard — every in-reach point is caught
   const d = Math.atan2(Math.sin(Math.atan2(dy, dx) - aim), Math.cos(Math.atan2(dy, dx) - aim));
-  return Math.abs(d) <= PARRY.halfAngle;
+  return Math.abs(d) <= halfAngle;
+}
+
+/** The EFFECTIVE parry arc — base + permanent meta bonus + the TEMPORARY coherence widening.
+ *  Flow-state literally makes you parry better. Clamped at π (full guard) + reachCap so the
+ *  full-circle apex is reachable only by a deep parry-meta build AT max coherence — earned. */
+export function effectiveParryArc(
+  coherence: number,
+  reachBonus: number,
+  halfAngleBonus: number,
+): { reach: number; halfAngle: number } {
+  const c = Math.max(0, Math.min(1, coherence));
+  return {
+    reach: Math.min(PARRY.reachCap, PARRY.reach + reachBonus + c * PARRY.coherenceReachGain),
+    halfAngle: Math.min(Math.PI, PARRY.halfAngle + halfAngleBonus + c * PARRY.coherenceArcGain),
+  };
+}
+
+/** Next consecutive-on-beat-parry streak: an on-beat success builds it (capped); an off-beat
+ *  success or a whiff breaks it. The streak scales the reward (parryStreakMult). Pure. */
+export function parryStreakNext(streak: number, onBeat: boolean, success: boolean, streakMax: number = PARRY.streakMax): number {
+  if (!success || !onBeat) return 0;
+  return Math.min(streakMax, streak + 1);
+}
+
+/** Reward multiplier for the current streak — clamped at streakMax so it can't run away. */
+export function parryStreakMult(streak: number): number {
+  return 1 + Math.min(streak, PARRY.streakMax) * PARRY.streakPerStreak;
+}
+
+/** Timing grade: PERFECT if the bullet was caught within the perfect window at the START of
+ *  the active window (reaction skill), GOOD otherwise. A SEPARATE axis from on-beat rhythm. */
+export function parryGrade(activeElapsed: number, perfectWindow: number = PARRY.perfectWindow): 'perfect' | 'good' {
+  return activeElapsed <= perfectWindow ? 'perfect' : 'good';
 }
 
 /** Reward for a successful parry; on-beat doubles every component — the beat's teeth. */
@@ -51,15 +95,19 @@ export function applyParryReward(
   coherence: CoherenceState,
   staminaSegments: number,
   onBeat: boolean,
+  streak: number = 0,
 ): void {
+  const m = parryStreakMult(streak);
   const rw = parryReward(onBeat);
-  player.stamina = Math.min(maxStamina(staminaSegments), player.stamina + rw.stamina);
-  combo.combo += rw.combo;
+  player.stamina = Math.min(maxStamina(staminaSegments), player.stamina + rw.stamina * m);
+  combo.combo += Math.round(rw.combo * m);
   if (combo.combo > combo.bestComboRun) combo.bestComboRun = combo.combo;
   combo.comboTimer = Math.max(combo.comboTimer, TUNE.combo.window);
-  chargeOverdrive(combo.overdrive, rw.overdrive);
+  chargeOverdrive(combo.overdrive, rw.overdrive * m);
   coherenceBeatKick(coherence, onBeat);
   coherenceBeatFlash(coherence, onBeat);
+  // the LOOP: an on-beat parry feeds coherence extra per streak step → flow widens the arc
+  if (onBeat && streak > 0) coherence.value = Math.min(1, coherence.value + streak * PARRY.streakCohBonus);
 }
 
 /** Sweep hostile bullets through the parry arc, deflecting those inside it (boss bullets
@@ -73,11 +121,13 @@ export function parrySweep<B extends { x: number; y: number; fromBoss: boolean }
   bossBudget: number,
   forEach: (visit: (b: B) => void) => void,
   destroy: (b: B) => void,
+  reach: number = PARRY.reach,
+  halfAngle: number = PARRY.halfAngle,
 ): { total: number; boss: number } {
   let bossUsed = 0;
   let deflected = 0;
   forEach((b) => {
-    if (!parryArcContains(px, py, aim, b.x, b.y)) return;
+    if (!parryArcContains(px, py, aim, b.x, b.y, reach, halfAngle)) return;
     if (b.fromBoss) {
       if (!parryDeflectsBoss(bossBudget, bossUsed)) return;
       bossUsed++;
@@ -97,10 +147,12 @@ export function parryEnemySweep<E extends { x: number; y: number }>(
   aim: number,
   forEach: (visit: (e: E) => void) => void,
   hit: (e: E) => void,
+  reach: number = PARRY.reach,
+  halfAngle: number = PARRY.halfAngle,
 ): number {
   let n = 0;
   forEach((e) => {
-    if (!parryArcContains(px, py, aim, e.x, e.y)) return;
+    if (!parryArcContains(px, py, aim, e.x, e.y, reach, halfAngle)) return;
     hit(e);
     n++;
   });

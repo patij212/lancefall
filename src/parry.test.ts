@@ -9,6 +9,10 @@ import {
   parryShove,
   boundedGuardShave,
   parryEnemySweep,
+  parryStreakNext,
+  parryStreakMult,
+  parryGrade,
+  effectiveParryArc,
 } from './parry';
 import { PARRY, TUNE } from './tune';
 import { makeOverdrive } from './overdrive';
@@ -174,6 +178,62 @@ describe('parryEnemySweep (riposte arc)', () => {
   });
   it('hits nothing when the arc is empty', () => {
     expect(run([{ x: 0, y: PARRY.reach + 30 }]).n).toBe(0);
+  });
+});
+
+describe('parryStreakNext', () => {
+  it('an on-beat success builds the streak (capped at streakMax)', () => {
+    expect(parryStreakNext(0, true, true)).toBe(1);
+    expect(parryStreakNext(2, true, true)).toBe(3);
+    expect(parryStreakNext(PARRY.streakMax, true, true)).toBe(PARRY.streakMax); // capped
+  });
+  it('an off-beat success breaks the streak', () => {
+    expect(parryStreakNext(4, false, true)).toBe(0);
+  });
+  it('a whiff breaks the streak', () => {
+    expect(parryStreakNext(4, true, false)).toBe(0);
+  });
+});
+
+describe('parryStreakMult', () => {
+  it('is 1× at streak 0 and grows per step', () => {
+    expect(parryStreakMult(0)).toBeCloseTo(1);
+    expect(parryStreakMult(3)).toBeCloseTo(1 + 3 * PARRY.streakPerStreak);
+  });
+  it('is clamped at streakMax (never a runaway win-button)', () => {
+    expect(parryStreakMult(99)).toBeCloseTo(1 + PARRY.streakMax * PARRY.streakPerStreak);
+  });
+});
+
+describe('parryGrade', () => {
+  it('grades PERFECT inside the perfect window, GOOD after', () => {
+    expect(parryGrade(0, PARRY.perfectWindow)).toBe('perfect');
+    expect(parryGrade(PARRY.perfectWindow - 0.001, PARRY.perfectWindow)).toBe('perfect');
+    expect(parryGrade(PARRY.perfectWindow + 0.01, PARRY.perfectWindow)).toBe('good');
+  });
+});
+
+describe('effectiveParryArc', () => {
+  it('at zero coherence + no meta returns the base arc', () => {
+    const a = effectiveParryArc(0, 0, 0);
+    expect(a.reach).toBeCloseTo(PARRY.reach);
+    expect(a.halfAngle).toBeCloseTo(PARRY.halfAngle);
+  });
+  it('coherence widens reach and angle', () => {
+    const a = effectiveParryArc(1, 0, 0);
+    expect(a.reach).toBeGreaterThan(PARRY.reach);
+    expect(a.halfAngle).toBeGreaterThan(PARRY.halfAngle);
+  });
+  it('meta bonuses STACK on top of coherence', () => {
+    const base = effectiveParryArc(0.5, 0, 0);
+    const buffed = effectiveParryArc(0.5, 40, 0.3);
+    expect(buffed.reach).toBeGreaterThan(base.reach);
+    expect(buffed.halfAngle).toBeGreaterThan(base.halfAngle);
+  });
+  it('clamps halfAngle at π (a full guard) and reach at the cap — the earned apex, never an overshoot', () => {
+    const a = effectiveParryArc(1, 9999, 99);
+    expect(a.halfAngle).toBeCloseTo(Math.PI);
+    expect(a.reach).toBe(PARRY.reachCap);
   });
 });
 

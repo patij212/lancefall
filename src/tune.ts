@@ -97,6 +97,17 @@ export const TUNE = {
     shoveRadius: 64, // px radius of that defensive bullet-shove
     bossGuardShave: 0.3, // s shaved off a boss's armored-phase timer per PARRIED boss bullet (posture-break, budget-capped)
     riposteSparks: 9, // cosmetic spark count per riposte-hit enemy
+    // ── overhaul P2: the COHERENCE flow LOOP + perfect-frame + the hero moment ──
+    streakMax: 6, // cap on the consecutive-on-beat-parry streak
+    streakPerStreak: 0.12, // reward multiplier per streak step (max ×1.72 at streakMax) — guardrailed
+    streakWindow: 2.5, // s a streak survives between on-beat parries (Streak Memory meta extends it)
+    streakCohBonus: 0.02, // extra coherence per streak step on an on-beat parry (the self-reinforcing feed)
+    perfectWindow: 0.04, // s at the START of the active window that grades a parry PERFECT (~2-3 frames)
+    coherenceReachGain: 60, // px the arc reach grows from 0 → MAX coherence (flow-state widens the guard)
+    coherenceArcGain: 1.2, // rad the halfAngle grows from 0 → MAX coherence
+    reachCap: 180, // hard cap on effective reach (deep-meta + max-coherence apex)
+    heroClearRadius: 150, // px chaff bullet-clear radius for the perfect+on-beat HERO moment
+    heroCohSurge: 0.25, // coherence added by the hero moment (the apex surge)
   },
 
   juice: {
