@@ -54,7 +54,7 @@ export const SHIPS: ShipDef[] = [
   {
     id: 'tempest',
     name: 'TEMPEST',
-    desc: 'Nimble. Fast drift + acceleration and quick regen, with a slightly shorter dash.',
+    desc: 'Nimble graze-dancer. Fast drift + acceleration, quick regen, and grazing refunds extra stamina — but a slightly shorter dash.',
     accent: '#818cf8',
     unlockShards: 2000,
     apply: (s) => {
@@ -62,6 +62,10 @@ export const SHIPS: ShipDef[] = [
       s.accel *= 1.3;
       s.regenPerSec += 18;
       s.dashLenMul *= 0.92;
+      // graze-flow identity (its own niche vs PHANTOM's raw dash): grazing refunds
+      // extra stamina + a wider graze ring, so a clean weave keeps you topped up
+      s.grazeStaminaRefund *= 1.6;
+      s.grazeRadius += 8;
     },
   },
   {
@@ -72,8 +76,8 @@ export const SHIPS: ShipDef[] = [
     unlockShards: 4500,
     apply: (s) => {
       s.staminaSegments = Math.max(1, s.staminaSegments - 2); // knife-edge: base 3 → 1
-      s.regenPerSec += 70;
-      s.regenDelay *= 0.4;
+      s.regenPerSec += 45; // eased from +70: PHANTOM was the ideal perpetual-loop chassis
+      s.regenDelay *= 0.55; // eased from ×0.4 — the single segment refills fast, not instant
       s.dashLenMul *= 1.6;
       s.dashHitboxRadius += 6;
       s.maxSpeed *= 1.18;

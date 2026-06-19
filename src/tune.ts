@@ -29,6 +29,11 @@ export const TUNE = {
     iframeGrace: 0.13, // extra invuln after travel ends — softens landing in a crowd, flows into dash-chaining
     hitboxRadius: 22, // swept-capsule radius (the spear)
     carrySpeed: 540, // post-dash momentum carried into drift
+    // HEAVY LANCE — a full (100%) charge arms a heavier thrust: bonus damage + a
+    // "bite-in" that sticks a boss/elite instead of overshooting (see dash.ts/game.ts).
+    heavyChargeMin: 1.0, // ONLY a full 100% charge arms the heavy (charge pins at 1.0 when held)
+    heavyDamageBonus: 1, // additive dash damage on a full-charge heavy (modest — stacks with pierce/IMPALER)
+    heavyBiteInFollow: 30, // px a heavy dash continues past a boss/elite contact, then stops
   },
 
   stamina: {

@@ -45,7 +45,7 @@ import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
 import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
-import { maxStamina } from './dash';
+import { maxStamina, effectiveDashCost, cappedRefund, biteInTarget } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
@@ -1614,8 +1614,12 @@ export class Game {
           this.audio.thunk(8, this.panFor(e.x));
           continue;
         }
+        // HEAVY LANCE: a full 100% charge adds bonus damage, folded into the base before
+        // the Hollow cap / Warden-rear crit (scales with a flank, but the Hollow's
+        // >=2-window cap still holds — no one-shotting its intangibility).
+        const base = w.stats.dashDamage + (p.dashHeavy ? TUNE.dash.heavyDamageBonus : 0);
         // sync-window dash-through is a weak-point hit (lands a satisfying chunk)
-        let dmg = e.kind === 'hollow' ? w.stats.dashDamage + HOLLOW.weakPointBonus : w.stats.dashDamage;
+        let dmg = e.kind === 'hollow' ? base + HOLLOW.weakPointBonus : base;
         // cap per-window damage to the HOLLOW so even a max-damage stack needs ≥2 sync
         // windows — the mechanic — and can never one-shot through its intangibility.
         if (e.kind === 'hollow') dmg = Math.min(dmg, Math.max(2, Math.ceil(e.maxHp * 0.45)));
@@ -1629,6 +1633,19 @@ export class Game {
           this.audio.thunk(60, this.panFor(e.x));
         }
         this.damageEnemy(e, dmg, true);
+        // HEAVY LANCE bite-in: a full-charge dash that connects with a BOSS/elite sticks
+        // it — continue just past the contact instead of overshooting across the arena.
+        if (p.dashHeavy && !p.dashBitIn && (e.isBoss || e.elite)) {
+          p.dashBitIn = true;
+          const stick = biteInTarget(p.x, p.y, e.x, e.y, TUNE.dash.heavyBiteInFollow);
+          p.dashFromX = p.x;
+          p.dashFromY = p.y;
+          p.dashToX = stick.toX;
+          p.dashToY = stick.toY;
+          const rem = Math.hypot(stick.toX - p.x, stick.toY - p.y);
+          p.dashTime = 0;
+          p.dashDuration = Math.max(TUNE.dash.minDuration, rem / TUNE.dash.speed);
+        }
       }
     }
     // CIPHER-LOCK: key ONE core per dash — the first the spear reaches (nearest the
@@ -1683,8 +1700,15 @@ export class Game {
         this.shake.add(p.killsThisDash >= 6 ? TUNE.juice.traumaChain6 : TUNE.juice.traumaChain3);
       this.cam.zoom = Math.max(this.cam.zoom, 1.05);
       if (w.stats.timeThiefStamina > 0) {
-        const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
-        w.player.stamina = Math.min(max, w.player.stamina + w.stats.timeThiefStamina);
+        // route Time Thief through the SAME per-dash refund budget as kill-refund so it
+        // can't bypass the cap and re-open the perpetual loop (it used to add +40 flat)
+        const dashCost = effectiveDashCost(w.stats.dashCostMul, w.stats.staminaSegments);
+        const give = cappedRefund(w.stats.timeThiefStamina, p.refundThisDash, dashCost);
+        if (give > 0) {
+          const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
+          p.stamina = Math.min(max, p.stamina + give);
+          p.refundThisDash += give;
+        }
       }
     }
   }
@@ -1708,6 +1732,15 @@ export class Game {
         this.damageEnemy(e, w.stats.dashDamage, true);
       }
     }
+    // Afterimage also shreds CHAFF bullets crossing the lingering ghost — the
+    // defensive half of the trap-perk fix. Boss bullets are immune (only Riposte
+    // breaks those, on a budget), so the ghost can't trivialise a boss pattern.
+    w.bullets.forEachActive((b) => {
+      if (b.fromBoss) return;
+      if (!segCircleHit(w.ghostX0, w.ghostY0, w.ghostX1, w.ghostY1, b.x, b.y, b.radius, r)) return;
+      w.particles.burst(b.x, b.y, 2, b.color);
+      w.bullets.release(b);
+    });
   }
 
   /** Can the spear (a dash OR its afterimage ghost) damage this enemy right now?
@@ -1777,14 +1810,14 @@ export class Game {
     if (w.combo > w.bestComboRun) w.bestComboRun = w.combo;
     chargeFromKill(w.overdrive, w.combo); // build the OVERDRIVE meter
 
-    // Siphon: dash-kills refund stamina — but CAPPED to ~1 segment per dash so a
-    // chain/AoE kill spree can't refund the whole bar (the near-infinite-dash loop).
-    // A direct spear kill still gives a full ~1-segment refund; chained kills top up
-    // only the remaining budget.
+    // Siphon: dash-kills refund stamina — but CAPPED to one dash's cost per dash, a
+    // budget SHARED with Time Thief (above), so a chain/AoE spree + Time Thief can't
+    // refund past a single dash and sustain the near-infinite-dash loop. A good chain
+    // refills ONE dash; it can never bank surplus to dash across an empty arena.
     if (fromDash && w.stats.killStaminaRefund > 0) {
       const p = w.player;
-      const budget = Math.max(0, TUNE.stamina.perSegment - p.refundThisDash);
-      const give = Math.min(w.stats.killStaminaRefund, budget);
+      const dashCost = effectiveDashCost(w.stats.dashCostMul, w.stats.staminaSegments);
+      const give = cappedRefund(w.stats.killStaminaRefund, p.refundThisDash, dashCost);
       if (give > 0) {
         const max = w.stats.staminaSegments * TUNE.stamina.perSegment;
         p.stamina = Math.min(max, p.stamina + give);

@@ -4,7 +4,7 @@
 // shake). No DOM/audio here.
 
 import { TUNE } from './tune';
-import { chargeToLen, dashDuration, canDash, effectiveDashCost, regenStamina, maxStamina } from './dash';
+import { chargeToLen, dashDuration, canDash, effectiveDashCost, regenStamina, maxStamina, isFullCharge } from './dash';
 import { loadDrift, slingshotLen, slingshotDuration } from './slingshot';
 import { clamp, angleDiff, norm } from './vec';
 import type { Player, InputState } from './types';
@@ -176,6 +176,8 @@ function fireDash(
   p.grazesThisDash = 0; // PERFECT THREAD: fresh graze tally for this dash
   p.perfectThreadFired = false; // re-arm the once-per-dash reward
   p.refundThisDash = 0; // reset the Siphon per-dash refund budget
+  p.dashHeavy = isFullCharge(p.charge); // HEAVY LANCE: a full 100% charge arms bonus dmg + bite-in
+  p.dashBitIn = false; // re-arm the once-per-dash bite-in
   p.iframe = p.dashDuration + TUNE.dash.iframeGrace; // == iframeFor(travel)
   p.stamina -= effectiveDashCost(stats.dashCostMul, stats.staminaSegments);
   p.regenDelay = stats.regenDelay; // ship/perks can shorten the post-dash lockout

@@ -49,12 +49,20 @@ describe('deriveStats', () => {
     expect(deriveStats({ pierce: 2 }).dashDamage).toBe(3);
   });
 
+  it('Afterimage lingers longer per stack (un-trapped: 0.6s → 0.9s)', () => {
+    expect(deriveStats({}).afterimageSec).toBe(0);
+    expect(deriveStats({ afterimage: 1 }).afterimageSec).toBeCloseTo(0.6);
+    expect(deriveStats({ afterimage: 2 }).afterimageSec).toBeCloseTo(0.9);
+  });
+
   it('Siphon refunds stamina per kill', () => {
     expect(deriveStats({ siphon: 2 }).killStaminaRefund).toBe(40);
   });
 
-  it('Slipstream extends the combo window', () => {
+  it('Slipstream extends the combo window AND now helps graze-flow builds', () => {
     expect(deriveStats({ slipstream: 1 }).comboWindowBonus).toBeCloseTo(0.6);
+    // the dead-pick fix: also a sliver of graze combo bonus so kiting/graze styles want it too
+    expect(deriveStats({ slipstream: 2 }).grazeComboBonus).toBeCloseTo(0.3);
   });
 
   it('Nova Dash enables a launch shockwave that grows per stack', () => {
