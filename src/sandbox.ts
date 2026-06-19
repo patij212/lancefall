@@ -31,7 +31,7 @@ import { isHeavyArmed } from './dash';
  *  must satisfy to advance; a per-step time cap auto-advances so the screen can
  *  never stall (no-fail also means no-stuck). */
 export type SandboxStep =
-  | 'charge' | 'release' | 'reach' | 'heavy' | 'combo' | 'graze' | 'parry' | 'rhythm' | 'done';
+  | 'charge' | 'release' | 'reach' | 'heavy' | 'combo' | 'graze' | 'parry' | 'rhythm' | 'bossparry' | 'done';
 
 /** What unblocks the current step — the success the Game detects on the throwaway world:
  *  beganCharge (started charging) · dashed (committed a dash) · reached (skewered the FAR
@@ -39,7 +39,7 @@ export type SandboxStep =
  *  comboDash (a single dash skewering ≥2) · grazed (a near-miss) · parried (a deflect) ·
  *  onBeatDash (a dash graded on-beat) · tick (the closing beat — cap-only). */
 export type SandboxTrigger =
-  | 'beganCharge' | 'dashed' | 'reached' | 'heavyDash' | 'comboDash' | 'grazed' | 'parried' | 'onBeatDash' | 'tick';
+  | 'beganCharge' | 'dashed' | 'reached' | 'heavyDash' | 'comboDash' | 'grazed' | 'parried' | 'onBeatDash' | 'bossBroke' | 'tick';
 
 export interface SandboxStepDef {
   step: SandboxStep;
@@ -115,6 +115,13 @@ export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
     advanceOn: 'onBeatDash',
     cap: 9,
   },
+  {
+    step: 'bossparry',
+    text: 'BREAK THE BOSS — PARRY its volley to crack the guard',
+    sub: 'Against a boss the PARRY is your opener: deflect its fire and every shot you catch chips its GUARD bar, dragging it into the EXPOSED window sooner. Fling its big orb back for a bigger crack — and on the beat it all counts double.',
+    advanceOn: 'bossBroke',
+    cap: 13,
+  },
   { step: 'done', text: 'You hold the lance. Descend.', advanceOn: 'tick', cap: 1.5 },
 ] as const;
 
@@ -131,6 +138,8 @@ export interface SandboxTarget {
   dy: number;
   /** an armoured blocker — only a HEAVY (overcharged) dash kills it (the 'heavy' beat) */
   shielded?: boolean;
+  /** a dummy BOSS — big, with a GUARD bar that parrying its volley breaks (the 'bossparry' beat) */
+  boss?: boolean;
 }
 
 /** The dummy targets to spawn for a given beat (pure, no rng → identical every time).
@@ -150,6 +159,8 @@ export function sandboxBeatTargets(step: SandboxStep): SandboxTarget[] {
       // collinear, dead ahead — a single straight dash skewers all three (a vertical spread
       // would let a forward dash miss the flankers, stranding the beat on its cap).
       return [{ dx: 200, dy: 0 }, { dx: 310, dy: 0 }, { dx: 420, dy: 0 }];
+    case 'bossparry':
+      return [{ dx: 380, dy: 0, boss: true }]; // a stationary dummy boss whose GUARD you parry down
     default:
       return []; // graze / parry / rhythm / done — bullets or the beat, not dummies
   }
@@ -199,6 +210,8 @@ export interface SandboxEvents {
   parried: boolean;
   /** a dash graded on-beat against the beat clock — the 'rhythm' beat */
   onBeatDash: boolean;
+  /** the dummy boss's GUARD bar was parried to empty — the 'bossparry' beat */
+  bossBroke: boolean;
 }
 
 /** Does `ev` satisfy the trigger that advances PAST the given step? */
@@ -220,6 +233,8 @@ function triggerMet(def: SandboxStepDef, ev: SandboxEvents): boolean {
       return ev.parried;
     case 'onBeatDash':
       return ev.onBeatDash;
+    case 'bossBroke':
+      return ev.bossBroke;
     case 'tick':
       return false; // 'done' advances only by its cap
   }

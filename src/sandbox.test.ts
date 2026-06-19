@@ -17,29 +17,30 @@ import { TUNE } from './tune';
 
 const NONE: SandboxEvents = {
   beganCharge: false, dashed: false, skewer: false, reached: false,
-  heavyDash: false, comboDash: false, grazed: false, parried: false, onBeatDash: false,
+  heavyDash: false, comboDash: false, grazed: false, parried: false, onBeatDash: false, bossBroke: false,
 };
 const DT = 1 / 60;
 
 /** Fire each beat's success trigger in order; returns the final state after the whole teach. */
 function walkAllTriggers(): ReturnType<typeof newSandbox> {
   let s = newSandbox();
-  s = stepSandbox(s, DT, { ...NONE, beganCharge: true }); // charge  → release
-  s = stepSandbox(s, DT, { ...NONE, dashed: true }); //      release → reach
-  s = stepSandbox(s, DT, { ...NONE, reached: true }); //     reach   → heavy
-  s = stepSandbox(s, DT, { ...NONE, heavyDash: true }); //   heavy   → combo
-  s = stepSandbox(s, DT, { ...NONE, comboDash: true }); //   combo   → graze
-  s = stepSandbox(s, DT, { ...NONE, grazed: true }); //      graze   → parry
-  s = stepSandbox(s, DT, { ...NONE, parried: true }); //     parry   → rhythm
-  s = stepSandbox(s, DT, { ...NONE, onBeatDash: true }); //  rhythm  → done
+  s = stepSandbox(s, DT, { ...NONE, beganCharge: true }); // charge   → release
+  s = stepSandbox(s, DT, { ...NONE, dashed: true }); //      release  → reach
+  s = stepSandbox(s, DT, { ...NONE, reached: true }); //     reach    → heavy
+  s = stepSandbox(s, DT, { ...NONE, heavyDash: true }); //   heavy    → combo
+  s = stepSandbox(s, DT, { ...NONE, comboDash: true }); //   combo    → graze
+  s = stepSandbox(s, DT, { ...NONE, grazed: true }); //      graze    → parry
+  s = stepSandbox(s, DT, { ...NONE, parried: true }); //     parry    → rhythm
+  s = stepSandbox(s, DT, { ...NONE, onBeatDash: true }); //  rhythm   → bossparry
+  s = stepSandbox(s, DT, { ...NONE, bossBroke: true }); //   bossparry→ done
   for (let i = 0; i < 400 && !s.done; i++) s = stepSandbox(s, DT, NONE); // done caps out
   return s;
 }
 
-describe('deep sandbox — the 7-beat curriculum', () => {
-  it('runs charge → release → reach → heavy → combo → graze → parry → rhythm → done, in order', () => {
+describe('deep sandbox — the curriculum', () => {
+  it('runs charge → … → parry → rhythm → bossparry → done, in order', () => {
     const ids = SANDBOX_STEPS.map((d) => d.step);
-    expect(ids).toEqual(['charge', 'release', 'reach', 'heavy', 'combo', 'graze', 'parry', 'rhythm', 'done']);
+    expect(ids).toEqual(['charge', 'release', 'reach', 'heavy', 'combo', 'graze', 'parry', 'rhythm', 'bossparry', 'done']);
   });
 
   it('starts on the charge step, not done', () => {
@@ -83,6 +84,11 @@ describe('deep sandbox — the 7-beat curriculum', () => {
     s = stepSandbox(s, DT, { ...NONE, dashed: true });
     expect(currentStep(s).step).toBe('rhythm');
     s = stepSandbox(s, DT, { ...NONE, onBeatDash: true });
+    expect(currentStep(s).step).toBe('bossparry');
+    // bossparry needs the guard broken (a stray parry doesn't finish it)
+    s = stepSandbox(s, DT, { ...NONE, parried: true });
+    expect(currentStep(s).step).toBe('bossparry');
+    s = stepSandbox(s, DT, { ...NONE, bossBroke: true });
     expect(currentStep(s).step).toBe('done');
   });
 
@@ -112,9 +118,9 @@ describe('deep sandbox — no-fail safety', () => {
   it('the closing beat advances by cap only (tick never satisfies a trigger)', () => {
     // drive to the 'done' step, then confirm a no-trigger tick still finishes it via the cap
     let s = newSandbox();
-    for (let i = 0; i < 8; i++) {
-      // fire whatever the current beat needs to step forward fast
-      const ev = { ...NONE, beganCharge: true, dashed: true, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true };
+    for (let i = 0; i < 9; i++) {
+      // fire whatever the current beat needs to step forward fast (one trigger per teaching beat)
+      const ev = { ...NONE, beganCharge: true, dashed: true, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true, bossBroke: true };
       s = stepSandbox(s, DT, ev);
     }
     expect(currentStep(s).step).toBe('done');
@@ -179,6 +185,11 @@ describe('deep sandbox — per-beat target layouts (pure, deterministic, no rng)
       expect(sandboxBeatTargets(step)).toEqual([]);
     }
   });
+  it('bossparry presents one BOSS target (the guard to break)', () => {
+    const t = sandboxBeatTargets('bossparry');
+    expect(t.length).toBe(1);
+    expect(t[0].boss).toBe(true);
+  });
   it('is identical on every call (no rng)', () => {
     expect(sandboxBeatTargets('combo')).toEqual(sandboxBeatTargets('combo'));
   });
@@ -188,17 +199,17 @@ describe('sandboxProgress — pip-row progress over the teaching beats', () => {
   it('excludes the done close-out from the total', () => {
     const total = SANDBOX_STEPS.filter((d) => d.step !== 'done').length;
     expect(sandboxProgress(newSandbox()).total).toBe(total);
-    expect(sandboxProgress(newSandbox()).total).toBe(8); // charge…rhythm
+    expect(sandboxProgress(newSandbox()).total).toBe(9); // charge…bossparry
   });
   it('starts at index 0, not done', () => {
-    expect(sandboxProgress(newSandbox())).toEqual({ index: 0, total: 8, done: false });
+    expect(sandboxProgress(newSandbox())).toEqual({ index: 0, total: 9, done: false });
   });
   it('advances the index one per beat and saturates + flags done on the close-out', () => {
     let s = newSandbox();
-    const all = { beganCharge: true, dashed: true, skewer: false, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true };
+    const all = { ...NONE, beganCharge: true, dashed: true, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true, bossBroke: true };
     s = stepSandbox(s, 1 / 60, all); // charge → release
     expect(sandboxProgress(s).index).toBe(1);
-    for (let i = 0; i < 8; i++) s = stepSandbox(s, 1 / 60, all);
+    for (let i = 0; i < 9; i++) s = stepSandbox(s, 1 / 60, all);
     const p = sandboxProgress(s);
     expect(p.index).toBe(p.total); // saturated at the end
     expect(p.done).toBe(true);

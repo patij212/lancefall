@@ -85,6 +85,9 @@ import type { SandboxState, SandboxStep } from './sandbox';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
+/** Sandbox BOSS-PARRY beat — the dummy boss's GUARD bar size (parried boss shots to break it). */
+const SANDBOX_GUARD = 5;
+
 // ── 4.1 CHALLENGE THE DEV — a pinned fixed-seed run that races an author ghost. ──
 // The seed is a constant so the dev's "official" challenge run is identical for everyone.
 // Endless on this seed (off any date/week cadence), so it stays deterministic forever.
@@ -471,7 +474,15 @@ export class Game {
     const targets = sandboxBeatTargets(step);
     for (const t of targets) {
       const e = sw.spawnEnemy('drifter', px + t.dx, py + t.dy, 1, 1, t.shielded ?? false, false, 0);
-      if (e) { e.scale = 1; e.hp = 1; e.maxHp = 1; e.shielded = t.shielded ?? false; }
+      if (!e) continue;
+      e.scale = 1;
+      e.shielded = t.shielded ?? false;
+      if (t.boss) {
+        // a big dummy boss whose hp bar IS the GUARD the player parries down (no AI tick → stationary)
+        e.radius = 42; e.hp = SANDBOX_GUARD; e.maxHp = SANDBOX_GUARD; e.color = '#ff6b87';
+      } else {
+        e.hp = 1; e.maxHp = 1;
+      }
     }
     // a one-shot directional cue toward the marks (bullet/rhythm beats are their own cue)
     if (targets.length > 0) {
@@ -538,13 +549,13 @@ export class Game {
     const cueTick = this.sandboxCueTimer <= 0;
     if (cueTick) this.sandboxCueTimer = 0.32;
     if (cueTick) {
-      const cueColor = step === 'reach' ? '#ffd166' : step === 'heavy' ? '#9fb4d8' : '#5beaff';
+      const cueColor = step === 'reach' ? '#ffd166' : step === 'heavy' ? '#9fb4d8' : step === 'bossparry' ? '#ff8da3' : '#5beaff';
       sw.enemies.forEachActive((e) => sw.particles.ring(e.x, e.y, e.radius + 14, cueColor, 0.34));
     }
 
     // ── per-beat success detection (cosmetic; reads the throwaway world, no rng) ──
     const ev = { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer: false,
-      reached: false, heavyDash: false, comboDash: false, grazed: false, parried: false, onBeatDash: false };
+      reached: false, heavyDash: false, comboDash: false, grazed: false, parried: false, onBeatDash: false, bossBroke: false };
 
     // HEAVY beat — teach the OVERCHARGE: a sub-note + a gold player pulse once charge is full,
     // flipping to "release!" the instant the overcharge arms (overchargeCue reads the live player).
@@ -566,7 +577,7 @@ export class Game {
     // dash STARTED during this beat counts (freshDash) — beats stay isolated, one dash each.
     const freshDash = sw.player.dashId > this.sandboxBeatEntryDashId;
     const dashing = (sw.player.phase === 'dashing' || this.ev.landed) && freshDash;
-    if (dashing) {
+    if (dashing && step !== 'bossparry') { // bossparry is a parry beat — a dash mustn't skewer the boss
       const ax = sw.player.dashFromX, ay = sw.player.dashFromY, bx = sw.player.x, by = sw.player.y;
       const heavy = sw.player.dashHeavy;
       sw.enemies.forEachActive((e) => {
@@ -634,6 +645,42 @@ export class Game {
     }
     ev.parried = parried;
 
+    // BOSS-PARRY beat — a stationary dummy boss fires a slow volley; PARRY it to chip its GUARD
+    // (its hp bar) to zero, reflecting its big orb for a bigger crack. No-fail: the boss bullets
+    // run no hit-check in the sandbox, so they pass harmlessly; only parrying matters.
+    if (step === 'bossparry') {
+      let boss: Enemy | null = null;
+      sw.enemies.forEachActive((e) => { if (!boss) boss = e; });
+      if (boss) {
+        const bossE: Enemy = boss;
+        this.feedSandboxBossVolley(sw, bossE);
+        if (this.ev.parryFired) {
+          const arc = effectiveParryArc(0.8, sw.stats.parryReach, sw.stats.parryHalfAngle);
+          let chip = 0;
+          sw.bullets.forEachActive((b) => {
+            if (!parryArcContains(sw.player.x, sw.player.y, sw.player.angle, b.x, b.y, arc.reach, arc.halfAngle)) return;
+            const orb = b.reflectable;
+            sw.particles.burst(b.x, b.y, orb ? 22 : 14, orb ? '#ffd166' : '#ff8da3');
+            if (orb) sw.particles.floatText(b.x, b.y - 14, 'REFLECTED', '#fbbf24', 1.0);
+            sw.bullets.release(b);
+            chip += orb ? 2 : 1;
+          });
+          if (chip > 0) {
+            this.audio.parry(true);
+            this.shake.add(0.12);
+            bossE.hp -= chip;
+            if (bossE.hp <= 0) {
+              ev.bossBroke = true;
+              sw.particles.burst(bossE.x, bossE.y, 42, bossE.color);
+              sw.particles.floatText(bossE.x, bossE.y - 36, 'GUARD BROKEN — EXPOSED!', '#fde047', 1.3);
+              this.shake.add(0.3);
+              sw.enemies.release(bossE);
+            }
+          }
+        }
+      }
+    }
+
     sw.particles.update(dt);
 
     // advance the pure step machine; relabel the overlay on a step change
@@ -690,6 +737,21 @@ export class Game {
       const b = sw.spawnBullet(px + 460, py + dy, -sp, 0, 7, '#8bd0ff', false, 'orb');
       if (b) b.life = 12;
     }
+  }
+
+  /** BOSS-PARRY beat — the dummy boss lobs a slow telegraphed VOLLEY at the player (a small fan
+   *  of boss bolts + one big reflectable orb) whenever the board clears, so there's always
+   *  something to parry. fromBoss bullets run no hit-check in the sandbox → harmless. No rng. */
+  private feedSandboxBossVolley(sw: World, boss: Enemy): void {
+    if (sw.bullets.activeCount > 0) return;
+    const baseA = Math.atan2(sw.player.y - boss.y, sw.player.x - boss.x);
+    for (const off of [-0.18, 0, 0.18]) {
+      const a = baseA + off, sp = 115;
+      const b = sw.spawnBullet(boss.x, boss.y, Math.cos(a) * sp, Math.sin(a) * sp, 8, '#ff6b87', true, 'orb');
+      if (b) b.life = 14;
+    }
+    const ob = sw.spawnBullet(boss.x, boss.y, Math.cos(baseA) * 80, Math.sin(baseA) * 80, 13, '#ffb061', true, 'orb');
+    if (ob) { ob.reflectable = true; ob.life = 16; }
   }
 
   /** PARRY beat — keep ONE slow, telegraphed, reflectable shot heading into the aim arc so the
