@@ -2355,6 +2355,13 @@ body {
   background: none;
   animation: fade 0.25s ease;
 }
+.sandbox-top,
+.sandbox-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
 .sandbox-tag {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 12px;
@@ -2363,6 +2370,47 @@ body {
   color: var(--cyan, #22d3ee);
   opacity: 0.78;
   text-shadow: 0 0 14px rgba(34, 211, 238, 0.5);
+}
+.sandbox-pips {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.sandbox-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(120, 160, 200, 0.28);
+  transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.sandbox-pip.done {
+  background: var(--cyan, #22d3ee);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+}
+.sandbox-pip.current {
+  background: #eef6ff;
+  transform: scale(1.5);
+  box-shadow: 0 0 14px rgba(125, 255, 168, 0.8);
+}
+.reduce-motion .sandbox-pip {
+  transition: none;
+}
+.sandbox-note {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: clamp(13px, 1.6vw, 17px);
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: #ffd166;
+  text-shadow: 0 0 16px rgba(255, 209, 102, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.sandbox-note.show {
+  opacity: 0.92;
+}
+.reduce-motion .sandbox-note {
+  transition: none;
 }
 .sandbox-step {
   font-family: 'Space Grotesk', sans-serif;

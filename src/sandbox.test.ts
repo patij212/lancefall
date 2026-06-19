@@ -7,10 +7,13 @@ import {
   sandboxText,
   shouldShowSandbox,
   sandboxBeatTargets,
+  sandboxProgress,
+  overchargeCue,
   SANDBOX_STEPS,
   type SandboxStep,
   type SandboxEvents,
 } from './sandbox';
+import { TUNE } from './tune';
 
 const NONE: SandboxEvents = {
   beganCharge: false, dashed: false, skewer: false, reached: false,
@@ -164,6 +167,42 @@ describe('deep sandbox — per-beat target layouts (pure, deterministic, no rng)
   });
   it('is identical on every call (no rng)', () => {
     expect(sandboxBeatTargets('combo')).toEqual(sandboxBeatTargets('combo'));
+  });
+});
+
+describe('sandboxProgress — pip-row progress over the teaching beats', () => {
+  it('excludes the done close-out from the total', () => {
+    const total = SANDBOX_STEPS.filter((d) => d.step !== 'done').length;
+    expect(sandboxProgress(newSandbox()).total).toBe(total);
+    expect(sandboxProgress(newSandbox()).total).toBe(8); // charge…rhythm
+  });
+  it('starts at index 0, not done', () => {
+    expect(sandboxProgress(newSandbox())).toEqual({ index: 0, total: 8, done: false });
+  });
+  it('advances the index one per beat and saturates + flags done on the close-out', () => {
+    let s = newSandbox();
+    const all = { beganCharge: true, dashed: true, skewer: false, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true };
+    s = stepSandbox(s, 1 / 60, all); // charge → release
+    expect(sandboxProgress(s).index).toBe(1);
+    for (let i = 0; i < 8; i++) s = stepSandbox(s, 1 / 60, all);
+    const p = sandboxProgress(s);
+    expect(p.index).toBe(p.total); // saturated at the end
+    expect(p.done).toBe(true);
+  });
+});
+
+describe('overchargeCue — the HEAVY teach state', () => {
+  it('is none before full charge', () => {
+    expect(overchargeCue(0, 0)).toBe('none');
+    expect(overchargeCue(0.7, 0)).toBe('none');
+  });
+  it('is hold at full charge before the overcharge arms', () => {
+    expect(overchargeCue(1, 0)).toBe('hold');
+    expect(overchargeCue(1, TUNE.dash.heavyOverchargeTime * 0.5)).toBe('hold');
+  });
+  it('is armed once the overcharge passes the heavy threshold', () => {
+    expect(overchargeCue(1, TUNE.dash.heavyOverchargeTime)).toBe('armed');
+    expect(overchargeCue(1, TUNE.dash.heavyOverchargeTime + 1)).toBe('armed');
   });
 });
 

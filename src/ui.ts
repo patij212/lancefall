@@ -471,6 +471,9 @@ export class UI {
   // canvas; pointer-events stay off so canvas dash input still works, except the SKIP btn)
   private sandboxOverlay!: HTMLElement;
   private sandboxText!: HTMLElement;
+  private sandboxPips!: HTMLElement; // ◦◦●◦◦ progress over the teaching beats
+  private sandboxPipEls: HTMLElement[] = [];
+  private sandboxNote!: HTMLElement; // small sub-line: overcharge cue / 'replay in Settings'
   private touchPauseBtn!: HTMLButtonElement;
   private rebinding: 'dash' | 'overdrive' | 'parry' | 'pause' | null = null; // active key-capture, if any
   private announceEl!: HTMLElement;
@@ -3369,20 +3372,44 @@ export class UI {
    *  text lives here in the DOM (NOT canvas text — that would require render.ts). */
   private buildSandbox(): void {
     this.sandboxText = el('div', { class: 'sandbox-step', role: 'status', 'aria-live': 'polite' }, '');
+    this.sandboxPips = el('div', { class: 'sandbox-pips', 'aria-hidden': 'true' });
+    this.sandboxNote = el('div', { class: 'sandbox-note', role: 'status', 'aria-live': 'polite' }, '');
     const skip = el('button', { class: 'btn btn-ghost btn-sm sandbox-skip', type: 'button' }, 'SKIP ▸');
     skip.addEventListener('click', () => this.cb.onSkipSandbox());
     this.sandboxOverlay = el(
       'div',
       { class: 'screen sandbox-overlay hidden', 'aria-label': 'Dash practice' },
-      el('div', { class: 'sandbox-tag' }, 'DASH PRACTICE · no danger here'),
-      this.sandboxText,
+      el('div', { class: 'sandbox-top' }, el('div', { class: 'sandbox-tag' }, 'DASH PRACTICE · no danger here'), this.sandboxPips),
+      el('div', { class: 'sandbox-mid' }, this.sandboxText, this.sandboxNote),
       el('div', { class: 'sandbox-skip-wrap' }, skip),
     );
+  }
+
+  /** Rebuild the pip row to `total` dots and light the first `index` as done (the current
+   *  beat pulses). Cheap: only rebuilds the dots when the count changes, else toggles classes. */
+  setSandboxProgress(index: number, total: number): void {
+    if (this.sandboxPipEls.length !== total) {
+      this.sandboxPipEls = Array.from({ length: total }, () => el('div', { class: 'sandbox-pip' }));
+      this.sandboxPips.replaceChildren(...this.sandboxPipEls);
+    }
+    this.sandboxPipEls.forEach((p, i) => {
+      p.classList.toggle('done', i < index);
+      p.classList.toggle('current', i === index);
+    });
+  }
+
+  /** Set (or clear) the small sub-line under the step text — the overcharge cue or the
+   *  'replay in Settings' note. No-op if unchanged (so a per-frame caller never churns). */
+  setSandboxNote(text: string): void {
+    if (this.sandboxNote.textContent === text) return;
+    this.sandboxNote.textContent = text;
+    this.sandboxNote.classList.toggle('show', text.length > 0);
   }
 
   /** Show the sandbox overlay over the playing canvas with the first step's text. */
   showSandbox(text: string): void {
     this.sandboxText.textContent = text;
+    this.setSandboxNote('');
     // §1.2 fix — hide EVERY standard screen so the practice canvas (the sandbox player +
     // dummy targets, drawn by the sandbox frame) is actually visible. The title/cockpit
     // was previously left up, covering the canvas so the teach floated over a dead menu.

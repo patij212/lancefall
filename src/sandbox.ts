@@ -24,6 +24,9 @@
 // to a dedicated throwaway World so this.world (the real run) is never touched until
 // start() resets it; the Game computes each success boolean below from that world.
 
+// The ONLY import — a pure tune-reading predicate (no rng) used by the HEAVY-beat cue below.
+import { isHeavyArmed } from './dash';
+
 /** The scripted teach steps, in order. Each step is gated by a TRIGGER the player
  *  must satisfy to advance; a per-step time cap auto-advances so the screen can
  *  never stall (no-fail also means no-stuck). */
@@ -219,4 +222,23 @@ export function shouldShowSandbox(seenSandbox: boolean, reduceMotion: boolean): 
 /** The instruction text to surface for the current sandbox state (DOM overlay). */
 export function sandboxText(s: SandboxState): string {
   return currentStep(s).text;
+}
+
+/** Total teaching beats (everything but the `done` close-out) — the pip-row length. */
+export const SANDBOX_TEACH_BEATS = SANDBOX_STEPS.filter((d) => d.step !== 'done').length;
+
+/** Progress over the teaching beats for the overlay pip row. `index` is the current beat
+ *  (0..total), saturating at `total` once the close-out is reached; `done` flags that. Pure. */
+export function sandboxProgress(s: SandboxState): { index: number; total: number; done: boolean } {
+  const total = SANDBOX_TEACH_BEATS;
+  return { index: Math.min(s.stepIndex, total), total, done: s.stepIndex >= total };
+}
+
+/** The HEAVY-beat teach state from the live charge/overcharge: `'none'` before full charge,
+ *  `'hold'` at full while the overcharge is still building, `'armed'` once it's armed (release
+ *  now for a HEAVY thrust). Pure — `isHeavyArmed` reads only TUNE, no rng. */
+export function overchargeCue(charge: number, overcharge: number): 'none' | 'hold' | 'armed' {
+  if (isHeavyArmed(overcharge)) return 'armed';
+  if (charge >= 1 - 1e-6) return 'hold';
+  return 'none';
 }

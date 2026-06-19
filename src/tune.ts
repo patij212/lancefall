@@ -692,6 +692,9 @@ export const ONBOARD = {
   // seconds of no-fail i-frame grace at the start of a brand-new player's FIRST run.
   // Pure wall-clock teaching window; ends early once they actually dash (verb learned).
   firstRunGrace: 3.5,
+  // ACT TWO — seconds between queued contextual teaches (verb/enemy/boss reads) so several
+  // first-sightings in one wave surface one at a time rather than stacking on the toast layer.
+  teachGap: 3.6,
 } as const;
 
 // THREAT RIM (v6 §7b) — render-only legibility. The global COHERENCE wash uses a

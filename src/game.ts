@@ -80,7 +80,7 @@ import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf 
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
-import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, currentStep, sandboxBeatTargets } from './sandbox';
+import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, currentStep, sandboxBeatTargets, sandboxProgress, overchargeCue } from './sandbox';
 import type { SandboxState, SandboxStep } from './sandbox';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
@@ -180,6 +180,10 @@ export class Game {
   // per-frame enemy scan short-circuits after the first encounter (the once-ever persistence
   // lives in save.taught; this just bounds the per-frame work). Cosmetic; no rng.
   private actTwoSeenKinds = new Set<string>();
+  // ACT TWO — a spaced queue so several first-sighting teaches in one wave surface one at a time
+  // (not stacked). Marked taught only as each shows (pumpTeach). Cosmetic; no rng.
+  private teachQueue: TeachHit[] = [];
+  private teachCooldown = 0;
   // §1.2 DASH SANDBOX — the no-fail first-run teach. A DEDICATED throwaway World +
   // its own non-seeded rng, so the teach NEVER touches this.world or the seeded run
   // streams; the run begins only once the sandbox hands off to start(cfg), which
@@ -191,6 +195,7 @@ export class Game {
   private sandboxSetupStep: SandboxStep | null = null; // the beat whose targets/bullets are currently staged
   private sandboxBeatEntryDashId = -1; // player.dashId when the active beat began — a dash counts only if NEWER
   //  (so one dash can't blow through several beats; each dash-success beat needs its OWN fresh dash)
+  private sandboxCueTimer = 0; // throttles the cosmetic target-ring / overcharge pulse (a few Hz)
   // Grid B — no-fail opening grace, ONLY on a brand-new player's first run. A PURE
   // wall-clock gate that tops up i-frames so the dash can be learned before dying;
   // never touches world.rng / spawns, so the Daily stays deterministic.
@@ -423,6 +428,7 @@ export class Game {
     this.sandbox = newSandbox();
     this.sandboxDashKills = 0;
     this.sandboxSetupStep = null;
+    this.sandboxCueTimer = 0;
     // a SEPARATE world on a throwaway, NON-seeded rng — it can never perturb the run.
     const sw = new World(createRng(0x5A4D_B0C5)); // "SANDBOX" — a fixed throwaway seed
     sw.reset(window.innerWidth, window.innerHeight);
@@ -441,6 +447,8 @@ export class Game {
     this.audio.duckMusic(true); // music quiet until the rhythm beat lifts it
     this.state = 'sandbox';
     this.ui.showSandbox(sandboxText(this.sandbox));
+    const p0 = sandboxProgress(this.sandbox);
+    this.ui.setSandboxProgress(p0.index, p0.total);
   }
 
   /** Stage one beat on the throwaway world: clear the board, then spawn that beat's dummy
@@ -457,9 +465,19 @@ export class Game {
     sw.player.vx = 0; sw.player.vy = 0;
     sw.player.phase = 'idle'; sw.player.charge = 0; sw.player.overcharge = 0;
     const px = sw.player.x, py = sw.player.y;
-    for (const t of sandboxBeatTargets(step)) {
+    // a recentre "blink-in" so the snap to the anchor reads as a deliberate reset, not a glitch
+    sw.particles.ring(px, py, 28, '#5beaff', 0.4);
+    sw.particles.dust(px, py, '#22d3ee');
+    const targets = sandboxBeatTargets(step);
+    for (const t of targets) {
       const e = sw.spawnEnemy('drifter', px + t.dx, py + t.dy, 1, 1, t.shielded ?? false, false, 0);
       if (e) { e.scale = 1; e.hp = 1; e.maxHp = 1; e.shielded = t.shielded ?? false; }
+    }
+    // a one-shot directional cue toward the marks (bullet/rhythm beats are their own cue)
+    if (targets.length > 0) {
+      const t = targets[0];
+      const ang = Math.atan2(t.dy, t.dx);
+      sw.particles.floatText(px + Math.cos(ang) * 56, py + Math.sin(ang) * 56 - 22, 'AIM →', '#9fd8ff', 1.1);
     }
     this.sandboxSetupStep = step;
     // a dash counts for this beat only if it STARTS now or later — so an in-progress dash
@@ -513,9 +531,32 @@ export class Game {
       if (b.life <= 0 || b.x < -60 || b.x > sw.width + 60 || b.y < -60 || b.y > sw.height + 60) sw.bullets.release(b);
     });
 
+    // AIM CUE — a few-Hz pulse so "act on THIS" is unmistakable: a ring on each active target
+    // (cyan / gold far-mark / steel blocker), and on the HEAVY beat a charge-state pulse on the
+    // player. Cosmetic; throttled by sandboxCueTimer so it pulses rather than spams.
+    this.sandboxCueTimer -= dt;
+    const cueTick = this.sandboxCueTimer <= 0;
+    if (cueTick) this.sandboxCueTimer = 0.32;
+    if (cueTick) {
+      const cueColor = step === 'reach' ? '#ffd166' : step === 'heavy' ? '#9fb4d8' : '#5beaff';
+      sw.enemies.forEachActive((e) => sw.particles.ring(e.x, e.y, e.radius + 14, cueColor, 0.34));
+    }
+
     // ── per-beat success detection (cosmetic; reads the throwaway world, no rng) ──
     const ev = { beganCharge: this.ev.beganCharge, dashed: this.ev.dashFired, skewer: false,
       reached: false, heavyDash: false, comboDash: false, grazed: false, parried: false, onBeatDash: false };
+
+    // HEAVY beat — teach the OVERCHARGE: a sub-note + a gold player pulse once charge is full,
+    // flipping to "release!" the instant the overcharge arms (overchargeCue reads the live player).
+    if (step === 'heavy') {
+      const cue = overchargeCue(sw.player.charge, sw.player.overcharge);
+      this.ui.setSandboxNote(cue === 'armed' ? 'HEAVY READY — release!' : cue === 'hold' ? 'KEEP HOLDING → HEAVY' : '');
+      if (cueTick && cue !== 'none') sw.particles.ring(sw.player.x, sw.player.y, sw.player.radius + 18, cue === 'armed' ? '#ffe08a' : '#ffd166', 0.3);
+    } else if (step === 'done') {
+      this.ui.setSandboxNote('Replay anytime in Settings ▸ Replay tutorial');
+    } else {
+      this.ui.setSandboxNote('');
+    }
 
     // dash skewers: the dash segment crossing live dummies. A shielded blocker only breaks
     // to a HEAVY (overcharged) dash; a plain dash clangs and teaches the overcharge. Only a
@@ -596,6 +637,16 @@ export class Game {
     const next = stepSandbox(sb, dt, ev);
     this.sandbox = next;
     this.ui.setSandboxText(sandboxText(next));
+    if (next.stepIndex > sb.stepIndex) {
+      // a beat just cleared — a quick ✓ flourish + soft tick, and advance the pip row
+      if (!next.done) {
+        sw.particles.floatText(sw.player.x, sw.player.y - 42, '✓', '#7dffa8', 1.0);
+        sw.particles.ring(sw.player.x, sw.player.y, 30, '#7dffa8', 0.4);
+        this.audio.thunk(3, this.panFor(sw.player.x));
+      }
+      const prog = sandboxProgress(next);
+      this.ui.setSandboxProgress(prog.index, prog.total);
+    }
     // the sandbox parry teaches the verb for real — mark it so the contextual fallback (and a
     // later replay) never re-teach `verb:parry` redundantly. Cosmetic save write; no rng.
     if (parried && !this.save.taught.includes('verb:parry')) {
@@ -774,6 +825,7 @@ export class Game {
     this.pendingDraft = false;
     this.bossWarned = false;
     this.actTwoSeenKinds.clear(); // re-evaluate first-sighting reads each run (persisted gate still fires once ever)
+    this.teachQueue.length = 0; this.teachCooldown = 0; // fresh teach queue per run
     this.pendingEvent = null;
     this.dashSlowmoTriggered = false;
     this.announcedEvos.clear();
@@ -842,17 +894,29 @@ export class Game {
     if (this.onboardStep >= ONBOARDING_STEPS) this.onboarding = false;
   }
 
-  /** ACT TWO — surface a just-in-time teach ONCE EVER, then persist its key. A no-op when
-   *  there's nothing to teach (already taught / unknown kind) or the player turned hints off.
-   *  Reuses the existing toast surface; mutates only the save (never world.rng → the seeded
-   *  sim and the Daily are untouched). The `taught` push happens BEFORE the toast so a
-   *  same-frame re-check can't double-fire it. */
+  /** ACT TWO — ENQUEUE a just-in-time teach. A no-op when there's nothing to teach (already
+   *  taught / queued / unknown kind) or hints are off. The teach is NOT marked taught here —
+   *  only when it actually surfaces (pumpTeach), so several first-sightings in one wave don't
+   *  stack: they show one at a time, spaced. Never touches world.rng. */
   private teach(hit: TeachHit | null): void {
     if (!hit || !this.settings.tutorialHints) return;
-    if (this.save.taught.includes(hit.key)) return; // defensive: already recorded
+    if (this.save.taught.includes(hit.key)) return; // already shown in a prior session/run
+    if (this.teachQueue.some((h) => h.key === hit.key)) return; // already waiting
+    this.teachQueue.push(hit);
+  }
+
+  /** Drain the act-two teach queue ONE at a time with a gap so the toasts read as separate
+   *  notes (mirrors the jargon-gloss queue). Each is marked taught + persisted only as it
+   *  surfaces; an un-shown tail survives to teach next session. Called each playing frame. */
+  private pumpTeach(realDt: number): void {
+    if (this.teachCooldown > 0) { this.teachCooldown -= realDt; return; }
+    let hit: TeachHit | undefined;
+    while ((hit = this.teachQueue.shift())) { if (!this.save.taught.includes(hit.key)) break; hit = undefined; }
+    if (!hit) return;
     this.save.taught.push(hit.key);
     saveSave(this.save);
     this.ui.toast(hit.text);
+    this.teachCooldown = ONBOARD.teachGap;
   }
 
   /** ACT TWO — "Replay tutorial": clear every persisted teach flag so the whole first-run
@@ -1511,7 +1575,10 @@ export class Game {
       firstLight: flT * flT * (3 - 2 * flT),
       cipherAssist: this.settings.rhythmAssist, // assist players (incl. Casual) get the next-core ring
     });
-    if (this.state === 'playing') this.ui.updateHud(this.world, this.world.particles.density, this.coherence.value);
+    if (this.state === 'playing') {
+      this.ui.updateHud(this.world, this.world.particles.density, this.coherence.value);
+      this.pumpTeach(realDt); // ACT TWO — drain the spaced contextual-teach queue
+    }
 
     requestAnimationFrame((t) => this.frame(t));
   }
