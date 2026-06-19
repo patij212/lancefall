@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeCipher, cipherSeed, dashCipherCore } from './cipher';
-import { decodeView, plaintextFor, cipherSymbol, caesarShiftLetter } from './cipherDecode';
+import { decodeView, plaintextFor, cipherSymbol, caesarShiftLetter, rotateSymbol } from './cipherDecode';
 
 // READ THE KEY must be a REAL substitution decode (not follow-the-highlight): reading the
 // on-HUD key and finding each core by its cipher symbol, in plaintext order, must reproduce
@@ -115,5 +115,30 @@ describe('decodeView — partial (the earned key)', () => {
       expect(r === 'progress' || r === 'solved').toBe(true);
     }
     expect(c.solved).toBe(true);
+  });
+});
+
+describe('decodeView — rotor (the stepping key, Enigma)', () => {
+  it('the rotor offset steps with progress; the legend rotates each step', () => {
+    const c = makeCipher(5, cipherSeed(11, 5), 'rotor');
+    expect(decodeView(c).rotorOffset).toBe(0);
+    dashCipherCore(c, c.order[0]); // one correct key (order[0] is always the right first slot)
+    expect(decodeView(c).rotorOffset).toBe(1);
+  });
+
+  it('accounting for the offset (un-rotating the displayed key) solves it', () => {
+    for (const [n, seed] of [[3, 1], [4, 42], [6, 999]] as const) {
+      const c = makeCipher(n, cipherSeed(seed, n * 17), 'rotor');
+      for (let step = 0; step < n; step++) {
+        const v = decodeView(c);
+        const off = v.rotorOffset;             // shown on the HUD as a dial
+        const displayed = v.key[step].cipher;  // the rotated mark the player reads
+        const trueMark = rotateSymbol(displayed, -off); // un-rotate by the offset
+        const slot = v.symbolForSlot.indexOf(trueMark);
+        const r = dashCipherCore(c, slot);
+        expect(r === 'progress' || r === 'solved').toBe(true);
+      }
+      expect(c.solved).toBe(true);
+    }
   });
 });

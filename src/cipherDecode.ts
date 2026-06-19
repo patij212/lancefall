@@ -104,14 +104,19 @@ export function coreSymbolForSlot(c: CipherState, slot: number): string {
   return cipherSymbol(c.glyphs[slot]);
 }
 
-/** The rotor step to account for. 0 until Task 5 makes it step with progress. */
-export function rotorOffset(_c: CipherState): number {
-  return 0;
+/** The rotor's current step = how many cores you've keyed. The legend rotates by this each
+ *  correct dash, so the key can't be memorised — you track the offset (shown on the HUD). */
+export function rotorOffset(c: CipherState): number {
+  return c.progress;
 }
 
-/** Rotate a Greek cipher mark by k positions within the alphabet (identity until Task 5). */
-export function rotateSymbol(sym: string, _k: number): string {
-  return sym;
+/** Rotate a Greek cipher mark by k positions within CIPHER_ALPHABET (wraps; tolerates negative k
+ *  for un-rotating). The rotor scrambles the DISPLAYED key by the offset; the player un-rotates. */
+export function rotateSymbol(sym: string, k: number): string {
+  const L = CIPHER_ALPHABET.length;
+  const idx = CIPHER_ALPHABET.indexOf(sym);
+  if (idx < 0) return sym; // not a rotatable mark (defensive)
+  return CIPHER_ALPHABET[(((idx + k) % L) + L) % L];
 }
 
 /** Beacon's partial key: a seeded contiguous window (~half the legend) is legible, and the
