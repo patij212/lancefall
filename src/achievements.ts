@@ -2,6 +2,10 @@
 // the run + lifetime totals. Pure: evaluate() returns the newly-unlocked ones.
 
 import type { EnemyKind } from './types';
+import { CONSOLE_PUZZLES } from './bombe';
+
+/** How many console puzzles must be solved for the Cryptanalyst achievement (the full set). */
+const CRYPTANALYSIS_PUZZLE_COUNT = CONSOLE_PUZZLES.length;
 
 export interface AchCtx {
   score: number;
@@ -25,6 +29,26 @@ export interface AchCtx {
   lifeBoss: number;
   lifeShards: number;
   lifeKillsByKind: Record<string, number>; // lifetime per-kind kills (CODEX tally) — gates the per-enemy SKIN achievements
+  // ── THE BOMBE — decryption (meta, save-side; optional so non-console eval sites need not set them) ──
+  decryptedCount?: number; // distinct vocabulary words decrypted (master-cipher numerator)
+  transmissionsComplete?: number; // intercepts fully decrypted
+  bombeLevel?: number; // the Bombe meta-tool level (0 = not built)
+  puzzlesSolvedCount?: number; // console cryptanalysis puzzles solved
+  masterFrac?: number; // master-cipher fraction in [0,1] (1 = THE LONGEST DAY)
+}
+
+/** Build a zeroed AchCtx carrying ONLY the decryption (meta) fields, for evaluating the
+ *  decryption achievements from the console — where there is no run. The run fields read as
+ *  0/false so no run achievement can misfire. */
+export function metaAchContext(m: {
+  decryptedCount: number; transmissionsComplete: number; bombeLevel: number; puzzlesSolvedCount: number; masterFrac: number;
+}): AchCtx {
+  return {
+    score: 0, combo: 0, wave: 0, kills: 0, grazes: 0, maxDashChain: 0, bossKills: 0, daily: false,
+    won: false, modeId: '', heat: 0, sovereignDown: false, overdriveUses: 0, lastBreathUses: 0,
+    powerupsCollected: 0, hitsTaken: 1, lifeRuns: 0, lifeKills: 0, lifeBoss: 0, lifeShards: 0,
+    lifeKillsByKind: {}, ...m,
+  };
 }
 
 export interface Achievement {
@@ -72,6 +96,13 @@ const BASE_ACHIEVEMENTS: Achievement[] = [
   { id: 'flawlessgauntlet', name: 'Flawless Gauntlet', desc: 'Win the Arena without taking a single hit.', check: (c) => c.won && c.modeId === 'arena' && c.hitsTaken === 0 },
   { id: 'pristine', name: 'Pristine', desc: 'Clear Boss Rush without taking a single hit.', check: (c) => c.won && c.modeId === 'bossrush' && c.hitsTaken === 0 },
   { id: 'flawlesskey', name: 'The Flawless Key', desc: 'Down the Sovereign without taking a single hit.', check: (c) => c.sovereignDown && c.hitsTaken === 0 },
+  // ── THE BOMBE — decryption (meta) achievements. Save-side: earned in the codebreaker console
+  //    (and re-checked at run-end), gated on the optional decryption fields above. ──
+  { id: 'firstdecrypt', name: 'First Light Read', desc: 'Decrypt your first word in THE BOMBE.', check: (c) => (c.decryptedCount ?? 0) >= 1 },
+  { id: 'transmission', name: 'Signal Restored', desc: 'Fully decrypt a transmission.', check: (c) => (c.transmissionsComplete ?? 0) >= 1 },
+  { id: 'thebombe', name: 'The Bombe', desc: 'Build the Bombe — an ode to Turing.', check: (c) => (c.bombeLevel ?? 0) >= 1 },
+  { id: 'cryptanalyst', name: 'Cryptanalyst', desc: 'Solve every console cryptanalysis puzzle.', check: (c) => (c.puzzlesSolvedCount ?? 0) >= CRYPTANALYSIS_PUZZLE_COUNT },
+  { id: 'mastercipher', name: 'The Longest Day', desc: 'Decrypt the entire history — 100% master cipher.', check: (c) => (c.masterFrac ?? 0) >= 1 },
 ];
 
 // ── SKIN unlocks — one achievement per non-common skin ──────────────────────

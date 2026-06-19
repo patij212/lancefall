@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { evaluate, ACHIEVEMENTS, skinAchId, achievementById, skinKillProgress } from './achievements';
+import { evaluate, ACHIEVEMENTS, skinAchId, achievementById, skinKillProgress, metaAchContext } from './achievements';
 import type { AchCtx } from './achievements';
+import { CONSOLE_PUZZLES } from './bombe';
 
 const base: AchCtx = {
   score: 0,
@@ -35,6 +36,23 @@ describe('achievements', () => {
   it('first blood unlocks on a single kill', () => {
     const got = evaluate([], { ...base, kills: 1 }).map((a) => a.id);
     expect(got).toContain('firstblood');
+  });
+
+  it('decryption (meta) achievements fire on the decryption fields', () => {
+    const m = (o: Partial<Parameters<typeof metaAchContext>[0]>) =>
+      evaluate([], metaAchContext({ decryptedCount: 0, transmissionsComplete: 0, bombeLevel: 0, puzzlesSolvedCount: 0, masterFrac: 0, ...o })).map((a) => a.id);
+    expect(m({ decryptedCount: 1 })).toContain('firstdecrypt');
+    expect(m({ transmissionsComplete: 1 })).toContain('transmission');
+    expect(m({ bombeLevel: 1 })).toContain('thebombe');
+    expect(m({ puzzlesSolvedCount: CONSOLE_PUZZLES.length })).toContain('cryptanalyst');
+    expect(m({ masterFrac: 1 })).toContain('mastercipher');
+    // partial solves don't earn the cryptanalyst
+    expect(m({ puzzlesSolvedCount: CONSOLE_PUZZLES.length - 1 })).not.toContain('cryptanalyst');
+  });
+
+  it('a meta-only context never misfires a run achievement', () => {
+    const ids = evaluate([], metaAchContext({ decryptedCount: 5, transmissionsComplete: 2, bombeLevel: 3, puzzlesSolvedCount: 1, masterFrac: 0.5 })).map((a) => a.id);
+    for (const runAch of ['firstblood', 'survivor', 'gauntlet', 'flawlesskey', 'daily']) expect(ids).not.toContain(runAch);
   });
 
   it('does not re-award already-unlocked achievements', () => {

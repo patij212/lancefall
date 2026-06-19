@@ -137,6 +137,25 @@ export function wordCost(word: string): number {
   return Math.max(1, Math.min(6, 2 + Math.floor(word.length / 3)));
 }
 
+// The high-meaning words — the names + verbs that carry the fall. Cracking one of these resolves a
+// load-bearing piece of the history (display-only rarity; it does NOT change wordCost — depth, not
+// difficulty). Lowercase keys.
+const KEY_WORDS = new Set([
+  'lancefall', 'sovereign', 'warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'light', 'key',
+  'cipher', 'enciphered', 'remember', 'memory', 'kingdom', 'crown', 'fall', 'fell', 'spear', 'echo',
+]);
+
+export type WordRarity = 'common' | 'rare' | 'key';
+
+/** Display-only rarity of a vocabulary word — for the console's glyph styling + a "key word" badge.
+ *  KEY words are the load-bearing names/verbs of the fall; long/dear words read as rare; the rest
+ *  common. Pure; independent of wordCost so it never shifts the economy. */
+export function wordRarity(word: string): WordRarity {
+  if (!word) return 'common';
+  if (KEY_WORDS.has(word)) return 'key';
+  return word.length >= 8 || wordCost(word) >= 5 ? 'rare' : 'common';
+}
+
 /** Every unique decryptable vocabulary word across all intercepts (lowercased; punctuation excluded). */
 export function vocabulary(): string[] {
   const set = new Set<string>();
@@ -176,6 +195,12 @@ export function interceptProgress(save: SaveData, ic: Intercept): { done: number
 export function isInterceptComplete(save: SaveData, ic: Intercept): boolean {
   const { done, total } = interceptProgress(save, ic);
   return total > 0 && done === total;
+}
+
+/** How many transmissions are fully decrypted (for the decryption achievements + the console
+ *  completion count). Pure, save-side. */
+export function transmissionsComplete(save: SaveData): number {
+  return INTERCEPTS.filter((ic) => isInterceptComplete(save, ic)).length;
 }
 
 export function masterProgress(save: SaveData): { done: number; total: number; frac: number } {

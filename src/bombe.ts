@@ -22,10 +22,9 @@ export function upgradeBombeCost(level: number): number {
   return 8 + level * 6;
 }
 
-/** Run the Bombe: decrypt the globally-cheapest still-undecrypted words for FREE (no spend). The
- *  "it ran overnight" payoff. Returns the words cracked. Pure save mutation. */
-export function runBombe(save: SaveData): string[] {
-  const n = bombeAutoCracks(save.bombeLevel);
+/** Decrypt the globally-cheapest `n` still-undecrypted words for FREE (no Fragment spend). Pure
+ *  save mutation; deterministic (cost then alphabetical tiebreak — no rng). Returns the words. */
+export function crackCheapestFree(save: SaveData, n: number): string[] {
   if (n <= 0) return [];
   const undone = vocabulary()
     .filter((w) => !isWordDecrypted(save, w))
@@ -33,6 +32,12 @@ export function runBombe(save: SaveData): string[] {
   const cracked = undone.slice(0, n);
   for (const w of cracked) save.decryptedWords.push(w);
   return cracked;
+}
+
+/** Run the Bombe: decrypt the globally-cheapest still-undecrypted words for FREE (no spend). The
+ *  "it ran overnight" payoff. Returns the words cracked. Pure save mutation. */
+export function runBombe(save: SaveData): string[] {
+  return crackCheapestFree(save, bombeAutoCracks(save.bombeLevel));
 }
 
 /** Available Fragment balance (mirrors lore.fragmentBalance; kept local to avoid an import cycle). */
@@ -56,8 +61,16 @@ export interface ConsolePuzzle {
   prompt: string; // the ciphertext shown
   hint: string; // a one-line nudge
   answer: string; // the plaintext solution
-  reward: string; // human-readable reward label (the solve grants a free Bombe crack in game.ts)
+  reward: string; // human-readable reward label (matches what solvePuzzleReward actually grants)
 }
+
+/** Bonus Fragments granted on a first puzzle solve (on top of the free word-crack). The honest,
+ *  fungible payoff so a solve always advances the decryption — even before the Bombe is built. */
+export const PUZZLE_FRAGMENT_REWARD = 3;
+
+/** The trail unlocked once ALL console puzzles are solved (granted in game.ts when the
+ *  `cryptanalyst` achievement fires). The cryptanalyst's prize. */
+export const CRYPTANALYST_TRAIL = 'cipher';
 
 /** Canonicalise a puzzle guess/answer for comparison (case + whitespace insensitive). */
 function norm(s: string): string {
@@ -72,21 +85,21 @@ export const CONSOLE_PUZZLES: ConsolePuzzle[] = [
     prompt: 'EULQJ EDFN WKH OLJKW',
     hint: 'A Caesar shift of 3 — every letter pushed three forward. Turn it back.',
     answer: 'BRING BACK THE LIGHT',
-    reward: 'A dash-trail cosmetic',
+    reward: `a free word + ◆${PUZZLE_FRAGMENT_REWARD} Fragments`,
   },
   {
     id: 'pz-sub-1', kind: 'substitution',
     prompt: '★◆● ◇▲■■',
     hint: 'A simple substitution. Three glyphs spell the commonest word; four spell a fall with a doubled letter.',
     answer: 'THE FALL',
-    reward: 'A lore fragment',
+    reward: `a free word + ◆${PUZZLE_FRAGMENT_REWARD} Fragments`,
   },
   {
     id: 'pz-atbash-1', kind: 'substitution',
     prompt: 'ORTSG GSV HRTMZO',
     hint: 'Atbash — the mirror alphabet, A↔Z, B↔Y. The signal the Beacon never sent.',
     answer: 'LIGHT THE SIGNAL',
-    reward: 'A free Bombe crack',
+    reward: `a free word + ◆${PUZZLE_FRAGMENT_REWARD} Fragments · solve all three for the CIPHER trail`,
   },
 ];
 
@@ -101,4 +114,31 @@ export function solvePuzzle(save: SaveData, id: string, guess: string): boolean 
   if (!checkPuzzle(id, guess)) return false;
   save.solvedPuzzles.push(id);
   return true;
+}
+
+export interface PuzzleSolveResult {
+  /** true only on the first-time transition to solved */
+  solved: boolean;
+  /** the word the solve cracked for free (always one, independent of the Bombe), or null */
+  crackedWord: string | null;
+  /** bonus Fragments granted */
+  fragments: number;
+  /** true if this solve completed the FULL set (the cryptanalyst — the trail unlocks) */
+  allSolved: boolean;
+}
+
+/** Solve a puzzle AND grant its REAL reward (the old labels granted nothing until the Bombe was
+ *  built): a guaranteed free word-crack + bonus Fragments, every time, on the first solve. Pure +
+ *  save-side — pushes synthetic Fragment ids (dedup-safe, like the run grant) + a decrypted word.
+ *  No rng. Returns what happened so the host can juice + sound it + grant the all-solved trail. */
+export function solvePuzzleReward(save: SaveData, id: string, guess: string): PuzzleSolveResult {
+  const none: PuzzleSolveResult = { solved: false, crackedWord: null, fragments: 0, allSolved: false };
+  if (!solvePuzzle(save, id, guess)) return none;
+  for (let i = 0; i < PUZZLE_FRAGMENT_REWARD; i++) {
+    const fid = `puzzle:${id}#${i}`;
+    if (!save.stillpointFragments.includes(fid)) save.stillpointFragments.push(fid);
+  }
+  const cracked = crackCheapestFree(save, 1);
+  const allSolved = CONSOLE_PUZZLES.every((p) => save.solvedPuzzles.includes(p.id));
+  return { solved: true, crackedWord: cracked[0] ?? null, fragments: PUZZLE_FRAGMENT_REWARD, allSolved };
 }

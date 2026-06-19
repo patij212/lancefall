@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { BOMBE_MAX_LEVEL, bombeCostMul, bombeAutoCracks, upgradeBombeCost, runBombe, upgradeBombe, CONSOLE_PUZZLES, checkPuzzle, solvePuzzle } from './bombe';
+import { BOMBE_MAX_LEVEL, bombeCostMul, bombeAutoCracks, upgradeBombeCost, runBombe, upgradeBombe, CONSOLE_PUZZLES, checkPuzzle, solvePuzzle, crackCheapestFree, solvePuzzleReward, PUZZLE_FRAGMENT_REWARD } from './bombe';
 import { defaultSave } from './save';
 import { isWordDecrypted } from './intercepts';
+import { fragmentBalance } from './lore';
 
 const frags = (n: number) => ({ ...defaultSave(), stillpointFragments: Array.from({ length: n }, (_, i) => `f${i}`) });
 
@@ -54,5 +55,41 @@ describe('bombe — console cryptanalysis puzzles', () => {
     expect(solvePuzzle(s, p.id, p.answer)).toBe(true);
     expect(s.solvedPuzzles).toContain(p.id);
     expect(solvePuzzle(s, p.id, p.answer)).toBe(false); // already solved
+  });
+
+  it('solvePuzzleReward grants a REAL reward — a free word + Fragments — even with no Bombe', () => {
+    const p = CONSOLE_PUZZLES[0];
+    const s = defaultSave(); // bombeLevel 0, no fragments
+    const r = solvePuzzleReward(s, p.id, p.answer);
+    expect(r.solved).toBe(true);
+    expect(r.fragments).toBe(PUZZLE_FRAGMENT_REWARD);
+    expect(fragmentBalance(s)).toBe(PUZZLE_FRAGMENT_REWARD); // the bonus is spendable
+    expect(r.crackedWord).not.toBeNull(); // a word was cracked for free
+    expect(isWordDecrypted(s, r.crackedWord!)).toBe(true);
+    expect(r.allSolved).toBe(false);
+    // a wrong / repeat guess grants nothing
+    expect(solvePuzzleReward(s, p.id, p.answer).solved).toBe(false);
+    expect(solvePuzzleReward(s, p.id, 'nope').solved).toBe(false);
+  });
+
+  it('solving the FULL set flags allSolved on the final puzzle', () => {
+    const s = defaultSave();
+    const results = CONSOLE_PUZZLES.map((p) => solvePuzzleReward(s, p.id, p.answer));
+    expect(results.slice(0, -1).every((r) => r.allSolved === false)).toBe(true);
+    expect(results[results.length - 1].allSolved).toBe(true);
+  });
+});
+
+describe('bombe — crackCheapestFree', () => {
+  it('cracks the n cheapest undecrypted words for free, deterministically', () => {
+    const a = crackCheapestFree(defaultSave(), 3);
+    const b = crackCheapestFree(defaultSave(), 3);
+    expect(a).toEqual(b); // deterministic (cost then alphabetical — no rng)
+    const s = defaultSave();
+    const before = s.fragmentsSpent;
+    crackCheapestFree(s, 2);
+    expect(s.decryptedWords.length).toBe(2);
+    expect(s.fragmentsSpent).toBe(before); // free
+    expect(crackCheapestFree(defaultSave(), 0)).toEqual([]);
   });
 });

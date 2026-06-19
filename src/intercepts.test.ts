@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  INTERCEPTS, wordKey, wordCost, vocabulary, cipherWord,
+  INTERCEPTS, wordKey, wordCost, vocabulary, cipherWord, wordRarity, transmissionsComplete,
   isWordDecrypted, interceptWords, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView,
   decryptWord, syncInterceptLore,
 } from './intercepts';
@@ -42,6 +42,23 @@ describe('intercepts — catalog + word primitives', () => {
     expect(new Set(v).size).toBe(v.length);
     expect(v).not.toContain('');
     expect(v.every((w) => w === w.toLowerCase())).toBe(true);
+  });
+
+  it('wordRarity flags key words + rare words, display-only (does not change wordCost)', () => {
+    expect(wordRarity('sovereign')).toBe('key');
+    expect(wordRarity('light')).toBe('key');
+    expect(wordRarity('the')).toBe('common');
+    expect(wordRarity('')).toBe('common');
+    expect(wordRarity('battlefield')).toBe('rare'); // long, not a key word
+    // rarity is independent of the economy — a key word costs the same as its length implies
+    expect(wordCost('sovereign')).toBe(wordCost('sovereign'));
+  });
+
+  it('transmissionsComplete counts fully-decrypted intercepts', () => {
+    expect(transmissionsComplete(defaultSave())).toBe(0);
+    const ic = INTERCEPTS[0];
+    const s = { ...defaultSave(), decryptedWords: interceptWords(ic) };
+    expect(transmissionsComplete(s)).toBeGreaterThanOrEqual(1);
   });
 
   it('cipherWord is a deterministic, length-preserving glyph display (≠ plaintext)', () => {
