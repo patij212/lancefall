@@ -89,6 +89,14 @@ export const TUNE = {
     comboReward: 2, // combo added per successful parry (off-beat)
     overdriveReward: 0.05, // overdrive meter per parry (off-beat)
     bossBudget: 2, // max BOSS bullets one parry may deflect
+    // ── overhaul: PUNCH + FLOW + boss-matter ──
+    flowCooldown: 0.12, // s cooldown after a SUCCESSFUL parry (chains) — vs the long `cooldown` on a whiff
+    riposteDamage: 2, // counter-burst dmg to enemies in the arc — kills weak chaff, chips tougher/elite/boss
+    freezeFrame: 0.045, // s hitstop on a successful parry (the satisfying "catch" — reduceMotion drops it)
+    shovePush: 200, // px/s outward velocity added to un-parried bullets near the player on a success (breathing room)
+    shoveRadius: 64, // px radius of that defensive bullet-shove
+    bossGuardShave: 0.3, // s shaved off a boss's armored-phase timer per PARRIED boss bullet (posture-break, budget-capped)
+    riposteSparks: 9, // cosmetic spark count per riposte-hit enemy
   },
 
   juice: {

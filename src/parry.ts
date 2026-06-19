@@ -64,7 +64,8 @@ export function applyParryReward(
 
 /** Sweep hostile bullets through the parry arc, deflecting those inside it (boss bullets
  *  capped by the budget). The caller injects iteration + the destroy side effect, so this
- *  control-flow stays pure + unit-tested and game.ts stays thin. Returns the deflect count. */
+ *  control-flow stays pure + unit-tested and game.ts stays thin. Returns the deflect counts:
+ *  `total` (for the reward/whiff decision) and `boss` (drives the boss guard-shave). */
 export function parrySweep<B extends { x: number; y: number; fromBoss: boolean }>(
   px: number,
   py: number,
@@ -72,7 +73,7 @@ export function parrySweep<B extends { x: number; y: number; fromBoss: boolean }
   bossBudget: number,
   forEach: (visit: (b: B) => void) => void,
   destroy: (b: B) => void,
-): number {
+): { total: number; boss: number } {
   let bossUsed = 0;
   let deflected = 0;
   forEach((b) => {
@@ -84,5 +85,55 @@ export function parrySweep<B extends { x: number; y: number; fromBoss: boolean }
     destroy(b);
     deflected++;
   });
-  return deflected;
+  return { total: deflected, boss: bossUsed };
+}
+
+/** The RIPOSTE arc — sweep enemies whose centre lies inside the parry wedge and fire the
+ *  caller's hit (counter-burst) on each. Geometry-only (no per-bullet source lookup), so it
+ *  stays deterministic + testable; game.ts injects the spatial-hash iteration + damage. */
+export function parryEnemySweep<E extends { x: number; y: number }>(
+  px: number,
+  py: number,
+  aim: number,
+  forEach: (visit: (e: E) => void) => void,
+  hit: (e: E) => void,
+): number {
+  let n = 0;
+  forEach((e) => {
+    if (!parryArcContains(px, py, aim, e.x, e.y)) return;
+    hit(e);
+    n++;
+  });
+  return n;
+}
+
+/** The cooldown a parry sets on resolution: a SUCCESS flows (short `flowCooldown` so skilled
+ *  parrying chains); a WHIFF eats the long `cooldown` (spamming is punished). */
+export function parryCooldownAfter(success: boolean): number {
+  return success ? PARRY.flowCooldown : PARRY.cooldown;
+}
+
+/** Outward shove applied to an un-parried bullet near the player on a successful parry —
+ *  a small defensive breathing-room push. Returns the velocity delta (0,0 outside `radius`).
+ *  Deterministic: the direction is the pure player→bullet vector. */
+export function parryShove(
+  px: number,
+  py: number,
+  bx: number,
+  by: number,
+  push: number,
+  radius: number,
+): { dvx: number; dvy: number } {
+  const dx = bx - px;
+  const dy = by - py;
+  const d = Math.hypot(dx, dy);
+  if (d > radius || d < 1e-6) return { dvx: 0, dvy: 0 };
+  return { dvx: (dx / d) * push, dvy: (dy / d) * push };
+}
+
+/** Boss posture-break: shave the armored-phase timer by `shave` per parried boss bullet,
+ *  never below `floor` (so a parry brings the EXPOSE window sooner without skipping the
+ *  phase outright). Budget-capped upstream via parrySweep's boss count. Pure arithmetic. */
+export function boundedGuardShave(timer: number, bossDeflected: number, shave: number, floor: number): number {
+  return Math.max(floor, timer - shave * bossDeflected);
 }

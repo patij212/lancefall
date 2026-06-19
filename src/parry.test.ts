@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { parryArcContains, parryReward, parryDeflectsBoss, parrySweep, applyParryReward } from './parry';
+import {
+  parryArcContains,
+  parryReward,
+  parryDeflectsBoss,
+  parrySweep,
+  applyParryReward,
+  parryCooldownAfter,
+  parryShove,
+  boundedGuardShave,
+  parryEnemySweep,
+} from './parry';
 import { PARRY, TUNE } from './tune';
 import { makeOverdrive } from './overdrive';
 import { newCoherence } from './coherence';
@@ -66,7 +76,7 @@ describe('parry boss-deflect budget', () => {
 describe('parry sweep', () => {
   const run = (bullets: B[], aim = 0) => {
     const destroyed: B[] = [];
-    const n = parrySweep<B>(
+    const r = parrySweep<B>(
       0,
       0,
       aim,
@@ -74,30 +84,96 @@ describe('parry sweep', () => {
       (visit) => bullets.forEach(visit),
       (b) => destroyed.push(b),
     );
-    return { n, destroyed };
+    return { ...r, destroyed };
   };
 
   it('deflects only chaff bullets inside the arc', () => {
     const inside: B = { x: PARRY.reach - 5, y: 0, fromBoss: false };
     const behind: B = { x: -(PARRY.reach - 5), y: 0, fromBoss: false };
     const far: B = { x: PARRY.reach + 50, y: 0, fromBoss: false };
-    const { n, destroyed } = run([inside, behind, far]);
-    expect(n).toBe(1);
+    const { total, boss, destroyed } = run([inside, behind, far]);
+    expect(total).toBe(1);
+    expect(boss).toBe(0);
     expect(destroyed).toEqual([inside]);
   });
 
-  it('caps boss-bullet deflects at the budget', () => {
+  it('caps boss-bullet deflects at the budget and reports the boss count', () => {
     const boss = (i: number): B => ({ x: PARRY.reach - 10 - i, y: 0, fromBoss: true });
     const many = [boss(0), boss(1), boss(2), boss(3)]; // 4 in-arc boss bullets
-    const { n, destroyed } = run(many);
-    expect(n).toBe(PARRY.bossBudget); // never exceeds the boss cap
-    expect(destroyed.length).toBe(PARRY.bossBudget);
+    const r = run(many);
+    expect(r.total).toBe(PARRY.bossBudget); // never exceeds the boss cap
+    expect(r.boss).toBe(PARRY.bossBudget); // …and the boss-deflect count drives the guard-shave
+    expect(r.destroyed.length).toBe(PARRY.bossBudget);
   });
 
   it('a whiff (nothing in arc) deflects nothing', () => {
-    const { n, destroyed } = run([{ x: 0, y: PARRY.reach + 10, fromBoss: false }]);
-    expect(n).toBe(0);
+    const { total, boss, destroyed } = run([{ x: 0, y: PARRY.reach + 10, fromBoss: false }]);
+    expect(total).toBe(0);
+    expect(boss).toBe(0);
     expect(destroyed).toEqual([]);
+  });
+});
+
+describe('parryCooldownAfter', () => {
+  it('a successful parry flows (short flowCooldown)', () => {
+    expect(parryCooldownAfter(true)).toBe(TUNE.parry.flowCooldown);
+  });
+  it('a whiff is punished (long cooldown)', () => {
+    expect(parryCooldownAfter(false)).toBe(TUNE.parry.cooldown);
+  });
+  it('flow is strictly shorter than the whiff cooldown', () => {
+    expect(parryCooldownAfter(true)).toBeLessThan(parryCooldownAfter(false));
+  });
+});
+
+describe('parryShove', () => {
+  it('pushes a near bullet outward (away from the player)', () => {
+    const v = parryShove(0, 0, 30, 0, 200, 64); // bullet to the right, within radius
+    expect(v.dvx).toBeGreaterThan(0);
+    expect(v.dvy).toBeCloseTo(0);
+    expect(Math.hypot(v.dvx, v.dvy)).toBeCloseTo(200);
+  });
+  it('does not shove a bullet outside the radius', () => {
+    const v = parryShove(0, 0, 100, 0, 200, 64);
+    expect(v.dvx).toBe(0);
+    expect(v.dvy).toBe(0);
+  });
+  it('shoves along the player→bullet direction', () => {
+    const v = parryShove(0, 0, 0, 20, 200, 64); // bullet below
+    expect(v.dvx).toBeCloseTo(0);
+    expect(v.dvy).toBeGreaterThan(0);
+  });
+});
+
+describe('boundedGuardShave', () => {
+  it('shaves the timer by shave×bossDeflected', () => {
+    expect(boundedGuardShave(2, 2, 0.3, 0)).toBeCloseTo(2 - 0.6);
+  });
+  it('never drives the timer below the floor', () => {
+    expect(boundedGuardShave(0.1, 5, 0.3, 0.05)).toBe(0.05);
+  });
+  it('is a no-op when no boss bullets were parried', () => {
+    expect(boundedGuardShave(1.2, 0, 0.3, 0)).toBe(1.2);
+  });
+});
+
+describe('parryEnemySweep (riposte arc)', () => {
+  type E = { x: number; y: number };
+  const run = (enemies: E[], aim = 0) => {
+    const hit: E[] = [];
+    const n = parryEnemySweep<E>(0, 0, aim, (visit) => enemies.forEach(visit), (e) => hit.push(e));
+    return { n, hit };
+  };
+  it('hits only enemies inside the parry arc', () => {
+    const inFront: E = { x: PARRY.reach - 8, y: 0 };
+    const behind: E = { x: -(PARRY.reach - 8), y: 0 };
+    const far: E = { x: PARRY.reach + 60, y: 0 };
+    const { n, hit } = run([inFront, behind, far]);
+    expect(n).toBe(1);
+    expect(hit).toEqual([inFront]);
+  });
+  it('hits nothing when the arc is empty', () => {
+    expect(run([{ x: 0, y: PARRY.reach + 30 }]).n).toBe(0);
   });
 });
 

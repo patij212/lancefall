@@ -1742,10 +1742,10 @@ export class Game {
     const w = this.world;
     const p = w.player;
     if (!p.parryActive) return;
-    const n = parrySweep<Bullet>(p.x, p.y, p.angle, w.stats.dashShatterBossBudget || PARRY.bossBudget,
+    const swept = parrySweep<Bullet>(p.x, p.y, p.angle, w.stats.dashShatterBossBudget || PARRY.bossBudget,
       (visit) => w.bullets.forEachActive(visit),
       (b) => this.breakBullet(b, b.fromBoss ? 4 : 2, RIPOSTE.shatterScore));
-    if (n === 0 || p.parryRewarded) return;
+    if (swept.total === 0 || p.parryRewarded) return;
     p.parryRewarded = true;
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
     applyParryReward(p, w, this.coherence, w.stats.staminaSegments, onBeat);
