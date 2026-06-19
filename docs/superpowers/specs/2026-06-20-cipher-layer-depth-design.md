@@ -82,17 +82,29 @@ breaking seeded fairness.
 - `BOSS_TRANSMISSION: Partial<Record<EnemyKind, interceptId>>` — maps each boss kind to its
   transmission (warden→int-warden, weaver→int-weaver, beacon→int-beacon,
   mirrorblade→int-mirror, hollow→int-hollow, sovereign→int-crown).
-- `bossIntel(save, kind): { decrypted: boolean; damageBonus: number }` — `decrypted` =
-  that boss's transmission `isInterceptComplete`. `damageBonus` = a small fixed multiplier
-  (design default **+12%**, single tunable const) when decrypted, else 0.
+- `bossIntel(save, kind): { decrypted: boolean; damageBonus: number; tellBonus: number }` —
+  `decrypted` = that boss's transmission `isInterceptComplete`. When decrypted (else all 0):
+  - `damageBonus` = a small fixed multiplier (design default **+12%**, single tunable const)
+    — "you know where to strike."
+  - `tellBonus` = a readability buff (design default **+20%** tell/telegraph duration, single
+    tunable const) — "you read its pattern": that boss's attack windups telegraph longer so
+    they are easier to react to. Knowledge-as-power, both offence and read.
 - Pure, no rng, no DOM. Fully unit-tested.
 
 ### Sim wiring (determinism-safe)
-- In `game.ts`, at **boss-damage application only**, multiply dealt damage by
-  `1 + bossIntel(save, boss.kind).damageBonus`, **hard-gated to non-seeded modes**
-  (`mode.seedKind !== 'date' && mode.seedKind !== 'week'`). Draws no rng; changes no draw
-  counts. In seeded modes the multiplier is exactly 1 → bit-identical runs preserved.
-- `impact()` on the boss-damage path BEFORE editing; report blast radius.
+- In `game.ts`, **hard-gated to non-seeded modes** (`mode.seedKind !== 'date' && !== 'week'`),
+  for the boss whose transmission is decrypted:
+  - at **boss-damage application**, multiply dealt damage by `1 + damageBonus`.
+  - at **boss tell/telegraph timing**, scale the windup/tell duration by `1 + tellBonus`
+    (longer = more readable). This must change a duration constant deterministically WITHOUT
+    altering rng draw counts or order — verify the tell path draws no rng from a shared sim
+    stream; if it does, apply the scale only to the display/reaction window, not the draw.
+- Both draw no rng. In seeded modes both bonuses are exactly 0 / ×1 → bit-identical runs
+  preserved (the player's decryption never changes a Daily/Weekly).
+- `impact()` on the boss-damage AND boss-tell paths BEFORE editing; report blast radius. If
+  the tell timing turns out to be sim-entangled (HIGH/CRITICAL), fall back to a render-only
+  read aid (a brighter/earlier tell glint) so the readability benefit ships without risking
+  determinism — flagged to the user before proceeding.
 
 ### Felt layer (render-only, ALL modes)
 - Pre-boss **INTEL card**: when `bossIntel.decrypted`, a brief HUD/announce card on boss
@@ -109,15 +121,27 @@ breaking seeded fairness.
 existing daily / ghost / duel social layer.
 
 ### New pure module `dailyCipher.ts`
-- `dailyCipher(daySeed): { kind, prompt, answer, hint, plain }` — deterministic from the date
-  seed using its **own rng mask** (distinct from every sim stream, like `echoVignette`),
-  never the sim. Picks a lore-voice plaintext phrase from a curated pool, a cipher kind
-  (Caesar shift / monoalphabetic substitution / Vigenère with a short key), enciphers it.
-- `letterFrequency(text): Record<string, number>` — pure frequency-analysis helper for the
-  player's solving aid.
-- `checkDailyCipher(daySeed, guess): boolean` — case/space-insensitive compare.
+- **The seed genuinely rolls over every calendar day.** `dailyCipher` is keyed off
+  `seedFromDate()` (returns `YYYYMMDD`, e.g. `20260620` → `20260621` tomorrow) XOR'd with its
+  own mask (distinct from every sim stream, like `echoVignette`) so it never touches the sim.
+  Signature `dailyCipher(daySeed: number = seedFromDate())`.
+- **Real daily variation, not a fake feature** — the output space is large enough that
+  consecutive days differ obviously:
+  - plaintext from a curated pool of **≥30** lore-voice phrases (`pool[seed % pool.length]`),
+  - cipher kind rotated across the 3 (Caesar / substitution / Vigenère) by a second seed draw,
+  - the key/shift/Vigenère-word varied by a third draw.
+  A test **asserts ≥14 consecutive `seedFromDate` values produce distinct `{kind, prompt,
+  answer}` tuples** (catches a degenerate generator that "pretends" to be daily). Another test
+  asserts every generated cipher round-trips (`checkDailyCipher(seed, answer) === true`) so no
+  day is unsolvable.
+- `dailyCipher(daySeed): { kind, prompt, answer, hint, plain }` — picks plaintext + kind + key
+  deterministically as above and enciphers it.
+- `letterFrequency(text): Record<string, number>` — pure frequency-analysis helper.
+- `checkDailyCipher(daySeed, guess): boolean` — case/space-insensitive compare to that day's
+  answer.
 - `solveDailyCipher(save, daySeed, guess): { solved, fragments }` — first solve/day grants
   Fragments via synthetic dedup'd ids `daily-cipher:<dateString>` (design default **◆4**).
+  Keyed by `dateString` so each calendar day is a fresh, separately-rewarded puzzle.
 
 ### Save
 - Additive `solvedDailyCiphers: string[]` (dateStrings). No version bump (generic loader).
