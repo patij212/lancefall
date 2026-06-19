@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
 import { updateEnemy, splitInto, shadeLethal } from './enemies';
-import { SPLITTER, SHADE_TUNE, BOMBER, WISP } from './tune';
+import { SPLITTER, SHADE_TUNE, BOMBER, WISP, BROODER } from './tune';
 import type { Enemy } from './types';
 
 // ENEMY OVERHAUL — Phase 1 (the 6 reworked chasers). Each enemy gets a distinct
@@ -215,5 +215,35 @@ describe('WISP — weave-swarm (slow, erratic, a graze treat not a threat)', () 
     expect(w.rng.next()).toBe(ref.next());
     for (let i = 0; i < 600; i++) updateEnemy(e, w, DT);
     expect(w.rng.next()).toBe(ref.next());
+  });
+});
+
+describe('BROODER — priority target (hangs at the edge, hatches a capped swarm)', () => {
+  it('drifts out to HANG near the arena edge (far from centre — break off to kill it)', () => {
+    const w = freshWorld();
+    // spawn it near centre; it should migrate OUT to the perimeter ellipse
+    const e = w.spawnEnemy('brooder', 640, 360, 1, 1, false, false, 0)!;
+    for (let i = 0; i < 600; i++) updateEnemy(e, w, DT); // ~10s to settle on the drift
+    const distFromCentre = Math.hypot(e.x - w.width / 2, e.y - w.height / 2);
+    // the target ellipse sits at edgeFrac of the arena → well outside the central quarter
+    expect(distFromCentre).toBeGreaterThan(w.width * 0.25);
+  });
+
+  it('still hatches drones, capped at maxSpawns', () => {
+    const w = freshWorld();
+    const e = w.spawnEnemy('brooder', 640, 360, 1, 1, false, false, 0)!;
+    const seconds = BROODER.spawnEvery * (BROODER.maxSpawns + 3) + 1;
+    for (let i = 0; i < Math.round(seconds / DT); i++) updateEnemy(e, w, DT);
+    expect(countKind(w, 'mini')).toBe(BROODER.maxSpawns); // exactly the cap, never more
+  });
+
+  it('the brooder verb draws ZERO world.rng (Daily-safe)', () => {
+    const w = freshWorld(7);
+    const ref = createRng(7);
+    const e = w.spawnEnemy('brooder', 640, 360, 1, 1, false, false, 0)!; // explicit angle → no rng
+    expect(w.rng.next()).toBe(ref.next());
+    const seconds = BROODER.spawnEvery * (BROODER.maxSpawns + 2) + 1;
+    for (let i = 0; i < Math.round(seconds / DT); i++) updateEnemy(e, w, DT); // includes hatches
+    expect(w.rng.next()).toBe(ref.next()); // hatches use explicit angles → zero world.rng
   });
 });

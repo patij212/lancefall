@@ -312,12 +312,18 @@ export const SPLITTER = {
 
 // Brooder — a slow "carrier" that periodically hatches a fast mini drone (up to a
 // cap). The tactical hook: prioritise dashing it down before it floods the screen.
+// Brooder — a PRIORITY TARGET (enemy overhaul). It HANGS at the arena edge on a slow
+// perimeter drift and hatches a capped number of drones, visibly PULSING before each
+// hatch. It is about prioritising — break off the swarm and kill the source fast — not
+// raw danger. The hatch-pulse tell + the edge-hugging position make that read clear.
 export const BROODER = {
   driftSpeed: 45,
   spawnEvery: 2.6, // s between hatches
   windup: 0.6, // telegraph (core pulse) before a hatch
   maxSpawns: 4, // total drones one brooder births, then it's just a slow target
   childSpeed: 140,
+  orbitSpeed: 0.32, // rad/s of the slow perimeter drift (it hangs at the edge)
+  edgeFrac: 0.4, // perimeter-ellipse radius as a fraction of the arena → near the wall
 };
 
 export const BLOOMER = {

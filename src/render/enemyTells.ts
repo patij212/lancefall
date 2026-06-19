@@ -202,6 +202,26 @@ function drawDarterCounter(ctx: CanvasRenderingContext2D, e: Enemy, t: number, r
   }
 }
 
+/** BROODER — the hatch-pulse tell. While it readies a drone (telegraph>0) an expanding
+ *  pulse ring throbs around the core: "a drone is incoming — kill the source." Honours
+ *  reduceMotion (the throb freezes to a steady ring). */
+function drawBrooderHatch(ctx: CanvasRenderingContext2D, e: Enemy, t: number, reduceMotion: boolean): void {
+  const tele = e.telegraph || 0;
+  if (tele <= 0) return;
+  const r = bodyRadius(e);
+  const grow = reduceMotion ? 0.6 : 0.5 + 0.5 * Math.abs(Math.sin(t * 14));
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = '#c4b5fd'; // brooder violet
+  ctx.globalAlpha = 0.2 + 0.5 * tele;
+  ctx.lineWidth = 1.5 + 2 * tele;
+  ctx.beginPath();
+  ctx.arc(0, 0, r + 6 + 14 * tele * grow, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** Draw every active enemy's role tell. One call site in render.ts (drawEnemies). */
 export function drawEnemyTells(
   ctx: CanvasRenderingContext2D,
@@ -224,6 +244,9 @@ export function drawEnemyTells(
         break;
       case 'darter':
         drawDarterCounter(ctx, e, t, reduceMotion, reduceFlashing);
+        break;
+      case 'brooder':
+        drawBrooderHatch(ctx, e, t, reduceMotion);
         break;
       default:
         break;

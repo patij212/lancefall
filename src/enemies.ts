@@ -183,11 +183,14 @@ function bloomer(e: Enemy, world: World, dt: number): void {
 }
 
 function brooder(e: Enemy, world: World, dt: number): void {
-  // wander slowly on a lazy lissajous near arena centre
+  // HANG at the arena edge: hold a fixed PERCH near the perimeter (direction from e.angle,
+  // seeded at spawn) with only a small breathing wobble, so the player must break off the
+  // swarm to kill the source. The verb draws NO new world.rng (the Daily stays identical).
   const cx = world.width / 2;
   const cy = world.height / 2;
-  const tx = cx + Math.cos(e.spawnTime * 0.5) * world.width * 0.18;
-  const ty = cy + Math.sin(e.spawnTime * 0.6) * world.height * 0.16;
+  const a = e.angle + Math.sin(e.spawnTime * BROODER.orbitSpeed) * 0.18; // perch + gentle wobble
+  const tx = cx + Math.cos(a) * world.width * BROODER.edgeFrac;
+  const ty = cy + Math.sin(a) * world.height * BROODER.edgeFrac;
   steerToward(e, tx, ty, BROODER.driftSpeed * e.speedMul);
 
   e.timer -= dt;
