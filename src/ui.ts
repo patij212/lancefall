@@ -6,7 +6,7 @@ import type { World } from './world';
 import { el, iconEl, stat, reconcile } from './panels/dom';
 import type { Settings, SaveData } from './save';
 import { defaultKeyBindings } from './input';
-import { PERKS, deriveStats } from './perks';
+import { deriveStats } from './perks';
 import type { PerkDef, RunStats } from './perks';
 import { glyphArt, hasGlyphArt, relicGlyphArt, powerupGlyphArt } from './glyphArt';
 import { isEvolution, isRelic, EVOLUTIONS } from './evolutions';
@@ -14,7 +14,7 @@ import { type RelicId } from './relics';
 import type { DraftCard, EvolutionDef } from './evolutions';
 import type { EventChoice } from './events';
 import { HEAT_LEVELS, MAX_HEAT } from './heat';
-import { ARCHETYPES, archetypeById } from './archetypes';
+import { archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchAchievementRarity, type AchRarity } from './api';
 import { renderStats } from './panels/stats';
 import { lastRunForMode, fmtAgo, breakdownEntries } from './panels/statsDerive';
@@ -60,6 +60,7 @@ import type { Panel } from './panels/panel';
 import { buildCreditsPanel } from './panels/credits';
 import { buildDuelPanel, type DuelPanel } from './panels/duel';
 import { buildInspectPanel, type InspectPanel } from './panels/inspect';
+import { buildArchetypePanel } from './panels/archetype';
 import { LORE, fragmentBalance, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
 import {
@@ -2767,71 +2768,18 @@ export class UI {
     this.openModal(this.heatPanel);
   }
 
+  private archetype!: Panel;
   private buildArchetype(): void {
-    // polished head (mock .modal-head): build icon + RUN IDENTITY eyebrow + BUILD title.
-    const icon = el('div', { class: 'panel-head-icon' });
-    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 3v9l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor" stroke-width="1.2" opacity="0.55"/></svg>';
-    const head = el('div', { class: 'panel-head' },
-      icon,
-      el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'RUN IDENTITY'), el('h2', { class: 'panel-head-title' }, 'BUILD')),
-    );
-    const lead = el('p', { class: 'panel-lead' }, 'Pick a run identity to weight your perk draft toward a fusion. FREESTYLE drafts whatever appears — no penalty.');
-    const grid = el('div', { class: 'p-grid cols2 arch-grid' });
-    grid.id = 'arch-grid';
-    const close = el('button', { class: 'btn btn-primary' }, 'DONE');
-    close.addEventListener('click', () => this.closeModal(this.archetypePanel));
-    const panel = el('div', { class: 'panel panel-wide' }, head, lead, grid, close);
-    this.archetypePanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
+    this.archetype = buildArchetypePanel({
+      onSelect: (id) => { this.cb.onArchetypeChange(id); this.archetype.open(this.saveRef!); },
+      onClose: () => this.closeModal(this.archetypePanel),
+    });
+    this.archetypePanel = this.archetype.root;
   }
 
   openArchetype(): void {
-    const s = this.saveRef;
-    if (!s) return;
-    // archetype → the fusion it builds toward (mock ARCH_W).
-    const FUSION: Record<string, string> = { impaler: 'IMPALER', chain: 'SUPERNOVA', flow: 'PERPETUAL', bulwark: 'AEGIS', none: 'Any fusion reachable' };
-    const perks = PERKS as Record<string, PerkDef>;
-    const grid = this.archetypePanel.querySelector('#arch-grid')!;
-    grid.replaceChildren();
-    for (const a of ARCHETYPES) {
-      const selected = s.selectedArchetype === a.id;
-      const hx = a.accent.replace('#', '');
-      const n = parseInt(hx.length === 3 ? hx.split('').map((c) => c + c).join('') : hx, 16);
-      const card = el('button', { class: 'p-card arch-card' + (selected ? ' sel' : ''), type: 'button' });
-      card.style.setProperty('--ca', a.accent);
-      card.style.setProperty('--ca-rgb', `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`);
-
-      const dot = el('span', { class: 'p-dot' });
-      dot.style.background = a.accent;
-      dot.style.color = a.accent;
-      const top = el('div', { class: 'p-card-top' }, dot, el('div', { class: 'p-card-name' }, a.name));
-      const desc = el('div', { class: 'p-card-desc' }, a.desc);
-
-      // perk-weight bars (the draft bias), or a uniform note for FREESTYLE.
-      const weights = Object.entries(a.weights) as [string, number][];
-      let bias: HTMLElement;
-      if (weights.length) {
-        bias = el('div', { class: 'arch-weights' });
-        const mx = Math.max(...weights.map(([, w]) => w));
-        for (const [pid, w] of weights) {
-          const fill = el('div', { class: 'hbar-fill' });
-          fill.style.width = `${Math.round((w / mx) * 100)}%`;
-          bias.append(el('div', { class: 'arch-hbar' }, el('div', { class: 'hbar-k' }, perks[pid]?.name ?? pid), el('div', { class: 'hbar-track' }, fill)));
-        }
-      } else {
-        bias = el('div', { class: 'arch-uniform' }, 'Uniform odds — every perk equally likely.');
-      }
-
-      const foot = el('div', { class: 'p-card-foot' },
-        el('span', { class: 'arch-foot-k' }, 'BUILDS TOWARD'),
-        el('span', { class: 'cdx-tag' }, `◆ ${FUSION[a.id] ?? '—'}`),
-      );
-      card.append(top, desc, bias, foot);
-      card.addEventListener('click', () => {
-        this.cb.onArchetypeChange(a.id);
-        this.openArchetype();
-      });
-      grid.append(card);
-    }
+    if (!this.saveRef) return;
+    this.archetype.open(this.saveRef);
     this.openModal(this.archetypePanel);
   }
 
