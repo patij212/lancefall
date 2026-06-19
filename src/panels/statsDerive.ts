@@ -1,6 +1,6 @@
 // Pure derivations for the STATS dossier — no DOM, fully unit-tested. The DOM layer (stats.ts)
 // and the share card (statsShare.ts) both consume these, so the maths lives in one tested place.
-import type { SaveData, RunRecord } from '../save';
+import type { SaveData, RunRecord, LastRunDetail } from '../save';
 import { dateString } from '../rng';
 import { modeById } from '../modes';
 
@@ -96,8 +96,17 @@ export function modeStats(s: SaveData): ModeStat[] {
 
 /** The player's most-recent completed run in `modeId`, or null if they've never finished one.
  *  Defensive against a malformed stored entry (missing mode). */
-export function lastRunForMode(s: SaveData, modeId: string): RunRecord | null {
+export function lastRunForMode(s: SaveData, modeId: string): LastRunDetail | null {
   return s.lastRuns.find((r) => r && typeof r === 'object' && r.mode === modeId) ?? null;
+}
+
+/** Sort a {label: count} breakdown (kills / damage) into [label, count] pairs, desc by count.
+ *  Drops non-positive / non-finite counts so a garbage entry never renders. Pure. */
+export function breakdownEntries(rec: Record<string, number> | undefined): [string, number][] {
+  if (!rec || typeof rec !== 'object') return [];
+  return (Object.entries(rec) as [string, number][])
+    .filter(([, n]) => typeof n === 'number' && Number.isFinite(n) && n > 0)
+    .sort((a, b) => b[1] - a[1]);
 }
 
 /** A YYYY-MM-DD date → a terse relative stamp vs `now` ("today" / "yesterday" / "5d ago" / "3w ago"). */

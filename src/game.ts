@@ -123,6 +123,7 @@ export class Game {
   private biomeNoGraze = false; // RULE: graze dead-zone — no graze reward economy (THE NULL)
   private biomeGrazeMul = 1; // RULE: graze stamina-refund scale here (THE BLOOMGARDENS doubles it)
   private deathCause = 'a bullet';
+  private deathKind = ''; // §v9 the killing blow's EnemyKind/boss-kind when known (LAST RUN "killed by")
   private nudgedHandle = false; // show the "set a handle" leaderboard nudge once per session
 
   /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
@@ -1384,6 +1385,7 @@ export class Game {
 
     // enemies + boss
     w.enemies.forEachActive((e) => {
+      w.firingKind = e.kind; // attribute any bullets fired this update to this kind (LAST RUN dmg)
       if (e.isBoss) updateBoss(e, w, dt);
       else updateEnemy(e, w, dt);
       // soft-clamp so nobody flies off forever
@@ -1391,6 +1393,7 @@ export class Game {
       e.x = Math.max(-m, Math.min(w.width + m, e.x));
       e.y = Math.max(-m, Math.min(w.height + m, e.y));
     });
+    w.firingKind = ''; // clear the firing context so off-loop spawns aren't mis-attributed
 
     // bullets
     this.updateBullets(dt);
@@ -1769,6 +1772,7 @@ export class Game {
       const n = ELITE.detonateCount;
       const sp = ELITE.detonateSpeed * e.bulletMul;
       const off = w.dropRng.range(0, Math.PI * 2); // death-timed: keep off the seeded director stream
+      w.firingKind = e.kind; // attribute the elite's death-burst (LAST RUN dmg)
       for (let i = 0; i < n; i++) {
         const a = off + (i / n) * Math.PI * 2;
         w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, ELITE.aura, false);
@@ -1782,6 +1786,7 @@ export class Game {
       const n = BOMBER.detonateCount;
       const sp = BOMBER.bulletSpeed * e.bulletMul;
       const off = w.dropRng.range(0, Math.PI * 2); // death-timed: keep off the seeded director stream
+      w.firingKind = e.kind; // attribute the bomber's detonation (LAST RUN dmg)
       for (let i = 0; i < n; i++) {
         const a = off + (i / n) * Math.PI * 2;
         w.spawnBullet(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 6, '#fb7185', false);
@@ -2214,7 +2219,7 @@ export class Game {
       const d2 = dx * dx + dy * dy;
       // hit
       if (p.iframe <= 0 && d2 <= (hitR + b.radius) * (hitR + b.radius)) {
-        this.playerDie(b.fromBoss ? 'a boss bullet' : 'a bullet');
+        this.playerDie(b.fromBoss ? 'a boss bullet' : 'a bullet', b.fromKind ?? '');
         return;
       }
       // graze (approaching only)
@@ -2351,7 +2356,7 @@ export class Game {
     for (const e of this.candidates) {
       if (!e.active || e.isBoss) continue; // boss body handled by the phase-aware check below
       if (circleHit(p.x, p.y, p.radius, e.x, e.y, e.radius * 0.72)) {
-        this.playerDie('a collision');
+        this.playerDie('a collision', e.kind);
         return;
       }
     }
@@ -2359,7 +2364,7 @@ export class Game {
     // mid-lunge; the Hollow is an intangible phantom and never contact-lethal)
     const bossLethal = w.boss && isBossLethal(w.boss);
     if (w.bossAlive && w.boss && bossLethal && circleHit(p.x, p.y, p.radius, w.boss.x, w.boss.y, w.boss.radius * 0.85)) {
-      this.playerDie('the boss');
+      this.playerDie('the boss', w.boss.kind);
       return;
     }
     // Beacon sweep beam: die if within the active beam (a diameter line through
@@ -2369,13 +2374,13 @@ export class Game {
       const dx = p.x - w.boss.x;
       const dy = p.y - w.boss.y;
       const perp = Math.abs(dx * -Math.sin(w.boss.angle) + dy * Math.cos(w.boss.angle));
-      if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie('the beam');
+      if (perp < BEACON.beamWidth / 2 + p.radius) this.playerDie('the beam', w.boss.kind);
     }
     // Sovereign CROWN BEAMS: a rotating star of diameter beams. Dash i-frames
     // already exclude us, so you can dash through the safe wedges.
     if (w.boss && sovereignBeamActive(w.boss)) {
       if (beamHitsPoint(w.boss.x, w.boss.y, w.boss.angle, SOVEREIGN.beamArms, SOVEREIGN.beamWidth / 2 + p.radius, p.x, p.y)) {
-        this.playerDie('the crown beam');
+        this.playerDie('the crown beam', w.boss.kind);
       }
     }
   }
@@ -2398,11 +2403,17 @@ export class Game {
     });
   }
 
-  private playerDie(cause = 'a bullet'): void {
+  private playerDie(cause = 'a bullet', srcKind = ''): void {
     const w = this.world;
     const p = w.player;
     if (!p.alive) return;
     w.hitsTaken++; // §4 M3 — one would-be-fatal hit, however it's absorbed (the single no-hit seam)
+    // §v9 LAST RUN — attribute this would-be-fatal hit (armor/last-breath/death all funnel here) to
+    // its source: a specific kind when known (bullet firer / collided enemy / boss / beam), else the
+    // textual cause bucket. The last call to reach actual death leaves deathKind = the killing blow.
+    const src = srcKind || cause;
+    w.damageByKind[src] = (w.damageByKind[src] ?? 0) + 1;
+    this.deathKind = srcKind;
     // ARMOR (v6 §7) — a per-run shield absorbs a lethal hit BEFORE LAST BREATH. Each
     // absorb costs tempo + shoves nearby bullets aside (an escape lane, not a clear),
     // so the bullet-hell tension survives. Order: shields → LAST BREATH → revive → death.
@@ -2580,9 +2591,22 @@ export class Game {
       };
       this.save.runHistory.push(runRec);
       if (this.save.runHistory.length > 50) this.save.runHistory = this.save.runHistory.slice(-50);
-      // most-recent run PER MODE (one entry / mode) — the cockpit "LAST RUN" readout. Array form
-      // so the migrate generic loop preserves it (an object-map would be wiped by coerceNumberRecord).
-      this.save.lastRuns = [runRec, ...this.save.lastRuns.filter((r) => r.mode !== this.mode.id)];
+      // most-recent run PER MODE (one entry / mode) — the cockpit "LAST RUN" debrief. Rich detail
+      // (kills/damage breakdowns + extras); copies of the live maps (which reset next run). Array
+      // form so the migrate generic loop preserves it (an object-map would be wiped by coerceNumberRecord).
+      const detail = {
+        ...runRec,
+        kills: { ...w.killsByKind },
+        damage: { ...w.damageByKind },
+        killedBy: won ? '' : (this.deathKind || this.deathCause),
+        bosses: w.bossKills,
+        grazes: w.grazeCount,
+        daybreaks: w.overdriveUses,
+        lastBreath: w.clutch.lastBreathUses,
+        hitsTaken: w.hitsTaken,
+        powerups: w.powerupsCollected,
+      };
+      this.save.lastRuns = [detail, ...this.save.lastRuns.filter((r) => r.mode !== this.mode.id)];
       this.save.playDays[playedDay] = (this.save.playDays[playedDay] ?? 0) + 1;
       this.save.lifeTimeSec += Math.floor(w.time);
       this.save.runsByMode[this.mode.id] = (this.save.runsByMode[this.mode.id] ?? 0) + 1;

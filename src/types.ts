@@ -124,6 +124,9 @@ export interface Bullet {
   homing: number;
   /** visual archetype the renderer draws (orb/dart/mine); set at spawn, defaults to 'orb'. */
   shot?: BulletStyle;
+  /** EnemyKind / boss-kind that fired this bullet (stamped at spawn from World.firingKind) for
+   *  per-kind damage attribution in the LAST RUN debrief. '' = unattributed (e.g. elite aura). */
+  fromKind?: string;
 }
 
 export type ParticleKind = 'spark' | 'trail' | 'debris' | 'ring' | 'streak';

@@ -3451,6 +3451,49 @@ body {
 .ck-lr-cell.accent .ck-lr-v { color: var(--accent); }
 .ck-lr-outcome.won .ck-lr-v { color: #4ade80; }
 .ck-lr-outcome.lost .ck-lr-v { color: #f472b6; }
+/* clickable affordance — the strip opens the full debrief when this mode has a recorded run */
+.ck-lastrun.has-detail { cursor: pointer; border-radius: 10px; padding: 2px; margin: -2px -2px 12px; transition: background 0.12s; }
+.ck-lastrun.has-detail:hover { background: rgba(255, 255, 255, 0.025); }
+.ck-lastrun.has-detail:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ck-lr-more { color: var(--accent); font-weight: 700; letter-spacing: 0.06em; }
+
+/* §v9 LAST RUN debrief popover (opened from the cockpit strip) */
+.lr-pop { position: fixed; inset: 0; z-index: 5000; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(2, 4, 10, 0.78); backdrop-filter: blur(5px); }
+.lr-pop.open { display: flex; animation: lrPopFade 0.18s ease both; }
+@keyframes lrPopFade { from { opacity: 0; } }
+.reduce-motion .lr-pop.open { animation: none; }
+@media (prefers-reduced-motion: reduce) { .lr-pop.open { animation: none; } }
+.lr-pop-card { position: relative; width: min(720px, 94vw); max-height: 88vh; overflow-y: auto; background: var(--panel, rgba(8, 12, 28, 0.97)); border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.32); border-radius: 16px; padding: 22px 24px; box-shadow: 0 30px 90px -20px rgba(0, 0, 0, 0.9); }
+.lr-pop-close { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); color: #9fb4cf; font-size: 14px; cursor: pointer; }
+.lr-pop-close:hover { color: #eaf2ff; border-color: var(--accent); }
+.lr-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-right: 34px; margin-bottom: 12px; }
+.lr-pop-eyebrow { font-family: 'Rajdhani', sans-serif; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.lr-pop-title { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 0.05em; color: #eaf2ff; margin-top: 3px; }
+.lr-pop-headr { text-align: right; white-space: nowrap; }
+.lr-pop-outcome { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.12em; padding: 3px 10px; border-radius: 999px; }
+.lr-pop-outcome.won { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.lr-pop-outcome.lost { color: #f472b6; background: rgba(244, 114, 182, 0.12); }
+.lr-pop-when { display: block; font-family: 'Rajdhani', sans-serif; font-size: 9px; color: #8aa0bd; letter-spacing: 0.08em; margin-top: 5px; }
+.lr-killed { font-family: 'Rajdhani', sans-serif; font-size: 12px; color: #b9c8de; margin-bottom: 14px; }
+.lr-killed b { color: #f472b6; font-weight: 700; }
+.lr-killed.won { color: #6ee7b7; }
+.lr-pop-cells { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.lr-cell { background: rgba(8, 12, 24, 0.6); padding: 10px 6px; text-align: center; }
+.lr-cell-v { font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 700; color: #eaf2ff; }
+.lr-cell-v.accent { color: var(--accent); }
+.lr-cell-l { font-family: 'Rajdhani', sans-serif; font-size: 7px; letter-spacing: 0.06em; text-transform: uppercase; color: #8aa0bd; font-weight: 700; margin-top: 4px; }
+.lr-pop-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.lr-pop-sec { font-family: 'Rajdhani', sans-serif; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+.lr-pop-empty { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-style: italic; color: #7a8aa3; }
+.lr-bar { display: grid; grid-template-columns: 100px 1fr 56px; align-items: center; gap: 9px; padding: 3px 0; }
+.lr-bar-k { font-family: 'Rajdhani', sans-serif; font-size: 10.5px; font-weight: 600; color: #b9c8de; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lr-bar-track { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.lr-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); box-shadow: 0 0 7px -1px var(--accent); }
+.lr-bar-v { font-family: 'Rajdhani', sans-serif; font-variant-numeric: tabular-nums; font-size: 10.5px; font-weight: 700; color: #dbe6f7; text-align: right; }
+@media (max-width: 640px) {
+  .lr-pop-cells { grid-template-columns: repeat(3, 1fr); }
+  .lr-pop-cols { grid-template-columns: 1fr; gap: 16px; }
+}
 
 /* the breathing is a compositor-only opacity pulse on a backdrop behind the button (mock) —
    no per-frame box-shadow repaint on the button itself. */

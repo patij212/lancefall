@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { defaultSave, type SaveData, type RunRecord } from '../save';
-import { radarAxes, archetypeName, trendDeltaPct, fmtDuration, heatmapWindow, modeStats, lastRunForMode, fmtAgo } from './statsDerive';
+import { radarAxes, archetypeName, trendDeltaPct, fmtDuration, heatmapWindow, modeStats, lastRunForMode, fmtAgo, breakdownEntries } from './statsDerive';
+import type { LastRunDetail } from '../save';
 
 const save = (o: Partial<SaveData> = {}): SaveData => ({ ...defaultSave(), ...o });
 const rec = (o: Partial<RunRecord> = {}): RunRecord =>
@@ -65,12 +66,22 @@ describe('modeStats', () => {
   });
 });
 
+const detail = (o: Partial<LastRunDetail> = {}): LastRunDetail =>
+  ({ ...rec(), kills: {}, damage: {}, killedBy: '', bosses: 0, grazes: 0, daybreaks: 0, lastBreath: 0, hitsTaken: 0, powerups: 0, ...o });
+
 describe('lastRunForMode', () => {
   it('returns the matching mode entry or null', () => {
-    const s = save({ lastRuns: [rec({ mode: 'arena', score: 999 }), rec({ mode: 'casual', score: 5 })] });
+    const s = save({ lastRuns: [detail({ mode: 'arena', score: 999 }), detail({ mode: 'casual', score: 5 })] });
     expect(lastRunForMode(s, 'arena')?.score).toBe(999);
     expect(lastRunForMode(s, 'casual')?.score).toBe(5);
     expect(lastRunForMode(s, 'daily')).toBeNull();
+  });
+});
+
+describe('breakdownEntries', () => {
+  it('sorts by count desc and drops non-positive/garbage', () => {
+    expect(breakdownEntries({ drifter: 3, swarmer: 7, lancer: 0, bad: NaN })).toEqual([['swarmer', 7], ['drifter', 3]]);
+    expect(breakdownEntries(undefined)).toEqual([]);
   });
 });
 

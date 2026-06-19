@@ -19,7 +19,7 @@ import { HEAT_LEVELS, MAX_HEAT } from './heat';
 import { ARCHETYPES, archetypeById } from './archetypes';
 import { leaderboardEnabled, fetchAchievementRarity, type AchRarity } from './api';
 import { renderStats } from './panels/stats';
-import { lastRunForMode, fmtAgo } from './panels/statsDerive';
+import { lastRunForMode, fmtAgo, breakdownEntries } from './panels/statsDerive';
 import { renderAchievements } from './panels/achievements';
 import { comboColor } from './render';
 import { TRACKS, type SoundtrackId } from './soundtracks';
@@ -555,6 +555,7 @@ export class UI {
   private infoBar!: HTMLElement;
   private rewardRow!: HTMLElement;
   private lastRunBox!: HTMLElement; // §v9 cockpit per-mode "LAST RUN" readout (above DESCEND)
+  private lrPopover: HTMLElement | null = null; // §v9 LAST RUN debrief overlay (built lazily)
   private descendSub!: HTMLElement;
   private descendModeLine!: HTMLElement; // §v7 the mode·ship·heat·mutator line under the kbd hints
   private descendOverlay!: HTMLElement; // §v7 fixed "INITIATING DESCENT" takeover (mock sequence)
@@ -1109,6 +1110,11 @@ export class UI {
     this.infoBar = el('div', { class: 'ck-infobar' });
     this.rewardRow = el('div', { class: 'ck-rewards' });
     this.lastRunBox = el('div', { class: 'ck-lastrun', 'aria-live': 'polite' });
+    // click/Enter opens the full LAST RUN debrief (no-op when this mode has no recorded run)
+    this.lastRunBox.addEventListener('click', () => this.openLastRunDetail());
+    this.lastRunBox.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.openLastRunDetail(); }
+    });
 
     // DESCEND = the renamed/restyled PLAY button. REUSE this.playBtn + its existing handler.
     // Flanking chevrons (mock) point into the hexagon button; aria-hidden so the label reads clean.
@@ -3167,6 +3173,86 @@ export class UI {
     this.playBtn.title = 'Descend — play ' + modeById(save.selectedMode).name;
   }
 
+  /** §v9 — open the full LAST RUN debrief for the selected mode (kills/damage breakdowns + the
+   *  extra telemetry). No-op when this mode has no recorded run. Built lazily, reused after. */
+  private openLastRunDetail(): void {
+    const s = this.saveRef;
+    if (!s) return;
+    const m = modeById(s.selectedMode);
+    const last = lastRunForMode(s, m.id);
+    if (!last) return;
+
+    if (!this.lrPopover) {
+      const shell = el('div', { class: 'lr-pop', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Last run debrief' });
+      shell.addEventListener('click', (e) => { if (e.target === shell) this.closeLastRunDetail(); });
+      shell.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.closeLastRunDetail(); });
+      document.body.appendChild(shell);
+      this.lrPopover = shell;
+    }
+    const pop = this.lrPopover;
+    const popAccent = railAccent(m.id);
+    pop.style.setProperty('--accent', popAccent);
+    pop.style.setProperty('--accent-rgb', hexToRgb(popAccent));
+
+    const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    const mmss = (x: number) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+    // label a damage/kill key: leave readable cause phrases ('a bullet', 'the crown beam') as-is,
+    // otherwise prettify the EnemyKind ('weaver-spawn' → 'Weaver Spawn').
+    const foeLabel = (k: string): string =>
+      /^(a |an |the )/.test(k) ? k : k.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const cell = (val: string, label: string, cls = '') =>
+      el('div', { class: `lr-cell ${cls}` }, el('div', { class: 'lr-cell-v' }, val), el('div', { class: 'lr-cell-l' }, label));
+    const barRow = (label: string, val: number, max: number, suffix: string) => {
+      const fill = el('div', { class: 'lr-bar-fill' });
+      fill.style.width = `${Math.max(4, (val / Math.max(1, max)) * 100)}%`;
+      return el('div', { class: 'lr-bar' }, el('div', { class: 'lr-bar-k' }, label), el('div', { class: 'lr-bar-track' }, fill), el('div', { class: 'lr-bar-v' }, `${val.toLocaleString()}${suffix}`));
+    };
+
+    const kills = breakdownEntries(last.kills);
+    const dmg = breakdownEntries(last.damage);
+    const killTotal = kills.reduce((t, [, v]) => t + v, 0);
+
+    const close = el('button', { class: 'lr-pop-close', type: 'button', 'aria-label': 'Close debrief' }, '✕');
+    close.addEventListener('click', () => this.closeLastRunDetail());
+    const head = el('div', { class: 'lr-pop-head' },
+      el('div', {}, el('div', { class: 'lr-pop-eyebrow' }, 'LAST RUN'), el('div', { class: 'lr-pop-title' }, m.name)),
+      el('div', { class: 'lr-pop-headr' },
+        el('span', { class: `lr-pop-outcome ${last.won ? 'won' : 'lost'}` }, last.won ? 'VICTORY' : 'FELL'),
+        el('span', { class: 'lr-pop-when' }, fmtAgo(typeof last.date === 'string' ? last.date : '', new Date())),
+      ),
+    );
+    const killed = last.won
+      ? el('div', { class: 'lr-killed won' }, 'Cleared without falling.')
+      : el('div', { class: 'lr-killed' }, 'Killed by ', el('b', {}, foeLabel(last.killedBy || 'a bullet')));
+    const stats = el('div', { class: 'lr-pop-cells' },
+      cell(n(last.score).toLocaleString(), 'SCORE', 'accent'),
+      cell(`W${n(last.wave)}`, 'DESCENT'),
+      cell(`×${n(last.combo)}`, 'BEST COMBO'),
+      cell(mmss(n(last.sec)), 'TIME'),
+      cell(n(last.heat) > 0 ? `H${n(last.heat)}` : 'OFF', 'HEAT'),
+      cell(String(n(last.bosses)), 'BOSSES'),
+      cell(n(last.grazes).toLocaleString(), 'GRAZES'),
+      cell(String(n(last.daybreaks)), 'DAYBREAKS'),
+      cell(String(n(last.lastBreath)), 'LAST-BREATH'),
+      cell(String(n(last.hitsTaken)), 'HITS TAKEN'),
+      cell(String(n(last.powerups)), 'POWER-UPS'),
+    );
+    const killsCol = el('div', { class: 'lr-pop-col' }, el('div', { class: 'lr-pop-sec' }, `KILLS BY FOE · ${killTotal}`));
+    if (kills.length) for (const [k, v] of kills.slice(0, 12)) killsCol.append(barRow(foeLabel(k), v, kills[0][1], ' ✕'));
+    else killsCol.append(el('div', { class: 'lr-pop-empty' }, 'No kills recorded.'));
+    const dmgCol = el('div', { class: 'lr-pop-col' }, el('div', { class: 'lr-pop-sec' }, 'DAMAGE TAKEN · who hit you'));
+    if (dmg.length) for (const [k, v] of dmg.slice(0, 12)) dmgCol.append(barRow(foeLabel(k), v, dmg[0][1], '×'));
+    else dmgCol.append(el('div', { class: 'lr-pop-empty' }, 'Took no hits — flawless.'));
+
+    pop.replaceChildren(el('div', { class: 'lr-pop-card' }, close, head, killed, stats, el('div', { class: 'lr-pop-cols' }, killsCol, dmgCol)));
+    pop.classList.add('open');
+    close.focus();
+  }
+
+  private closeLastRunDetail(): void {
+    if (this.lrPopover) this.lrPopover.classList.remove('open');
+  }
+
   /** Paint the center SELECTED-RUN hero panel from the selected mode (purity-safe mutator
    *  preview only). Also drives the mode accent across the cockpit + the DESCEND sub-line. */
   private refreshSelectedRun(save: SaveData): void {
@@ -3258,7 +3344,10 @@ export class UI {
       this.lastRunBox.append(
         el('div', { class: 'ck-lr-head' },
           el('span', {}, 'LAST RUN'),
-          el('span', { class: 'ck-lr-when' }, fmtAgo(typeof last.date === 'string' ? last.date : '', new Date())),
+          el('span', { class: 'ck-lr-when' },
+            fmtAgo(typeof last.date === 'string' ? last.date : '', new Date()),
+            el('span', { class: 'ck-lr-more' }, ' · DETAILS ▸'),
+          ),
         ),
         el('div', { class: 'ck-lr-cells' },
           cell(last.won === true ? 'WON' : 'FELL', 'OUTCOME', last.won === true ? 'won' : 'lost'),
@@ -3269,6 +3358,16 @@ export class UI {
           cell(n(last.heat) > 0 ? `H${n(last.heat)}` : 'OFF', 'HEAT'),
         ),
       );
+    }
+    this.lastRunBox.classList.toggle('has-detail', !!last);
+    if (last) {
+      this.lastRunBox.setAttribute('role', 'button');
+      this.lastRunBox.setAttribute('tabindex', '0');
+      this.lastRunBox.setAttribute('aria-label', `Last ${m.name} run — open the debrief`);
+    } else {
+      this.lastRunBox.removeAttribute('role');
+      this.lastRunBox.removeAttribute('tabindex');
+      this.lastRunBox.removeAttribute('aria-label');
     }
 
     // DESCEND sub-line: mode · ship · Heat N (+ mutator on seeded)

@@ -27,6 +27,23 @@ export interface RunRecord {
   date: string;
 }
 
+/** A RunRecord enriched with the per-mode LAST RUN debrief breakdowns (cockpit). Kept distinct
+ *  from the lean RunRecord so the 50-entry runHistory stays small. */
+export interface LastRunDetail extends RunRecord {
+  /** per-EnemyKind kills this run */
+  kills: Record<string, number>;
+  /** would-be-fatal hits taken, by source (EnemyKind / 'a bullet' / 'a boss bullet' bucket) */
+  damage: Record<string, number>;
+  /** the killing blow's kind or cause text; '' when the run was won */
+  killedBy: string;
+  bosses: number;
+  grazes: number;
+  daybreaks: number;
+  lastBreath: number;
+  hitsTaken: number;
+  powerups: number;
+}
+
 export interface SaveData {
   /** save schema version (see migrate.ts) */
   version: number;
@@ -152,9 +169,9 @@ export interface SaveData {
   runsByMode: Record<string, number>;
   /** mode id → runs won (per-mode win rate = winsByMode / runsByMode) */
   winsByMode: Record<string, number>;
-  /** most-recent completed run PER MODE (one RunRecord per mode id) — the cockpit "LAST RUN"
-   *  readout. Array (not a map) so the migrate generic loop preserves it as-is. */
-  lastRuns: RunRecord[];
+  /** most-recent completed run PER MODE (one entry per mode id) — the cockpit "LAST RUN" debrief.
+   *  Array (not a map) so the migrate generic loop preserves it as-is. */
+  lastRuns: LastRunDetail[];
 }
 
 export interface Settings {

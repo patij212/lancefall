@@ -68,6 +68,7 @@ function makeBullet(): Bullet {
     fromBoss: false,
     grazeCd: 0,
     homing: 0,
+    fromKind: '',
   };
 }
 
@@ -134,6 +135,12 @@ export class World {
   grazeCount = 0;
   killCount = 0;
   killsByKind: Record<string, number> = {}; // per-EnemyKind kills this run → merged into save.killsByKind (CODEX). No rng.
+  /** per-source would-be-fatal hits this run (kind / 'a bullet' / 'a boss bullet' bucket) — the
+   *  LAST RUN debrief "damage taken" breakdown. Accumulated at the playerDie seam; no rng. */
+  damageByKind: Record<string, number> = {};
+  /** the kind currently firing (set before each enemy/boss update) so spawnBullet can stamp each
+   *  bullet with its firer for per-kind damage attribution. Transient; never persisted. */
+  firingKind = '';
   hitsTaken = 0; // §4 M3 — every would-be-fatal hit (armor / last-breath / revive / death) for no-hit scoring
   clearTime = 0; // §4 M3 — sim time at victory (cleartime scoring)
   maxDashChain = 0; // most kills in a single dash this run
@@ -241,6 +248,8 @@ export class World {
     this.grazeCount = 0;
     this.killCount = 0;
     this.killsByKind = {};
+    this.damageByKind = {};
+    this.firingKind = '';
     this.hitsTaken = 0;
     this.clearTime = 0;
     this.cipher = null;
@@ -370,6 +379,7 @@ export class World {
     b.grazeCd = 0;
     b.homing = 0; // CRITICAL: reset on pool reuse, or a recycled SEEKER bolt keeps homing
     b.shot = shot; // visual archetype; always set so a recycled bullet never keeps a stale style
+    b.fromKind = this.firingKind; // attribute to the firer for the LAST RUN damage breakdown
     return b;
   }
 
