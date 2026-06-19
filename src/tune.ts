@@ -283,10 +283,20 @@ export const ORBITER = {
   mineColor: '#67e8f9', // a cooler cyan so a parked mine reads apart from a flying bolt
 };
 
+// Splitter — the PARRY's signature target (enemy overhaul §SPLITTER). The split is
+// gated on the KILL METHOD, not death itself: a SWEEP kill (dash / heavy) is CLEAN —
+// the swept area covers the spawn point, so nothing survives. A NON-sweep kill
+// (parry-riposte / graze-burn / from-range AoE) is the REAL split: the parent
+// SHATTERS into a combo-SHOWER of weak, slow, SHORT-LIVED minis you mop up for
+// combo/stamina. So a parry "shatters" it into a satisfying flurry → the enemy that
+// teaches "parry pays off." Choice: "be done (dash)" vs "milk it for combo (parry)."
 export const SPLITTER = {
   childCount: 2,
   childSpeed: 120, // matches the live split velocity (was 150 in the table but the
   // sim hardcoded 120 — table reconciled to the shipped value; now consumed by splitInto)
+  showerCount: 3, // minis spawned on a NON-sweep shatter — a satisfying little flurry
+  showerSpeed: 70, // slow drift → easy graze/dash fodder, never a real threat
+  showerLife: 2.6, // s a shower mini lives before it harmlessly fizzles (short-lived)
 };
 
 // Brooder — a slow "carrier" that periodically hatches a fast mini drone (up to a

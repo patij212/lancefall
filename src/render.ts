@@ -36,6 +36,7 @@ import {
 // NEW boss-rework telegraph/finale overlays (kept OUT of this file — drawn in the
 // boss-centre frame). render.ts only delegates; no inline drawing was added.
 import { drawNovaSpiralTelegraph, drawSovereignFinaleTint, drawBeaconCounterBeam } from './render/boss';
+import { drawEnemyTells } from './render/enemyTells';
 import { drawSpear } from './render/spear';
 import { mix, hexRgb } from './render/colorMix';
 import { beaconEnraged } from './bosses/beacon';
@@ -810,6 +811,10 @@ export class Renderer {
     // shipId is threaded down so the Mirrorblade can wear the player's silhouette
     // (the imitation game, SHOWN) — see drawMirrorblade.
     world.enemies.forEachActive((e) => this.drawEnemy(ctx, e, opts, world.shipId));
+    // NEW enemy-overhaul role tells — a separate pass so they layer ON TOP of the bodies.
+    // All drawing lives in render/enemyTells.ts; this is a one-line delegation (no inline
+    // tell drawing was added to render.ts / skins.ts).
+    drawEnemyTells(ctx, world, this.bgT, this.reduceMotionR, this.reduceFlashingR);
   }
 
   private drawEnemy(ctx: CanvasRenderingContext2D, e: Enemy, opts: RenderOpts, shipId: string): void {

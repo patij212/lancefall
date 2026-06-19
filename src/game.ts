@@ -1951,7 +1951,10 @@ export class Game {
 
     // death effects
     if (e.kind === 'splitter') {
-      splitInto(e, w);
+      // fromDash = a SWEEP kill (dash/heavy) → CLEAN, no minis. A non-sweep kill
+      // (parry-riposte / graze-burn / AoE all call damageEnemy(..., false)) SHATTERS
+      // it into the combo-shower. The kill method is the whole mechanic (§SPLITTER).
+      splitInto(e, w, fromDash);
     } else if (e.kind === 'bomber') {
       const n = BOMBER.detonateCount;
       const sp = BOMBER.bulletSpeed * e.bulletMul;

@@ -43,7 +43,20 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       orbiter(e, world, dt);
       break;
     case 'splitter':
+      chaser(e, p.x, p.y, dt);
+      break;
     case 'mini':
+      // A Splitter SHOWER mini (phase 1) is short-lived combo fodder: it decays and
+      // harmlessly fizzles if you don't mop it up. Deterministic (timer/dt, no rng);
+      // silent release (no sim-side particle — particles share world.rng). Brooder
+      // drones keep phase 0 and never decay.
+      if (e.phase === 1) {
+        e.timer -= dt;
+        if (e.timer <= 0) {
+          world.enemies.release(e);
+          break;
+        }
+      }
       chaser(e, p.x, p.y, dt);
       break;
     case 'bloomer':
@@ -103,7 +116,8 @@ function steerToward(e: Enemy, tx: number, ty: number, speed: number): void {
 }
 
 function chaser(e: Enemy, px: number, py: number, dt: number): void {
-  const base = e.kind === 'mini' ? 150 : 70;
+  // a Splitter SHOWER mini (phase 1) drifts SLOW — easy graze/dash fodder, no threat
+  const base = e.kind === 'mini' ? (e.phase === 1 ? SPLITTER.showerSpeed : 150) : 70;
   steerToward(e, px, py, base * e.speedMul);
   void dt;
 }
@@ -546,18 +560,25 @@ function sovereignCore(e: Enemy, world: World, dt: number): void {
   e.vy = 0;
 }
 
-/** Splitter death → spawn 2 fast mini-splitters. Directions are DETERMINISTIC
- *  (derived from the parent, not world.rng): splitter death is player-kill-timed,
- *  so an rng draw here would desync the seeded Daily director stream. */
-export function splitInto(e: Enemy, world: World): void {
+/** Splitter death → the kill METHOD decides the outcome (enemy overhaul §SPLITTER):
+ *  a SWEEP kill (dash/heavy, `fromSweep`) is CLEAN — the swept area covered the spawn
+ *  point, so NO minis survive. A NON-sweep kill (parry-riposte / graze-burn / from-range
+ *  AoE) is the REAL split: the parent SHATTERS into a combo-SHOWER of weak, slow,
+ *  SHORT-LIVED minis (the parry payoff). Directions are DETERMINISTIC (derived from the
+ *  parent, not world.rng): splitter death is player-kill-timed, so an rng draw here would
+ *  desync the seeded Daily director stream. */
+export function splitInto(e: Enemy, world: World, fromSweep: boolean): void {
+  if (fromSweep) return; // CLEAN — the dash/heavy sweep took parent + spawn in one pass
   const base = e.spawnTime * 2.7; // varies per splitter, but deterministic given the seed
-  for (let i = 0; i < SPLITTER.childCount; i++) {
-    const a = base + (i * 2 * Math.PI) / SPLITTER.childCount; // children fan out evenly
+  for (let i = 0; i < SPLITTER.showerCount; i++) {
+    const a = base + (i * 2 * Math.PI) / SPLITTER.showerCount; // shower fans out evenly
     const child = world.spawnEnemy('mini', e.x, e.y, e.speedMul, e.bulletMul, false, false, a);
     if (child) {
-      child.vx = Math.cos(a) * SPLITTER.childSpeed;
-      child.vy = Math.sin(a) * SPLITTER.childSpeed;
+      child.vx = Math.cos(a) * SPLITTER.showerSpeed;
+      child.vy = Math.sin(a) * SPLITTER.showerSpeed;
       child.scale = 0.4;
+      child.phase = 1; // EPHEMERAL marker → chaser() slows it + updateEnemy fizzles it on timer
+      child.timer = SPLITTER.showerLife;
     }
   }
 }
