@@ -1,8 +1,8 @@
 // Pure field-aware cloud-save merge — the SINGLE source of truth shared by the client
 // (src/account.ts) and the Worker (worker/src/index.ts). Never last-write-wins: each field
 // merges by its category so a player can NEVER lose an unlock or a record by playing on a
-// second device. Pure + total; imports ONLY the SaveData type (erased at runtime), so the
-// Worker can bundle it with no client/DOM dependencies.
+// second device. Pure + total; imports only pure, DOM-free helpers (the SaveData type +
+// defaultSave), so the Worker can bundle it with no client/DOM dependencies.
 import type { SaveData, RunRecord, LastRunDetail } from './save';
 import { defaultSave } from './save';
 
@@ -122,6 +122,7 @@ export function mergeSaves(a: SaveData, b: SaveData, aWrittenAt: number, bWritte
         o[key] = Math.max(0, earned - Math.max(spentA, spentB));
         break;
       }
+      default: { const _exhaustive: never = cat; void _exhaustive; break; }
     }
   }
   return out;

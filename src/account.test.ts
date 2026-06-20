@@ -38,7 +38,25 @@ describe('account — opt-in gating', () => {
   });
 });
 
-import { mergeCloud } from './account';
+import { mergeCloud, adopt, noteChange } from './account';
+import { onSaveWrite } from './save';
+import * as accountMod from './account';
+
+describe('account — adopt re-entry guard (FIX 1 regression)', () => {
+  it('adopt() with noteChange as the save listener does NOT schedule a flush timer (re-entry suppressed)', () => {
+    // Production wiring: onSaveWrite(noteChange). Stub accountEnabled to true so that
+    // noteChange would proceed to wireLifecycle + setTimeout if the adopting guard were absent.
+    // With the guard: adopting=true during adopt() → noteChange returns at the FIRST LINE → 0 setTimeouts.
+    // Without the guard: noteChange proceeds through to setTimeout → test FAILS (1 call expected).
+    vi.spyOn(accountMod, 'accountEnabled').mockReturnValue(true);
+    onSaveWrite(noteChange);
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    adopt(defaultSave());
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    onSaveWrite(null);
+  });
+});
+
 describe('account — mergeCloud (pure boot-merge step)', () => {
   it('returns local unchanged when there is no cloud save', () => {
     const l = { ...defaultSave(), highScore: 7 };

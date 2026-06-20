@@ -14,6 +14,10 @@ let session = '';
 let rev = 0;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let lifecycleWired = false;
+let adopting = false;
+
+/** Adopt a server/merged save without re-triggering the noteChange flush timer. */
+export function adopt(save: SaveData): void { adopting = true; try { saveSave(save); } finally { adopting = false; } }
 
 function ls(k: string): string { try { return localStorage.getItem(k) ?? ''; } catch { return ''; } }
 function setLs(k: string, v: string): void { try { localStorage.setItem(k, v); } catch { /* ignore */ } }
@@ -39,19 +43,21 @@ export async function boot(): Promise<void> {
       body: JSON.stringify({ device: deviceId(), session: session || undefined }),
     });
     if (!r.ok) return;
-    const j = (await r.json()) as { session?: string; save?: SaveData | null; rev?: number };
+    const j = (await r.json()) as { session?: string; save?: SaveData | null; rev?: number; updatedAt?: number };
     if (typeof j.session === 'string') { session = j.session; setLs(SESSION_KEY, session); }
     rev = typeof j.rev === 'number' ? j.rev : 0;
     const cloud = (j.save && typeof j.save === 'object') ? (j.save as SaveData) : null;
+    const cloudAt = typeof j.updatedAt === 'number' ? j.updatedAt : 0;
     if (cloud) {
-      const merged = mergeCloud(loadSave(), cloud, savedAt(), Date.now());
-      saveSave(merged); // adopt; saveSave stamps writtenAt + fires the listener
-      void flush();      // push the merged result back so the cloud has the union too
+      const merged = mergeCloud(loadSave(), cloud, savedAt(), cloudAt);
+      adopt(merged); // adopt without re-triggering the flush timer
+      void flush();  // push the merged result back so the cloud has the union too
     }
   } catch { /* offline / blocked — stay local */ }
 }
 
 export function noteChange(): void {
+  if (adopting) return;
   if (!accountEnabled()) return;
   wireLifecycle();
   if (flushTimer) return; // coalesce: N changes in the window → one flush
@@ -70,7 +76,7 @@ export async function flush(): Promise<void> {
     if (!r.ok) return;
     const j = (await r.json()) as { save?: SaveData; rev?: number };
     if (typeof j.rev === 'number') rev = j.rev;
-    if (j.save && typeof j.save === 'object') saveSave(j.save as SaveData);
+    if (j.save && typeof j.save === 'object') adopt(j.save as SaveData);
   } catch { /* offline / blocked — try again on the next change */ }
 }
 

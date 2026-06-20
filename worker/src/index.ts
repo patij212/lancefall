@@ -237,11 +237,11 @@ export default {
             .bind(aid, device, now, now).run();
         }
       }
-      const row = await env.DB.prepare('SELECT blob, rev FROM saves WHERE account_id = ?').bind(aid).first<{ blob: string; rev: number }>();
+      const row = await env.DB.prepare('SELECT blob, rev, updated_at FROM saves WHERE account_id = ?').bind(aid).first<{ blob: string; rev: number; updated_at: number }>();
       let save: unknown = null;
-      if (row?.blob) { try { save = JSON.parse(row.blob); } catch { save = null; } }
+      if (row?.blob) { try { save = sanitizeSaveBlob(JSON.parse(row.blob)); } catch { save = null; } }
       const session = await signSession({ aid, kind: sess?.kind ?? 'anon', exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
-      return json({ session, save, rev: row?.rev ?? 0 }, 200, cors);
+      return json({ session, save, rev: row?.rev ?? 0, updatedAt: row?.updated_at ?? 0 }, 200, cors);
     }
 
     // ── store the cloud save: verify session, sanitize, merge server-side, bump rev ──
@@ -258,13 +258,14 @@ export default {
       let server: ReturnType<typeof sanitizeSaveBlob> | null = null;
       if (row?.blob) { try { server = sanitizeSaveBlob(JSON.parse(row.blob)); } catch { server = null; } }
       const merged = mergeServerSave(server, incoming, row?.updated_at ?? 0, incomingAt);
+      const stored = sanitizeSaveBlob(merged);
       const rev = (row?.rev ?? 0) + 1;
       const now = Date.now();
       await env.DB.prepare(
         'INSERT INTO saves (account_id, blob, rev, updated_at) VALUES (?, ?, ?, ?) ' +
         'ON CONFLICT(account_id) DO UPDATE SET blob = excluded.blob, rev = excluded.rev, updated_at = excluded.updated_at',
-      ).bind(sess.aid, JSON.stringify(merged), rev, now).run();
-      return json({ save: merged, rev }, 200, cors);
+      ).bind(sess.aid, JSON.stringify(stored), rev, now).run();
+      return json({ save: stored, rev }, 200, cors);
     }
 
     return json({ error: 'not found' }, 404, cors);
