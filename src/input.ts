@@ -83,6 +83,11 @@ export class InputManager {
   private attach(): void {
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
+      // While typing in an editable field (the cipher inputs, name entry, handle box), register NO
+      // game input — Space/Enter would otherwise launch the run + eat the keystroke. Let the field
+      // handle the key itself (no preventDefault here).
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return;
       const k = e.key.toLowerCase();
       this.keys.add(k);
       this.anyEdge = true;
