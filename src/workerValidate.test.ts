@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from '../worker/src/validate';
+import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from '../worker/src/validate';
 
 // The leaderboard worker's security-relevant logic was previously untested. These cover the
 // pure validators it relies on, so the only network-facing component has a regression net.
@@ -104,6 +104,27 @@ describe('worker — §v7 achievement rarity validators', () => {
   it('ACH_CACHE_TTL is a sane positive window (slower than the board)', () => {
     expect(ACH_CACHE_TTL).toBeGreaterThanOrEqual(BOARD_CACHE_TTL);
     expect(ACH_CACHE_TTL).toBeLessThanOrEqual(3600);
+  });
+});
+
+describe('worker — isAllowedOrigin', () => {
+  it('allows lancefall.pages.dev (prod)', () => {
+    expect(isAllowedOrigin('https://lancefall.pages.dev')).toBe(true);
+  });
+  it('allows preview subdomain deploys (*.lancefall.pages.dev)', () => {
+    expect(isAllowedOrigin('https://abc123.lancefall.pages.dev')).toBe(true);
+    expect(isAllowedOrigin('https://my-branch.lancefall.pages.dev')).toBe(true);
+  });
+  it('allows localhost on any port (local dev)', () => {
+    expect(isAllowedOrigin('http://localhost:5197')).toBe(true);
+    expect(isAllowedOrigin('http://localhost')).toBe(true);
+    expect(isAllowedOrigin('http://127.0.0.1:4000')).toBe(true);
+  });
+  it('rejects arbitrary origins', () => {
+    expect(isAllowedOrigin('https://evil.com')).toBe(false);
+    expect(isAllowedOrigin('https://evil.lancefall.pages.dev.evil.com')).toBe(false);
+    expect(isAllowedOrigin('')).toBe(false);
+    expect(isAllowedOrigin('https://notagamelancefall.pages.dev')).toBe(false);
   });
 });
 

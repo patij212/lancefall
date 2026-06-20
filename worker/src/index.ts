@@ -10,15 +10,22 @@
 // can't be cryptographically trusted on a zero-friction casual board. We apply pragmatic
 // sanity + plausibility caps (validate.ts) and per-handle best-only aggregation rather than
 // full replay verification (which is infeasible — the ghost is a position trace, not inputs).
-import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from './validate';
+import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from './validate';
 import { signSession, verifySession, SESSION_TTL_MS } from './session';
 import { newAccountId, sanitizeSaveBlob, mergeServerSave } from './accounts';
+import { signState, pkceVerifier, pkceChallenge, PROVIDERS, isProvider } from './oauth';
 
 export interface Env {
   DB: D1Database;
   /** optional KV namespace for IP rate-limiting; if unbound, limiting is skipped */
   RL?: KVNamespace;
   HMAC_SECRET?: string;
+  DISCORD_CLIENT_ID?: string;
+  DISCORD_CLIENT_SECRET?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  /** Set to '1' in .dev.vars to enable the DEV_AUTH shim (fakes the OAuth provider). NEVER set in production. */
+  DEV_AUTH?: string;
 }
 
 /** Soft IP rate limit via KV (eventually-consistent, best-effort). Allows all if
@@ -266,6 +273,50 @@ export default {
         'ON CONFLICT(account_id) DO UPDATE SET blob = excluded.blob, rev = excluded.rev, updated_at = excluded.updated_at',
       ).bind(sess.aid, JSON.stringify(stored), rev, now).run();
       return json({ save: stored, rev }, 200, cors);
+    }
+
+    // ── OAuth start: PKCE redirect (or DEV_AUTH shim) ──
+    // GET /auth/<provider>/start?session=<bearer>&ret=<gameOrigin>[&dev_user=<id>&dev_name=<n>]
+    const startMatch = url.pathname.match(/^\/auth\/([^/]+)\/start$/);
+    if (req.method === 'GET' && startMatch) {
+      const provider = startMatch[1];
+      if (!isProvider(provider)) return json({ error: 'unknown provider' }, 400, cors);
+      if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
+      // Require a valid existing session so sign-in is always an account upgrade, not account creation.
+      const sess = await verifySession(url.searchParams.get('session'), env.HMAC_SECRET, Date.now());
+      if (!sess) return json({ error: 'unauthorized' }, 401, cors);
+      const aid = sess.aid;
+      // Validate the return origin against the CORS allowlist (prevents open redirects).
+      const ret = url.searchParams.get('ret') ?? '';
+      let retOrigin = '';
+      try { retOrigin = new URL(ret).origin; } catch { /* invalid URL */ }
+      if (!ret || !isAllowedOrigin(retOrigin)) return json({ error: 'bad ret' }, 400, cors);
+      // Build PKCE pair + entropy nonce.
+      const verifier = await pkceVerifier();
+      const challenge = await pkceChallenge(verifier);
+      const nonceBytes = new Uint8Array(8);
+      crypto.getRandomValues(nonceBytes);
+      const nonce = Array.from(nonceBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const state = await signState({ aid, provider, ret, verifier, nonce, exp: Date.now() + 600_000 }, env.HMAC_SECRET);
+      const redirectUri = `${url.origin}/auth/${provider}/callback`;
+      // DEV_AUTH shim: if enabled and dev_user is set, skip the real provider and redirect
+      // directly to the callback with fake identity params (for local end-to-end testing).
+      if (env.DEV_AUTH === '1' && url.searchParams.get('dev_user')) {
+        const u = encodeURIComponent(url.searchParams.get('dev_user')!);
+        const n = encodeURIComponent(url.searchParams.get('dev_name') ?? '');
+        return Response.redirect(`${redirectUri}?state=${encodeURIComponent(state)}&dev_user=${u}&dev_name=${n}`, 302);
+      }
+      const clientId = provider === 'discord' ? env.DISCORD_CLIENT_ID : env.GOOGLE_CLIENT_ID;
+      if (!clientId) return json({ error: 'provider not configured' }, 503, cors);
+      const auth = new URL(PROVIDERS[provider].authorize);
+      auth.searchParams.set('client_id', clientId);
+      auth.searchParams.set('redirect_uri', redirectUri);
+      auth.searchParams.set('response_type', 'code');
+      auth.searchParams.set('scope', PROVIDERS[provider].scope);
+      auth.searchParams.set('state', state);
+      auth.searchParams.set('code_challenge', challenge);
+      auth.searchParams.set('code_challenge_method', 'S256');
+      return Response.redirect(auth.toString(), 302);
     }
 
     return json({ error: 'not found' }, 404, cors);

@@ -94,14 +94,21 @@ export function boardCacheKey(url: URL): string {
   return `${url.origin}/leaderboard?mode=${encodeURIComponent(mode)}&scope=${scope}&daily=${encodeURIComponent(daily)}`;
 }
 
+/** Returns true for origins allowed to make cross-origin requests to the Worker:
+ *  the LANCEFALL prod + preview subdomain + local dev (localhost / 127.0.0.1). */
+export function isAllowedOrigin(origin: string): boolean {
+  return (
+    /^https:\/\/([a-z0-9-]+\.)?lancefall\.pages\.dev$/.test(origin) ||
+    /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
+  );
+}
+
 /** CORS headers scoped to the LANCEFALL origins (prod + preview deploys + local dev),
  *  reflecting an allowed Origin and otherwise defaulting to the prod site so the game
  *  keeps working while other sites can't submit on a visitor's behalf. */
 export function corsHeaders(origin: string): Record<string, string> {
-  const ok =
-    /^https:\/\/([a-z0-9-]+\.)?lancefall\.pages\.dev$/.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/.test(origin) ||
-    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+  const ok = isAllowedOrigin(origin);
   return {
     'access-control-allow-origin': ok ? origin : 'https://lancefall.pages.dev',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
