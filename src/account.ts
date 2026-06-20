@@ -73,11 +73,15 @@ export async function boot(): Promise<void> {
   } catch { /* offline / blocked — stay local */ }
 }
 
-/** Navigate to the OAuth provider's login page. No-op unless cloud save is enabled. Never throws. */
+/** Navigate to the OAuth provider's login page.
+ *  Sign-in implies opt-in — clicking a sign-in button IS the consent gesture.
+ *  No-op when there is no backend (BASE=''); the device token is always forwarded
+ *  so the worker can resolve/create the anon account even with no prior session. Never throws. */
 export function startLink(provider: 'discord' | 'google'): void {
   try {
-    if (!BASE || !optedIn()) return;
-    const url = `${BASE}/auth/${provider}/start?session=${encodeURIComponent(session)}&ret=${encodeURIComponent(location.origin)}`;
+    if (!BASE) return;
+    optIn(); // sign-in implies enabling cloud save
+    const url = `${BASE}/auth/${provider}/start?session=${encodeURIComponent(session)}&device=${encodeURIComponent(deviceId())}&ret=${encodeURIComponent(location.origin)}`;
     location.assign(url);
   } catch { /* ignore */ }
 }

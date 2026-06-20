@@ -1,11 +1,13 @@
 // ACCOUNT — sign-in / cloud-save account panel. Offline-first: when leaderboardEnabled()
 // is false (no VITE_LEADERBOARD_URL set) it renders an inert "unavailable" note and
-// shows no sign-in buttons. When enabled: anonymous state shows two OAuth sign-in buttons;
+// shows no sign-in buttons. When backend is configured: anonymous state shows two OAuth
+// sign-in buttons (clicking them opts in via startLink — sign-in IS the consent gesture);
 // linked state shows the verified name and hides them. The shell is built once; open(save)
 // repaints the body from account.accountState(). Mirrors the leaderboard panel shell.
 
 import { el } from './dom';
 import * as account from '../account';
+import { leaderboardEnabled } from '../api';
 import type { SaveData } from '../save';
 import type { Panel } from './panel';
 
@@ -41,10 +43,10 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
   const open = (_save: SaveData): void => {
     body.replaceChildren();
 
-    const state = account.accountState();
-
-    // Offline-first gate: when no backend is configured (enabled=false), show a plain note and bail.
-    if (!state.enabled) {
+    // Offline-first gate: when no backend is configured, show a plain note and bail.
+    // This is separate from opt-in — a player who hasn't opted in yet can still reach
+    // sign-in (clicking the button IS the opt-in via startLink calling optIn()).
+    if (!leaderboardEnabled()) {
       body.append(
         el('div', { class: 'event-flavor' },
           'Cloud accounts are unavailable in this build. Progress is saved locally on this device.',
@@ -52,6 +54,8 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
       );
       return;
     }
+
+    const state = account.accountState();
 
     if (state.kind === 'linked') {
       // ── linked state ──

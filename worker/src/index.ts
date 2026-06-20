@@ -284,16 +284,35 @@ export default {
     }
 
     // ── OAuth start: PKCE redirect (or DEV_AUTH shim) ──
-    // GET /auth/<provider>/start?session=<bearer>&ret=<gameOrigin>[&dev_user=<id>&dev_name=<n>]
+    // GET /auth/<provider>/start?session=<bearer>&device=<token>&ret=<gameOrigin>[&dev_user=<id>&dev_name=<n>]
+    // A valid session is preferred; if absent, the device token is used to resolve/create the anon account
+    // (mirrors /hello) so a first-time player who has never called /hello can still sign in.
     const startMatch = url.pathname.match(/^\/auth\/([^/]+)\/start$/);
     if (req.method === 'GET' && startMatch) {
       const provider = startMatch[1];
       if (!isProvider(provider)) return json({ error: 'unknown provider' }, 400, cors);
       if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
-      // Require a valid existing session so sign-in is always an account upgrade, not account creation.
-      const sess = await verifySession(url.searchParams.get('session'), env.HMAC_SECRET, Date.now());
-      if (!sess) return json({ error: 'unauthorized' }, 401, cors);
-      const aid = sess.aid;
+      const now = Date.now();
+      let aid: string | null = null;
+      // Prefer a valid existing session.
+      const sess = await verifySession(url.searchParams.get('session'), env.HMAC_SECRET, now);
+      if (sess) {
+        aid = sess.aid;
+      } else {
+        // Fall back to device token — upsert an anon account exactly like /hello does.
+        const device = sanitizeDevice(url.searchParams.get('device'));
+        if (device) {
+          const existing = await env.DB.prepare('SELECT id FROM accounts WHERE anon_token = ?').bind(device).first<{ id: string }>();
+          if (existing) {
+            aid = existing.id;
+          } else {
+            aid = newAccountId();
+            await env.DB.prepare('INSERT INTO accounts (id, anon_token, created_at, updated_at) VALUES (?, ?, ?, ?)')
+              .bind(aid, device, now, now).run();
+          }
+        }
+      }
+      if (!aid) return json({ error: 'unauthorized' }, 401, cors);
       // Validate the return origin against the CORS allowlist (prevents open redirects).
       const ret = url.searchParams.get('ret') ?? '';
       let retOrigin = '';

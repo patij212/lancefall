@@ -3,6 +3,15 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { buildAccountPanel, type AccountPanelDeps } from './account';
 import * as account from '../account';
 
+// Hoist the api mock so vi.mock can reference it.
+const { leaderboardEnabled } = vi.hoisted(() => ({
+  leaderboardEnabled: vi.fn(() => true),
+}));
+
+// The panel now imports leaderboardEnabled from ../api to gate the "unavailable" note.
+// Default: backend is present (leaderboardEnabled=true).
+vi.mock('../api', () => ({ leaderboardEnabled }));
+
 const makeDeps = (over: Partial<AccountPanelDeps> = {}): AccountPanelDeps => ({
   onSignIn: vi.fn(),
   onClose: vi.fn(),
@@ -14,14 +23,15 @@ const mockSave = {} as import('../save').SaveData;
 afterEach(() => {
   document.body.replaceChildren();
   vi.restoreAllMocks();
+  leaderboardEnabled.mockReturnValue(true); // reset between tests
 });
 
 describe('buildAccountPanel', () => {
   beforeEach(() => {
-    // Stub accountState to return an online-anonymous state by default (enabled=true so
-    // the sign-in buttons render; in real prod this means cloud save is configured + opted-in).
+    // Backend is present (leaderboardEnabled=true) and player is anonymous.
+    leaderboardEnabled.mockReturnValue(true);
     vi.spyOn(account, 'accountState').mockReturnValue({
-      enabled: true,
+      enabled: false, // opt-in state is irrelevant — panel gates on leaderboardEnabled() now
       kind: 'anon',
       name: null,
       verified: false,
@@ -37,7 +47,9 @@ describe('buildAccountPanel', () => {
     expect(panel.root.querySelector('.panel-head-title')?.textContent).toBe('ACCOUNT');
   });
 
-  it('anonymous state: shows both sign-in buttons', () => {
+  it('anonymous state: shows both sign-in buttons (even when not opted-in)', () => {
+    // leaderboardEnabled=true but accountState.enabled=false (not opted in yet).
+    // The panel must still show the buttons — clicking them is the opt-in gesture.
     const panel = buildAccountPanel(makeDeps());
     panel.open(mockSave);
     const btns = [...panel.root.querySelectorAll('button')].filter(
@@ -97,13 +109,8 @@ describe('buildAccountPanel', () => {
   });
 
   it('when leaderboardEnabled()=false shows offline note and no sign-in buttons', () => {
-    // accountState.enabled=false (leaderboardEnabled → false)
-    vi.spyOn(account, 'accountState').mockReturnValue({
-      enabled: false,
-      kind: 'anon',
-      name: null,
-      verified: false,
-    });
+    // No backend configured → inert unavailable note regardless of opt-in state.
+    leaderboardEnabled.mockReturnValue(false);
     const panel = buildAccountPanel(makeDeps());
     panel.open(mockSave);
     expect(panel.root.textContent).toContain('unavailable');
@@ -114,9 +121,8 @@ describe('buildAccountPanel', () => {
   });
 
   it('open() can be called multiple times (repaints in place)', () => {
-    // override the beforeEach stub with a sequence
     vi.spyOn(account, 'accountState')
-      .mockReturnValueOnce({ enabled: true, kind: 'anon', name: null, verified: false })
+      .mockReturnValueOnce({ enabled: false, kind: 'anon', name: null, verified: false })
       .mockReturnValueOnce({ enabled: true, kind: 'linked', name: 'LANCE', verified: true });
     const panel = buildAccountPanel(makeDeps());
     panel.open(mockSave);
