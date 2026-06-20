@@ -12,8 +12,8 @@
 // full replay verification (which is infeasible — the ghost is a position trace, not inputs).
 import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from './validate';
 import { signSession, verifySession, SESSION_TTL_MS } from './session';
-import { newAccountId, sanitizeSaveBlob, mergeServerSave } from './accounts';
-import { signState, pkceVerifier, pkceChallenge, PROVIDERS, isProvider } from './oauth';
+import { newAccountId, sanitizeSaveBlob, mergeServerSave, claimName, mergeForLink } from './accounts';
+import { signState, verifyState, pkceVerifier, pkceChallenge, PROVIDERS, isProvider, extractIdentity } from './oauth';
 
 export interface Env {
   DB: D1Database;
@@ -247,8 +247,16 @@ export default {
       const row = await env.DB.prepare('SELECT blob, rev, updated_at FROM saves WHERE account_id = ?').bind(aid).first<{ blob: string; rev: number; updated_at: number }>();
       let save: unknown = null;
       if (row?.blob) { try { save = sanitizeSaveBlob(JSON.parse(row.blob)); } catch { save = null; } }
-      const session = await signSession({ aid, kind: sess?.kind ?? 'anon', exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
-      return json({ session, save, rev: row?.rev ?? 0, updatedAt: row?.updated_at ?? 0 }, 200, cors);
+      // Extend: fetch account identity fields to return account state to the client.
+      const acctRow = await env.DB.prepare('SELECT provider, name, name_verified FROM accounts WHERE id = ?').bind(aid).first<{ provider: string | null; name: string | null; name_verified: number }>();
+      const account = {
+        kind: acctRow?.provider ? 'linked' : 'anon' as 'anon' | 'linked',
+        name: acctRow?.name ?? null,
+        verified: acctRow?.name_verified === 1,
+      };
+      const sessionKind = sess?.kind ?? (acctRow?.provider ? 'linked' : 'anon');
+      const session = await signSession({ aid, kind: sessionKind, exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
+      return json({ session, save, rev: row?.rev ?? 0, updatedAt: row?.updated_at ?? 0, account }, 200, cors);
     }
 
     // ── store the cloud save: verify session, sanitize, merge server-side, bump rev ──
@@ -317,6 +325,141 @@ export default {
       auth.searchParams.set('code_challenge', challenge);
       auth.searchParams.set('code_challenge_method', 'S256');
       return Response.redirect(auth.toString(), 302);
+    }
+
+    // ── OAuth callback: token exchange → identity → link/merge → linked session → redirect ──
+    // GET /auth/<provider>/callback?code=<code>&state=<state>
+    // DEV path: GET /auth/<provider>/callback?dev_user=<id>&dev_name=<n>&state=<state>
+    // On ANY error after ret is known, redirect to ${ret}#lf-account-error=1 (graceful, never dead-end).
+    const callbackMatch = url.pathname.match(/^\/auth\/([^/]+)\/callback$/);
+    if (req.method === 'GET' && callbackMatch) {
+      const provider = callbackMatch[1];
+      if (!isProvider(provider)) return json({ error: 'unknown provider' }, 400, cors);
+      if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
+
+      const stateParam = url.searchParams.get('state');
+      const now = Date.now();
+      const st = await verifyState(stateParam, env.HMAC_SECRET, now, provider);
+      // state invalid → 400 (no ret to redirect back to safely)
+      if (!st) return json({ error: 'invalid state' }, 400, cors);
+      const ret = st.ret;
+
+      try {
+        // ── Obtain identity ──
+        let identity: { providerId: string; name: string } | null = null;
+        if (env.DEV_AUTH === '1' && url.searchParams.get('dev_user')) {
+          // DEV path: trust the shim params (but still sanitize name through claimName).
+          identity = {
+            providerId: url.searchParams.get('dev_user')!,
+            name: claimName(url.searchParams.get('dev_name')),
+          };
+        } else {
+          const code = url.searchParams.get('code');
+          if (!code) return Response.redirect(`${ret}#lf-account-error=1`, 302);
+          const clientId = provider === 'discord' ? env.DISCORD_CLIENT_ID : env.GOOGLE_CLIENT_ID;
+          const clientSecret = provider === 'discord' ? env.DISCORD_CLIENT_SECRET : env.GOOGLE_CLIENT_SECRET;
+          if (!clientId || !clientSecret) return Response.redirect(`${ret}#lf-account-error=1`, 302);
+          // Exchange the authorization code for an access token (PKCE: include code_verifier).
+          const tok = await fetch(PROVIDERS[provider].token, {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: clientId,
+              client_secret: clientSecret,
+              code,
+              grant_type: 'authorization_code',
+              redirect_uri: `${url.origin}/auth/${provider}/callback`,
+              code_verifier: st.verifier,
+            }),
+          });
+          if (!tok.ok) return Response.redirect(`${ret}#lf-account-error=1`, 302);
+          const access = (await tok.json() as { access_token?: string }).access_token;
+          if (!access) return Response.redirect(`${ret}#lf-account-error=1`, 302);
+          // Fetch the stable user identity from the provider's userinfo endpoint.
+          const ui = await fetch(PROVIDERS[provider].userinfo, {
+            headers: { authorization: `Bearer ${access}` },
+          });
+          if (!ui.ok) return Response.redirect(`${ret}#lf-account-error=1`, 302);
+          identity = extractIdentity(provider, await ui.json());
+        }
+        if (!identity) return Response.redirect(`${ret}#lf-account-error=1`, 302);
+
+        const { providerId, name: rawName } = identity;
+        const { aid } = st;
+
+        // ── Link/merge (D1) ──
+        // Check if this provider identity is already linked to any account.
+        const existing = await env.DB.prepare(
+          'SELECT id FROM accounts WHERE provider = ? AND provider_id = ?',
+        ).bind(provider, providerId).first<{ id: string }>();
+
+        let canonical: string;
+
+        if (existing && existing.id !== aid) {
+          // MERGE: the provider identity belongs to a DIFFERENT account (returning player on a new device).
+          // Load both saves, merge them into the existing (linked) account, then delete the anon account.
+          const existingRow = await env.DB.prepare('SELECT blob, updated_at FROM saves WHERE account_id = ?')
+            .bind(existing.id).first<{ blob: string; updated_at: number }>();
+          const currentRow = await env.DB.prepare('SELECT blob, updated_at FROM saves WHERE account_id = ?')
+            .bind(aid).first<{ blob: string; updated_at: number }>();
+          let existingSave: ReturnType<typeof sanitizeSaveBlob> | null = null;
+          if (existingRow?.blob) { try { existingSave = sanitizeSaveBlob(JSON.parse(existingRow.blob)); } catch { existingSave = null; } }
+          let currentSave: ReturnType<typeof sanitizeSaveBlob> | null = null;
+          if (currentRow?.blob) { try { currentSave = sanitizeSaveBlob(JSON.parse(currentRow.blob)); } catch { currentSave = null; } }
+          const merged = mergeForLink(existingSave, currentSave, existingRow?.updated_at ?? 0, currentRow?.updated_at ?? 0);
+          const storedMerged = sanitizeSaveBlob(merged);
+          const existingRev = await env.DB.prepare('SELECT rev FROM saves WHERE account_id = ?').bind(existing.id).first<{ rev: number }>();
+          const mergeNow = Date.now();
+          // Write merged save under the existing account, delete the anon account entirely.
+          await env.DB.batch([
+            env.DB.prepare(
+              'INSERT INTO saves (account_id, blob, rev, updated_at) VALUES (?, ?, ?, ?) ' +
+              'ON CONFLICT(account_id) DO UPDATE SET blob = excluded.blob, rev = excluded.rev, updated_at = excluded.updated_at',
+            ).bind(existing.id, JSON.stringify(storedMerged), (existingRev?.rev ?? 0) + 1, mergeNow),
+            // DELETE the absorbed anon account's saves and account rows.
+            env.DB.prepare('DELETE FROM saves WHERE account_id = ?').bind(aid),
+            env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(aid),
+          ]);
+          canonical = existing.id;
+        } else if (existing && existing.id === aid) {
+          // RECOVERY / NO-OP: same device re-linking the same provider identity.
+          canonical = aid;
+        } else {
+          // ATTACH: first time linking this provider to this (anon) account.
+          // Name claim deferred — set tentatively, uniqueness check below.
+          canonical = aid;
+        }
+
+        // ── Name claim: sanitize + check uniqueness among linked accounts (case-folded) ──
+        const claimedName = claimName(rawName);
+        let verifiedName: string | null = null;
+        let nameVerified = 0;
+        if (claimedName) {
+          // A name is only kept if no OTHER linked account already holds it (case-folded).
+          const conflict = await env.DB.prepare(
+            'SELECT 1 FROM accounts WHERE provider IS NOT NULL AND lower(name) = lower(?) AND id != ?',
+          ).bind(claimedName, canonical).first();
+          if (!conflict) {
+            verifiedName = claimedName;
+            nameVerified = 1;
+          }
+        }
+
+        // ── Update accounts row: attach provider + name (or refresh on recovery) ──
+        // For the MERGE case canonical = existing.id which already has provider/provider_id; update name anyway.
+        const linkNow = Date.now();
+        await env.DB.prepare(
+          'UPDATE accounts SET provider = ?, provider_id = ?, name = ?, name_verified = ?, updated_at = ? WHERE id = ?',
+        ).bind(provider, providerId, verifiedName, nameVerified, linkNow, canonical).run();
+
+        // ── Issue a linked session and redirect back to the game ──
+        const session = await signSession({ aid: canonical, kind: 'linked', exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
+        return Response.redirect(`${ret}#lf-account=${encodeURIComponent(session)}&linked=1`, 302);
+
+      } catch {
+        // Any unexpected failure → graceful degradation (client stays anonymous, no dead-end).
+        return Response.redirect(`${ret}#lf-account-error=1`, 302);
+      }
     }
 
     return json({ error: 'not found' }, 404, cors);
