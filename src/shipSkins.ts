@@ -49,6 +49,10 @@ export const SHIP_SKINS: ShipSkinDef[] = [
     id: 'firstlight', name: 'FIRST LIGHT', tag: 'bring back the longest day', unlockShards: 0, unlockAch: 'regicide',
     names: { lance: 'DAYSPRING', glaive: 'PRISM DAWN', bastion: 'SUNWALL', tempest: 'STORMLIGHT', phantom: 'PALE SUN', reaver: 'BLOOD DAWN' },
   },
+  {
+    id: 'lastkey', name: 'THE LAST KEY', tag: 'the longest day, read', unlockShards: 0, unlockAch: 'longestday-read',
+    names: { lance: 'DECIPHER', glaive: 'CLEARTEXT', bastion: 'KEYVAULT', tempest: 'PLAINSONG', phantom: 'REVEAL', reaver: 'LASTWORD' },
+  },
 ];
 
 /** The skin def for an id, or null. 'none' (the plain hull) is intentionally NOT in the list. */
@@ -343,10 +347,104 @@ function drawFirstLight(ctx: C, m: SkinModel, id: string, s: number, T: number, 
   if (id === 'reaver') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgba('#fb7185', 0.9); ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 6; const tips: ReadonlyArray<readonly [number, number]> = [[-0.35, 0.95], [-0.35, -0.95]]; for (let ti = 0; ti < tips.length; ti++) { ctx.beginPath(); ctx.arc(tips[ti][1] * s, -tips[ti][0] * s, 3, 0, 6.283); ctx.fill(); } ctx.restore(); }
 }
 
+// ── SET IV — THE LAST KEY ────────────────────────────────────────────────────
+// Identity: "the cipher, fully decrypted" — a gold core + bloom with a fully-resolved cyan
+// glyph-ring (every glyph lit, litFrac 1.0). Reuses the bloom/ray structure of FIRST LIGHT
+// with a gold→cyan palette shift to read as "decoded at last". Pure canvas; no rng; no sim.
+function drawLastKey(ctx: C, m: SkinModel, id: string, s: number, T: number, rm: boolean, silh: boolean): void {
+  if (silh) { outline(ctx, m, s, '#fde047', '#67e8f9'); return; }
+  const pulse = rm ? 0.7 : (0.5 + 0.5 * Math.sin(T * 1.4));
+  const flare = rm ? 0 : Math.pow(0.5 + 0.5 * Math.sin(T * 0.9), 3);
+  const f = m.focus, cx = f[1] * s, cy = -f[0] * s;
+
+  // outer bloom — gold core with a cyan outer halo
+  const bloomR = id === 'glaive' ? 2.3 : (id === 'bastion' ? 2.2 : 2.05);
+  const bg = ctx.createRadialGradient(0, -s * 0.2, 0, 0, -s * 0.2, s * bloomR);
+  bg.addColorStop(0, rgba('#fde047', 0.55));
+  bg.addColorStop(0.35, rgba('#fbbf24', 0.28));
+  bg.addColorStop(0.7, rgba('#67e8f9', 0.18));
+  bg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, -s * 0.2, s * bloomR, 0, 6.283); ctx.fill();
+  // pulse rings — gold then cyan
+  ctx.strokeStyle = rgba('#fde047', 0.22 + 0.12 * pulse); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, s * 1.5 + 4 * pulse, 0, 6.283); ctx.stroke();
+  ctx.strokeStyle = rgba('#67e8f9', 0.14 + 0.08 * pulse); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, 0, s * 1.72 + 5 * pulse, 0, 6.283); ctx.stroke();
+  ctx.restore();
+
+  // hull fill — gold top, cyan accent at base (decoded spectrum)
+  hullPath(ctx, m.hull, s);
+  const lg = ctx.createLinearGradient(0, -1.4 * s, 0, 0.9 * s);
+  lg.addColorStop(0, '#fde047'); lg.addColorStop(0.45, '#fbbf24'); lg.addColorStop(1, '#67e8f9');
+  ctx.fillStyle = lg; ctx.fill();
+  lightPass(ctx, m, s);
+
+  // rays from core to hull vertices (lighter blend)
+  ctx.save(); clipHull(ctx, m, s); ctx.globalCompositeOperation = 'lighter';
+  for (let vi = 0; vi < m.hull.length; vi++) {
+    const vx = m.hull[vi][1] * s, vy = -m.hull[vi][0] * s;
+    const ry = ctx.createLinearGradient(cx, cy, vx, vy);
+    ry.addColorStop(0, rgba('#fde047', 0.55));
+    ry.addColorStop(0.6, rgba('#67e8f9', 0.18));
+    ry.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.strokeStyle = ry; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(vx, vy); ctx.stroke();
+  }
+  // soft brightness sheen
+  ctx.globalAlpha = 0.25; ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.ellipse(-s * 0.1, -s * 0.55, s * 0.5, s * 0.95, 0, 0, 6.283); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // fully-resolved glyph ring: litFrac = 1.0 → every glyph lit cyan
+  glyphRing(ctx, s, T, rm, '#67e8f9', '#e0f9ff', 1.0, 0.18, 8);
+
+  // edge detail: gold beads, gold vertex dots
+  edgeBeads(ctx, m, s, rgba('#fde047', 0.85), 1.3, 1, 13);
+  for (let vj = 0; vj < m.hull.length; vj++) {
+    const gx = m.hull[vj][1] * s, gy = -m.hull[vj][0] * s;
+    const tw = rm ? 0.9 : (0.5 + 0.5 * Math.sin(T * 3 + vj * 1.3));
+    ctx.fillStyle = rgba('#fde047', 0.7 + 0.3 * tw); ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 3 + 4 * tw;
+    ctx.beginPath(); ctx.arc(gx, gy, 1.5 + 0.8 * tw, 0, 6.283); ctx.fill(); ctx.shadowBlur = 0;
+  }
+  rimStroke(ctx, m, s, '#fde047', '#fbbf24', 2.3);
+  spineStroke(ctx, m, s, rgba('#67e8f9', 0.9), 1.3);
+
+  // core: gold bloom with a cyan orbit ring + cross flare + white dot
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const cb = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.4);
+  cb.addColorStop(0, rgba('#fde047', 0.85)); cb.addColorStop(0.5, rgba('#67e8f9', 0.22)); cb.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = cb; ctx.beginPath(); ctx.arc(cx, cy, s * 0.4, 0, 6.283); ctx.fill();
+  // orbit ring (cyan)
+  ctx.strokeStyle = rgba('#67e8f9', 0.6); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, cy, s * 0.2, 0, 6.283); ctx.stroke();
+  // rotating spokes (reduce-motion: fixed)
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rm ? 0 : T * 0.25);
+  ctx.strokeStyle = rgba('#fde047', 0.85); ctx.lineWidth = 1.2;
+  const rays = id === 'bastion' ? 12 : 8;
+  for (let k = 0; k < rays; k++) {
+    const a = k / rays * 6.283;
+    const r0 = s * 0.12, r1 = s * (0.22 + 0.07 * pulse);
+    ctx.beginPath(); ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1); ctx.stroke();
+  }
+  ctx.restore();
+  // cross flare
+  ctx.strokeStyle = rgba('#ffffff', 0.5 + 0.5 * flare); ctx.lineWidth = 1;
+  const flr = s * (0.32 + 0.5 * flare);
+  ctx.beginPath(); ctx.moveTo(cx - flr, cy); ctx.lineTo(cx + flr, cy); ctx.moveTo(cx, cy - flr); ctx.lineTo(cx, cy + flr); ctx.stroke();
+  // core dot
+  const coreR = id === 'bastion' ? s * 0.14 : s * 0.1;
+  ctx.fillStyle = '#fde047'; ctx.shadowColor = '#fff7cd'; ctx.shadowBlur = 14 + 10 * flare;
+  ctx.beginPath(); ctx.arc(cx, cy, coreR * (1 + 0.2 * flare), 0, 6.283); ctx.fill();
+  ctx.restore();
+}
+
 const DRAW: Record<string, (ctx: C, m: SkinModel, id: string, s: number, T: number, rm: boolean, silh: boolean) => void> = {
   encryption: drawEncryption,
   key: drawKey,
   firstlight: drawFirstLight,
+  lastkey: drawLastKey,
 };
 
 /** Draw the equipped skin's body for `shipId`, centred at the CURRENT transform origin. The

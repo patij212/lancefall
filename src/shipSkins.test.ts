@@ -6,8 +6,8 @@ import { achievementById } from './achievements';
 const SHIP_IDS = SHIPS.map((s) => s.id);
 
 describe('ship-skin registry', () => {
-  it('defines the three jam sets in order, each with a name + tagline', () => {
-    expect(SHIP_SKINS.map((s) => s.id)).toEqual(['encryption', 'key', 'firstlight']);
+  it('defines the four sets in order, each with a name + tagline', () => {
+    expect(SHIP_SKINS.map((s) => s.id)).toEqual(['encryption', 'key', 'firstlight', 'lastkey']);
     const ids = new Set<string>();
     for (const def of SHIP_SKINS) {
       expect(ids.has(def.id)).toBe(false); // unique
@@ -47,7 +47,7 @@ describe('shipSkinName — per-ship individual names', () => {
         seen.add(nm);
       }
     }
-    expect(seen.size).toBe(SHIP_SKINS.length * SHIP_IDS.length); // 3 sets × 6 ships
+    expect(seen.size).toBe(SHIP_SKINS.length * SHIP_IDS.length); // 4 sets x 6 ships
   });
 
   it('returns the specific artifact name for a known (ship, set)', () => {
@@ -111,5 +111,16 @@ describe('ship-skin draw contract (smoke — every set × ship, no crash)', () =
   it('an unknown / "none" set is a no-op (draws nothing, never throws)', () => {
     expect(() => drawShipSkin('none', 'lance', stubCtx(), 18, 1, { reduceMotion: false })).not.toThrow();
     expect(() => drawShipSkin('bogus', 'reaver', stubCtx(), 18, 1, { reduceMotion: true })).not.toThrow();
+  });
+});
+
+describe('lastkey ship skin', () => {
+  it('is registered, achievement-gated by longestday-read, and named per ship', () => {
+    const def = shipSkinById('lastkey')!;
+    expect(def).toBeTruthy();
+    expect(def.unlockAch).toBe('longestday-read');
+    expect(canUnlockShipSkin(def, 0, [])).toBe(false);
+    expect(canUnlockShipSkin(def, 0, ['longestday-read'])).toBe(true);
+    expect(shipSkinName('lance', 'lastkey')).not.toBe('');
   });
 });
