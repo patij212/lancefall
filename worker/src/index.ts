@@ -250,7 +250,7 @@ export default {
       // Extend: fetch account identity fields to return account state to the client.
       const acctRow = await env.DB.prepare('SELECT provider, name, name_verified FROM accounts WHERE id = ?').bind(aid).first<{ provider: string | null; name: string | null; name_verified: number }>();
       const account = {
-        kind: acctRow?.provider ? 'linked' : 'anon' as 'anon' | 'linked',
+        kind: (acctRow?.provider ? 'linked' : 'anon') as 'anon' | 'linked',
         name: acctRow?.name ?? null,
         verified: acctRow?.name_verified === 1,
       };
@@ -398,8 +398,8 @@ export default {
         if (existing && existing.id !== aid) {
           // MERGE: the provider identity belongs to a DIFFERENT account (returning player on a new device).
           // Load both saves, merge them into the existing (linked) account, then delete the anon account.
-          const existingRow = await env.DB.prepare('SELECT blob, updated_at FROM saves WHERE account_id = ?')
-            .bind(existing.id).first<{ blob: string; updated_at: number }>();
+          const existingRow = await env.DB.prepare('SELECT blob, rev, updated_at FROM saves WHERE account_id = ?')
+            .bind(existing.id).first<{ blob: string; rev: number; updated_at: number }>();
           const currentRow = await env.DB.prepare('SELECT blob, updated_at FROM saves WHERE account_id = ?')
             .bind(aid).first<{ blob: string; updated_at: number }>();
           let existingSave: ReturnType<typeof sanitizeSaveBlob> | null = null;
@@ -408,14 +408,13 @@ export default {
           if (currentRow?.blob) { try { currentSave = sanitizeSaveBlob(JSON.parse(currentRow.blob)); } catch { currentSave = null; } }
           const merged = mergeForLink(existingSave, currentSave, existingRow?.updated_at ?? 0, currentRow?.updated_at ?? 0);
           const storedMerged = sanitizeSaveBlob(merged);
-          const existingRev = await env.DB.prepare('SELECT rev FROM saves WHERE account_id = ?').bind(existing.id).first<{ rev: number }>();
           const mergeNow = Date.now();
           // Write merged save under the existing account, delete the anon account entirely.
           await env.DB.batch([
             env.DB.prepare(
               'INSERT INTO saves (account_id, blob, rev, updated_at) VALUES (?, ?, ?, ?) ' +
               'ON CONFLICT(account_id) DO UPDATE SET blob = excluded.blob, rev = excluded.rev, updated_at = excluded.updated_at',
-            ).bind(existing.id, JSON.stringify(storedMerged), (existingRev?.rev ?? 0) + 1, mergeNow),
+            ).bind(existing.id, JSON.stringify(storedMerged), (existingRow?.rev ?? 0) + 1, mergeNow),
             // DELETE the absorbed anon account's saves and account rows.
             env.DB.prepare('DELETE FROM saves WHERE account_id = ?').bind(aid),
             env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(aid),
