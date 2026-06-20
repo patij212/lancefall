@@ -14,6 +14,14 @@ export interface ScoreEntry {
   combo: number;
   heat: number;
   rank?: number;
+  verified?: boolean;
+}
+
+/** Read the current session token from localStorage without importing account.ts
+ *  (account.ts imports deviceId() from here — importing it back would be a cycle).
+ *  Returns '' when storage is unavailable or no session has been established. */
+function sessionToken(): string {
+  try { return localStorage.getItem('lancefall.session') ?? ''; } catch { return ''; }
 }
 
 export interface SubmitPayload {
@@ -41,9 +49,12 @@ export async function submitScore(p: SubmitPayload): Promise<void> {
   // short-circuit here.
   if (!BASE || p.score <= 0) return;
   try {
+    const token = sessionToken();
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (token) headers['authorization'] = `Bearer ${token}`;
     await fetch(`${BASE}/score`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify(p),
       keepalive: true, // let it complete even as the page transitions
     });
@@ -120,8 +131,8 @@ export async function fetchLeaderboard(mode: string, daily?: string, weekly = fa
     else if (weekly) q.set('scope', 'weekly'); // this-week board (worker filters by ts)
     const r = await fetch(`${BASE}/leaderboard?${q.toString()}`);
     if (!r.ok) return [];
-    const j = (await r.json()) as { entries?: ScoreEntry[] };
-    return Array.isArray(j.entries) ? j.entries.slice(0, 100) : [];
+    const j = (await r.json()) as { entries?: (ScoreEntry & { verified?: boolean })[] };
+    return Array.isArray(j.entries) ? j.entries.slice(0, 100).map((e) => ({ ...e, verified: e.verified })) : [];
   } catch {
     return [];
   }

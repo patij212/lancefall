@@ -32,6 +32,8 @@ function ls(k: string): string { try { return localStorage.getItem(k) ?? ''; } c
 function setLs(k: string, v: string): void { try { localStorage.setItem(k, v); } catch { /* ignore */ } }
 
 export function optedIn(): boolean { return ls(OPT_KEY) === '1'; }
+/** Current session token, or '' if not established / storage unavailable. */
+export function getSession(): string { return ls(SESSION_KEY); }
 export function optIn(): void { setLs(OPT_KEY, '1'); }
 export function optOut(): void { setLs(OPT_KEY, '0'); }
 export function accountEnabled(): boolean { return BASE.length > 0 && optedIn(); }
