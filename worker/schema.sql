@@ -29,3 +29,30 @@ CREATE TABLE IF NOT EXISTS ach_unlocks (
   PRIMARY KEY (device, id)
 );
 CREATE INDEX IF NOT EXISTS idx_ach_id ON ach_unlocks (id);
+
+-- ── Player accounts + cloud saves (Player Accounts P1) ──────────────────────────
+-- Anonymous-first: a row is created on first /hello keyed by the anon device token.
+-- provider/provider_id/name are populated by the P2 OAuth link flow (NULL for anon).
+CREATE TABLE IF NOT EXISTS accounts (
+  id            TEXT PRIMARY KEY,         -- random 'acc_...' id
+  anon_token    TEXT UNIQUE,              -- the deviceId that created it (nullable after a link-merge)
+  provider      TEXT,                     -- 'discord' | 'google' | NULL (anonymous)
+  provider_id   TEXT,                     -- stable provider user id
+  name          TEXT,                     -- claimed verified name (linked only)
+  name_verified INTEGER DEFAULT 0,
+  created_at    INTEGER,
+  updated_at    INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_provider ON accounts (provider, provider_id);
+
+CREATE TABLE IF NOT EXISTS saves (
+  account_id  TEXT PRIMARY KEY REFERENCES accounts(id),
+  blob        TEXT,        -- the merged SaveData JSON (sanitized server-side)
+  rev         INTEGER,     -- monotonic revision (optimistic concurrency)
+  updated_at  INTEGER
+);
+
+-- Player Accounts P3 — bind a score to a linked account (nullable; anon scores leave it NULL).
+-- SQLite has no "ADD COLUMN IF NOT EXISTS"; guard the re-apply by ignoring the duplicate-column
+-- error (the owner applies the whole file; a fresh DB adds it, a re-apply is a harmless no-op).
+ALTER TABLE scores ADD COLUMN account_id TEXT;

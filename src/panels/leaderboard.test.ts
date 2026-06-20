@@ -74,6 +74,24 @@ describe('buildLeaderboardPanel', () => {
     expect(panel.root.querySelector('.leader-list')!.textContent).toContain('No scores yet');
   });
 
+  it('renders a ✓ verified marker next to the name for entries with verified:true', async () => {
+    fetchLeaderboard.mockResolvedValue([
+      { name: 'ACE', score: 9000, wave: 10, combo: 5, heat: 2, rank: 1, verified: true },
+      { name: 'ANON', score: 5000, wave: 7, combo: 2, heat: 1, rank: 2, verified: false },
+      { name: 'BOT', score: 2000, wave: 4, combo: 0, heat: 0, rank: 3 },
+    ]);
+    const panel = mount({ onSetHandle: () => {}, onClose: () => {} });
+    panel.open(save());
+    await tick();
+    const rows = panel.root.querySelectorAll('.leader-row');
+    // rank-1 entry (verified:true) should have the marker
+    expect(rows[0].querySelector('.rank-verified')).not.toBeNull();
+    // rank-2 entry (verified:false) should NOT have the marker
+    expect(rows[1].querySelector('.rank-verified')).toBeNull();
+    // rank-3 entry (no verified field) should NOT have the marker
+    expect(rows[2].querySelector('.rank-verified')).toBeNull();
+  });
+
   it('drops a stale tab response so the latest tab always wins (the race guard)', async () => {
     // per-mode deferred promises so we control which response resolves when.
     const resolvers: Record<string, (v: unknown) => void> = {};

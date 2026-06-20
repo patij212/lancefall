@@ -12,3 +12,9 @@ database_id = "8142e75f-a9a7-46e6-a939-558db73adae2"
 [[kv_namespaces]]
 binding = "RL"
 id = "6aa41e3558344759aec349d3c233948c"
+
+# ── Player accounts (cloud save) ──
+# Requires a secret HMAC key for stateless signed sessions. Set it for prod with:
+#   npx wrangler secret put HMAC_SECRET
+# For local `wrangler dev`, put it in worker/.dev.vars (gitignored; see .dev.vars.example).
+# P2 adds the OAuth client id/secret vars (see ACCOUNTS-SETUP.md).

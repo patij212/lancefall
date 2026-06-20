@@ -12,6 +12,23 @@ import { PORTED_KINDS, defaultSkinId } from './skins';
 const SAVE_KEY = 'lancefall.save';
 const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
 const SETTINGS_KEY = 'lancefall.settings.v1';
+const WRITTEN_AT_KEY = 'lancefall.save.writtenAt';
+let saveListener: ((data: SaveData) => void) | null = null;
+/** Register a single listener invoked after every successful local-save write (drives the
+ *  account layer's debounced cloud flush). Pass null to clear. Additive; no behavior change
+ *  when unset. */
+export function onSaveWrite(fn: ((data: SaveData) => void) | null): void {
+  saveListener = fn;
+}
+/** Epoch-ms the local save was last written (0 = never). Used as the `latest`-field write-time
+ *  in the cloud merge. */
+export function savedAt(): number {
+  try {
+    return Number(localStorage.getItem(WRITTEN_AT_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
 
 /** One completed (non-challenge) run, kept in a bounded ring for the STATS dossier graphs. */
 export interface RunRecord {
@@ -359,6 +376,8 @@ export function loadSave(): SaveData {
 export function saveSave(data: SaveData): void {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    try { localStorage.setItem(WRITTEN_AT_KEY, String(Date.now())); } catch { /* ignore */ }
+    if (saveListener) { try { saveListener(data); } catch { /* a listener must never break a save */ } }
   } catch {
     /* storage disabled — ignore */
   }

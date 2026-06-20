@@ -2,6 +2,8 @@ import './fonts'; // self-hosted webfonts (no Google Fonts CDN — see fonts.ts)
 import './style.css';
 import { Game } from './game';
 import { startCockpitCipher } from './cockpitCipher';
+import * as account from './account';
+import { onSaveWrite } from './save';
 
 /** Last-resort overlay shown if boot throws or an uncaught error/rejection escapes the
  *  game loop, so a player (or a jam judge) never meets a blank/frozen black page. Inline-
@@ -56,6 +58,13 @@ try {
   // CIPHER STORM — animated Turing-decode backdrop on the cockpit title (self-mounting,
   // title-only, reduce-motion-safe). Defensive internally so it can never break boot.
   startCockpitCipher();
+
+  // Opt-in cloud save — strict no-op unless the player opted in AND a backend is configured.
+  if (account.accountEnabled()) {
+    account.adoptFragmentSession(); // absorb any OAuth return token before booting
+    onSaveWrite(account.noteChange);
+    account.init();
+  }
 
   // Dev-only debug hook for automated playtesting.
   if (import.meta.env.DEV) {

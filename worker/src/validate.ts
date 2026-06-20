@@ -73,6 +73,19 @@ export function sanitizeAchIds(raw: unknown): string[] {
   return [...seen];
 }
 
+// ── §P3 anti-cheat constants ────────────────────────────────────────────────────────────
+// All three are exported and tested in src/workerValidate.test.ts (regression guard).
+
+/** Max score submissions per linked account within ACCOUNT_RATE_WINDOW_MS (D1 count, no KV). */
+export const ACCOUNT_RATE_LIMIT = 10;
+
+/** Rate-limit window in ms (60 s). */
+export const ACCOUNT_RATE_WINDOW_MS = 60_000;
+
+/** Dedupe window in ms (5 min): an exact-duplicate resubmit within this window is silently
+ *  ignored (ok:true, deduped:true) so a retry-on-disconnect doesn't insert twice. */
+export const DEDUPE_WINDOW_MS = 300_000;
+
 /** Edge-cache TTL (seconds) for GET /ach — rarity drifts slowly, so cache it far longer
  *  than a live board; 5 minutes keeps the GROUP BY scan off D1 under any read spike. */
 export const ACH_CACHE_TTL = 300;
@@ -94,18 +107,25 @@ export function boardCacheKey(url: URL): string {
   return `${url.origin}/leaderboard?mode=${encodeURIComponent(mode)}&scope=${scope}&daily=${encodeURIComponent(daily)}`;
 }
 
+/** Returns true for origins allowed to make cross-origin requests to the Worker:
+ *  the LANCEFALL prod + preview subdomain + local dev (localhost / 127.0.0.1). */
+export function isAllowedOrigin(origin: string): boolean {
+  return (
+    /^https:\/\/([a-z0-9-]+\.)?lancefall\.pages\.dev$/.test(origin) ||
+    /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
+  );
+}
+
 /** CORS headers scoped to the LANCEFALL origins (prod + preview deploys + local dev),
  *  reflecting an allowed Origin and otherwise defaulting to the prod site so the game
  *  keeps working while other sites can't submit on a visitor's behalf. */
 export function corsHeaders(origin: string): Record<string, string> {
-  const ok =
-    /^https:\/\/([a-z0-9-]+\.)?lancefall\.pages\.dev$/.test(origin) ||
-    /^http:\/\/localhost(:\d+)?$/.test(origin) ||
-    /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+  const ok = isAllowedOrigin(origin);
   return {
     'access-control-allow-origin': ok ? origin : 'https://lancefall.pages.dev',
-    'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type',
+    'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization',
     vary: 'Origin',
   };
 }

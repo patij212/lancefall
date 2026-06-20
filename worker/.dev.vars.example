@@ -1,0 +1,4 @@
+# Local-only secret for `wrangler dev`. Copy to worker/.dev.vars (gitignored) and set a value.
+# In production this is a Worker SECRET (wrangler secret put HMAC_SECRET), never committed.
+HMAC_SECRET=dev-only-insecure-hmac-secret-change-me
+# P2 adds: DISCORD_CLIENT_ID/SECRET, GOOGLE_CLIENT_ID/SECRET, DEV_AUTH

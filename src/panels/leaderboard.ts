@@ -147,9 +147,15 @@ export function buildLeaderboardPanel(deps: LeaderboardPanelDeps): LeaderboardPa
       }
 
       entries.forEach((e, i) => {
+        const nameEl = el('span', { class: 'leader-handle' }, e.name || '—');
+        if (e.verified === true) {
+          const badge = el('span', { class: 'rank-verified', title: 'Verified account' }, '✓');
+          badge.setAttribute('aria-label', 'verified account');
+          nameEl.append(badge);
+        }
         listWrap.append(el('div', { class: 'leader-row' },
           el('span', { class: 'leader-rank' }, `#${e.rank ?? i + 1}`),
-          el('span', { class: 'leader-handle' }, e.name || '—'),
+          nameEl,
           el('span', { class: 'leader-score' }, e.score.toLocaleString()),
           el('span', { class: 'leader-meta' }, `w${e.wave}${e.heat ? ` · H${e.heat}` : ''}`),
         ));

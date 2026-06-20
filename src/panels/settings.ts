@@ -8,6 +8,8 @@ import { el } from './dom';
 import { defaultKeyBindings } from '../input';
 import { TRACKS, type SoundtrackId } from '../soundtracks';
 import type { Settings } from '../save';
+import { leaderboardEnabled } from '../api';
+import * as account from '../account';
 
 type RebindAction = 'dash' | 'overdrive' | 'parry' | 'pause';
 
@@ -24,6 +26,8 @@ export interface SettingsPanelDeps {
   /** ACT TWO — clear the persisted teach flags (taught set + seenSandbox + glosses + first-run
    *  flags) so the whole onboarding replays from scratch on the next descent. */
   onReplayTutorial: () => void;
+  /** open the ACCOUNT sign-in panel. */
+  onOpenAccount: () => void;
   /** dismiss the modal (DONE). */
   onClose: () => void;
 }
@@ -136,6 +140,27 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
   const cityMemRow = toggle('City memory meter', deps.cityMemory(), (v) => deps.onToggleCityMemory(v));
   const cityMemInput = cityMemRow.querySelector('input') as HTMLInputElement;
 
+  // Cloud save — only shown when a backend is configured (VITE_LEADERBOARD_URL set).
+  // The opt-in flag lives in localStorage (per-device, never synced).
+  let cloudSaveRow: HTMLElement | null = null;
+  let manageAccountRow: HTMLElement | null = null;
+  if (leaderboardEnabled()) {
+    const cloudInput = el('input', { type: 'checkbox' }) as HTMLInputElement;
+    cloudInput.checked = account.optedIn();
+    cloudInput.addEventListener('change', () => {
+      if (cloudInput.checked) { account.optIn(); account.init(); }
+      else { account.optOut(); }
+    });
+    const labelSpan = el('span', {},
+      el('span', {}, 'Cloud save'),
+      el('small', { class: 'setting-sublabel' }, 'Back up progress to the cloud for this device'),
+    );
+    cloudSaveRow = el('label', { class: 'setting setting-toggle', 'data-testid': 'cloud-save-row' }, labelSpan, cloudInput);
+    const manageBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'data-testid': 'manage-account-btn' }, 'Manage account');
+    manageBtn.addEventListener('click', () => deps.onOpenAccount());
+    manageAccountRow = el('div', { class: 'setting' }, el('span', {}, 'Account'), manageBtn);
+  }
+
   // ACT TWO — Tutorial hints toggle + a one-tap "Replay tutorial" that re-arms the whole
   // onboarding (sandbox + verb/enemy/boss reads + glosses) on the next descent.
   const replayBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, 'Replay tutorial') as HTMLButtonElement;
@@ -195,7 +220,9 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) => deps.patch({ dashStyle: v ? 'slingshot' : 'lance' })),
       toggle('Tutorial hints', s.tutorialHints, (v) => deps.patch({ tutorialHints: v })),
       replayRow,
-      cityMemRow) },
+      cityMemRow,
+      ...(cloudSaveRow ? [cloudSaveRow] : []),
+      ...(manageAccountRow ? [manageAccountRow] : [])) },
     { id: 'access', name: 'ACCESS', el: sect('access',
       toggle('Reduce flashing', s.reduceFlashing, (v) => deps.patch({ reduceFlashing: v })),
       toggle('Reduce motion', s.reduceMotion, (v) => deps.patch({ reduceMotion: v })),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from '../worker/src/validate';
+import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL, ACCOUNT_RATE_LIMIT, ACCOUNT_RATE_WINDOW_MS, DEDUPE_WINDOW_MS } from '../worker/src/validate';
 
 // The leaderboard worker's security-relevant logic was previously untested. These cover the
 // pure validators it relies on, so the only network-facing component has a regression net.
@@ -107,6 +107,56 @@ describe('worker — §v7 achievement rarity validators', () => {
   });
 });
 
+describe('worker — isAllowedOrigin', () => {
+  it('allows lancefall.pages.dev (prod)', () => {
+    expect(isAllowedOrigin('https://lancefall.pages.dev')).toBe(true);
+  });
+  it('allows preview subdomain deploys (*.lancefall.pages.dev)', () => {
+    expect(isAllowedOrigin('https://abc123.lancefall.pages.dev')).toBe(true);
+    expect(isAllowedOrigin('https://my-branch.lancefall.pages.dev')).toBe(true);
+  });
+  it('allows localhost on any port (local dev)', () => {
+    expect(isAllowedOrigin('http://localhost:5197')).toBe(true);
+    expect(isAllowedOrigin('http://localhost')).toBe(true);
+    expect(isAllowedOrigin('http://127.0.0.1:4000')).toBe(true);
+  });
+  it('rejects arbitrary origins', () => {
+    expect(isAllowedOrigin('https://evil.com')).toBe(false);
+    expect(isAllowedOrigin('https://evil.lancefall.pages.dev.evil.com')).toBe(false);
+    expect(isAllowedOrigin('')).toBe(false);
+    expect(isAllowedOrigin('https://notagamelancefall.pages.dev')).toBe(false);
+  });
+});
+
+// ── §P3 anti-cheat constants (regression guard) ────────────────────────────────────────
+// These constants are used directly in index.ts SQL queries; if they drift to insane values
+// the guard silently breaks. The test also re-checks capsOk rejects the classic devtools cheat.
+describe('worker — §P3 anti-cheat constants', () => {
+  it('ACCOUNT_RATE_LIMIT is a sane positive integer (5–100)', () => {
+    expect(Number.isInteger(ACCOUNT_RATE_LIMIT)).toBe(true);
+    expect(ACCOUNT_RATE_LIMIT).toBeGreaterThanOrEqual(5);
+    expect(ACCOUNT_RATE_LIMIT).toBeLessThanOrEqual(100);
+  });
+
+  it('ACCOUNT_RATE_WINDOW_MS is a sane window (10 s – 10 min)', () => {
+    expect(Number.isFinite(ACCOUNT_RATE_WINDOW_MS)).toBe(true);
+    expect(ACCOUNT_RATE_WINDOW_MS).toBeGreaterThanOrEqual(10_000);
+    expect(ACCOUNT_RATE_WINDOW_MS).toBeLessThanOrEqual(600_000);
+  });
+
+  it('DEDUPE_WINDOW_MS is a sane window (1 min – 30 min)', () => {
+    expect(Number.isFinite(DEDUPE_WINDOW_MS)).toBe(true);
+    expect(DEDUPE_WINDOW_MS).toBeGreaterThanOrEqual(60_000);
+    expect(DEDUPE_WINDOW_MS).toBeLessThanOrEqual(1_800_000);
+  });
+
+  // Regression guard: capsOk must still reject the "49M on wave 1" devtools cheat payload
+  // even after any future refactor of the constants or plausibility formula.
+  it('capsOk (regression) — still rejects the classic devtools cheat: 49M on wave 1', () => {
+    expect(capsOk(49_000_000, 1, 0, 0)).toBe(false);
+  });
+});
+
 describe('worker — corsHeaders scoping', () => {
   it('reflects LANCEFALL origins, defaults to prod for anything else', () => {
     expect(corsHeaders('https://lancefall.pages.dev')['access-control-allow-origin']).toBe('https://lancefall.pages.dev');
@@ -114,5 +164,21 @@ describe('worker — corsHeaders scoping', () => {
     expect(corsHeaders('http://localhost:5197')['access-control-allow-origin']).toBe('http://localhost:5197');
     expect(corsHeaders('https://evil.example.com')['access-control-allow-origin']).toBe('https://lancefall.pages.dev');
     expect(corsHeaders('')['access-control-allow-origin']).toBe('https://lancefall.pages.dev');
+  });
+
+  it('allows PUT + DELETE methods (required for cloud save flush + account deletion across origins)', () => {
+    const h = corsHeaders('https://lancefall.pages.dev');
+    const methods = h['access-control-allow-methods'].split(',');
+    expect(methods).toContain('PUT');
+    expect(methods).toContain('DELETE');
+    expect(methods).toContain('GET');
+    expect(methods).toContain('POST');
+  });
+
+  it('allows authorization header (required for authenticated PUT /save + DELETE /account preflights)', () => {
+    const h = corsHeaders('https://lancefall.pages.dev');
+    const headers = h['access-control-allow-headers'].split(',');
+    expect(headers).toContain('authorization');
+    expect(headers).toContain('content-type');
   });
 });
