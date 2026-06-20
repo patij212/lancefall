@@ -1421,6 +1421,20 @@ body {
 .tl-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: 0.04em; }
 .tl-ep { grid-column: 2; font-size: 11.5px; color: var(--accent); opacity: 0.85; margin-top: 1px; }
 .tl-quote { grid-column: 2; font-size: 12px; font-style: italic; color: #c2d2e8; border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); padding-left: 9px; margin-top: 5px; line-height: 1.5; }
+
+/* YOUR LANCEFALL — the player's permanent record of THE CHOICE (THE FALL tab) */
+.your-lancefall { padding: 10px 0; }
+.yl-verb { font-weight: 700; letter-spacing: 0.08em; color: #ffd884; }
+.yl-line { color: #c9d4e0; margin-top: 4px; }
+.yl-meta { color: #8a94a3; font-size: 0.8rem; margin-top: 4px; }
+.yl-pending { color: #8a94a3; font-style: italic; }
+
+/* THE SIXTH — accreting confession list (woken citizens) (THE FALL tab) */
+.the-sixth .sixth-thesis { color: #aeb9c7; line-height: 1.5; }
+.the-sixth .sixth-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; font-size: 0.86rem; color: #c9d4e0; }
+.the-sixth .sixth-pull { color: #8a94a3; margin-top: 8px; }
+.the-sixth .sixth-deepest { color: #ffd884; font-style: italic; margin-top: 8px; }
+
 .credit-dedication {
   margin-top: 14px;
   color: var(--amber, #fbbf24);

@@ -53,7 +53,7 @@ import { renderBestiary, renderCipherLegend } from './panels/codex';
 import { CITIZENS, isCitizenWoken } from './citizens';
 import { DOSSIER_FIGURES, figureDossier, citizenDeeperUnlocked } from './dossiers';
 import { buildUpgradesPanel } from './panels/upgrades';
-import { renderTheSix } from './panels/fall';
+import { renderTheSix, renderYourLancefall, renderTheSixth } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
 import { buildBombePanel, type BombePanel } from './panels/bombe';
 import { hasAffordableDecrypt } from './intercepts';
@@ -478,6 +478,9 @@ export class UI {
   // THE FALL · THE SIX dossier grid — rebuilt per refresh (fast, 6 cards)
   private codexDossiers!: HTMLElement;
   private codexDossiersGrid?: HTMLElement;
+  // THE FALL tab — dynamic sections refreshed per open (need live save)
+  private fallSixthBox!: HTMLElement;
+  private fallYourLancefallBox!: HTMLElement;
   // SIGNAL RESTORED overlay — a dismissable full-screen moment when a transmission completes
   private srOverlay!: HTMLElement;
   private srTitle!: HTMLElement;
@@ -2030,6 +2033,12 @@ export class UI {
     for (const p of paras) body.append(el('p', { class: 'fall-para' }, p));
     // §v7 — THE SIX WHO LET IT FALL: the six bosses as a numbered confession timeline.
     body.append(el('div', { class: 'stats-label' }, 'THE SIX WHO LET IT FALL'), renderTheSix());
+    // THE SIXTH — the accreting confession list (woken citizens). Refreshed per open in showCodex().
+    this.fallSixthBox = el('div');
+    body.append(el('div', { class: 'stats-label' }, 'THE SIXTH'), this.fallSixthBox);
+    // YOUR LANCEFALL — the player's permanent record of THE CHOICE. Refreshed per open in showCodex().
+    this.fallYourLancefallBox = el('div');
+    body.append(el('div', { class: 'stats-label' }, 'YOUR LANCEFALL'), this.fallYourLancefallBox);
     return body;
   }
 
@@ -2684,6 +2693,9 @@ export class UI {
     const s = this.saveRef;
     if (s) {
       this.codexBestiary.replaceChildren(...renderBestiary(s.killsByKind));
+      // THE FALL tab — dynamic sections refreshed with live save state
+      this.fallSixthBox.replaceChildren(renderTheSixth(s));
+      this.fallYourLancefallBox.replaceChildren(renderYourLancefall(s));
       // ACHIEVEMENTS tab — rebuilt per open for live got/total + unlock state.
       const ach = renderAchievements(s, this.statsRarity);
       this.codexAchPane.replaceChildren(...ach.nodes);
