@@ -99,9 +99,3 @@ export function loreUnlocked(save: SaveData, id: string): boolean {
   return save.stillpointLore.includes(id);
 }
 
-/** Can the player remember (unlock) this entry right now? */
-export function canUnlockLore(save: SaveData, id: string): boolean {
-  const e = loreById(id);
-  if (!e || loreUnlocked(save, id)) return false;
-  return fragmentBalance(save) >= e.cost;
-}

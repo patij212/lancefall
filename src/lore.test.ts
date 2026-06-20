@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { defaultSave } from './save';
 import type { SaveData } from './save';
-import { LORE, loreById, fragmentBalance, loreUnlocked, canUnlockLore } from './lore';
+import { LORE, loreById, fragmentBalance, loreUnlocked } from './lore';
 import { fragmentsForRun } from './stillpoint';
 
 function saveWith(over: Partial<SaveData>): SaveData {
@@ -27,15 +27,10 @@ describe('lore — THE FALL (Memory Fragments)', () => {
     expect(fragmentBalance(defaultSave())).toBe(0);
   });
 
-  it('canUnlockLore respects balance, cost, and already-unlocked', () => {
+  it('loreUnlocked reflects save.stillpointLore', () => {
     const id = 'first-light';
-    const cost = loreById(id)!.cost;
-    expect(canUnlockLore(saveWith({ stillpointFragments: Array(cost).fill('f') }), id)).toBe(true);
-    expect(canUnlockLore(saveWith({ stillpointFragments: [] }), id)).toBe(false); // can't afford
-    expect(
-      canUnlockLore(saveWith({ stillpointFragments: Array(cost).fill('f'), stillpointLore: [id] }), id),
-    ).toBe(false); // already remembered
     expect(loreUnlocked(saveWith({ stillpointLore: [id] }), id)).toBe(true);
+    expect(loreUnlocked(saveWith({ stillpointLore: [] }), id)).toBe(false);
   });
 
   it('fragmentsForRun: always carries one, milestones gated, deterministic', () => {

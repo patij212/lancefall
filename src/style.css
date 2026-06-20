@@ -6337,3 +6337,15 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Task 2: RECOVERED MEMORIES read-only cards + DECRYPT MORE ── */
+/* Hint line on still-enciphered lore entries — muted italic, same palette as .codex-locked */
+.codex-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 4px;
+  opacity: 0.75;
+}
+/* DECRYPT MORE button — small margin to float it below the memory grid */
+.codex-pane > .btn.btn-sm { margin-top: 10px; }

@@ -242,7 +242,6 @@ export class Game {
       onCopyBuildDna: () => this.copyBuildDna(),
       onChoice: (c) => this.makeChoice(c),
       onSaveReplay: () => this.shareReplay(),
-      onUnlockLore: (id) => this.unlockLore(id),
       onDecryptWord: (interceptId) => this.decryptIntercept(interceptId),
       onUpgradeBombe: (branch) => this.upgradeBombe(branch as BombeBranch),
       onSolvePuzzle: (puzzleId, guess) => this.solveConsolePuzzle(puzzleId, guess),
@@ -3322,18 +3321,6 @@ export class Game {
     saveSave(this.save);
     const end = choiceEnding(c);
     this.ui.resolveChoice(end.head, end.line);
-  }
-
-  /** Remember a lore entry — spend Memory Fragments. Cosmetic/personal: a plain
-   *  save mutation, never touches rng. */
-  private unlockLore(id: string): void {
-    const e = loreById(id);
-    if (!e || this.save.stillpointLore.includes(id)) return;
-    if (fragmentBalance(this.save) < e.cost) return;
-    this.save.fragmentsSpent += e.cost;
-    this.save.stillpointLore.push(id);
-    saveSave(this.save);
-    this.ui.refreshMemories();
   }
 
   /** Evaluate + award the decryption (meta) achievements from the current save state (the console

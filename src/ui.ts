@@ -66,7 +66,7 @@ import { buildDuelPanel, type DuelPanel } from './panels/duel';
 import { buildInspectPanel, type InspectPanel } from './panels/inspect';
 import { buildArchetypePanel } from './panels/archetype';
 import { buildSettingsPanel, type SettingsPanel } from './panels/settings';
-import { LORE, fragmentBalance, loreUnlocked } from './lore';
+import { LORE, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
 import { type ShareGif } from './replay';
 import { buildSharePanel, type SharePanel } from './panels/share';
@@ -102,7 +102,6 @@ export interface UICallbacks {
   /** tap a locked skin → explain the achievement gate (or equip if held) */
   onUnlockSkin: (kind: string, id: string) => void;
   onBuyMeta: (id: string) => void;
-  onUnlockLore: (id: string) => void;
   /** THE BOMBE — decrypt the cheapest word of an intercept (spend Fragments) */
   onDecryptWord: (interceptId: string) => void;
   /** THE BOMBE — upgrade one of the three specialisation branches (THRIFT/SPEED/INSIGHT) */
@@ -1408,7 +1407,7 @@ export class UI {
       el('div', { class: 'ck-nav-div' }),
       // BUILD is reached from the loadout BUILD row (this.openArchetype) — no duplicate nav entry.
       // THE FALL (story) + HOW TO (manual) are tabs inside the CODEX hub now — no separate buttons.
-      navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — the bestiary + lore, THE FALL (the story), HOW TO PLAY, and your achievements.'),
+      navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — the bestiary, THE FALL (what you\'ve recovered), HOW TO PLAY, and your achievements.'),
       (this.bombeNavBtn = navBtn('bombe', 'THE CODEBREAKER', () => this.openBombe(), 'THE CODEBREAKER — decrypt the transmissions, build the machine, break the city back into meaning.')),
       // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
       // backed list; the panel + openDuelWithCode deep-link stay in the code, just unadvertised.
@@ -2071,25 +2070,20 @@ export class UI {
     // the bestiary grids are rebuilt every open (renderBestiary) so the per-kind kill
     // counts + boss VANQUISHED states reflect the live save.
     this.codexBestiary = el('div');
-    // READ THE KEY · THE CIPHER (mock): the substitution-cipher explainer + TURING crib legend.
-    const cipher = el(
-      'div',
-      {},
-      el('div', { class: 'row-group-title' }, 'READ THE KEY · THE CIPHER'),
-      renderCipherLegend(),
-    );
-    // ── top-level tabs — the LORE/REFERENCE hub: CODEX (bestiary + cipher + lore) · THE FALL
-    // (the story) · HOW TO (controls + evolutions) · ACHIEVEMENTS (the grid). The tab bar sits
-    // between the sticky head and the scrolling body so it stays put while a pane scrolls. ──
-    // enemy-lead order (mock): bestiary first, then cipher, then the lore memories.
+    // ── top-level tabs — the LORE/REFERENCE hub: BESTIARY (bestiary) · THE FALL
+    // (recovered memories + citizens + dossiers) · HOW TO (controls + cipher + evolutions) ·
+    // ACHIEVEMENTS (the grid). The tab bar sits between the sticky head and the scrolling body
+    // so it stays put while a pane scrolls. ──
     this.codexCitizens = el('div', { class: 'codex-citizens' });
     this.codexDossiers = el('div', { class: 'codex-dossiers' });
-    const mainPane = el('div', { class: 'codex-pane' }, lead, this.codexBestiary, cipher, this.codexMemories);
-    const fallPane = el('div', { class: 'codex-pane hidden' }, this.renderFallContent(), this.codexCitizens, this.codexDossiers);
+    const decryptMoreBtn = el('button', { class: 'btn btn-sm' }, '→ DECRYPT MORE');
+    decryptMoreBtn.addEventListener('click', () => this.openBombe());
+    const mainPane = el('div', { class: 'codex-pane' }, lead, this.codexBestiary);
+    const fallPane = el('div', { class: 'codex-pane hidden' }, this.renderFallContent(), this.codexMemories, this.codexCitizens, this.codexDossiers, decryptMoreBtn);
     const howtoPane = el('div', { class: 'codex-pane hidden' }, this.renderHowToContent());
     this.codexAchPane = el('div', { class: 'codex-pane hidden' }); // filled per open by renderAchievements
     const panes: Record<string, HTMLElement> = { codex: mainPane, fall: fallPane, howto: howtoPane, ach: this.codexAchPane };
-    const tabDefs: [string, string][] = [['codex', 'CODEX'], ['fall', 'THE FALL'], ['howto', 'HOW TO'], ['ach', 'ACHIEVEMENTS']];
+    const tabDefs: [string, string][] = [['codex', 'BESTIARY'], ['fall', 'THE FALL'], ['howto', 'HOW TO'], ['ach', 'ACHIEVEMENTS']];
     const tabBtns = new Map<string, HTMLElement>();
     const tabBar = el('div', { class: 'codex-tabs', role: 'tablist' });
     this.codexShowTab = (key: string): void => {
@@ -2487,59 +2481,51 @@ export class UI {
     }
   }
 
-  /** Render THE FALL · MEMORIES (fragment balance + lore unlocks). Public so the
-   *  game can re-render after a successful unlock. */
+  /** Render THE FALL · RECOVERED MEMORIES (read-only lore archive). Public so the
+   *  game can re-render after THE CODEBREAKER decrypts a new entry. */
   refreshMemories(): void {
     const s = this.saveRef;
     if (!this.codexMemories) return;
     if (!s) { this.codexMemories.replaceChildren(); this.codexMemGrid = undefined; return; }
-    const bal = fragmentBalance(s);
-    // shell (label + frag line + grid) built once; decrypting (onUnlockLore → refreshMemories)
-    // then morphs only the affected card in place + re-prices the rest, no grid reflash.
+    // shell (label + caption + grid) built once; morph cards in place on subsequent calls.
     if (!this.codexMemGrid) {
       this.codexMemFrag = el('div', { class: 'codex-frag' });
       this.codexMemGrid = el('div', { class: 'codex-grid' });
       this.codexMemories.replaceChildren(
-        el('div', { class: 'stats-label' }, 'THE FALL · MEMORIES'),
+        el('div', { class: 'stats-label' }, 'THE FALL · RECOVERED MEMORIES'),
         this.codexMemFrag,
         this.codexMemGrid,
       );
     }
-    this.codexMemFrag!.textContent = `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'} — one is carried out of every descent. Spend them to decrypt what was lost.`;
+    this.codexMemFrag!.textContent = 'The memories you have decrypted, restored.';
     reconcile(
       this.codexMemGrid,
       LORE,
       (e) => e.id,
-      (e) => {
-        const card = el('div', { class: 'codex-entry' },
-          el('div', { class: 'codex-name' }),
-          el('div', { class: 'codex-blurb' }),
-          el('button', { class: 'btn btn-sm' }, `DECRYPT ◆${e.cost}`),
-        );
-        (card.querySelector('button') as HTMLButtonElement).addEventListener('click', () => this.cb.onUnlockLore(e.id));
-        return card;
-      },
+      (_e) => el('div', { class: 'codex-entry' },
+        el('div', { class: 'codex-name' }),
+        el('div', { class: 'codex-blurb' }),
+        el('div', { class: 'codex-hint' }),
+      ),
       (card, e) => {
         const unlocked = loreUnlocked(s, e.id);
         const name = card.querySelector('.codex-name') as HTMLElement;
         const blurb = card.querySelector('.codex-blurb') as HTMLElement;
-        const btn = card.querySelector('button') as HTMLButtonElement;
+        const hint = card.querySelector('.codex-hint') as HTMLElement;
         card.className = 'codex-entry' + (unlocked ? '' : ' codex-forgotten');
         if (unlocked) {
           name.className = 'codex-name';
           name.textContent = e.title;
           blurb.className = 'codex-blurb';
           blurb.textContent = e.text;
-          btn.classList.add('hidden');
+          hint.textContent = '';
         } else {
-          const affordable = bal >= e.cost;
           name.className = 'codex-name codex-locked';
-          name.textContent = '— enciphered —';
+          name.textContent = '— still enciphered —';
           blurb.className = 'codex-blurb codex-locked';
-          blurb.textContent = `A memory of the fall, enciphered. ◆${e.cost} to decrypt it.`;
-          btn.classList.remove('hidden');
-          btn.className = 'btn btn-sm' + (affordable ? ' btn-primary' : '');
-          btn.disabled = !affordable;
+          blurb.textContent = '';
+          hint.className = 'codex-hint codex-locked';
+          hint.textContent = 'decrypt its transmission in THE CODEBREAKER →';
         }
       },
     );
@@ -2740,6 +2726,8 @@ export class UI {
       basics,
       el('div', { class: 'stats-label' }, 'EVOLUTIONS · stack the recipe to unlock a fusion'),
       evoCards,
+      el('div', { class: 'stats-label' }, 'BOSS CIPHER'),
+      renderCipherLegend(),
     );
   }
 
