@@ -50,6 +50,8 @@ import { dailyMutatorPreview, weeklyMutatorPreview } from './mutators';
 import { cityMemoryFill, threatRim } from './renderMath';
 import { POWERUPS } from './powerups';
 import { renderBestiary, renderCipherLegend } from './panels/codex';
+import { CITIZENS, isCitizenWoken } from './citizens';
+import { DOSSIER_FIGURES, figureDossier, citizenDeeperUnlocked } from './dossiers';
 import { buildUpgradesPanel } from './panels/upgrades';
 import { renderTheSix } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
@@ -468,6 +470,18 @@ export class UI {
   private codexMemFrag?: HTMLElement; // fragment-balance line (text updated in place)
   private codexBestiary!: HTMLElement; // §v7 — bestiary grids, re-rendered per open (live kill counts)
   private codexAchPane!: HTMLElement; // CODEX achievements tab — the grid moved here from STATS
+  // THE CITY · CITIZENS — reconcile-driven grid in the FALL pane (built once, morphed per decrypt)
+  private codexCitizens!: HTMLElement;
+  private codexCitizensGrid?: HTMLElement;
+  // THE FALL · THE SIX dossier grid — rebuilt per refresh (fast, 6 cards)
+  private codexDossiers!: HTMLElement;
+  private codexDossiersGrid?: HTMLElement;
+  // SIGNAL RESTORED overlay — a dismissable full-screen moment when a transmission completes
+  private srOverlay!: HTMLElement;
+  private srTitle!: HTMLElement;
+  private srText!: HTMLElement;
+  private srCitizen!: HTMLElement;
+  private srDismissTimer = 0;
   private codexShowTab?: (key: string) => void; // switch the CODEX top tabs ('codex' | 'fall' | 'howto' | 'ach')
   private skinsPanel!: HTMLElement;
   private skinsBody!: HTMLElement;
@@ -693,12 +707,13 @@ export class UI {
     this.buildDuel();
     this.buildInspect();
     this.buildShare();
+    this.buildSignalRestored();
     this.buildSandbox();
     // aria-live so the narrator's SOUL payload reaches screen-reader users:
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.bombePanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.bombePanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.srOverlay, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -2064,8 +2079,10 @@ export class UI {
     // (the story) · HOW TO (controls + evolutions) · ACHIEVEMENTS (the grid). The tab bar sits
     // between the sticky head and the scrolling body so it stays put while a pane scrolls. ──
     // enemy-lead order (mock): bestiary first, then cipher, then the lore memories.
+    this.codexCitizens = el('div', { class: 'codex-citizens' });
+    this.codexDossiers = el('div', { class: 'codex-dossiers' });
     const mainPane = el('div', { class: 'codex-pane' }, lead, this.codexBestiary, cipher, this.codexMemories);
-    const fallPane = el('div', { class: 'codex-pane hidden' }, this.renderFallContent());
+    const fallPane = el('div', { class: 'codex-pane hidden' }, this.renderFallContent(), this.codexCitizens, this.codexDossiers);
     const howtoPane = el('div', { class: 'codex-pane hidden' }, this.renderHowToContent());
     this.codexAchPane = el('div', { class: 'codex-pane hidden' }); // filled per open by renderAchievements
     const panes: Record<string, HTMLElement> = { codex: mainPane, fall: fallPane, howto: howtoPane, ach: this.codexAchPane };
@@ -2523,10 +2540,145 @@ export class UI {
         }
       },
     );
+    // keep citizens + dossiers in sync whenever memories refresh (triggered by decryption)
+    this.refreshCitizens();
+    this.refreshDossiers();
+  }
+
+  /** THE CITY · CITIZENS — reconcile the 16-citizen grid in the FALL pane. */
+  refreshCitizens(): void {
+    const s = this.saveRef;
+    if (!this.codexCitizens) return;
+    if (!s) { this.codexCitizens.replaceChildren(); this.codexCitizensGrid = undefined; return; }
+    if (!this.codexCitizensGrid) {
+      this.codexCitizensGrid = el('div', { class: 'codex-grid citizen-grid' });
+      this.codexCitizens.replaceChildren(
+        el('div', { class: 'stats-label' }, 'THE CITY · CITIZENS'),
+        this.codexCitizensGrid,
+      );
+    }
+    reconcile(
+      this.codexCitizensGrid,
+      CITIZENS,
+      (c) => c.id,
+      (_c) => {
+        const card = el('div', { class: 'codex-entry citizen-card' });
+        card.append(
+          el('div', { class: 'codex-name' }),
+          el('div', { class: 'codex-role citizen-role' }),
+          el('div', { class: 'citizen-memory' }),
+          el('div', { class: 'citizen-deeper' }),
+        );
+        return card;
+      },
+      (card, c) => {
+        const woken = isCitizenWoken(s, c);
+        const nameEl = card.querySelector('.codex-name') as HTMLElement;
+        const roleEl = card.querySelector('.citizen-role') as HTMLElement;
+        const memEl = card.querySelector('.citizen-memory') as HTMLElement;
+        const deepEl = card.querySelector('.citizen-deeper') as HTMLElement;
+        card.className = 'codex-entry citizen-card' + (woken ? '' : ' codex-forgotten');
+        if (woken) {
+          nameEl.textContent = c.name;
+          roleEl.textContent = c.role;
+          memEl.textContent = c.memory;
+          const deeper = citizenDeeperUnlocked(s, c);
+          deepEl.textContent = deeper ? c.deeper : '';
+          deepEl.classList.toggle('hidden', !deeper);
+        } else {
+          nameEl.textContent = '— still lost —';
+          roleEl.textContent = '';
+          memEl.textContent = '';
+          deepEl.textContent = '';
+          deepEl.classList.add('hidden');
+        }
+      },
+    );
+  }
+
+  /** THE FALL · THE SIX — rebuild the dossier grid for the 6 figures. Fast (6 cards). */
+  refreshDossiers(): void {
+    const s = this.saveRef;
+    if (!this.codexDossiers) return;
+    if (!s) { this.codexDossiers.replaceChildren(); this.codexDossiersGrid = undefined; return; }
+    if (!this.codexDossiersGrid) {
+      this.codexDossiersGrid = el('div', { class: 'codex-grid dossier-grid' });
+      this.codexDossiers.replaceChildren(
+        el('div', { class: 'stats-label' }, 'THE FALL · THE SIX'),
+        this.codexDossiersGrid,
+      );
+    }
+    reconcile(
+      this.codexDossiersGrid,
+      DOSSIER_FIGURES,
+      (k) => k,
+      (_k) => {
+        const card = el('div', { class: 'codex-entry dossier-card' });
+        card.append(
+          el('div', { class: 'codex-name' }),
+          el('div', { class: 'dossier-progress' }),
+          el('div', { class: 'dossier-lines' }),
+        );
+        return card;
+      },
+      (card, k) => {
+        const d = figureDossier(s, k);
+        const nameEl = card.querySelector('.codex-name') as HTMLElement;
+        const progEl = card.querySelector('.dossier-progress') as HTMLElement;
+        const linesEl = card.querySelector('.dossier-lines') as HTMLElement;
+        nameEl.textContent = k.toUpperCase().replace(/-/g, ' ');
+        progEl.textContent = d.total ? `${d.revealed} / ${d.total} mentions decrypted` : '';
+        linesEl.replaceChildren(
+          ...d.lines.map((ln) => el('div', { class: 'dossier-line' }, ln)),
+        );
+      },
+    );
+  }
+
+  /** Build the SIGNAL RESTORED overlay — a dismissable full-screen moment fired when a
+   *  transmission completes. Appended to root in build(); shown via signalRestored(). */
+  private buildSignalRestored(): void {
+    this.srTitle = el('div', { class: 'sr-title' });
+    this.srText = el('div', { class: 'sr-text' });
+    this.srCitizen = el('div', { class: 'sr-citizen' });
+    const dismiss = el('button', { class: 'btn sr-dismiss', type: 'button' }, 'CLOSE');
+    dismiss.addEventListener('click', () => this.dismissSignalRestored());
+    this.srOverlay = el(
+      'div',
+      { class: 'sr-overlay hidden', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Signal Restored' },
+      el('div', { class: 'sr-inner' }, this.srTitle, this.srText, this.srCitizen, dismiss),
+    );
+    this.srOverlay.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); this.dismissSignalRestored(); }
+    });
+  }
+
+  private dismissSignalRestored(): void {
+    clearTimeout(this.srDismissTimer);
+    this.srOverlay.classList.add('hidden');
+    this.srOverlay.classList.remove('sr-visible');
+  }
+
+  /** SIGNAL RESTORED — a dismissable overlay that typesets the transmission text and fades
+   *  the citizen name up. a11y: reduce-motion → instant; reduce-flashing → soft fade only.
+   *  The choir audio fires at the call site (audio.transmissionChord). */
+  signalRestored(title: string, text: string, citizen?: string): void {
+    clearTimeout(this.srDismissTimer);
+    this.srTitle.textContent = title;
+    this.srText.textContent = text ? text.slice(0, 320) + (text.length > 320 ? '…' : '') : '';
+    this.srCitizen.textContent = citizen ? `— ${citizen} returns —` : '';
+    this.srCitizen.classList.toggle('hidden', !citizen);
+    this.srOverlay.classList.remove('hidden', 'sr-visible');
+    void this.srOverlay.offsetWidth; // reflow so the animation restarts
+    this.srOverlay.classList.add('sr-visible');
+    // auto-dismiss after 7 s — the player can also hit CLOSE or Escape
+    this.srDismissTimer = window.setTimeout(() => this.dismissSignalRestored(), 7000);
   }
 
   private showCodex(tab = 'codex'): void {
     this.refreshMemories();
+    this.refreshCitizens();
+    this.refreshDossiers();
     const s = this.saveRef;
     if (s) {
       this.codexBestiary.replaceChildren(...renderBestiary(s.killsByKind));
