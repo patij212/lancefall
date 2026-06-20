@@ -58,6 +58,10 @@ function capFor(mode, heat) {
   // takes ~840 s (≈50k frames). Give it a fat cap (less at high Heat, where it dies faster)
   // so its Sovereign-down rate is real instead of an artifact of too-short a cap.
   if (mode.id === 'casual') return heat >= 5 ? 32000 : 58000;
+  // SOLSTICE — the bot survives the full 6-boss cipher gauntlet and reaches the Sovereign LATE
+  // (~560–800 s, after decoding 5 locks), then kills it in ~15–25 s. A 34k (~567 s) survival cap
+  // sliced those real kills off (Sov-down read 0–8 % when it's actually ~40–60 %). Give it room.
+  if (mode.id === 'longestday') return heat >= 5 ? 34000 : 52000;
   return heat >= 5 ? 16000 : heat >= 3 ? 26000 : 34000;
 }
 

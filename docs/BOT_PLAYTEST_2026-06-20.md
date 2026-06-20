@@ -66,7 +66,25 @@ A higher-sample re-run via the headless Node harness (`tools/balance-node.mjs`) 
 - The escalating survival modes (Endless/Daily/Weekly/Nightmare) stay **0 %** — the bot is
   boss-competent but chaff-survival-limited, and those modes out-escalate it before boss 6.
 
-## SOLSTICE — cipher mastered (0 % → 4–8 % Sovereign-down)
+## SOLSTICE — the Sovereign falls (33–50 % at Heat 0–3)
+
+The "4–8 %" below was a **measurement artifact**: a per-fight trace showed the bot KILLS the
+Sovereign in 6 of 10 runs that reach it (down to 3–32 % HP in 13–24 s) — but it reaches the
+Sovereign LATE (~560–800 s, after decoding five cipher locks), and the survival-mode step cap
+(34k ≈ 567 s) sliced those late kills off. With the cap raised to fit the gauntlet
+(`tools/balance-node.mjs capFor`), the true Solstice Sovereign-down is:
+
+| Heat | 0 | 1 | 2 | 3 | 4 | 5–7 |
+|------|----|----|----|----|----|----|
+| Sov-down | **50 %** | 33 % | **46 %** | 33 % | 4 % | 0 % |
+| med boss kills | 6 | 4 | 5 | 5 | 4 | ≤4 |
+
+**The bot genuinely beats SOLSTICE — it downs the Sovereign ~33–50 % at Heat 0–3**, the median
+Heat-0 run clearing all six bosses. (Endless/Daily stay 0 % even at a high cap — their slow 70 s
+boss intervals give long chaff phases that wall the bot at boss 3–5; the bot *reaches* the
+Sovereign there only rarely. That open-survival Sovereign kill is the last frontier.)
+
+### How the cipher solver got there
 
 A focused follow-up taught the bot the **SOLSTICE PROTOCOL cipher**: its bosses are armored until
 the orbiting cores are dashed in the *decoded order*. The bot can read the order straight off
