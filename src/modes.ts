@@ -38,6 +38,10 @@ export interface RunConfig {
   arena: boolean; // scripted finite winnable gauntlet
   bossrush: boolean; // the bosses back-to-back
   cipherLock?: boolean; // ring-cipher bosses (Warden/Weaver/Beacon) armored until decoded — SOLSTICE PROTOCOL
+  /** Title-rail difficulty GAUGE override (the 1–3 pip read + hero tag). DISPLAY-ONLY — never
+   *  touches the sim/seed/scoring; it only relabels what modeBrief() reports. Used where the felt
+   *  difficulty (cipher bosses, seeded pressure) outweighs the raw spawn/speed heuristic. */
+  briefTier?: 'STANDARD' | 'HARD' | 'BRUTAL';
   rules?: ModeRules; // v6 §4: optional declarative mode rules; absent = today's behavior
   /** Title-rail progressive disclosure: this mode is LOCKED until the player's best-ever
    *  wave (save.deepestWave) reaches this value. Absent/0 = always unlocked. A pure DISPLAY
@@ -72,6 +76,7 @@ export const MODES: RunConfig[] = [
     id: 'daily', name: 'ECHO OF THE FALL', desc: "One citizen's last memory of the fall — the same seed, the same echo, for everyone today.",
     seedKind: 'date', intensityMul: 1, spawnMul: 1, bossInterval: 70, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
+    briefTier: 'HARD', // seeded one-shot pressure reads harder than the raw heuristic (display-only)
     rules: { events: 'curated' }, // §4 M5 — the Daily echo serves the high-risk pool
     flavorHead: '◇ ECHO OF THE FALL', flavor: "One citizen's last memory of the fall.<br>The same seed, the same echo, for everyone today.",
   },
@@ -110,6 +115,7 @@ export const MODES: RunConfig[] = [
     seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 38, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
+    briefTier: 'HARD', // the campaign's cipher bosses read harder than the raw spawn/speed heuristic (display-only)
     flavorHead: '◇ SOLSTICE PROTOCOL', flavor: 'The story of the fall, told in cipher.<br>Read each lock, and the day grows longer.',
   },
   {
@@ -160,7 +166,7 @@ export function modeSeeded(cfg: RunConfig): boolean {
  *  title mode-cards. A display heuristic ONLY — keep OUT of tune.ts and any sim path. */
 export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note: string } {
   const d = cfg.intensityMul * (1 / cfg.spawnMul) * (1 + cfg.speedBonus);
-  const tier = d >= 1.3 ? 'BRUTAL' : d >= 1.1 ? 'HARD' : 'STANDARD';
+  const tier = cfg.briefTier ?? (d >= 1.3 ? 'BRUTAL' : d >= 1.1 ? 'HARD' : 'STANDARD');
   const reward = `×${cfg.shardMul} shards`;
   const note = cfg.rules?.ranked === false
     ? 'CASUAL · OFF-BOARD'
