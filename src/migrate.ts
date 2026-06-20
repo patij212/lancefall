@@ -14,7 +14,7 @@ import { GLOSS_IDS } from './gloss';
 import { SHIP_SKINS } from './shipSkins';
 import { SHIPS } from './ships';
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -50,6 +50,9 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   //          an older save default-fills to ([], {}); the sanitizers below filter ownership to
   //          real ship+set keys and the equipped record to sets the player actually owns. (A
   //          pre-rework v8 dev save's set-only ids simply drop — those skins are re-acquired.)
+  // v8 → v9: added the v9 vigil fields (vigilSince, released, choiceDate). Purely additive → an
+  //          older save default-fills (-1 / false / ''); the clamp below forces vigilSince to an
+  //          integer >= -1, and the generic loop coerces released (bool) / choiceDate (string).
   // Add future steps here, keyed on `(data.version ?? 1)`.
 
   const out: SaveData = { ...base, ...data, version: SAVE_VERSION };
@@ -90,6 +93,9 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // 4.2 — playStreak is a count: clamp a hand-edited negative/fractional value to a
   // safe non-negative integer (the generic loop above only checks it's a finite number).
   if (typeof o.playStreak === 'number') o.playStreak = Math.max(0, Math.floor(o.playStreak));
+  // v9 — vigilSince is a totalRuns ordinal or the -1 "not holding" sentinel: integer >= -1.
+  if (typeof o.vigilSince === 'number') o.vigilSince = Math.max(-1, Math.floor(o.vigilSince));
+  else o.vigilSince = b.vigilSince;
   // v7 RECORDS — non-negative integers (whole seconds / counts); the generic loop above only
   // ensured they're finite numbers, so clamp a hand-edited negative/fractional value here.
   for (const k of ['longestRunSec', 'fastestArenaSec', 'mostBossesOneRun', 'lifeTimeSec']) {

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildBombePanel } from './bombe';
 import { defaultSave } from '../save';
-import { INTERCEPTS, interceptWords, masterProgress } from '../intercepts';
+import { INTERCEPTS, interceptWords, masterProgress, vocabulary } from '../intercepts';
 import { CONSOLE_PUZZLES } from '../bombe';
 
 describe('buildBombePanel', () => {
@@ -64,5 +64,27 @@ describe('buildBombePanel', () => {
     p.open(save, { justDecrypted: word });
     expect(p.root.querySelectorAll('.bombe-tok.just').length).toBe(0);
     document.documentElement.classList.remove('reduce-motion');
+  });
+
+  it('THE LAST WORD: only int-what-remains carries the un-buyable trailing glyph; it resolves on the choice', () => {
+    const p = buildBombePanel(deps);
+    // fresh save — exactly one un-buyable last word, on the "what remains" transmission alone
+    p.open(defaultSave());
+    expect(p.root.querySelectorAll('.bombe-tok.last-word').length).toBe(1);
+    const lw = p.root.querySelector('.bombe-tok.last-word') as HTMLElement;
+    expect(lw.classList.contains('enc')).toBe(true);       // enciphered while unchosen
+    expect(lw.textContent).toContain('CHOSEN');            // LAST_WORD_PLACEHOLDER
+    // holding the light resolves the last word to plaintext (no longer enciphered)
+    p.open({ ...defaultSave(), stillpointChoice: 'catch' });
+    const lw2 = p.root.querySelector('.bombe-tok.last-word') as HTMLElement;
+    expect(lw2.classList.contains('enc')).toBe(false);
+    expect(lw2.textContent).toContain('HELD');
+  });
+
+  it('THE LONGEST DAY reframe: at 100% pre-choice, the what-remains tail names the halting problem', () => {
+    const p = buildBombePanel(deps);
+    p.open({ ...defaultSave(), decryptedWords: vocabulary() });
+    const tail = p.root.querySelector('.bombe-choicetail') as HTMLElement;
+    expect(tail.textContent).toContain('The machine is finished'); // LONGEST_DAY_REFRAME opening
   });
 });

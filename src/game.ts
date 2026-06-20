@@ -81,6 +81,7 @@ import { glyphArt } from './glyphArt';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder, type ShareMeta } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
+import { canRelease } from './ending';
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
@@ -271,6 +272,7 @@ export class Game {
       onMarkGloss: (id) => { if (!this.save.glossSeen.includes(id)) { this.save.glossSeen.push(id); saveSave(this.save); } },
       onSetHandle: (name) => this.setHandle(name),
       onSkipSandbox: () => this.finishSandbox(),
+      onReleaseTheDay: () => { this.requestReleaseTheDay(); },
     });
 
     this.resize();
@@ -3314,13 +3316,29 @@ export class Game {
     }
   }
 
-  /** THE CHOICE — the player decides the kingdom's fate after felling the
-   *  Sovereign. Cosmetic/personal: saved to localStorage, never touches rng. */
+  /** THE CHOICE — the player decides the kingdom's fate after felling the Sovereign. On CATCH the
+   *  Vigil begins (stamp the run ordinal + date so daysHeld can derive). Cosmetic/personal: saved
+   *  to localStorage, never touches rng. */
   private makeChoice(c: 'catch' | 'fall'): void {
     this.save.stillpointChoice = c;
+    if (this.save.choiceDate === '') this.save.choiceDate = dateString();
+    if (c === 'catch' && this.save.vigilSince < 0) this.save.vigilSince = this.save.totalRuns;
     saveSave(this.save);
     const end = choiceEnding(c);
     this.ui.resolveChoice(end.head, end.line);
+  }
+
+  /** THE LIVING CHOICE — let the day turn after a long Vigil. Permitted only once daysHeld reaches
+   *  the threshold (ending.canRelease). Flips catch -> fall (the completion), marks it final, and
+   *  asks the UI to play the completion sequence. Returns whether it fired. Save-side; no rng. */
+  public requestReleaseTheDay(): boolean {
+    if (!canRelease(this.save)) return false;
+    this.save.stillpointChoice = 'fall';
+    this.save.released = true;
+    saveSave(this.save);
+    const end = choiceEnding('fall');
+    this.ui.playCompletion('fall', this.save, end.head, end.line);
+    return true;
   }
 
   /** Evaluate + award the decryption (meta) achievements from the current save state (the console
@@ -3592,6 +3610,7 @@ export class Game {
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
     if (boss) this.narrateOne('toast', NARRATOR.bossApproach[boss.kind]);
+    if (boss?.kind === 'sovereign') this.narrate('sovereignForeshadow', 'toast', NARRATOR.sovereignForeshadow);
     // INTEL card — when the player has decrypted this boss's transmission, surface a
     // pre-boss callout. Seeded modes get the card (pattern exists) but no bonus claim.
     if (boss && bossIntel(this.save, boss.kind).decrypted) {

@@ -4,20 +4,9 @@
 // Daily run. THE CHOICE narration + nemesis lookup are pure reads of save state.
 import { createRng } from './rng';
 
-export type Choice = 'catch' | 'fall' | 'none';
-
-// ── THE CHOICE — on a Sovereign kill, the player decides the kingdom's fate ──
-export interface ChoiceEnding {
-  head: string;
-  line: string;
-}
-export function choiceEnding(choice: Choice): ChoiceEnding {
-  if (choice === 'catch')
-    return { head: 'THE LIGHT HOLDS', line: 'You held it. The longest day stands, and the city wakes in full light.' };
-  if (choice === 'fall')
-    return { head: 'THE LIGHT RELEASED', line: 'You let it go. The day completes, the dark comes gently, and it is finally, mercifully over.' };
-  return { head: 'THE LIGHT HOLDS', line: 'Lancefall remembers itself.' };
-}
+// THE CHOICE copy now lives in ./ending (single source). Re-exported so existing
+// importers (game.ts, ui.ts, stillpoint.test.ts) keep working unchanged.
+export { choiceEnding, type Choice, type ChoiceEnding } from './ending';
 
 // ── ECHO OF THE FALL — one citizen's last memory, deterministic per daily seed ──
 const ECHO_NAMES = [

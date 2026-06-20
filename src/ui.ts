@@ -53,7 +53,7 @@ import { renderBestiary, renderCipherLegend } from './panels/codex';
 import { CITIZENS, isCitizenWoken } from './citizens';
 import { DOSSIER_FIGURES, figureDossier, citizenDeeperUnlocked } from './dossiers';
 import { buildUpgradesPanel } from './panels/upgrades';
-import { renderTheSix } from './panels/fall';
+import { renderTheSix, renderYourLancefall, renderTheSixth } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
 import { buildBombePanel, type BombePanel } from './panels/bombe';
 import { hasAffordableDecrypt } from './intercepts';
@@ -76,6 +76,7 @@ import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
+import { sixthReveal, SOVEREIGN_HANDOFF, completionEpilogue, vigilBeat, canRelease } from './ending';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -130,6 +131,8 @@ export interface UICallbacks {
   onSetHandle: (name: string) => void;
   /** §1.2 — the player SKIPped the no-fail DASH SANDBOX (button / any-key) → start the run now */
   onSkipSandbox: () => void;
+  /** THE VIGIL — let the day turn after holding the light long enough (canRelease threshold) */
+  onReleaseTheDay: () => void;
 }
 
 export interface GameOverInfo {
@@ -477,6 +480,9 @@ export class UI {
   // THE FALL · THE SIX dossier grid — rebuilt per refresh (fast, 6 cards)
   private codexDossiers!: HTMLElement;
   private codexDossiersGrid?: HTMLElement;
+  // THE FALL tab — dynamic sections refreshed per open (need live save)
+  private fallSixthBox!: HTMLElement;
+  private fallYourLancefallBox!: HTMLElement;
   // SIGNAL RESTORED overlay — a dismissable full-screen moment when a transmission completes
   private srOverlay!: HTMLElement;
   private srTitle!: HTMLElement;
@@ -511,6 +517,9 @@ export class UI {
   private rebinding: 'dash' | 'overdrive' | 'parry' | 'pause' | null = null; // active key-capture, if any
   private announceEl!: HTMLElement;
   private choiceRow!: HTMLElement;
+  private goSixth!: HTMLElement; // THE SIXTH reveal — populated in renderSixth() on choice-pending
+  private vigilLine!: HTMLElement; // THE VIGIL — the held-light beat shown on the title
+  private releaseBtn!: HTMLButtonElement; // LET THE DAY TURN — gated by canRelease
   private saveReplayBtn!: HTMLButtonElement;
   private sharePanel!: HTMLElement;
   private announceTimer = 0;
@@ -1218,6 +1227,11 @@ export class UI {
       ),
       this.descendModeLine,
     );
+    // THE VIGIL — the held-light beat + the "let the day turn" release button
+    this.vigilLine = el('div', { class: 'vigil-line hidden' });
+    this.releaseBtn = el('button', { class: 'btn vigil-release hidden' }, 'LET THE DAY TURN') as HTMLButtonElement;
+    this.releaseBtn.addEventListener('click', () => this.cb.onReleaseTheDay());
+
     const centerCol = el(
       'div',
       { class: 'ck-col ck-col-center' },
@@ -1228,6 +1242,8 @@ export class UI {
       this.lastRunBox,
       el('div', { class: 'ck-descend-wrap' }, play),
       this.descendSub,
+      this.vigilLine,
+      this.releaseBtn,
     );
 
     // ── RIGHT: LOADOUT ──
@@ -1758,6 +1774,7 @@ export class UI {
           t.append(el('b', {}, 'No machine can decide it'), ' — it can only be chosen.');
           return t;
         })(),
+        (this.goSixth = el('div', { class: 'go-sixth' })),
       ),
       el('div', { class: 'go-choice-row' }, this.goCatchBtn, this.goFallBtn),
     );
@@ -2027,6 +2044,12 @@ export class UI {
     for (const p of paras) body.append(el('p', { class: 'fall-para' }, p));
     // §v7 — THE SIX WHO LET IT FALL: the six bosses as a numbered confession timeline.
     body.append(el('div', { class: 'stats-label' }, 'THE SIX WHO LET IT FALL'), renderTheSix());
+    // THE SIXTH — the accreting confession list (woken citizens). Refreshed per open in showCodex().
+    this.fallSixthBox = el('div');
+    body.append(el('div', { class: 'stats-label' }, 'THE SIXTH'), this.fallSixthBox);
+    // YOUR LANCEFALL — the player's permanent record of THE CHOICE. Refreshed per open in showCodex().
+    this.fallYourLancefallBox = el('div');
+    body.append(el('div', { class: 'stats-label' }, 'YOUR LANCEFALL'), this.fallYourLancefallBox);
     return body;
   }
 
@@ -2681,6 +2704,9 @@ export class UI {
     const s = this.saveRef;
     if (s) {
       this.codexBestiary.replaceChildren(...renderBestiary(s.killsByKind));
+      // THE FALL tab — dynamic sections refreshed with live save state
+      this.fallSixthBox.replaceChildren(renderTheSixth(s));
+      this.fallYourLancefallBox.replaceChildren(renderYourLancefall(s));
       // ACHIEVEMENTS tab — rebuilt per open for live got/total + unlock state.
       const ach = renderAchievements(s, this.statsRarity);
       this.codexAchPane.replaceChildren(...ach.nodes);
@@ -2906,6 +2932,15 @@ export class UI {
     this.cohSub.textContent = coh.tagline;
     this.cohTrack.setAttribute('aria-valuenow', String(coh.pct));
     this.cohTrack.setAttribute('aria-valuetext', `${coh.pct}% — ${coh.tagline}`);
+  }
+
+  /** Paint the Vigil status on the title (the held-light line + the release affordance). Read-only. */
+  private renderVigil(save: SaveData): void {
+    const beat = vigilBeat(save);
+    this.vigilLine.textContent = beat ? beat.line : '';
+    this.vigilLine.classList.toggle('hidden', !beat);
+    const can = canRelease(save);
+    this.releaseBtn.classList.toggle('hidden', !can);
   }
 
   refreshTitle(save: SaveData): void {
@@ -3277,6 +3312,9 @@ export class UI {
     // ── CENTER: SELECTED RUN ──
     this.refreshSelectedRun(save);
     this.playBtn.title = 'Descend — play ' + modeById(save.selectedMode).name;
+
+    // ── THE VIGIL — held-light beat + release affordance ──
+    this.renderVigil(save);
   }
 
   /** §v9 — open the full LAST RUN debrief for the selected mode (kills/damage breakdowns + the
@@ -3779,6 +3817,24 @@ export class UI {
     this.show('draft');
   }
 
+  /** Render THE SIXTH reveal into the choice prompt — the thesis (always), the faces you woke,
+   *  the gentle pull if any sleep, and the deepest line at 100%. Read-only over save. */
+  private renderSixth(save: SaveData): void {
+    const r = sixthReveal(save);
+    const kids: HTMLElement[] = [
+      el('div', { class: 'go-sixth-handoff' }, SOVEREIGN_HANDOFF),
+      el('div', { class: 'go-sixth-thesis' }, r.thesis),
+    ];
+    if (r.faces.length) {
+      const faces = el('div', { class: 'go-sixth-faces' });
+      for (const f of r.faces) faces.append(el('div', { class: 'go-sixth-face' }, el('b', {}, f.name), ' — ' + f.line));
+      kids.push(faces);
+    }
+    if (r.unwokenPull) kids.push(el('div', { class: 'go-sixth-pull' }, r.unwokenPull));
+    if (r.deepest) kids.push(el('div', { class: 'go-sixth-deepest' }, r.deepest));
+    this.goSixth.replaceChildren(...kids);
+  }
+
   /** After THE CHOICE commits (game.ts → makeChoice → here): resolve the whole
    *  screen to the chosen ending. The head/line are sourced from
    *  stillpoint.choiceEnding() upstream, so they are faithful by construction.
@@ -3814,6 +3870,29 @@ export class UI {
     clearTimeout(this.goResolveTimer);
     this.replayAnim(this.goResolve, 'show'); // CSS gates the keyframe under reduce-motion (held, no fade)
     this.goResolveTimer = window.setTimeout(() => this.goResolve.classList.remove('show'), 3200);
+    // name every woken citizen's fate in the wash overlay
+    if (this.saveRef) this.renderFates(which, this.saveRef);
+  }
+
+  /** Render the citizen-fate list into the resolve wash overlay (one entry per woken citizen).
+   *  Called from resolveChoice (first choice) and playCompletion (late Vigil release). */
+  private renderFates(which: 'catch' | 'fall', save: SaveData): void {
+    const existing = this.goResolve.querySelector('.go-fates'); if (existing) existing.remove();
+    const fates = completionEpilogue(save, which);
+    if (!fates.length) return;
+    const list = el('div', { class: 'go-fates' });
+    for (const f of fates) list.append(el('div', { class: 'go-fate' }, el('b', {}, f.name), ' — ' + f.line));
+    this.goResolve.append(list);
+  }
+
+  /** THE COMPLETION — play the chosen ending over the skyline and name every woken citizen's fate.
+   *  Reuses the resolve wash (already a11y-gated). The late Vigil release path calls this.
+   *  `which` is kept for call-site clarity but unused here — resolveChoice re-derives the catch/fall
+   *  sense from `head`, so renderFates inside it picks the right fate set. */
+  playCompletion(_which: 'catch' | 'fall', save: SaveData, head: string, line: string): void {
+    // update saveRef so renderFates (called inside resolveChoice) sees the new save
+    this.saveRef = save;
+    this.resolveChoice(head, line);
   }
 
   showGameOver(info: GameOverInfo): void {
@@ -3837,6 +3916,7 @@ export class UI {
     this.goScreenInner.classList.toggle('go-lost', !info.won);
     this.goScreenInner.classList.toggle('go-pending', info.choicePending === true);
     this.choiceRow.classList.toggle('hidden', !info.choicePending);
+    if (info.choicePending && this.saveRef) this.renderSixth(this.saveRef);
 
     // ── HEADER brand + the FIRST LIGHT tableau (won) / darker debrief (lost) ──
     if (info.won) {

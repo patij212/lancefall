@@ -213,6 +213,15 @@ export interface SaveData {
   /** BOMBE upgrade branches — three specialisation tracks (D1 additive; no version bump).
    *  bombeLevel is kept as the synced derived total (thrift+speed+insight) for back-compat. */
   bombeBranches: { thrift: number; speed: number; insight: number };
+  // ── v9 THE LAST WORD — the Vigil (holding the light) as a relationship over runs. All additive;
+  //    meta-only (never read in seeded sim). ──
+  /** totalRuns ordinal stamped when THE CHOICE was first made as 'catch'; -1 = not holding. The
+   *  Vigil's "days held" = totalRuns - vigilSince. */
+  vigilSince: number;
+  /** the player later let the day turn after holding (catch -> fall). Once true, the choice is final. */
+  released: boolean;
+  /** YYYY-MM-DD (dateString()) when THE CHOICE was first made; '' = never made. */
+  choiceDate: string;
 }
 
 export interface Settings {
@@ -331,6 +340,9 @@ export function defaultSave(): SaveData {
     solvedPuzzles: [],
     solvedDailyCiphers: [],
     bombeBranches: { thrift: 0, speed: 0, insight: 0 },
+    vigilSince: -1,
+    released: false,
+    choiceDate: '',
   };
 }
 

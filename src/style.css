@@ -1421,6 +1421,20 @@ body {
 .tl-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: 0.04em; }
 .tl-ep { grid-column: 2; font-size: 11.5px; color: var(--accent); opacity: 0.85; margin-top: 1px; }
 .tl-quote { grid-column: 2; font-size: 12px; font-style: italic; color: #c2d2e8; border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); padding-left: 9px; margin-top: 5px; line-height: 1.5; }
+
+/* YOUR LANCEFALL — the player's permanent record of THE CHOICE (THE FALL tab) */
+.your-lancefall { padding: 10px 0; }
+.yl-verb { font-weight: 700; letter-spacing: 0.08em; color: #ffd884; }
+.yl-line { color: #c9d4e0; margin-top: 4px; }
+.yl-meta { color: #8a94a3; font-size: 0.8rem; margin-top: 4px; }
+.yl-pending { color: #8a94a3; font-style: italic; }
+
+/* THE SIXTH — accreting confession list (woken citizens) (THE FALL tab) */
+.the-sixth .sixth-thesis { color: #aeb9c7; line-height: 1.5; }
+.the-sixth .sixth-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 40vh; overflow-y: auto; font-size: 0.86rem; color: #c9d4e0; }
+.the-sixth .sixth-pull { color: #8a94a3; margin-top: 8px; }
+.the-sixth .sixth-deepest { color: #ffd884; font-style: italic; margin-top: 8px; }
+
 .credit-dedication {
   margin-top: 14px;
   color: var(--amber, #fbbf24);
@@ -3688,6 +3702,11 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 .ck-kbd-sep { color: rgba(255, 255, 255, 0.18); }
+
+/* THE VIGIL — held-light beat line + release affordance on the title */
+.vigil-line { color: #c9d4e0; font-style: italic; font-size: 0.86rem; margin-top: 6px; text-align: center; }
+.vigil-release { margin-top: 8px; min-height: 64px; width: 100%; }
+
 .ck-descend-mode-line {
   font-family: 'JetBrains Mono', monospace;
   font-size: 8.5px;
@@ -5231,6 +5250,15 @@ body {
   line-height: 1.55;
 }
 .go-choice-turing b { color: var(--go-gold); font-style: normal; font-weight: 600; }
+
+/* THE SIXTH reveal — shown inside the choice prompt at the Sovereign kill */
+.go-sixth { margin-top: 14px; max-height: 30vh; overflow-y: auto; text-align: left; font-size: 0.86rem; line-height: 1.5; color: #c9d4e0; }
+.go-sixth-handoff { font-style: italic; color: #ffd884; margin-bottom: 8px; }
+.go-sixth-thesis { color: #aeb9c7; margin-bottom: 8px; }
+.go-sixth-faces { display: flex; flex-direction: column; gap: 2px; opacity: 0.92; }
+.go-sixth-pull { margin-top: 8px; color: #8a94a3; }
+.go-sixth-deepest { margin-top: 8px; color: #ffd884; font-style: italic; }
+
 .go-choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .go-choice {
   --ac: var(--go-gold);
@@ -5425,6 +5453,10 @@ body {
 @keyframes goResolveSeq { 0% { opacity: 0; } 14% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 .go-resolve-head { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.16em; }
 .go-resolve-line { font-size: 13px; color: #ecdcc0; max-width: 480px; line-height: 1.65; font-style: italic; }
+
+/* THE COMPLETION — citizen fates listed in the resolve wash */
+.go-fates { margin-top: 16px; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; text-align: center; font-size: 0.9rem; color: #e6edf5; }
+.go-fate b { color: #ffd884; }
 
 /* ── load-in reveal (won; staggered) — gated under STILL DAWN ── */
 .go-frame.go-won .go-header { animation: goBootIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both; }
@@ -5709,6 +5741,10 @@ body {
 }
 .bombe-tok.enc.r-rare { color: #6b7a93; }
 .bombe-tok.enc.r-key { color: color-mix(in srgb, var(--amber) 55%, #6b7a93); text-shadow: 0 0 6px color-mix(in srgb, var(--amber) 30%, transparent); }
+
+/* THE LAST WORD — the un-decryptable token at the foot of "What Remains" */
+.bombe-tok.last-word.enc { color: #6b7280; letter-spacing: 0.12em; opacity: 0.85; }
+.bombe-tok.last-word.r-key { color: var(--amber); text-shadow: 0 0 18px #ffd88488; }
 
 /* the cross-reveal FLASH — a just-cracked word lights up across every transmission */
 .bombe-tok.just {

@@ -11,9 +11,9 @@ import { el, reconcile } from './dom';
 import type { Panel } from './panel';
 import type { SaveData } from '../save';
 import {
-  INTERCEPTS, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView, wordCost, wordRarity,
-  choiceTail,
+  INTERCEPTS, interceptProgress, isInterceptComplete, isLongestDay, masterProgress, nextWordInIntercept, tokenView, wordCost, wordRarity,
 } from '../intercepts';
+import { choiceTail, lastWordResolved, LAST_WORD_PLACEHOLDER, LAST_WORD_CAPTION, LONGEST_DAY_REFRAME } from '../ending';
 import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, BRANCH_MAX, upgradeBranchCost, bombeAutoCracks, bombeCostMul } from '../bombe';
 import { fragmentBalance } from '../lore';
 import { DAILY_CIPHER_REWARD, dailyCipher, letterFrequency } from '../dailyCipher';
@@ -232,6 +232,14 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
             return span;
           }),
         );
+        if (ic.id === 'int-what-remains') {
+          const resolved = lastWordResolved(save);
+          const lw = el('span', {
+            class: 'bombe-tok last-word' + (resolved ? ' r-key' : ' enc'),
+            title: resolved ? '' : LAST_WORD_CAPTION,
+          }, (resolved ?? LAST_WORD_PLACEHOLDER) + ' ');
+          text.appendChild(lw);
+        }
         const btn = card.querySelector('.bombe-decrypt') as HTMLButtonElement;
         const next = nextWordInIntercept(save, ic);
         if (!next) {
@@ -253,7 +261,9 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
               // gold for catch (held the light), dusk/cool blue for fall (let it go)
               tail.style.color = save.stillpointChoice === 'fall' ? '#8bb4d0' : 'var(--amber)';
             } else {
-              tail.textContent = '— this cipher is not solved; it is chosen, on the longest day —';
+              tail.textContent = isLongestDay(save)
+                ? LONGEST_DAY_REFRAME
+                : '— this cipher is not solved; it is chosen, on the longest day —';
               tail.style.color = '';
             }
           }

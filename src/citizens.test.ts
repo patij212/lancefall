@@ -31,6 +31,16 @@ describe('CITIZENS roster', () => {
   });
 });
 
+describe('citizen confessions + fates (the Sixth / the completion)', () => {
+  it('every citizen has a non-empty confession, fateHold, and fateRelease', () => {
+    for (const c of CITIZENS) {
+      expect(c.confession.length).toBeGreaterThan(8);
+      expect(c.fateHold.length).toBeGreaterThan(8);
+      expect(c.fateRelease.length).toBeGreaterThan(8);
+    }
+  });
+});
+
 describe('wokenCitizens', () => {
   it('none woken on a fresh save; rises as transmissions complete', () => {
     const s = defaultSave();
