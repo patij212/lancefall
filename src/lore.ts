@@ -1,7 +1,7 @@
-// src/lore.ts — THE FALL. Memory Fragments (one carried out of every descent,
-// plus milestones) unlock these deeper memories of the dead star-kingdom inside
-// the CODEX. Pure data + helpers. Spending is a plain save mutation
-// (fragmentsSpent + stillpointLore push) — never rng, so it can't perturb a run.
+// src/lore.ts — THE FALL. The deeper memories of the dead star-kingdom, shown in the CODEX
+// recovery archive. Pure data + helpers. A memory becomes "recovered" when its transmission is
+// fully decrypted in THE CODEBREAKER (syncInterceptLore pushes the loreLink → stillpointLore);
+// there is no direct Fragment-spend here anymore. Save-side reads only — never rng.
 import type { SaveData } from './save';
 
 export interface LoreEntry {

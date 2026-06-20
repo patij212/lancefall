@@ -2518,6 +2518,7 @@ export class UI {
           name.textContent = e.title;
           blurb.className = 'codex-blurb';
           blurb.textContent = e.text;
+          hint.className = 'codex-hint';
           hint.textContent = '';
         } else {
           name.className = 'codex-name codex-locked';
