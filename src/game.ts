@@ -3250,7 +3250,7 @@ export class Game {
       // DISCOVERABILITY — the first run-end carrying a Fragment, point the player at the console (once ever).
       if (!this.save.taught.includes('bombe:intro') && fragmentBalance(this.save) >= 1) {
         this.save.taught.push('bombe:intro');
-        this.ui.toast('◆ INTERCEPT RECEIVED — decrypt the fall in THE BOMBE');
+        this.ui.toast('◆ TRANSMISSION RECEIVED — decrypt the fall in THE CODEBREAKER');
       }
       saveSave(this.save);
     }

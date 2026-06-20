@@ -763,7 +763,7 @@ export class UI {
       [this.cosmeticsPanel, 'Customize cosmetics'],
       [this.creditsPanel, 'Credits'],
       [this.heatPanel, 'Heat ascension'],
-      [this.bombePanel, 'THE BOMBE'],
+      [this.bombePanel, 'THE CODEBREAKER'],
       [this.archetypePanel, 'Build archetype'],
       [this.leaderPanel, 'Leaderboard'],
       [this.duelPanel, 'Seed duel'],
@@ -1409,7 +1409,7 @@ export class UI {
       // BUILD is reached from the loadout BUILD row (this.openArchetype) — no duplicate nav entry.
       // THE FALL (story) + HOW TO (manual) are tabs inside the CODEX hub now — no separate buttons.
       navBtn('codex', 'CODEX', () => this.showCodex(), 'CODEX — the bestiary + lore, THE FALL (the story), HOW TO PLAY, and your achievements.'),
-      (this.bombeNavBtn = navBtn('bombe', 'THE BOMBE', () => this.openBombe(), 'THE BOMBE — the codebreaker console: decrypt the intercepts, build the machine, break the city back into meaning.')),
+      (this.bombeNavBtn = navBtn('bombe', 'THE CODEBREAKER', () => this.openBombe(), 'THE CODEBREAKER — decrypt the transmissions, build the machine, break the city back into meaning.')),
       // DUEL / GHOST nav entry PARKED — async duels are confusing without a proper server-
       // backed list; the panel + openDuelWithCode deep-link stay in the code, just unadvertised.
       el('div', { class: 'ck-nav-div' }),
@@ -2607,7 +2607,7 @@ export class UI {
     if (!this.codexDossiersGrid) {
       this.codexDossiersGrid = el('div', { class: 'codex-grid dossier-grid' });
       this.codexDossiers.replaceChildren(
-        el('div', { class: 'stats-label' }, 'THE FALL · THE SIX'),
+        el('div', { class: 'stats-label' }, 'THE SIX · DOSSIERS'),
         this.codexDossiersGrid,
       );
     }

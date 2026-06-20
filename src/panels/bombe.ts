@@ -56,9 +56,9 @@ function reduceMotion(): boolean {
 export function buildBombePanel(deps: BombePanelDeps): BombePanel {
   // ── shell (built once) ──
   const head = el('div', { class: 'panel-head' }, el('div', { class: 'panel-head-titles' },
-    el('div', { class: 'panel-eyebrow' }, 'CODEBREAKER'), el('h2', { class: 'panel-head-title' }, 'THE BOMBE')));
+    el('div', { class: 'panel-eyebrow' }, 'CODEBREAKER'), el('h2', { class: 'panel-head-title' }, 'THE CODEBREAKER')));
   const lead = el('p', { class: 'panel-lead' },
-    'The intercepts of the fall, enciphered. Spend Memory Fragments to decrypt them word by word — a word cracked here resolves across every transmission. Build the Bombe to crack faster.');
+    'The transmissions of the fall, enciphered. Spend Memory Fragments to decrypt them word by word — a word cracked here resolves across every transmission. Build THE CODEBREAKER to crack faster.');
 
   // a one-time "the Bombe ran overnight" banner (shown only when opts.overnight is handed in)
   const overnight = el('div', { class: 'bombe-overnight hidden', role: 'status' });
@@ -93,7 +93,7 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
 
   const statusRow = el('div', { class: 'bombe-statusrow' }, machine, el('div', { class: 'bombe-statuscol' }, fragLine, bombeStatus));
 
-  const listLabel = el('div', { class: 'stats-label' }, 'INTERCEPTS');
+  const listLabel = el('div', { class: 'stats-label' }, 'TRANSMISSIONS');
   const list = el('div', { class: 'bombe-list' });
 
   // ── DAILY CIPHER block (built once; reconciled in open()) ──
@@ -149,7 +149,7 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
     if (ov.length) {
       const insightActive = (save.bombeBranches?.insight ?? 0) > 0;
       const suffix = insightActive ? ' (key words first — INSIGHT)' : '';
-      overnight.textContent = `⚙ THE BOMBE ran overnight — cracked ${ov.length} word${ov.length === 1 ? '' : 's'}: ${ov.join(', ')}${suffix}`;
+      overnight.textContent = `⚙ THE CODEBREAKER ran overnight — cracked ${ov.length} word${ov.length === 1 ? '' : 's'}: ${ov.join(', ')}${suffix}`;
     }
 
     // ── master cipher meter (the longest-day progress) ──
@@ -162,20 +162,20 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
       : `MASTER CIPHER — ${pct}% decrypted · ${mp.done}/${mp.total} words`;
 
     // ── Bombe status + branch upgrade controls + the working-machine motif ──
-    fragLine.textContent = `◆ ${bal} Fragment${bal === 1 ? '' : 's'}`;
+    fragLine.textContent = `◆ ${bal} Memory Fragment${bal === 1 ? '' : 's'}`;
     const lvl = save.bombeLevel;
     const branches = save.bombeBranches ?? { thrift: 0, speed: 0, insight: 0 };
     const thriftPct = Math.round((1 - bombeCostMul(branches.thrift)) * 100);
     const speedCracks = bombeAutoCracks(branches.speed);
     const insight = branches.insight;
     if (lvl <= 0) {
-      bombeStatus.textContent = 'THE BOMBE — not yet built · choose a branch to start';
+      bombeStatus.textContent = 'THE CODEBREAKER — not yet built · choose a branch to start';
     } else {
       const parts: string[] = [];
       if (branches.thrift > 0) parts.push(`−${thriftPct}% cost`);
       if (speedCracks > 0) parts.push(`${speedCracks} free crack${speedCracks === 1 ? '' : 's'}/run`);
       if (insight > 0) parts.push('key words first');
-      bombeStatus.textContent = `THE BOMBE — Lv ${lvl}/${BOMBE_MAX_LEVEL} · ${parts.join(' · ')}`;
+      bombeStatus.textContent = `THE CODEBREAKER — Lv ${lvl}/${BOMBE_MAX_LEVEL} · ${parts.join(' · ')}`;
     }
     machine.className = 'bombe-machine' + (lvl > 0 ? ' running' : '');
     machine.style.setProperty('--lvl', String(lvl));

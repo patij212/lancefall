@@ -98,7 +98,7 @@ const BASE_ACHIEVEMENTS: Achievement[] = [
   { id: 'flawlesskey', name: 'The Flawless Key', desc: 'Down the Sovereign without taking a single hit.', check: (c) => c.sovereignDown && c.hitsTaken === 0 },
   // ── THE BOMBE — decryption (meta) achievements. Save-side: earned in the codebreaker console
   //    (and re-checked at run-end), gated on the optional decryption fields above. ──
-  { id: 'firstdecrypt', name: 'First Light Read', desc: 'Decrypt your first word in THE BOMBE.', check: (c) => (c.decryptedCount ?? 0) >= 1 },
+  { id: 'firstdecrypt', name: 'First Light Read', desc: 'Decrypt your first word in THE CODEBREAKER.', check: (c) => (c.decryptedCount ?? 0) >= 1 },
   { id: 'transmission', name: 'Signal Restored', desc: 'Fully decrypt a transmission.', check: (c) => (c.transmissionsComplete ?? 0) >= 1 },
   { id: 'decrypt25', name: 'A Quarter Lit', desc: 'Decrypt 25% of the master cipher.', check: (c) => (c.masterFrac ?? 0) >= 0.25 },
   { id: 'decrypt50', name: 'Half the City Back', desc: 'Decrypt 50% of the master cipher.', check: (c) => (c.masterFrac ?? 0) >= 0.5 },
