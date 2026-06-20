@@ -300,7 +300,7 @@ export default {
         name: acctRow?.name ?? null,
         verified: acctRow?.name_verified === 1,
       };
-      const sessionKind = sess?.kind ?? (acctRow?.provider ? 'linked' : 'anon');
+      const sessionKind: 'anon' | 'linked' = acctRow?.provider ? 'linked' : 'anon';
       const session = await signSession({ aid, kind: sessionKind, exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
       return json({ session, save, rev: row?.rev ?? 0, updatedAt: row?.updated_at ?? 0, account }, 200, cors);
     }
@@ -536,6 +536,7 @@ export default {
     // ── DELETE /account: wipe the session's own cloud save + account row; scores stay (anon) ──
     if (req.method === 'DELETE' && url.pathname === '/account') {
       if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
+      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429, cors);
       const sess = await verifySession(bearer(req), env.HMAC_SECRET, Date.now());
       if (!sess) return json({ error: 'unauthorized' }, 401, cors);
       const { aid } = sess;

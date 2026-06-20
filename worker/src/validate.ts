@@ -124,8 +124,8 @@ export function corsHeaders(origin: string): Record<string, string> {
   const ok = isAllowedOrigin(origin);
   return {
     'access-control-allow-origin': ok ? origin : 'https://lancefall.pages.dev',
-    'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'access-control-allow-headers': 'content-type',
+    'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'access-control-allow-headers': 'content-type,authorization',
     vary: 'Origin',
   };
 }

@@ -165,4 +165,20 @@ describe('worker — corsHeaders scoping', () => {
     expect(corsHeaders('https://evil.example.com')['access-control-allow-origin']).toBe('https://lancefall.pages.dev');
     expect(corsHeaders('')['access-control-allow-origin']).toBe('https://lancefall.pages.dev');
   });
+
+  it('allows PUT + DELETE methods (required for cloud save flush + account deletion across origins)', () => {
+    const h = corsHeaders('https://lancefall.pages.dev');
+    const methods = h['access-control-allow-methods'].split(',');
+    expect(methods).toContain('PUT');
+    expect(methods).toContain('DELETE');
+    expect(methods).toContain('GET');
+    expect(methods).toContain('POST');
+  });
+
+  it('allows authorization header (required for authenticated PUT /save + DELETE /account preflights)', () => {
+    const h = corsHeaders('https://lancefall.pages.dev');
+    const headers = h['access-control-allow-headers'].split(',');
+    expect(headers).toContain('authorization');
+    expect(headers).toContain('content-type');
+  });
 });
