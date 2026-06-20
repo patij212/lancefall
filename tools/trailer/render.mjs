@@ -94,6 +94,26 @@ const CIPHER_PILOT = () => {
   };
 };
 
+// AGGRO pilot (FLOW): continuously dash THROUGH the nearest enemy, overshooting to spear clusters.
+// Replaces the survival bot for the flow capture — god-mode makes the survival bot passive (no
+// perceived threat), so we drive the offense ourselves; with a dense swarm it racks combo fast.
+const AGGRO_PILOT = () => {
+  const g = window.__lf; let prevHeld = false;
+  const cf = (len) => { const y = Math.max(0, Math.min(1, (len - 180) / 380)); return Math.max(0, Math.min(1, 1 - Math.sqrt(1 - y))); };
+  g.input.poll = function () {
+    const s = g.input.state; s.pausePressed = s.overdrivePressed = s.parryPressed = false; s.selectIndex = -1; s.dashTapped = false;
+    const p = g.world.player;
+    const idle = () => { s.moveX = 0; s.moveY = 0; s.dashHeld = false; s.dashReleased = prevHeld; prevHeld = false; return s; };
+    if (g.state !== 'playing' || !p || p.phase === 'dashing') return idle();
+    let best = null, bd = 1e9;
+    for (const e of g.world.enemies.items) { if (!e.active || e.isBoss) continue; const d = Math.hypot(e.x - p.x, e.y - p.y); if (d < bd) { bd = d; best = e; } }
+    if (!best) return idle();
+    s.aimX = best.x; s.aimY = best.y; s.moveX = 0; s.moveY = 0;
+    const held = p.phase === 'charging' ? p.charge < cf(Math.min(560, bd + 130)) * 0.9 : true;
+    s.dashHeld = held; s.dashReleased = prevHeld && !held; prevHeld = held; return s;
+  };
+};
+
 async function boot(ctx) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => log('PAGEERR', e.message.slice(0, 100)));
@@ -150,15 +170,30 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
       g.renderer.render = oR; g.ui.updateHud = oH;
     }, opts.warmup);
   }
+  if (opts.afterWarmup) await opts.afterWarmup(page); // e.g. swap the survival bot for the aggro pilot
   const t0 = Date.now();
   for (let i = 0; i < frameCount; i++) {
     await page.evaluate((o) => {
       const g = window.__lf, w = g.world, p = w && w.player;
       if (o.god && p) { p.iframe = Math.max(p.iframe || 0, 60); p.alive = true; if (p.shields != null) p.shields = p.maxShields; g.dying = false; g.winning = false; }
+      if (o.stamina && p) p.stamina = 300; // infinite dashes → the aggro pilot chains without recharge gaps
+      // FLOW: hold the combo decay window so the chain survives between dashes (the multiplier still
+      // only GROWS on real kills); keep OVERDRIVE off so a DAYBREAK can't clear the field.
+      if (o.comboHold && w && w.combo > 0) w.comboTimer = 10;
+      if (o.noOverdrive && w && w.overdrive) w.overdrive.meter = 0;
+      // FLOW: a clean DENSE melee swarm — clear all bullets + any non-flow (bullet) enemies each
+      // frame and maintain N marked melee chasers, so the aggro pilot's dashes spear clusters
+      // non-stop and the held combo CLIMBS (god-mode otherwise makes the bot passive).
+      if (o.spawn && w && w.enemies && w.spawnEnemy) {
+        if (w.bullets) for (const b of w.bullets.items) if (b.active) b.active = false;
+        let n = 0; for (const e of w.enemies.items) { if (!e.active || e.isBoss) continue; if (!e.__flow) e.active = false; else n++; }
+        const kinds = ['wisp', 'darter', 'wisp', 'darter', 'wisp', 'brooder'];
+        while (n < 12) { const a = Math.random() * Math.PI * 2; const en = w.spawnEnemy(kinds[Math.floor(Math.random() * kinds.length)], w.width / 2 + Math.cos(a) * 380, w.height / 2 + Math.sin(a) * 250, 1, 1, false, false); if (en) { en.__flow = true; n++; } else break; }
+      }
       if (o.pin && w) for (const e of w.enemies.items) if (e.active && e.isBoss) { e.x = o.pin.x; e.y = o.pin.y; e.vx = 0; e.vy = 0; }
       g.__t += 1000 / 60;
       g.frame(g.__t);
-    }, { god: !!opts.god, pin: opts.pin || null });
+    }, { god: !!opts.god, pin: opts.pin || null, stamina: !!opts.stamina, comboHold: !!opts.comboHold, spawn: !!opts.spawn, noOverdrive: !!opts.noOverdrive });
     await page.screenshot({ path: path.join(dir, `f_${String(i).padStart(5, '0')}.png`) });
   }
   await ctx.close();
@@ -176,6 +211,16 @@ const BEATS = {
   combat: () => renderBeat('combat', Math.round(14 * FPS), async (page) => {
     await startRun(page, 'arena', true);
   }, { god: true, warmup: 22 }),
+
+  // FLOW — the "perfect synergy of movement" section: warm up to draft AoE perks, then the AGGRO
+  // pilot dashes non-stop through a dense melee swarm (spawn) with infinite stamina, the combo
+  // (comboHold) climbing through the chain. Reads as relentless flow + a skyrocketing multiplier.
+  flow: () => renderBeat('flow', Math.round(19 * FPS), async (page) => {
+    await startRun(page, 'arena', true);
+  }, {
+    god: true, stamina: true, comboHold: true, spawn: true, noOverdrive: true, warmup: 14,
+    afterWarmup: async (page) => { await page.evaluate(`(${AGGRO_PILOT.toString()})()`); },
+  }),
 
   // grey→neon coherence wash, mid-game (forced full neon; edit cuts from a grey shot)
   coherence: () => renderBeat('coherence', Math.round(12 * FPS), async (page) => {

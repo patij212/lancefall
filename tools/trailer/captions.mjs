@@ -30,6 +30,8 @@ const CAPTIONS = [
   { id: 'bosses', label: 'BULLET-HELL', line: 'Twelve enemies. Six bosses. A sky of fire — and one spear to thread it.', accent: ROSE },
   { id: 'fall', label: 'THE FALL', line: 'A kingdom of living light — until the Six who let it fall <b>enciphered</b> it into grey.', accent: CYAN },
   { id: 'verb', label: 'ONE VERB', line: 'You are the last key. You don’t shoot — you <b>dash</b> a spear of light.', accent: CYAN },
+  { id: 'flow1', label: 'THE CHAIN', line: 'Spear a cluster, graze the gap, dash again — and the <b>combo never breaks</b>.', accent: CYAN },
+  { id: 'flow2', label: 'FLOW STATE', line: 'Momentum is the only weapon. Read the swarm; <b>never stop moving</b>.', accent: VIOLET },
   { id: 'coherence', label: 'COHERENCE', line: 'Chain the kills. The grey burns off. The city <b>remembers</b>.', accent: CYAN },
   { id: 'readkey', label: 'READ THE KEY', line: 'Every boss is a cipher. <b>Read the key</b> — and decode it under fire.', accent: AMBER },
   { id: 'solstice', label: 'SOLSTICE PROTOCOL', line: 'Every boss, a code to break. Six ships, stacking drafts, a daily everyone shares.', accent: AMBER },

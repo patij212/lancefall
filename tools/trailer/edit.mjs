@@ -31,7 +31,9 @@ const cap = (id) => path.join(ASSETS, `cap_${id}.png`);
 // clip at ss (ken-burns); 'still' = a PNG (ken-burns); 'card' = a static PNG.
 const SHOTS = [
   { id: 'title',      kind: 'still', src: KEYART, t: 6.0, zoom: 'out' },   // key art opens; the art speaks (no caption)
-  { id: 'combat',     kind: 'clip',  src: 'combat',     ss: 2.0, t: 10.5, cap: 'verb' },
+  { id: 'combat',     kind: 'clip',  src: 'combat',     ss: 2.0, t: 9.0,  cap: 'verb' },
+  { id: 'flow_a',     kind: 'clip',  src: 'flow',       ss: 3.0, t: 7.0,  cap: 'flow1' },   // the combo building
+  { id: 'flow_b',     kind: 'clip',  src: 'flow',       ss: 11.0, t: 8.0, cap: 'flow2' },   // the x100+ peak + neon
   { id: 'coherence',  kind: 'clip',  src: 'coherence',  ss: 2.0, t: 9.5,  cap: 'coherence' },
   { id: 'cipher',     kind: 'clip',  src: 'cipher',     ss: 3.0, t: 13.0, cap: 'readkey' },
   { id: 'sovereign',  kind: 'clip',  src: 'sovereign',  ss: 1.4, t: 3.5,  cap: 'sovereign' },
