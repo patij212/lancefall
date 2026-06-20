@@ -46,6 +46,8 @@ describe('achievements', () => {
     expect(m({ bombeLevel: 1 })).toContain('thebombe');
     expect(m({ puzzlesSolvedCount: CONSOLE_PUZZLES.length })).toContain('cryptanalyst');
     expect(m({ masterFrac: 1 })).toContain('mastercipher');
+    expect(m({ masterFrac: 1 })).toContain('longestday-read');
+    expect(m({ masterFrac: 0.99 })).not.toContain('longestday-read');
     // partial solves don't earn the cryptanalyst
     expect(m({ puzzlesSolvedCount: CONSOLE_PUZZLES.length - 1 })).not.toContain('cryptanalyst');
   });

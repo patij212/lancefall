@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { THEMES, themeById } from './themes';
+import { THEMES, themeById, canUnlockTheme } from './themes';
 
 describe('themeById', () => {
   it('returns the matching theme for a known id', () => {
@@ -38,5 +38,19 @@ describe('THEMES table integrity', () => {
       expect(t.accent2).toMatch(hex);
       for (const n of t.nebula) expect(n).toMatch(hex);
     }
+  });
+});
+
+describe('themes — achievement-gated palette', () => {
+  it('decrypted palette is achievement-gated, unlocked only by longestday-read', () => {
+    const d = themeById('decrypted');
+    expect(d.id).toBe('decrypted');
+    expect(d.unlockAch).toBe('longestday-read');
+    expect(canUnlockTheme(d, 999999, [])).toBe(false);          // shards never unlock it
+    expect(canUnlockTheme(d, 0, ['longestday-read'])).toBe(true);
+  });
+  it('shard themes still unlock by shards', () => {
+    const neon = themeById('neon');
+    expect(canUnlockTheme(neon, 0, [])).toBe(true); // 0-cost
   });
 });

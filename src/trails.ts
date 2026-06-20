@@ -25,6 +25,8 @@ export const TRAILS: TrailDef[] = [
   // DAYBREAK — the TOP prestige trail: down the Sovereign in Nightmare (no ARMOR, walls closing
   // in). A warm dawn streak — the longest day, won the hard way.
   { id: 'daybreak', name: 'DAYBREAK', unlockShards: 0, unlockAch: 'daybreakdark', base: '#fb923c', bright: '#fef3c7' },
+  // DAWN — the decryption prestige trail: bring the master cipher to 100% (THE LONGEST DAY).
+  { id: 'dawn', name: 'DAWN', unlockShards: 0, unlockAch: 'longestday-read', base: '#fde68a', bright: '#fff7cd' },
 ];
 
 export function trailById(id: string): TrailDef {

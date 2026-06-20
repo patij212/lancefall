@@ -103,6 +103,7 @@ const BASE_ACHIEVEMENTS: Achievement[] = [
   { id: 'thebombe', name: 'The Bombe', desc: 'Build the Bombe — an ode to Turing.', check: (c) => (c.bombeLevel ?? 0) >= 1 },
   { id: 'cryptanalyst', name: 'Cryptanalyst', desc: 'Solve every console cryptanalysis puzzle.', check: (c) => (c.puzzlesSolvedCount ?? 0) >= CRYPTANALYSIS_PUZZLE_COUNT },
   { id: 'mastercipher', name: 'The Longest Day', desc: 'Decrypt the entire history — 100% master cipher.', check: (c) => (c.masterFrac ?? 0) >= 1 },
+  { id: 'longestday-read', name: 'The Longest Day, Read', desc: 'Decrypt every word — reach 100% master cipher.', check: (c) => (c.masterFrac ?? 0) >= 1 },
 ];
 
 // ── SKIN unlocks — one achievement per non-common skin ──────────────────────
