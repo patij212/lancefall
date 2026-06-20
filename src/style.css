@@ -6089,3 +6089,39 @@ body {
 :root.clarity .bombe-daily-prompt { text-shadow: none; }
 :root.clarity .bombe-freq-cell { border-width: 1.5px; }
 :root.clarity .bombe-freq-letter { color: var(--text); }
+
+/* ════════════════════════════════════════════════════════════════════════════════
+   ── SELECT MODE rail — badge placement fix + palette cohesion (§rail-skin·2) ──
+   The corner badges (START HERE / DAILY / LOCKED) were center-aligned flex children,
+   so on taller/selected cards or narrower frames they collided with the new reward/
+   meta content and the long "LOCKED · reach wave N" overflowed the card. Pin them to
+   the top-right corner (out of the flex flow) and reserve name space only when a badge
+   is present, so nothing overlaps at any width/scale. START/DAILY now read in the card
+   accent (green START on ENDLESS, violet DAILY on ECHO) for a cohesive palette.
+   ════════════════════════════════════════════════════════════════════════════════ */
+.ck-mi-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  align-self: auto;
+  z-index: 4;
+  max-width: calc(100% - 54px); /* never reach across to the icon */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ck-mi-badge.hidden { display: none; }
+/* reserve top-right clearance for the (top-left) name ONLY when this card carries a badge,
+   so badge-less cards (SOLSTICE/ARENA/BOSS RUSH) keep their full name width */
+.ck-mi:has(.ck-mi-badge:not(.hidden)) .ck-mi-name { padding-right: 66px; }
+/* START/DAILY ride the card accent for palette cohesion (LOCKED stays a red warning) */
+.ck-mi-badge.start,
+.ck-mi-badge.daily {
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.16);
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.45);
+  text-shadow: 0 0 8px rgba(var(--accent-rgb, 34, 211, 238), 0.35);
+}
+/* clarity: drop the badge glow, keep the text crisp */
+.clarity .ck-mi-badge.start,
+.clarity .ck-mi-badge.daily { text-shadow: none; color: #e6edf6; border-width: 1px; }

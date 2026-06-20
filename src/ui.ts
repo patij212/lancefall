@@ -383,10 +383,10 @@ const RAIL_ACCENTS: Record<string, string> = {
   endless: '#22d3ee',
   arena: '#22d3ee',
   bossrush: '#fb923c',
-  daily: '#fbbf24',
-  weekly: '#f59e0b',
+  daily: '#c084fc',
+  weekly: '#a78bfa',
   nightmare: '#f87171',
-  longestday: '#c084fc',
+  longestday: '#fbbf24', // SOLSTICE — the flagship campaign: beautiful gold (the longest day / returning light)
 };
 function railAccent(id: string): string {
   return RAIL_ACCENTS[id] ?? '#22d3ee';
@@ -3057,7 +3057,10 @@ export class UI {
         const badge = card.querySelector('.ck-mi-badge') as HTMLElement;
         if (!unlocked) {
           badge.className = 'ck-mi-badge locked';
-          badge.textContent = `LOCKED · reach wave ${modeById(primary).unlockedAtWave}`;
+          badge.textContent = 'LOCKED'; // compact corner tag; the requirement rides the note chip below
+          // surface the unlock requirement in-flow (the old long "· reach wave N" overflowed the card)
+          subEl.textContent = `REACH WAVE ${modeById(primary).unlockedAtWave}`;
+          subEl.classList.remove('empty');
         } else if (activeId === 'casual' && s.totalRuns === 0) {
           badge.className = 'ck-mi-badge start';
           badge.textContent = 'START HERE';
