@@ -14,7 +14,7 @@ import { GLOSS_IDS } from './gloss';
 import { SHIP_SKINS } from './shipSkins';
 import { SHIPS } from './ships';
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 /** Bring a raw parsed save object up to the current schema. Pure + total. */
 export function migrateSave(raw: unknown, base: SaveData): SaveData {
@@ -96,6 +96,9 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // v9 — vigilSince is a totalRuns ordinal or the -1 "not holding" sentinel: integer >= -1.
   if (typeof o.vigilSince === 'number') o.vigilSince = Math.max(-1, Math.floor(o.vigilSince));
   else o.vigilSince = b.vigilSince;
+  // v9 → v10: THE CITY SPEAKS — citizenDeeds (open-ended id set, deduped like `taught`) + the
+  //           seenPremiseCard flag. Additive → the generic loader default-fills; this filters the set.
+  out.citizenDeeds = sanitizeTaught(out.citizenDeeds);
   // v7 RECORDS — non-negative integers (whole seconds / counts); the generic loop above only
   // ensured they're finite numbers, so clamp a hand-edited negative/fractional value here.
   for (const k of ['longestRunSec', 'fastestArenaSec', 'mostBossesOneRun', 'lifeTimeSec']) {

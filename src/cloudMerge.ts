@@ -45,6 +45,9 @@ export const MERGE_CATEGORIES: Record<keyof SaveData, MergeCategory> = {
   // (same as their sibling stillpointChoice) so the (choice, released, choiceDate) triple always
   // resolves together from one device's write and can never desync (released=true with choice!='fall').
   vigilSince: 'minStamp', released: 'latest', choiceDate: 'latest',
+  // v10 THE CITY SPEAKS — citizenDeeds unions (never lose a deed-woken face); seenPremiseCard is the
+  // once-ever first-boot flag (latest write wins, same as the other seen-flags).
+  citizenDeeds: 'set', seenPremiseCard: 'latest',
   runHistory: 'ringHistory',
   lastRuns: 'ringLastRuns',
   shards: 'shardsSpecial',

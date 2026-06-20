@@ -414,7 +414,7 @@ describe('v8 -> v9 (THE LAST WORD vigil fields)', () => {
     const v8 = { version: 8, highScore: 1234, stillpointChoice: 'catch' };
     const out = migrateSave(v8, defaultSave());
     expect(out.version).toBe(SAVE_VERSION);
-    expect(out.version).toBe(9);
+    expect(out.version).toBe(10);
     expect(out.highScore).toBe(1234);
     expect(out.vigilSince).toBe(-1);
     expect(out.released).toBe(false);
@@ -427,5 +427,19 @@ describe('v8 -> v9 (THE LAST WORD vigil fields)', () => {
     expect(out2.vigilSince).toBe(-1);
     const out3 = migrateSave({ version: 9, vigilSince: 'x' }, defaultSave());
     expect(out3.vigilSince).toBe(-1);
+  });
+});
+
+describe('v9 -> v10 (THE CITY SPEAKS)', () => {
+  it('default-fills citizenDeeds + seenPremiseCard for a v9 save', () => {
+    const out = migrateSave({ version: 9, highScore: 5 }, defaultSave());
+    expect(out.version).toBe(SAVE_VERSION);
+    expect(out.version).toBe(10);
+    expect(out.citizenDeeds).toEqual([]);
+    expect(out.seenPremiseCard).toBe(false);
+  });
+  it('sanitizes a hand-edited citizenDeeds to a deduped string[]', () => {
+    const out = migrateSave({ version: 10, citizenDeeds: ['a', 'a', 1, 'b'] }, defaultSave());
+    expect(out.citizenDeeds.sort()).toEqual(['a', 'b']);
   });
 });

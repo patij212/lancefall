@@ -222,6 +222,11 @@ export interface SaveData {
   released: boolean;
   /** YYYY-MM-DD (dateString()) when THE CHOICE was first made; '' = never made. */
   choiceDate: string;
+  // ── v10 THE CITY SPEAKS — delivery layer. All additive; meta-only (never read in seeded sim). ──
+  /** citizen ids woken through in-run deeds (parallel to decryption); see cityVoice.deedsMet. */
+  citizenDeeds: string[];
+  /** the once-ever premise card has been shown (or skipped) before the first sandbox. */
+  seenPremiseCard: boolean;
 }
 
 export interface Settings {
@@ -343,6 +348,8 @@ export function defaultSave(): SaveData {
     vigilSince: -1,
     released: false,
     choiceDate: '',
+    citizenDeeds: [],
+    seenPremiseCard: false,
   };
 }
 

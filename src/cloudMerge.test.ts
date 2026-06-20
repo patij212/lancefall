@@ -48,6 +48,10 @@ describe('mergeSaves — categories', () => {
     // both unset → stays -1 (so makeChoice/daysHeld `< 0` guards keep working; never collapses to 0)
     expect(mergeSaves(mk({ vigilSince: -1 }), mk({ vigilSince: -1 }), 1, 2).vigilSince).toBe(-1);
   });
+  it('merges citizenDeeds as a union (never lose a met deed)', () => {
+    const m = mergeSaves(mk({ citizenDeeds: ['gatewarden'] }), mk({ citizenDeeds: ['ferryman'] }), 1, 2);
+    expect(new Set(m.citizenDeeds)).toEqual(new Set(['gatewarden', 'ferryman']));
+  });
 });
 
 describe('mergeSaves — spendable reconcile (the windfall, §7.1)', () => {
