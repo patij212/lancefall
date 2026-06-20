@@ -3816,6 +3816,10 @@ export class UI {
     this.goResolveTimer = window.setTimeout(() => this.goResolve.classList.remove('show'), 3200);
   }
 
+  /** THE COMPLETION — play the chosen ending over the skyline and name every woken citizen's fate.
+   *  Reuses the resolve wash. Full implementation in Task 14. */
+  playCompletion(_which: 'catch' | 'fall', _save: SaveData, _head: string, _line: string): void { /* Task 14 */ }
+
   showGameOver(info: GameOverInfo): void {
     this.displayScore = 0;
     this.goScore.textContent = '0';

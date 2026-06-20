@@ -81,6 +81,7 @@ import { glyphArt } from './glyphArt';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder, type ShareMeta } from './replay';
 import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
+import { canRelease } from './ending';
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
@@ -3314,13 +3315,29 @@ export class Game {
     }
   }
 
-  /** THE CHOICE — the player decides the kingdom's fate after felling the
-   *  Sovereign. Cosmetic/personal: saved to localStorage, never touches rng. */
+  /** THE CHOICE — the player decides the kingdom's fate after felling the Sovereign. On CATCH the
+   *  Vigil begins (stamp the run ordinal + date so daysHeld can derive). Cosmetic/personal: saved
+   *  to localStorage, never touches rng. */
   private makeChoice(c: 'catch' | 'fall'): void {
     this.save.stillpointChoice = c;
+    if (this.save.choiceDate === '') this.save.choiceDate = dateString();
+    if (c === 'catch' && this.save.vigilSince < 0) this.save.vigilSince = this.save.totalRuns;
     saveSave(this.save);
     const end = choiceEnding(c);
     this.ui.resolveChoice(end.head, end.line);
+  }
+
+  /** THE LIVING CHOICE — let the day turn after a long Vigil. Permitted only once daysHeld reaches
+   *  the threshold (ending.canRelease). Flips catch -> fall (the completion), marks it final, and
+   *  asks the UI to play the completion sequence. Returns whether it fired. Save-side; no rng. */
+  public requestReleaseTheDay(): boolean {
+    if (!canRelease(this.save)) return false;
+    this.save.stillpointChoice = 'fall';
+    this.save.released = true;
+    saveSave(this.save);
+    const end = choiceEnding('fall');
+    this.ui.playCompletion('fall', this.save, end.head, end.line); // added in Task 14
+    return true;
   }
 
   /** Evaluate + award the decryption (meta) achievements from the current save state (the console
