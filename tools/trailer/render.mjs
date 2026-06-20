@@ -177,40 +177,50 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
       const g = window.__lf, w = g.world, p = w && w.player;
       if (o.god && p) { p.iframe = Math.max(p.iframe || 0, 60); p.alive = true; if (p.shields != null) p.shields = p.maxShields; g.dying = false; g.winning = false; }
       if (o.stamina && p) p.stamina = 300; // infinite dashes → the aggro pilot chains without recharge gaps
-      // FLOW: hold the combo decay window so the chain survives between dashes (the multiplier still
-      // only GROWS on real kills); keep OVERDRIVE off so a DAYBREAK can't clear the field.
+      // CALM the screen-shake so dense scenes stay readable (trauma model: cap intensity + trauma).
+      if (o.calm && g.shake) { g.shake.intensity = 0.2; if (g.shake.trauma > 0.26) g.shake.trauma = 0.26; }
+      // THIN bullet WALLS so the (god-mode) player isn't seen tanking a curtain of fire — keep just
+      // enough for an "under fire" read. Deactivates the surplus past the cap each frame.
+      if (o.thin && w && w.bullets) { let c = 0; for (const b of w.bullets.items) if (b.active) { if (++c > o.thin) b.active = false; } }
       if (o.comboHold && w && w.combo > 0) w.comboTimer = 10;
       if (o.noOverdrive && w && w.overdrive) w.overdrive.meter = 0;
-      // FLOW: a clean DENSE melee swarm — clear all bullets + any non-flow (bullet) enemies each
-      // frame and maintain N marked melee chasers, so the aggro pilot's dashes spear clusters
-      // non-stop and the held combo CLIMBS (god-mode otherwise makes the bot passive).
+      // FLOW: a clean DENSE swarm of VARIED melee kinds — clear all bullets + non-flow (bullet)
+      // enemies each frame, maintain N marked melee chasers; the aggro pilot spears clusters non-stop.
       if (o.spawn && w && w.enemies && w.spawnEnemy) {
         if (w.bullets) for (const b of w.bullets.items) if (b.active) b.active = false;
         let n = 0; for (const e of w.enemies.items) { if (!e.active || e.isBoss) continue; if (!e.__flow) e.active = false; else n++; }
-        const kinds = ['wisp', 'darter', 'wisp', 'darter', 'wisp', 'brooder'];
-        while (n < 12) { const a = Math.random() * Math.PI * 2; const en = w.spawnEnemy(kinds[Math.floor(Math.random() * kinds.length)], w.width / 2 + Math.cos(a) * 380, w.height / 2 + Math.sin(a) * 250, 1, 1, false, false); if (en) { en.__flow = true; n++; } else break; }
+        const kinds = ['wisp', 'darter', 'splitter', 'shade', 'brooder', 'drifter', 'mini', 'wisp', 'darter'];
+        while (n < 9) { const a = Math.random() * Math.PI * 2; const en = w.spawnEnemy(kinds[Math.floor(Math.random() * kinds.length)], w.width / 2 + Math.cos(a) * 380, w.height / 2 + Math.sin(a) * 250, 1, 1, false, false); if (en) { en.__flow = true; n++; } else break; }
+      }
+      // VARIETY: alongside the natural waves, keep a rotating mix of the WHOLE bestiary on screen so
+      // the trailer shows more than darters — snipers, splitters, bombers, the gap-wall herald, the
+      // homing seeker, bloomers… (the survival bot dodges + kills them; bullets are thinned above).
+      if (o.variety && w && w.spawnEnemy) {
+        let n = 0; for (const e of w.enemies.items) if (e.active && !e.isBoss) n++;
+        if (n < 8) { const all = ['orbiter', 'splitter', 'bomber', 'lancer', 'shade', 'brooder', 'drifter', 'seeker', 'herald', 'bloomer', 'wisp', 'darter']; const a = Math.random() * Math.PI * 2; try { w.spawnEnemy(all[Math.floor(Math.random() * all.length)], w.width / 2 + Math.cos(a) * 430, w.height / 2 + Math.sin(a) * 290, 1, 1, false, false); } catch {} }
       }
       if (o.pin && w) for (const e of w.enemies.items) if (e.active && e.isBoss) { e.x = o.pin.x; e.y = o.pin.y; e.vx = 0; e.vy = 0; }
       g.__t += 1000 / 60;
       g.frame(g.__t);
-    }, { god: !!opts.god, pin: opts.pin || null, stamina: !!opts.stamina, comboHold: !!opts.comboHold, spawn: !!opts.spawn, noOverdrive: !!opts.noOverdrive });
-    await page.screenshot({ path: path.join(dir, `f_${String(i).padStart(5, '0')}.png`) });
+    }, { god: !!opts.god, pin: opts.pin || null, stamina: !!opts.stamina, comboHold: !!opts.comboHold, spawn: !!opts.spawn, noOverdrive: !!opts.noOverdrive, calm: !!opts.calm, thin: opts.thin || 0, variety: !!opts.variety });
+    await page.screenshot({ path: path.join(dir, `f_${String(i).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 92 });
   }
   await ctx.close();
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
-  // assemble CFR 60fps
+  // assemble CFR 60fps (jpeg frames encode far faster to write than png; the x264 pass dominates quality)
   const out = path.join(MP4, name + '.mp4');
-  execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i "${path.join(dir, 'f_%05d.png')}" -c:v libx264 -crf 17 -pix_fmt yuv420p -r ${FPS} "${out}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
+  execSync(`ffmpeg -y -loglevel error -framerate ${FPS} -i "${path.join(dir, 'f_%05d.jpg')}" -c:v libx264 -crf 17 -pix_fmt yuv420p -r ${FPS} "${out}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
   log(`✓ ${name}: ${frameCount} frames in ${secs}s → ${out}`);
 }
 
 // ── beat directors (gameplay only; panels/title/cards are stills/art handled in edit) ──
 const PIN = { x: Math.round(SW * 0.5), y: Math.round(SH * 0.42) };
 const BEATS = {
-  // combat verb — fast-forwarded to MID-GAME (dense waves, drafted perks) for the juiciest dashes
+  // combat verb — mid-game, with a rotating VARIETY of the whole bestiary on screen (not just
+  // darters), calmed shake + thinned bullets so it reads. The survival bot dodges + kills.
   combat: () => renderBeat('combat', Math.round(14 * FPS), async (page) => {
     await startRun(page, 'arena', true);
-  }, { god: true, warmup: 22 }),
+  }, { god: true, warmup: 22, calm: true, thin: 28, variety: true }),
 
   // FLOW — the "perfect synergy of movement" section: warm up to draft AoE perks, then the AGGRO
   // pilot dashes non-stop through a dense melee swarm (spawn) with infinite stamina, the combo
@@ -218,7 +228,7 @@ const BEATS = {
   flow: () => renderBeat('flow', Math.round(19 * FPS), async (page) => {
     await startRun(page, 'arena', true);
   }, {
-    god: true, stamina: true, comboHold: true, spawn: true, noOverdrive: true, warmup: 14,
+    god: true, stamina: true, comboHold: true, spawn: true, noOverdrive: true, calm: true, warmup: 14,
     afterWarmup: async (page) => { await page.evaluate(`(${AGGRO_PILOT.toString()})()`); },
   }),
 
@@ -234,7 +244,7 @@ const BEATS = {
     await page.evaluate(() => window.__lf.spawnWarden('weaver'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
     await page.evaluate(`(${CIPHER_PILOT.toString()})()`);
-  }, { god: true, pin: PIN }),
+  }, { god: true, pin: PIN, calm: true, thin: 20 }),
 
   // SOLSTICE PROTOCOL at its best — THE SOVEREIGN, the master (rotor) cipher (a glimpse of the big ring)
   sovereign: () => renderBeat('sovereign', Math.round(9 * FPS), async (page) => {
@@ -242,7 +252,7 @@ const BEATS = {
     await page.evaluate(() => window.__lf.spawnWarden('sovereign'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
     await page.evaluate(`(${CIPHER_PILOT.toString()})()`);
-  }, { god: true, pin: PIN }),
+  }, { god: true, pin: PIN, calm: true, thin: 20 }),
 
   // BULLET-HELL boss — THE BEACON's rotating cross-beams, the bot threading them (a boss IS late-game;
   // no warmup — a boss present during the fast-forward navigates the page on the win/over path).
@@ -250,7 +260,7 @@ const BEATS = {
     await startRun(page, 'arena', true);
     await page.evaluate(() => window.__lf.spawnWarden('beacon'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { god: true, pin: PIN }),
+  }, { god: true, pin: PIN, calm: true, thin: 30 }),
 
   // the Mirrorblade — the imitation game
   mirror: () => renderBeat('mirror', Math.round(9 * FPS), async (page) => {
