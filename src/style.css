@@ -5788,3 +5788,211 @@ body {
 :root.clarity .bombe-master-fill { box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent); }
 :root.clarity .bombe-pz-hint, :root.clarity .bombe-status { color: var(--text); }
 :root.clarity .bombe-master-label { color: var(--text); }
+
+/* ════════════════════════════════════════════════════════════════════════════════
+   ── SELECT MODE rail — visual re-skin (§rail-skin) ──
+   Turns the six title-screen mode cards from a flat grey list into a coloured PALETTE
+   keyed off each card's per-mode --accent / --accent-rgb (set by railAccent() in ui.ts):
+   border + glow + icon tile + difficulty pips + note chip + reward chip + variant toggle
+   all read from one accent, the SELECTED card becomes a lit hero (bloom + enlarged icon +
+   one-shot sweep + faint cipher-glyph texture, the decryption motif), and LOCKED cards read
+   enciphered/grey and "resolve" to colour when unlocked. This block is appended LAST so its
+   equal-specificity rules win over the base .ck-mi styling above. Behaviour is untouched —
+   the ui.ts render still owns classes/--accent/dataset; this is pure paint.
+   A11y: reduce-motion → static (no lift/sweep/texture-anim); reduce-flashing → no strobe;
+   clarity → crisp text, dialled-back glow; colorblind → difficulty by pip COUNT, never hue;
+   cards stay a ≥64px touch target.
+   ════════════════════════════════════════════════════════════════════════════════ */
+
+/* a faint repeating cipher-glyph tile (the game's decryption soul). Neutral white at low
+   layer-opacity so the card's accent shows through; reused by hero + locked states. */
+:root {
+  --mi-cipher: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='76' height='48'%3E%3Cg font-family='monospace' font-size='10' fill='%23ffffff' fill-opacity='0.05'%3E%3Ctext x='3' y='13'%3E7%3C/text%3E%3Ctext x='24' y='32'%3E0%3C/text%3E%3Ctext x='46' y='12'%3Ex%3C/text%3E%3Ctext x='62' y='40'%3E1%3C/text%3E%3Ctext x='13' y='44'%3E%23%3C/text%3E%3Ctext x='54' y='27'%3E4%3C/text%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ── the card: a coloured key, ≥64px touch target, smooth morph transitions ── */
+.ck-mi {
+  min-height: 64px;
+  /* a hairline accent rest-tint so even the idle rail reads as six colours, not six greys */
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.14);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+}
+.ck-mi:hover:not(.selected):not(.locked) {
+  transform: translateY(-2px);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb, 34, 211, 238), 0.1) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.02) 70%, transparent 100%);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.34);
+  box-shadow: 0 4px 16px -6px rgba(var(--accent-rgb, 34, 211, 238), 0.3);
+}
+
+/* ── HERO: the selected card — accent bloom + lit wash + cipher texture + a one-shot sweep ── */
+.ck-mi.selected {
+  background:
+    var(--mi-cipher) 0 0 / 76px 48px,
+    linear-gradient(90deg, rgba(var(--accent-rgb, 34, 211, 238), 0.2) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.07) 44%, rgba(var(--accent-rgb, 34, 211, 238), 0.02) 100%);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.5);
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb, 34, 211, 238), 0.22) inset,
+    0 6px 30px -8px rgba(var(--accent-rgb, 34, 211, 238), 0.4);
+}
+/* a single accent sheen that sweeps across once when a mode becomes the hero */
+.ck-mi::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(var(--accent-rgb, 34, 211, 238), 0.22) 50%, transparent 70%);
+}
+.ck-mi.selected::after { animation: miSweep 0.7s ease-out 1; }
+@keyframes miSweep {
+  0% { opacity: 0; transform: translateX(-40%); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(40%); }
+}
+/* the accent bar (::before) already grows to full height on select — give the hero a brighter bar */
+.ck-mi.selected::before { box-shadow: 0 0 14px rgba(var(--accent-rgb, 34, 211, 238), 0.85); width: 5px; }
+
+/* ── icon tile: accent-tinted; the hero's is enlarged + glowing ── */
+.ck-mi-icon {
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.06);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.16);
+  transition: width 0.2s ease, height 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ck-mi:hover:not(.selected) .ck-mi-icon { border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.3); }
+.ck-mi.selected .ck-mi-icon {
+  width: 42px;
+  height: 42px;
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.16);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.55);
+  box-shadow: 0 0 18px -2px rgba(var(--accent-rgb, 34, 211, 238), 0.55), 0 0 0 1px rgba(var(--accent-rgb, 34, 211, 238), 0.25) inset;
+}
+.ck-mi.selected .ck-mi-icon svg { width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(var(--accent-rgb, 34, 211, 238), 0.7)); }
+
+/* ── meta row: difficulty pips + reward chip on one line ── */
+.ck-mi-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+/* difficulty gauge — 3 pips; COUNT carries the tier (colourblind-safe), accent is decoration.
+   data-tier set in ui.ts: STANDARD→1, HARD→2, BRUTAL→3 filled. */
+.ck-mi-pips { display: inline-flex; gap: 3px; align-items: center; flex-shrink: 0; }
+.ck-mi-pip {
+  width: 9px;
+  height: 5px;
+  border-radius: 1.5px;
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.ck-mi[data-tier='STANDARD'] .ck-mi-pip:nth-child(-n+1),
+.ck-mi[data-tier='HARD'] .ck-mi-pip:nth-child(-n+2),
+.ck-mi[data-tier='BRUTAL'] .ck-mi-pip:nth-child(-n+3) {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(var(--accent-rgb, 34, 211, 238), 0.55);
+}
+/* reward chip — the shard multiplier, accent-tinted; ◆ glyph prefix ties it to shards */
+.ck-mi-reward {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: rgba(var(--accent-rgb, 34, 211, 238), 0.78);
+  padding: 1.5px 6px 1.5px 5px;
+  border-radius: 3px;
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.08);
+  border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.18);
+  white-space: nowrap;
+}
+.ck-mi-reward::before { content: '◆ '; opacity: 0.85; }
+.ck-mi:not(.selected) .ck-mi-reward { color: #8aa0bd; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.07); }
+
+/* ── note → chip (CIPHER / WINNABLE / SEEDED / SUDDEN DEATH / OFF-BOARD); hidden when empty ── */
+.ck-mi-sub {
+  display: inline-block;
+  font-size: 7.5px;
+  padding: 1.5px 6px;
+  border-radius: 3px;
+  margin-top: 4px;
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.08);
+  border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.16);
+  color: rgba(var(--accent-rgb, 34, 211, 238), 0.82);
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ck-mi-sub.empty { display: none; }
+.ck-mi:not(.selected) .ck-mi-sub { color: #8aa0bd; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.07); }
+.ck-mi.selected .ck-mi-sub { color: var(--accent); border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.4); }
+
+/* ── variant pills → a crisp segmented toggle (the active segment accent-filled) ── */
+.ck-mi-pill {
+  gap: 0;
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.2);
+}
+.ck-mi-pill-seg {
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  color: rgba(255, 255, 255, 0.42);
+}
+.ck-mi-pill-seg:not(.on):hover { color: rgba(255, 255, 255, 0.75); background: rgba(var(--accent-rgb, 34, 211, 238), 0.1); }
+.ck-mi-pill-seg.on {
+  color: #04060a;
+  background: var(--accent);
+  box-shadow: 0 1px 6px -1px rgba(var(--accent-rgb, 34, 211, 238), 0.6);
+}
+
+/* ── LOCKED: enciphered grey — scrambled glyph wash, desaturated, no accent ── */
+.ck-mi.locked {
+  opacity: 0.62;
+  background:
+    var(--mi-cipher) 0 0 / 76px 48px,
+    rgba(255, 255, 255, 0.012);
+  border-color: rgba(255, 255, 255, 0.06);
+  filter: grayscale(0.9) brightness(0.92);
+}
+.ck-mi.locked .ck-mi-icon { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.07); color: #5a6b80; }
+.ck-mi.locked .ck-mi-pip { background: rgba(255, 255, 255, 0.07); box-shadow: none; }
+.ck-mi.locked .ck-mi-reward,
+.ck-mi.locked .ck-mi-sub { color: #5a6b80; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.06); }
+.ck-mi.locked .ck-mi-name { color: #5a6b80; letter-spacing: 0.16em; }
+
+/* ── flavour footer: a dossier line tinted to the SELECTED accent (.ck-main carries it) ── */
+.mode-flavor {
+  border-top: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.14);
+  border-left: 2px solid rgba(var(--accent-rgb, 34, 211, 238), 0.4);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb, 34, 211, 238), 0.045), rgba(var(--accent-rgb, 34, 211, 238), 0.012));
+  color: #5e7388;
+}
+.clarity .mode-flavor { color: #aebccc; background: none; }
+
+/* ════════════ A11y overrides — match the existing rail/bombe patterns ════════════ */
+/* reduce-motion: no lift, no sweep, no icon-resize transition — static accent states only */
+.reduce-motion .ck-mi,
+.reduce-motion .ck-mi-icon,
+.reduce-motion .ck-mi-pip,
+.reduce-motion .ck-mi-pill-seg { transition: none !important; }
+.reduce-motion .ck-mi:hover:not(.selected):not(.locked) { transform: none; }
+.reduce-motion .ck-mi::after,
+.reduce-motion .ck-mi.selected::after { animation: none !important; opacity: 0; display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ck-mi, .ck-mi-icon, .ck-mi-pip, .ck-mi-pill-seg { transition: none !important; }
+  .ck-mi:hover:not(.selected):not(.locked) { transform: none; }
+  .ck-mi::after, .ck-mi.selected::after { animation: none !important; opacity: 0; display: none; }
+}
+/* reduce-flashing: no sweeping strobe — the hero settles to a soft static accent edge */
+.reduce-flashing .ck-mi.selected::after { animation: none !important; opacity: 0; }
+/* clarity (high-contrast): crisp text, calmer glow/texture, thicker borders, lift the dim note */
+.clarity .ck-mi.selected { background-image: none; background: linear-gradient(90deg, rgba(var(--accent-rgb, 34, 211, 238), 0.16) 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.04) 100%); box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 34, 211, 238), 0.55) inset; }
+.clarity .ck-mi.locked { background-image: none; filter: none; }
+.clarity .ck-mi.selected .ck-mi-icon { box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 34, 211, 238), 0.6) inset; }
+.clarity .ck-mi.selected .ck-mi-icon svg { filter: none; }
+.clarity .ck-mi-sub, .clarity .ck-mi-reward { color: #e6edf6; }
+.clarity .ck-mi:not(.selected) .ck-mi-sub, .clarity .ck-mi:not(.selected) .ck-mi-reward { color: #cdd6e3; }
+.clarity .ck-mi-pip { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset; }

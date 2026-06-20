@@ -2951,6 +2951,20 @@ export class UI {
           { class: 'ck-mi-text' },
           el('div', { class: 'ck-mi-name' }, cardTitle),
           el('div', { class: 'ck-mi-sub' }),
+          // §rail-skin — visual difficulty gauge (pip COUNT carries tier, colourblind-safe) +
+          // the shard-reward chip (modeBrief.reward, previously computed but never surfaced here).
+          el(
+            'div',
+            { class: 'ck-mi-meta' },
+            el(
+              'div',
+              { class: 'ck-mi-pips', role: 'img' },
+              el('i', { class: 'ck-mi-pip' }),
+              el('i', { class: 'ck-mi-pip' }),
+              el('i', { class: 'ck-mi-pip' }),
+            ),
+            el('div', { class: 'ck-mi-reward' }),
+          ),
           el('div', { class: 'ck-mi-pb hidden' }),
         );
         if (multi) {
@@ -3007,7 +3021,15 @@ export class UI {
         card.title = unlocked ? m.desc : `Locked — reach wave ${modeById(primary).unlockedAtWave} to unlock ${title}.`;
 
         (card.querySelector('.ck-mi-icon') as HTMLElement).innerHTML = MODE_ICONS[activeId] ?? MODE_ICONS[primary] ?? '';
-        (card.querySelector('.ck-mi-sub') as HTMLElement).textContent = `${brief.tier}${brief.note ? ` · ${brief.note}` : ''}`;
+        // §rail-skin — the tier word is now the pip gauge (data-tier drives fill in CSS); the
+        // sub-line carries ONLY the note as a chip (kills the repeated plain "STANDARD"), hidden
+        // when a mode has no note. Reward chip surfaces the shard multiplier.
+        const subEl = card.querySelector('.ck-mi-sub') as HTMLElement;
+        subEl.textContent = brief.note;
+        subEl.classList.toggle('empty', !brief.note);
+        card.dataset.tier = brief.tier;
+        (card.querySelector('.ck-mi-pips') as HTMLElement).setAttribute('aria-label', `Difficulty: ${brief.tier}`);
+        (card.querySelector('.ck-mi-reward') as HTMLElement).textContent = brief.reward;
 
         // PB line — selected card only. The "PB" tag is a dim ::before prefix; render value only.
         const pb = card.querySelector('.ck-mi-pb') as HTMLElement;
