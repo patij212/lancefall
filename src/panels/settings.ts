@@ -26,6 +26,8 @@ export interface SettingsPanelDeps {
   /** ACT TWO — clear the persisted teach flags (taught set + seenSandbox + glosses + first-run
    *  flags) so the whole onboarding replays from scratch on the next descent. */
   onReplayTutorial: () => void;
+  /** open the ACCOUNT sign-in panel. */
+  onOpenAccount: () => void;
   /** dismiss the modal (DONE). */
   onClose: () => void;
 }
@@ -141,6 +143,7 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
   // Cloud save — only shown when a backend is configured (VITE_LEADERBOARD_URL set).
   // The opt-in flag lives in localStorage (per-device, never synced).
   let cloudSaveRow: HTMLElement | null = null;
+  let manageAccountRow: HTMLElement | null = null;
   if (leaderboardEnabled()) {
     const cloudInput = el('input', { type: 'checkbox' }) as HTMLInputElement;
     cloudInput.checked = account.optedIn();
@@ -153,6 +156,9 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       el('small', { class: 'setting-sublabel' }, 'Back up progress to the cloud for this device'),
     );
     cloudSaveRow = el('label', { class: 'setting setting-toggle', 'data-testid': 'cloud-save-row' }, labelSpan, cloudInput);
+    const manageBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button', 'data-testid': 'manage-account-btn' }, 'Manage account');
+    manageBtn.addEventListener('click', () => deps.onOpenAccount());
+    manageAccountRow = el('div', { class: 'setting' }, el('span', {}, 'Account'), manageBtn);
   }
 
   // ACT TWO — Tutorial hints toggle + a one-tap "Replay tutorial" that re-arms the whole
@@ -215,7 +221,8 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       toggle('Tutorial hints', s.tutorialHints, (v) => deps.patch({ tutorialHints: v })),
       replayRow,
       cityMemRow,
-      ...(cloudSaveRow ? [cloudSaveRow] : [])) },
+      ...(cloudSaveRow ? [cloudSaveRow] : []),
+      ...(manageAccountRow ? [manageAccountRow] : [])) },
     { id: 'access', name: 'ACCESS', el: sect('access',
       toggle('Reduce flashing', s.reduceFlashing, (v) => deps.patch({ reduceFlashing: v })),
       toggle('Reduce motion', s.reduceMotion, (v) => deps.patch({ reduceMotion: v })),

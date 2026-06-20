@@ -60,6 +60,8 @@ import { hasAffordableDecrypt } from './intercepts';
 import { cityCoherence } from './cityCoherence';
 import { bombeCostMul } from './bombe';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
+import { buildAccountPanel, type AccountPanel } from './panels/account';
+import * as accountLib from './account';
 import type { Panel } from './panels/panel';
 import { buildCreditsPanel } from './panels/credits';
 import { buildDuelPanel, type DuelPanel } from './panels/duel';
@@ -493,6 +495,8 @@ export class UI {
   private heatPanel!: HTMLElement;
   private archetypePanel!: HTMLElement;
   private leaderPanel!: HTMLElement;
+  private account!: AccountPanel;
+  private accountPanel!: HTMLElement;
   private duelPanel!: HTMLElement;
   private inspectPanel!: HTMLElement;
   private toastLayer!: HTMLElement;
@@ -704,6 +708,7 @@ export class UI {
     this.buildBombe();
     this.buildArchetype();
     this.buildLeaderboard();
+    this.buildAccount();
     this.buildDuel();
     this.buildInspect();
     this.buildShare();
@@ -713,7 +718,7 @@ export class UI {
     // toasts are polite (ambient), announces are assertive (emphatic, used sparingly).
     this.toastLayer = el('div', { class: 'toast-layer', role: 'status', 'aria-live': 'polite' });
     this.announceEl = el('div', { class: 'announce', role: 'status', 'aria-live': 'polite' });
-    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.bombePanel, this.archetypePanel, this.leaderPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.srOverlay, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
+    this.root.append(this.hud, this.title, this.pause, this.gameover, this.draft, this.eventPanel, this.settingsPanel, this.statsPanel, this.upgradesPanel, this.codexPanel, this.skinsPanel, this.cosmeticsPanel, this.shipPicker, this.creditsPanel, this.heatPanel, this.bombePanel, this.archetypePanel, this.leaderPanel, this.accountPanel, this.duelPanel, this.inspectPanel, this.sharePanel, this.srOverlay, this.sandboxOverlay, this.toastLayer, this.announceEl, this.glossEl);
     // accessibility: announce overlays as dialogs
     const dialogs: [HTMLElement, string][] = [
       [this.pause, 'Paused'],
@@ -766,6 +771,7 @@ export class UI {
       [this.bombePanel, 'THE BOMBE'],
       [this.archetypePanel, 'Build archetype'],
       [this.leaderPanel, 'Leaderboard'],
+      [this.accountPanel, 'Account'],
       [this.duelPanel, 'Seed duel'],
       [this.inspectPanel, 'Inspect a build'],
       [this.sharePanel, 'Share your run'],
@@ -1946,6 +1952,7 @@ export class UI {
       onToggleCityMemory: (v) => this.cb.onToggleCityMemory(v),
       setRebinding: (a) => { this.rebinding = a; },
       onReplayTutorial: () => this.cb.onReplayTutorial(),
+      onOpenAccount: () => this.openAccount(),
       onClose: () => this.closeSettings(),
     });
     this.settingsPanel = this.settingsModal.root;
@@ -2815,6 +2822,20 @@ export class UI {
     if (!this.saveRef) return;
     this.leader.open(this.saveRef, prompt);
     this.openModal(this.leaderPanel);
+  }
+
+  private buildAccount(): void {
+    this.account = buildAccountPanel({
+      onSignIn: (p) => accountLib.startLink(p),
+      onClose: () => this.closeModal(this.accountPanel),
+    });
+    this.accountPanel = this.account.root;
+  }
+
+  openAccount(): void {
+    if (!this.saveRef) return;
+    this.account.open(this.saveRef);
+    this.openModal(this.accountPanel);
   }
 
   // ── screen control ──

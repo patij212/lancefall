@@ -13,7 +13,7 @@ const settings = (): Settings =>
   }) as unknown as Settings;
 
 const deps = (over: Partial<SettingsPanelDeps> = {}): SettingsPanelDeps => ({
-  settings: settings(), patch: vi.fn(), cityMemory: () => true, onToggleCityMemory: vi.fn(), setRebinding: vi.fn(), onReplayTutorial: vi.fn(), onClose: vi.fn(), ...over,
+  settings: settings(), patch: vi.fn(), cityMemory: () => true, onToggleCityMemory: vi.fn(), setRebinding: vi.fn(), onReplayTutorial: vi.fn(), onOpenAccount: vi.fn(), onClose: vi.fn(), ...over,
 });
 
 const toggleInput = (root: HTMLElement, label: string) =>
