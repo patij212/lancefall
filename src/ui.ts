@@ -55,6 +55,7 @@ import { renderTheSix } from './panels/fall';
 import { buildHeatPanel } from './panels/heat';
 import { buildBombePanel, type BombePanel } from './panels/bombe';
 import { hasAffordableDecrypt } from './intercepts';
+import { cityCoherence } from './cityCoherence';
 import { bombeCostMul } from './bombe';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
 import type { Panel } from './panels/panel';
@@ -552,6 +553,11 @@ export class UI {
   private playBtn!: HTMLButtonElement;
   // cockpit (v6 mock-v6) refs — header stats, center SELECTED-RUN hero, loadout
   private hsBest!: HTMLElement;
+  // CITY COHERENCE bar (now REAL, save-derived via cityCoherence.ts) — refreshed in refreshTitle
+  private cohPct!: HTMLElement;
+  private cohFill!: HTMLElement;
+  private cohSub!: HTMLElement;
+  private cohTrack!: HTMLElement;
   private hsCombo!: HTMLElement;
   private hsShards!: HTMLElement;
   private hsStreak!: HTMLElement; // 4.2 — "🔥 N day streak" header chip (hidden below 2)
@@ -1041,7 +1047,17 @@ export class UI {
     );
     const hdrLeft = el('div', { class: 'ck-hdr-left' }, iconEl('ck-logo', LOGO_SVG), brand);
 
-    // decorative CITY COHERENCE bar — flavour ONLY (no gameplay state); a static 62%.
+    // CITY COHERENCE bar — REAL, save-derived (cityCoherence.ts): a decryption-led measure of how
+    // much of the city you've brought back. Built once; the three dynamic nodes are refreshed every
+    // title open in refreshTitle. Exposed as a meter (role + aria-valuetext) since it's real state.
+    this.cohPct = el('div', { class: 'ck-coh-pct' }, '0%');
+    this.cohFill = el('div', { class: 'ck-coh-fill' });
+    this.cohSub = el('div', { class: 'ck-coh-sub' }, 'THE CITY SLEEPS IN GREY');
+    this.cohTrack = el(
+      'div',
+      { class: 'ck-coh-track', role: 'meter', 'aria-label': 'City coherence', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' },
+      this.cohFill,
+    );
     const coherence = el(
       'div',
       { class: 'ck-coh' },
@@ -1050,10 +1066,10 @@ export class UI {
         { class: 'ck-coh-row' },
         iconEl('ck-coh-icon', COH_CITY_SVG),
         el('div', { class: 'ck-coh-lbl' }, 'CITY COHERENCE'),
-        el('div', { class: 'ck-coh-pct' }, '62%'),
+        this.cohPct,
       ),
-      el('div', { class: 'ck-coh-track' }, el('div', { class: 'ck-coh-fill' })),
-      el('div', { class: 'ck-coh-sub' }, 'NEON BLOOMS AS THE CITY REMEMBERS'),
+      this.cohTrack,
+      this.cohSub,
     );
 
     // header stats — repurpose titleBest (BEST RUN) + shardLine (SHARDS); add BEST COMBO.
@@ -2744,6 +2760,15 @@ export class UI {
     const streaking = save.playStreak >= 2;
     this.hsStreak.classList.toggle('hidden', !streaking);
     if (streaking) this.hsStreak.textContent = `🔥 ${save.playStreak} day streak`;
+
+    // ── CITY COHERENCE bar — REAL now: a save-derived %, dynamic tagline, a11y-safe eased fill.
+    //    Agrees with the cockpit backdrop + the BOMBE master meter (all decryption-led). ──
+    const coh = cityCoherence(save);
+    this.cohPct.textContent = `${coh.pct}%`;
+    this.cohFill.style.setProperty('--ck-coh-pct', `${coh.pct}%`);
+    this.cohSub.textContent = coh.tagline;
+    this.cohTrack.setAttribute('aria-valuenow', String(coh.pct));
+    this.cohTrack.setAttribute('aria-valuetext', `${coh.pct}% — ${coh.tagline}`);
 
     // NG+ toggle — appears only once the Sovereign has been felled
     const ngUnlocked = save.ngPlusLevel >= 1;

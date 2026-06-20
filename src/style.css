@@ -2921,11 +2921,17 @@ body {
 }
 .ck-coh-fill {
   height: 100%;
-  width: 62%;
+  /* REAL now — width is the save-derived coherence %, set per title refresh (cityCoherence.ts).
+     Eases toward the new value; the transition is killed under reduce-motion (below) so it snaps. */
+  width: var(--ck-coh-pct, 62%);
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   border-radius: 3px;
   position: absolute;
   left: 0;
   top: 0;
+  /* boot "grow" rides a scaleX so the held width stays the real var (a var() in the keyframe's
+     `to` doesn't reliably hold under the minified build); transform-origin keeps it growing left→right. */
+  transform-origin: left center;
   background: linear-gradient(90deg, rgba(34, 211, 238, 0.35) 0%, #22d3ee 55%, #f472b6 100%);
   box-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
 }
@@ -2934,8 +2940,8 @@ body {
   animation: ckCohFill 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
 }
 @keyframes ckCohFill {
-  from { width: 0; }
-  to { width: 62%; }
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 /* breathing leading-edge bloom riding the fill tip — the city quietly remembering.
    The hero-tier soul element; cyan, decoupled from the mode accent. */
@@ -4264,7 +4270,7 @@ body {
 .reduce-motion .ck-hero-spark { display: none; }
 /* held remembered state; the city stays half-bloomed and legible */
 .reduce-motion .screen-cockpit { --coh: 0.62; }
-.reduce-motion .ck-coh-fill { width: 62%; }
+.reduce-motion .ck-coh-fill { width: var(--ck-coh-pct, 62%); }
 .reduce-motion .ck-mi::before { transition: none !important; }
 /* morph cross-fades (reconciled cards/pips) are instant under reduced motion */
 .reduce-motion .ck-mi,
@@ -4313,7 +4319,7 @@ body {
   }
   .ck-hero-spark { display: none; }
   .screen-cockpit { --coh: 0.62; }
-  .ck-coh-fill { width: 62%; }
+  .ck-coh-fill { width: var(--ck-coh-pct, 62%); }
   .ck-mi::before { transition: none !important; }
   /* morph cross-fades (reconciled cards/pips) are instant under reduced motion */
   .p-card, .p-card-name, .p-state, .ck-heat-pip { transition: none !important; }
