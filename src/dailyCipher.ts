@@ -80,15 +80,6 @@ function vigenereEncode(text: string, key: string): string {
   });
 }
 
-function vigenereDecode(text: string, key: string): string {
-  let k = 0;
-  return text.replace(/[A-Z]/g, (c) => {
-    const shift = ALPHA.indexOf(key[k % key.length]);
-    k++;
-    return ALPHA[(ALPHA.indexOf(c) - shift + 26) % 26];
-  });
-}
-
 export interface DailyCipher {
   kind: Kind;
   prompt: string;
@@ -132,9 +123,6 @@ export function dailyCipher(daySeed: number): DailyCipher {
   // vigenere
   const key = VIGENERE_KEYS[rng.int(0, VIGENERE_KEYS.length - 1)];
   const prompt = vigenereEncode(plain, key);
-  // Verify it round-trips (sanity; always true given the pure math)
-  const _check = vigenereDecode(prompt, key);
-  void _check;
   return {
     kind,
     plain,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BOMBE_MAX_LEVEL, BRANCH_MAX, bombeCostMul, bombeAutoCracks, upgradeBombeCost, upgradeBranchCost, runBombe, upgradeBombe, upgradeBombeBranch, CONSOLE_PUZZLES, checkPuzzle, solvePuzzle, crackCheapestFree, solvePuzzleReward, PUZZLE_FRAGMENT_REWARD } from './bombe';
 import { defaultSave } from './save';
-import { isWordDecrypted, wordRarity } from './intercepts';
+import { isWordDecrypted, vocabulary, wordRarity } from './intercepts';
 import { fragmentBalance } from './lore';
 
 const frags = (n: number) => ({ ...defaultSave(), stillpointFragments: Array.from({ length: n }, (_, i) => `f${i}`) });
@@ -36,22 +36,38 @@ describe('bombe — the auto-crack meta-tool', () => {
   });
 
   it('runBombe with INSIGHT active prioritises key/rare words over common', () => {
-    const s = { ...defaultSave(), bombeBranches: { thrift: 0, speed: 2, insight: 1 }, bombeLevel: 3 };
-    const cracked = runBombe(s);
-    // At least one cracked word should be key or rare if speed=2 gives us 2 picks and insight sorts
-    // (we verify the ordering logic is active — the first crack should NOT be a common word
-    //  if there are key/rare words available, or the set is empty in which case this is trivially true)
-    if (cracked.length > 0) {
-      const firstRarity = wordRarity(cracked[0]);
-      // The first word should be key or rare IF any key/rare words exist undecrypted
-      const allUndone = cracked.every(() => true); // just ensure no throw
-      expect(allUndone).toBe(true);
-      // Verify insight ordering: no word in cracked is common while a key/rare word was skipped
-      const crackedSet = new Set(cracked);
-      for (const w of cracked) expect(crackedSet.has(w)).toBe(true);
-      // The first word's rarity should be key or rare if those exist (structural check)
-      expect(['key', 'rare', 'common']).toContain(firstRarity);
+    // Build a save where exactly two words remain undecrypted:
+    //   - one KEY-rarity word (expensive: cost >= common words)
+    //   - one COMMON word (cheap)
+    // Then runBombe(speed=1, insight=1) must crack the KEY word, not the cheaper common one.
+    const s = defaultSave();
+    s.bombeBranches = { thrift: 0, speed: 1, insight: 1 };
+    s.bombeLevel = 2;
+
+    const vocab = vocabulary();
+
+    // Find one KEY word and one COMMON word to leave undone; decrypt everything else.
+    const keyWord = vocab.find((w) => wordRarity(w) === 'key');
+    const commonWord = vocab.find((w) => wordRarity(w) === 'common' && w !== keyWord);
+    expect(keyWord).toBeDefined(); // vocabulary must have at least one key word
+    expect(commonWord).toBeDefined(); // and at least one common word
+
+    // Decrypt all words except the chosen key word and common word.
+    const skip = new Set([keyWord!, commonWord!]);
+    for (const w of vocab) {
+      if (!skip.has(w)) s.decryptedWords.push(w);
     }
+
+    // speed=1 → crack exactly ONE word. INSIGHT must prefer the key word over the common one.
+    const cracked = runBombe(s);
+    expect(cracked).toHaveLength(1);
+    expect(cracked[0]).toBe(keyWord!);
+    // The cheap common word must NOT have been cracked instead.
+    expect(cracked[0]).not.toBe(commonWord!);
+    // Verify key word's rarity — this will fail if INSIGHT ordering were removed and
+    // crackCheapestFree fell back to cost-only order (picking the cheaper common word first).
+    expect(wordRarity(cracked[0])).toBe('key');
+    expect(isWordDecrypted(s, keyWord!)).toBe(true);
   });
 
   it('upgradeBombeBranch raises a branch level + resyncs bombeLevel, capped at BRANCH_MAX', () => {

@@ -15,7 +15,7 @@ import {
 } from '../intercepts';
 import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, BRANCH_MAX, upgradeBranchCost, bombeAutoCracks, bombeCostMul } from '../bombe';
 import { fragmentBalance } from '../lore';
-import { dailyCipher, letterFrequency } from '../dailyCipher';
+import { DAILY_CIPHER_REWARD, dailyCipher, letterFrequency } from '../dailyCipher';
 import { seedFromDate, dateString } from '../rng';
 
 /** What THE BOMBE console needs from its host UI (the host persists + re-opens). */
@@ -265,7 +265,7 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
 
       daily.className = 'bombe-daily' + (isSolved ? ' done' : '');
       dailySolveRow.classList.toggle('hidden', isSolved);
-      dailyDone.textContent = isSolved ? `✓ SOLVED — +◆${4} Fragments` : '';
+      dailyDone.textContent = isSolved ? `✓ SOLVED — +◆${DAILY_CIPHER_REWARD} Fragments` : '';
       dailyShareBtn.classList.toggle('hidden', !isSolved);
       if (!isSolved) dailyInput.value = '';
     }
