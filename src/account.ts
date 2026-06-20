@@ -16,6 +16,15 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let lifecycleWired = false;
 let adopting = false;
 
+export interface AccountState {
+  enabled: boolean;
+  kind: 'anon' | 'linked';
+  name: string | null;
+  verified: boolean;
+}
+
+let _accountState: AccountState = { enabled: false, kind: 'anon', name: null, verified: false };
+
 /** Adopt a server/merged save without re-triggering the noteChange flush timer. */
 export function adopt(save: SaveData): void { adopting = true; try { saveSave(save); } finally { adopting = false; } }
 
@@ -43,9 +52,17 @@ export async function boot(): Promise<void> {
       body: JSON.stringify({ device: deviceId(), session: session || undefined }),
     });
     if (!r.ok) return;
-    const j = (await r.json()) as { session?: string; save?: SaveData | null; rev?: number; updatedAt?: number };
+    const j = (await r.json()) as { session?: string; save?: SaveData | null; rev?: number; updatedAt?: number; account?: { kind?: string; name?: string | null; verified?: boolean } };
     if (typeof j.session === 'string') { session = j.session; setLs(SESSION_KEY, session); }
     rev = typeof j.rev === 'number' ? j.rev : 0;
+    if (j.account && typeof j.account === 'object') {
+      _accountState = {
+        enabled: true,
+        kind: j.account.kind === 'linked' ? 'linked' : 'anon',
+        name: typeof j.account.name === 'string' ? j.account.name : null,
+        verified: j.account.verified === true,
+      };
+    }
     const cloud = (j.save && typeof j.save === 'object') ? (j.save as SaveData) : null;
     const cloudAt = typeof j.updatedAt === 'number' ? j.updatedAt : 0;
     if (cloud) {
@@ -54,6 +71,43 @@ export async function boot(): Promise<void> {
       void flush();  // push the merged result back so the cloud has the union too
     }
   } catch { /* offline / blocked — stay local */ }
+}
+
+/** Navigate to the OAuth provider's login page. No-op unless cloud save is enabled. Never throws. */
+export function startLink(provider: 'discord' | 'google'): void {
+  try {
+    if (!BASE || !optedIn()) return;
+    const url = `${BASE}/auth/${provider}/start?session=${encodeURIComponent(session)}&ret=${encodeURIComponent(location.origin)}`;
+    location.assign(url);
+  } catch { /* ignore */ }
+}
+
+/** Inspect location.hash for OAuth return tokens. Stores the new session and strips the hash.
+ *  Returns true if a token was adopted (caller should re-run boot()), false otherwise.
+ *  Safe to call in happy-dom / SSR — all DOM access is guarded. Never throws. */
+export function adoptFragmentSession(): boolean {
+  try {
+    const hash = (typeof location !== 'undefined' ? location.hash : '') ?? '';
+    // Error path: strip + return false
+    if (hash.includes('lf-account-error')) {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch { /* happy-dom */ }
+      return false;
+    }
+    // Success path: extract token
+    const m = hash.match(/[#&]lf-account=([^&]+)/);
+    if (!m) return false;
+    const token = decodeURIComponent(m[1]);
+    setLs(SESSION_KEY, token);
+    session = token;
+    rev = 0; // a fresh /hello will re-sync
+    try { history.replaceState(null, '', location.pathname + location.search); } catch { /* happy-dom */ }
+    return true;
+  } catch { return false; }
+}
+
+/** Current account state (defaults to anonymous until boot() sets it from /hello). */
+export function accountState(): AccountState {
+  return { ..._accountState, enabled: accountEnabled() };
 }
 
 export function noteChange(): void {

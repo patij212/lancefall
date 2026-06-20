@@ -57,6 +57,40 @@ describe('account — adopt re-entry guard (FIX 1 regression)', () => {
   });
 });
 
+describe('account — OAuth fragment adoption', () => {
+  beforeEach(() => {
+    location.hash = '';
+  });
+  it('adopts + strips an lf-account fragment and stores the session', () => {
+    location.hash = '#lf-account=sometoken.sig&linked=1';
+    expect(account.adoptFragmentSession()).toBe(true);
+    expect(localStorage.getItem('lancefall.session')).toBe('sometoken.sig');
+    expect(location.hash).not.toContain('lf-account');
+  });
+  it('is a no-op when there is no fragment', () => {
+    location.hash = '';
+    expect(account.adoptFragmentSession()).toBe(false);
+  });
+  it('strips the error fragment and stays anon', () => {
+    location.hash = '#lf-account-error=1';
+    expect(account.adoptFragmentSession()).toBe(false);
+    expect(location.hash).not.toContain('lf-account-error');
+  });
+});
+
+describe('account — accountState default', () => {
+  it('defaults to anonymous', () => {
+    expect(account.accountState()).toMatchObject({ kind: 'anon', name: null, verified: false });
+  });
+});
+
+describe('account — startLink offline no-op', () => {
+  it('does not navigate when no backend / not opted in', () => {
+    // BASE is '' in vitest → startLink must do nothing (no throw)
+    expect(() => account.startLink('discord')).not.toThrow();
+  });
+});
+
 describe('account — mergeCloud (pure boot-merge step)', () => {
   it('returns local unchanged when there is no cloud save', () => {
     const l = { ...defaultSave(), highScore: 7 };

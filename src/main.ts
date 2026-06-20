@@ -61,6 +61,7 @@ try {
 
   // Opt-in cloud save — strict no-op unless the player opted in AND a backend is configured.
   if (account.accountEnabled()) {
+    account.adoptFragmentSession(); // absorb any OAuth return token before booting
     onSaveWrite(account.noteChange);
     account.init();
   }
