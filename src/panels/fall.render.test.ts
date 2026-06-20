@@ -43,7 +43,7 @@ describe('renderYourLancefall — the permanent choice record', () => {
     expect(box.textContent).toContain('2026-06-20');
     expect(box.textContent).toContain('/16 remembered');
   });
-  it('let it go (released): the finished record', () => {
+  it('let it go (released after a Vigil): the finished record', () => {
     const s = defaultSave();
     s.stillpointChoice = 'fall';
     s.released = true;
@@ -51,5 +51,16 @@ describe('renderYourLancefall — the permanent choice record', () => {
     const box = renderYourLancefall(s);
     expect(box.textContent).toContain('YOU LET IT GO');
     expect(box.textContent).toContain('It is finished');
+  });
+  it('let it go DIRECTLY at the kill (fall, never held): finished, with no "holding" contradiction', () => {
+    const s = defaultSave();
+    s.stillpointChoice = 'fall';
+    s.released = false; // chose FALL at the Sovereign kill — never entered the Vigil
+    s.choiceDate = '2026-06-20';
+    const box = renderYourLancefall(s);
+    expect(box.textContent).toContain('YOU LET IT GO');
+    expect(box.textContent).toContain('It is finished');
+    expect(box.textContent).not.toContain('You hold the longest day');
+    expect(box.textContent).not.toContain('Day held');
   });
 });

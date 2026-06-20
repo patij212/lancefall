@@ -40,7 +40,9 @@ export function renderYourLancefall(save: SaveData): HTMLElement {
   }
   const held = save.released
     ? 'You held the light, then let the day turn. It is finished.'
-    : `You hold the longest day. Day held: ${daysHeld(save)}.`;
+    : save.stillpointChoice === 'fall'
+      ? 'You let the day turn. It is finished.' // chose to let it go at the kill — never held
+      : `You hold the longest day. Day held: ${daysHeld(save)}.`;
   const verb = save.stillpointChoice === 'catch' && !save.released ? 'YOU HOLD THE LIGHT' : 'YOU LET IT GO';
   box.append(
     el('div', { class: 'yl-verb' }, verb),
