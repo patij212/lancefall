@@ -1,0 +1,9 @@
+# Regenerable build artifacts — keep only the scripts in git.
+clips/
+mp4/
+segs/
+frames/
+sheets/
+review/
+assets/
+*.webm

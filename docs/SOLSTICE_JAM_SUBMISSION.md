@@ -1,10 +1,11 @@
 # LANCEFALL: THE LAST KEY — break the code, bring back the day
 
-> **dev.to June Solstice Game Jam submission.** Paste this into the DEV submission template.
-> Three things to drop in before publishing: a **video embed** (Video Demo section), a **repo
-> embed** (Code section), and your **screenshots** (What I Built section). Each spot below has an
-> explicit "embed here" note in place of the old `[…]` stubs.
+> **dev.to June Game Jam submission** ([June Game Jam 2026](https://dev.to/challenges/june-game-jam-2026-06-03)).
 > Prize category: **Best Ode to Alan Turing.**
+> Paste the body below into the DEV submission template. Three slots are filled in-place — the
+> repo URL (Code section), the screenshot references (What I Built), and the video placeholder
+> (Video Demo) — each marked **[OWNER ACTION]** with the exact remaining human step. See the
+> **Owner publish checklist** at the very bottom before you hit submit.
 
 ---
 
@@ -55,36 +56,34 @@ The code-breaking is **real cryptanalysis, not number-matching**:
 > Open the **◈ THE FALL** card on the title for the story, and try **SOLSTICE PROTOCOL** mode for
 > the cipher showcase. (Keyboard+mouse, gamepad, or touch.)
 
-**Screenshots — embed three images here** (drag them into the DEV editor or use `![alt](url)`):
-- **Title** — LANCEFALL / THE LAST KEY.
-- **READ THE KEY in action** — the glyph-cores ringing a boss, with the **plaintext message + the
-  substitution key** lit on the HUD (this is the money shot — it proves the decode is real).
-- **FIRST LIGHT** — the warm white→gold daybreak flooding the frame on a winning cipher-crack.
-  *(Optional fourth: THE FALL premise card.)*
+**Screenshots.** Three stills (a fourth optional):
+
+![LANCEFALL / THE LAST KEY — the title cockpit](press/title-cockpit.png)
+![READ THE KEY in action — glyph-cores ringing a boss with the plaintext message + substitution key lit on the HUD (the money shot: it proves the decode is real)](press/gameplay-cipher.png)
+![FIRST LIGHT — the warm white→gold daybreak flooding the frame on a winning cipher-crack](press/firstlight-winframe.png)
+![THE CHOICE — the halting problem, the one lock that can only be chosen](press/the-choice.png)
+
+> **[OWNER ACTION: on dev.to these must be uploaded — drag each file into the DEV editor (or use its image button); the `press/…` paths above will NOT resolve in the published post. Files: `press/title-cockpit.png` (Title) · `press/gameplay-cipher.png` (READ THE KEY money shot) · `press/firstlight-winframe.png` (FIRST LIGHT) · `press/the-choice.png` (optional THE CHOICE).]**
 
 ## Video Demo
 
-**Embed your ~2-minute capture here** — paste the YouTube/Vimeo URL on its own line (DEV
-auto-embeds it), or use a `{% embed %}` liquid tag. **No bare placeholder should remain.**
+**[OWNER ACTION: upload `press/lancefall-trailer.mp4` to YouTube (unlisted is fine) and paste the
+URL on its own line here — DEV auto-embeds it.]**
 
-Cut it to **open on a real decode and close on FIRST LIGHT.** Suggested voiceover beats:
-1. **Open mid-decode, not on flavor.** Push in on the HUD: *"This boss is enciphered. The screen
-   gives me the word to recover and the key to recover it with — nothing else."* Read one letter off
-   the key, find the core wearing that symbol, dash it. Let the viewer watch you **solve a
-   substitution cipher while dodging** — and show a wrong dash fizzling so they see it's skill, not
-   luck.
-2. **Scale it up.** Cut to SOLSTICE PROTOCOL where *every* boss is a cipher, and to THE SOVEREIGN as
-   the master cipher — the same verb, harder.
-3. **The Mirrorblade** — name the imitation game out loud as it mirrors you move-for-move.
-4. **THE CHOICE → FIRST LIGHT.** Frame the choice as the halting problem (*"no machine decides
-   this one"*), then **close on FIRST LIGHT**: the cipher breaks, the grey burns off, and the
-   authored daybreak floods the frame to full day. *"You read the key. You brought back the
-   longest day."* Hold on the sunrise and end.
+A **~75-second trailer** (1080p, on-screen captions, no voiceover) is rendered at
+`press/lancefall-trailer.mp4` (poster at `press/lancefall-trailer-poster.png`). All footage is
+captured from the live build. It tells the story in order: the grey City of Lancefall → the
+dash-spear verb → the gray→neon **COHERENCE** wash ("the city remembers") → the **READ THE KEY**
+cipher decode under fire, *including a wrong-dash fizzle* and a "CIPHER BROKEN" crack → the
+**SOLSTICE PROTOCOL** / perk-draft / **Heat** / bestiary breadth → the **Mirrorblade** (the
+imitation game) → **DAYBREAK** → **THE CHOICE** (the halting problem) → and closes on the gold
+**FIRST LIGHT** daybreak. The bed is the game's own CC-BY soundtrack.
 
 ## Code
 
-**Embed your GitHub repo here** — paste the repository URL on its own line (DEV renders a repo
-card), or use `{% github owner/repo %}`. **No bare placeholder should remain.**
+https://github.com/patij212/lancefall
+
+> **[OWNER ACTION: the repo is PUBLIC, but the remote is NOT current — `main`/remote HEAD is `f808429`, and the jam build (THE LAST KEY) lives on the local `v6` branch at HEAD `de826ed`, which has DIVERGED from the remote (it is not a fast-forward). Push the jam build so judges play what this post describes — `git push origin v6` (and merge/ff it to your default branch, or point DEV at the `v6` branch) BEFORE submitting. Do not submit while the remote is stale.]**
 
 Built on my **open-source LANCEFALL engine (MIT)** — vanilla TypeScript, Canvas 2D, Web Audio, no
 framework. **What's new for this jam (THE LAST KEY edition):**
@@ -146,7 +145,7 @@ visual — the decode HUD and FIRST LIGHT included — respects the reduce-flash
 clarity accessibility settings (FIRST LIGHT is a no-strobe, no-motion sustained cross-fade).
 
 **Tested + verified.** The pure simulation — including the cipher *and* the decode view — is
-unit-tested (730+ Vitest tests, incl. a test that plays the substitution decode end-to-end and a
+unit-tested (1262 Vitest tests, incl. a test that plays the substitution decode end-to-end and a
 determinism guard for the Daily stream). Every change went through `tsc` + tests + a production
 build + an in-browser Playwright smoke (zero console errors).
 
@@ -160,4 +159,33 @@ admiration.
 
 ---
 
+**Audio credits.** The arena beds layer free-licensed CC-BY music under the procedural engine:
+*"Magenta Metropolis"* and *"Afterglow Love"* by **FSM Team & \<e s c p\>**, *"Cyberpunk
+Renaissance"* and *"Neon Drive"* by **Punch Deck**, and *"Cyber Thriller"* (WARDEN boss) by **FSM
+Team & \<e s c p\>** — all via [Free Stock Music](https://www.free-stock-music.com/) under
+[CC BY](https://creativecommons.org/licenses/by/4.0/). Combat SFX are CC0 from
+[Kenney](https://kenney.nl). The LANCE THEME motif and beat layer are original to LANCEFALL.
+
 *Built in TypeScript. No engine, no framework — just a tab, a spear of light, and a code to break.*
+
+---
+
+## Owner publish checklist
+
+Exact remaining human steps (Claude has filled everything it can; these need you):
+
+1. **Push the jam build.** The remote is public but stale and DIVERGED — push the local `v6` branch
+   (HEAD `de826ed`) to GitHub so judges play THE LAST KEY: `git push origin v6`. Then either merge/
+   fast-forward it to your default branch, or point the DEV repo embed at the `v6` branch. Confirm
+   `git ls-remote https://github.com/patij212/lancefall.git` shows your jam HEAD before submitting.
+2. **Upload the trailer.** Put `press/lancefall-trailer.mp4` on YouTube (unlisted is fine) and paste
+   the URL on its own line in **Video Demo** (DEV auto-embeds it). *(No `.mp4` exists in `press/` yet
+   — render one from `press/trailer-storyboard.html` or capture a fresh ~2-min run.)*
+3. **Drag in the 3 (or 4) screenshots** in **What I Built** — `press/title-cockpit.png`,
+   `press/gameplay-cipher.png`, `press/firstlight-winframe.png` (+ optional `press/the-choice.png`).
+   Local paths won't resolve in the published post; upload the files through the DEV editor.
+4. **Confirm the repo is public** (it is — `visibility: PUBLIC`) and the README/link work.
+5. **Paste this post** into the [DEV June Game Jam](https://dev.to/challenges/june-game-jam-2026-06-03)
+   submission template.
+6. **Select the prize category:** **Best Ode to Alan Turing.**
+7. **Submit before the deadline.**

@@ -924,9 +924,11 @@ export class UI {
       this.puWrap,
     );
 
-    // ── TOP-CENTER: cipher readout (boss fights) (mock .hud-tc) ──
+    // ── cipher readout — the READ THE KEY legend (boss fights). `.hud-cipher` anchors
+    //    itself bottom-center (position:absolute; bottom:92px) over the DAYBREAK gauge, so
+    //    it must sit DIRECTLY on the full-height `.hud` root — a zero-height wrapper made
+    //    its `bottom` resolve off-screen (the legend vanished). Appended to `.hud` below. ──
     this.cipherEl = el('div', { class: 'hud-cipher' });
-    const topCenter = el('div', { class: 'hud-topcenter' }, this.cipherEl);
 
     // ── TOP-RIGHT: coherence meter + best (mock .hud-tr) ──
     this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
@@ -976,7 +978,7 @@ export class UI {
     this.glossBodyEl = el('div', { class: 'hud-gloss-body' });
     this.glossEl = el('div', { class: 'hud-gloss', role: 'status', 'aria-live': 'polite' }, this.glossTermEl, this.glossBodyEl);
 
-    this.hud = el('div', { class: 'hud' }, topLeft, topCenter, topRight, bottomLeft, bottomCenter, bottomRight, this.touchPauseBtn);
+    this.hud = el('div', { class: 'hud' }, topLeft, this.cipherEl, topRight, bottomLeft, bottomCenter, bottomRight, this.touchPauseBtn);
     this.rebuildStamina(TUNE.stamina.segments);
   }
 
