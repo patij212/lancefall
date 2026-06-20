@@ -2865,12 +2865,13 @@ export class UI {
         const s = this.saveRef!;
         const unlocked = s.unlockedThemes.includes(theme.id);
         const selected = s.selectedTheme === theme.id;
+        const star = !!theme.unlockAch;
         card.dataset.unlocked = unlocked ? '1' : '0';
         card.classList.toggle('sel', selected);
         card.classList.toggle('locked', !unlocked);
         const st = card.querySelector('.p-state') as HTMLElement;
         st.className = 'p-state ' + (selected ? 'eq' : unlocked ? 'tap' : 'lock');
-        st.textContent = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : `◆ ${theme.unlockShards.toLocaleString()}`;
+        st.textContent = selected ? 'EQUIPPED' : unlocked ? 'tap to equip' : (star ? '★ ACHIEVEMENT' : `◆ ${theme.unlockShards.toLocaleString()}`);
       },
     );
 

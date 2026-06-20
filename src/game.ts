@@ -44,7 +44,8 @@ import { OVERDRIVE, SEEKER_TUNE, AUDIO_SFX, CIPHER, SHIELD, RIPOSTE, SHARDCACHE,
 import { RUN_EVENTS, rollEventChoices, rollEventId, CURATED_IDS } from './events';
 import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
-import { THEMES, themeById } from './themes';
+import { THEMES, themeById, canUnlockTheme } from './themes';
+import { grantLongestDayRewards } from './longestDay';
 import { TRAILS, trailById, trailParticleColor, canUnlockTrail } from './trails';
 import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
@@ -1224,11 +1225,11 @@ export class Game {
   private unlockTheme(id: string): void {
     const theme = THEMES.find((t) => t.id === id);
     if (!theme || this.save.unlockedThemes.includes(id)) return;
-    if (this.save.shards < theme.unlockShards) {
-      this.ui.toast(`Need ${theme.unlockShards - this.save.shards} more shards`);
+    if (!canUnlockTheme(theme, this.save.shards, this.save.achievements)) {
+      this.ui.toast(theme.unlockAch ? 'Decrypt everything to unlock DECRYPTED' : `Need ${theme.unlockShards - this.save.shards} more shards`);
       return;
     }
-    this.save.shards -= theme.unlockShards;
+    if (!theme.unlockAch) this.save.shards -= theme.unlockShards; // achievement themes are free
     this.save.unlockedThemes.push(id);
     this.save.selectedTheme = id;
     saveSave(this.save);
@@ -3346,6 +3347,12 @@ export class Game {
         this.save.unlockedTrails.push(CRYPTANALYST_TRAIL);
         this.ui.toast('CIPHER trail unlocked!');
       }
+    }
+    // THE LONGEST DAY — grant the 100% reward stack the moment the master cipher completes.
+    for (const g of grantLongestDayRewards(this.save)) {
+      if (g === 'trail:dawn') this.ui.toast('DAWN trail unlocked!');
+      if (g === 'theme:decrypted') this.ui.toast('DECRYPTED palette unlocked!');
+      if (g.startsWith('skin:lance:')) this.ui.toast('THE LAST KEY skins unlocked!');
     }
   }
 
