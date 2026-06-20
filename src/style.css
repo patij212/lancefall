@@ -3702,6 +3702,11 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 .ck-kbd-sep { color: rgba(255, 255, 255, 0.18); }
+
+/* THE VIGIL — held-light beat line + release affordance on the title */
+.vigil-line { color: #c9d4e0; font-style: italic; font-size: 0.86rem; margin-top: 6px; text-align: center; }
+.vigil-release { margin-top: 8px; min-height: 64px; width: 100%; }
+
 .ck-descend-mode-line {
   font-family: 'JetBrains Mono', monospace;
   font-size: 8.5px;

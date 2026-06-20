@@ -76,7 +76,7 @@ import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
-import { sixthReveal, SOVEREIGN_HANDOFF, completionEpilogue } from './ending';
+import { sixthReveal, SOVEREIGN_HANDOFF, completionEpilogue, vigilBeat, canRelease } from './ending';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -131,6 +131,8 @@ export interface UICallbacks {
   onSetHandle: (name: string) => void;
   /** §1.2 — the player SKIPped the no-fail DASH SANDBOX (button / any-key) → start the run now */
   onSkipSandbox: () => void;
+  /** THE VIGIL — let the day turn after holding the light long enough (canRelease threshold) */
+  onReleaseTheDay: () => void;
 }
 
 export interface GameOverInfo {
@@ -516,6 +518,8 @@ export class UI {
   private announceEl!: HTMLElement;
   private choiceRow!: HTMLElement;
   private goSixth!: HTMLElement; // THE SIXTH reveal — populated in renderSixth() on choice-pending
+  private vigilLine!: HTMLElement; // THE VIGIL — the held-light beat shown on the title
+  private releaseBtn!: HTMLButtonElement; // LET THE DAY TURN — gated by canRelease
   private saveReplayBtn!: HTMLButtonElement;
   private sharePanel!: HTMLElement;
   private announceTimer = 0;
@@ -1223,6 +1227,11 @@ export class UI {
       ),
       this.descendModeLine,
     );
+    // THE VIGIL — the held-light beat + the "let the day turn" release button
+    this.vigilLine = el('div', { class: 'vigil-line hidden' });
+    this.releaseBtn = el('button', { class: 'btn vigil-release hidden' }, 'LET THE DAY TURN') as HTMLButtonElement;
+    this.releaseBtn.addEventListener('click', () => this.cb.onReleaseTheDay());
+
     const centerCol = el(
       'div',
       { class: 'ck-col ck-col-center' },
@@ -1233,6 +1242,8 @@ export class UI {
       this.lastRunBox,
       el('div', { class: 'ck-descend-wrap' }, play),
       this.descendSub,
+      this.vigilLine,
+      this.releaseBtn,
     );
 
     // ── RIGHT: LOADOUT ──
@@ -2923,6 +2934,15 @@ export class UI {
     this.cohTrack.setAttribute('aria-valuetext', `${coh.pct}% — ${coh.tagline}`);
   }
 
+  /** Paint the Vigil status on the title (the held-light line + the release affordance). Read-only. */
+  private renderVigil(save: SaveData): void {
+    const beat = vigilBeat(save);
+    this.vigilLine.textContent = beat ? beat.line : '';
+    this.vigilLine.classList.toggle('hidden', !beat);
+    const can = canRelease(save);
+    this.releaseBtn.classList.toggle('hidden', !can);
+  }
+
   refreshTitle(save: SaveData): void {
     this.saveRef = save;
 
@@ -3292,6 +3312,9 @@ export class UI {
     // ── CENTER: SELECTED RUN ──
     this.refreshSelectedRun(save);
     this.playBtn.title = 'Descend — play ' + modeById(save.selectedMode).name;
+
+    // ── THE VIGIL — held-light beat + release affordance ──
+    this.renderVigil(save);
   }
 
   /** §v9 — open the full LAST RUN debrief for the selected mode (kills/damage breakdowns + the
