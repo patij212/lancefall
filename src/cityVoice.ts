@@ -3,6 +3,9 @@
 // Citizens wake through PLAY here (deed-wake), in parallel to decryption; the Codebreaker still
 // gates the deeper truth. Also: the dose (ceremony vs toast), the Vigil's Heat floor, and the
 // personified long-game composers.
+import type { SaveData } from './save';
+import { daysHeld } from './ending';
+import { MAX_HEAT } from './heat';
 
 /** Run-stats a deed predicate reads. Filled by the caller from World/run state. */
 export interface RunDeedCtx {
@@ -50,4 +53,11 @@ export const CEREMONY_CITIZENS: ReadonlySet<string> = new Set([
 ]);
 export function wakeIsCeremony(citizenId: string): boolean {
   return CEREMONY_CITIZENS.has(citizenId);
+}
+
+// THE VIGIL'S WEIGHT — holding the light raises the Heat floor (the dark presses in). Pure read off
+// daysHeld; resets to 0 the moment the day is let turn (daysHeld returns 0 when not catch/released).
+// The non-seeded gate lives at the call site (game.ts) so the Daily stays bit-identical.
+export function vigilHeatFloor(save: SaveData): number {
+  return Math.min(MAX_HEAT, Math.floor(daysHeld(save) / 5));
 }
