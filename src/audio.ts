@@ -1396,6 +1396,7 @@ export class AudioEngine {
     this.drone.forEach((v, i) => v.gain.gain.setTargetAtTime(dOn ? g[i] : 0.0001, t, CA.droneGlide));
     this.droneFilter.frequency.setTargetAtTime(700 + k * CA.filterBloom, t, CA.filterGlide);
     // (c) CHOIR pad blooms past the onset ('choir' layer muteable)
+    // two-tier bloom: lead @0.34 = the lone hero; choir @0.6 = the collective city materializes.
     this.setChoir(this.layerOn('choir') ? Math.max(0, (k - CA.choirOnset) / (1 - CA.choirOnset)) : 0);
     // (d) THE LANCE THEME lead — gate its gain + open its filter past leadOnset, so
     //     the earworm hook is the audible REWARD of a clean (high-coherence) run.

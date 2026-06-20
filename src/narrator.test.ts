@@ -87,9 +87,9 @@ describe('narrator pool (data coverage)', () => {
     }
   });
 
-  it('all six bosses have an approach + kill line', () => {
+  it('all six bosses have an approach line in the generic fallback (index 0) + a kill line', () => {
     for (const k of ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'] as const) {
-      expect(NARRATOR.bossApproach[k]).toBeTruthy();
+      expect(NARRATOR.bossApproach[0][k]).toBeTruthy(); // index 0 is the generic fallback
       expect(NARRATOR.bossKill[k]).toBeTruthy();
     }
   });
@@ -105,5 +105,23 @@ describe('THE LAST WORD narrator additions', () => {
   it('has a non-empty sovereign foreshadow pool', () => {
     expect(NARRATOR.sovereignForeshadow.length).toBeGreaterThan(0);
     for (const l of NARRATOR.sovereignForeshadow) expect(l.length).toBeGreaterThan(10);
+  });
+});
+
+describe('THE CITY SPEAKS narrator additions', () => {
+  it('has a teach + late beat for all 6 biomes, and NULL warns about graze', () => {
+    expect(NARRATOR.biomeBeat).toHaveLength(6);
+    expect(NARRATOR.biomeLate).toHaveLength(6);
+    for (let i = 0; i < 6; i++) { expect(NARRATOR.biomeBeat[i][0].length).toBeGreaterThan(8); expect(NARRATOR.biomeLate[i][0].length).toBeGreaterThan(8); }
+    expect(NARRATOR.biomeBeat[5][0].toLowerCase()).toMatch(/dash/); // NULL teaches "dash only"
+  });
+  it('has a descent pool', () => { expect(NARRATOR.descent.length).toBeGreaterThan(0); });
+  it('bossApproach[0] keeps a generic line per boss (fallback)', () => {
+    expect(NARRATOR.bossApproach[0].warden).toBeTruthy();
+    expect(NARRATOR.bossApproach[0].sovereign).toBeTruthy();
+  });
+  it('tier-75 + Mirrorblade lines are the restored, restrained forms', () => {
+    expect(NARRATOR.comboTier[75]).toBe('Lancefall blazes. The grey breaks.');
+    expect(NARRATOR.bossKill.mirrorblade).toBe('Your doubt fell. You are still here.');
   });
 });

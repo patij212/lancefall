@@ -53,26 +53,35 @@ export const NARRATOR = {
     20: 'The street comes back, lamp by lamp.',
     35: 'A whole quarter resolves to light.',
     50: 'The skyline catches. The grey gives ground.',
-    75: "Lancefall blazes. The noise can't hold it.",
+    75: 'Lancefall blazes. The grey breaks.',    // §E voice-slip fix: restrained form
     100: 'The city stands whole, decrypted, and the day is yours.',
   } as Record<number, string>,
   comboBreak: ['The city forgets a street.', 'A quarter goes dark — the grey takes it back.', 'Block by block, the lights blink out.'],
   // C2/C3 — the dial's own-threshold transients (the FALL, and the lights returning)
   collapse: ['The signal collapses. Lancefall dims.', 'The grey floods back in.', 'The pattern breaks; the dark closes.'],
   rise: ['A window lights. The city remembers a little.', 'The grey gives ground again.', 'The pattern holds — the lights climb back.'],
-  bossApproach: {
-    warden: 'He held the walls, then turned the first key against us.',
-    weaver: 'She enciphered every thread. Read her, or stay lost.',
-    beacon: 'The light that lied still turns above. The key it kept never went out.',
-    mirrorblade: 'It wears your colour. It learned you move for move.',
-    hollow: 'Its key shows for one instant. Strike then.',
-    sovereign: 'The master cipher. It could have unlocked everything.',
-  } as Partial<Record<EnemyKind, string>>,
+  // bossApproach[biomeIndex][bossKind]; index 0 (THE COURT) is the generic fallback for every boss.
+  // Add located lines at their biome index; the call site falls back to [0] when no match.
+  bossApproach: [
+    { // 0 — generic fallback (original lines, cover every boss)
+      warden: 'He held the walls, then turned the first key against us.',
+      weaver: 'She enciphered every thread. Read her, or stay lost.',
+      beacon: 'The light that lied still turns above. The key it kept never went out.',
+      mirrorblade: 'It wears your colour. It learned you move for move.',
+      hollow: 'Its key shows for one instant. Strike then.',
+      sovereign: 'The master cipher. It could have unlocked everything.',
+    },
+    { warden: 'He held the throne, then turned the first key against us.' }, // 1 EMBERWALL: Warden located
+    {}, // 2 VAULTS
+    {}, // 3 BLOOMGARDENS
+    {}, // 4 WARRENS
+    {}, // 5 NULL
+  ] as Partial<Record<EnemyKind, string>>[],
   bossKill: {
     warden: '"I bolted it from the inside. Forgive me."',
     weaver: 'The cipher unspools. The threads are yours to read now.',
     beacon: 'The true signal turns again. Someone will see it.',
-    mirrorblade: 'Your doubt, face-down. You meant it more.',
+    mirrorblade: 'Your doubt fell. You are still here.',  // §E voice-slip fix: a statement
     hollow: 'You caught the one true instant. Rest now.',
     sovereign: 'The master key turns. You proved it could be undone.',
   } as Partial<Record<EnemyKind, string>>,
@@ -85,6 +94,25 @@ export const NARRATOR = {
     "The undercity. Things hatch where the light won't reach.",
     'The edge of erasure. The signal runs out here.',
   ],
+  // mid-biome (~30s): teach the biome's rule AS flavour, keyed by biome index 0..5
+  biomeBeat: [
+    ['The throne-hall remembers. You are reading the code.'],
+    ['The heat climbs — the fire is patient, and it accelerates. Read the flame.'],
+    ['The vaults lock tighter. Every key sealed inside.'],
+    ['The patterns bloom at your touch — the garden is generous here.'],
+    ['The undercity stirs. Things move in the shadow, and they wait.'],
+    ['The signal dies. Grazing won\'t mend it here — dash, only dash, will save you.'],
+  ],
+  // late-biome (~60s): the boss nears; the place closes in
+  biomeLate: [
+    ['The throne-hall closes in.'],
+    ['The ramparts burn hotter. Faster. Closer.'],
+    ['The vaults seal toward you.'],
+    ['The garden riots — all petals and thorns.'],
+    ['The undercity swarms.'],
+    ['The null reaches the edge of everything.'],
+  ],
+  descent: ['Below, the signal weakens. The cipher spirals down.', 'Deeper. The dark has further to fall.'],
   lastBreath: ["Not yet. The city isn't decrypted yet."],
   victory: ['The light holds. Lancefall remembers itself.', 'The crown is bare. The day is yours to keep.'],
   // THE LONGEST DAY — the Sovereign-kill DAYBREAK beat (any mode). The summit, paid off.
@@ -95,4 +123,4 @@ export const NARRATOR = {
     'The master cipher kept the last word from everyone. It will offer it to you.',
     'There is always a moment. Below, it is waiting for yours.',
   ],
-} as const;
+};
