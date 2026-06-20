@@ -4090,6 +4090,20 @@ export class UI {
     while (this.toastLayer.children.length > 3) this.toastLayer.firstChild?.remove();
   }
 
+  // ── PHASE 4 STUBS (THE CITY SPEAKS) — real implementations added in Phase 4 ──
+
+  /** STUB (Phase 4): "A FACE REMEMBERED" ceremony beat — surfaces the citizen name + confession.
+   *  Routes to a plain toast for now; Phase 4 replaces with the lower-third card + choir cue. */
+  cityFaceBeat(name: string, confession: string): void {
+    this.toast(`A FACE REMEMBERED — ${name}. ${confession}`);
+  }
+
+  /** STUB (Phase 4): once-ever premise card before the first sandbox.
+   *  Immediately calls onDone() so the game continues; Phase 4 replaces with the real modal. */
+  showPremiseCard(onDone: () => void): void {
+    onDone();
+  }
+
   /** Big center milestone announcement (RAMPAGE / FRENZY / ...). */
   announce(text: string, color: string): void {
     const el = this.announceEl;

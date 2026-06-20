@@ -89,9 +89,13 @@ import { solveDailyCipher, DAILY_CIPHER_REWARD } from './dailyCipher';
 import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, currentStep, sandboxBeatTargets, sandboxProgress, overchargeCue } from './sandbox';
 import type { SandboxState, SandboxStep } from './sandbox';
 import { grantCipherMilestones } from './cipherMilestones';
-import { wokenCitizens } from './citizens';
+import { wokenCitizens, CITIZENS } from './citizens';
+import { deedsMet, wakeIsCeremony } from './cityVoice';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
+
+/** The 6 boss EnemyKinds — used to filter killsByKind for deed evaluation. */
+const BOSS_KINDS = new Set<string>(['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign']);
 
 /** Sandbox BOSS-PARRY beat — the dummy boss's GUARD bar size (parried boss shots to break it). */
 const SANDBOX_GUARD = 5;
@@ -131,6 +135,9 @@ export class Game {
   private winTimer = 0;
   private victoryBanked = false; // THE LONGEST DAY — the Sovereign fell this run; the win is banked even if you then die ASCENDing
   private biomeIndex = -1;
+  private biomeEntryTime = 0;   // THE CITY SPEAKS — world time when we entered this biome
+  private biomeBeatFired = false; // mid-biome (~30s) teach beat fired this biome
+  private biomeLateFired = false; // late-biome (~60s) boss-nears beat fired this biome
   private milestoneWave = 0; // last wave we fired an ENDLESS milestone callout for (edge guard)
   private biomeSpeedMul = 1;
   private biomeShield = 0;
@@ -186,6 +193,9 @@ export class Game {
   private activeMutators: MutatorId[] = []; // run mutators in effect this run
   private eliteMods = { chanceMul: 1, maxAdd: 0 }; // champion-spawn mods from mutators
   private runHeat = 0; // heat level locked in for the active run
+  // THE CITY SPEAKS — citizen ids deed-woken THIS run (for debrief); reset on run-init.
+  private runWokenFaces: string[] = [];
+  private deedCheckTimer = 0; // throttle for the per-second time/wave deed checks
   private onboarding = false; // first-run progressive tutorial active
   private onboardStep = 0;
   // ACT TWO — enemy KINDS already considered for a first-sighting read THIS SESSION, so the
@@ -907,6 +917,7 @@ export class Game {
     this.bossWarned = false;
     this.actTwoSeenKinds.clear(); // re-evaluate first-sighting reads each run (persisted gate still fires once ever)
     this.teachQueue.length = 0; this.teachCooldown = 0; // fresh teach queue per run
+    this.runWokenFaces = []; this.deedCheckTimer = 0; // THE CITY SPEAKS — reset per-run deed state
     this.pendingEvent = null;
     this.dashSlowmoTriggered = false;
     this.announcedEvos.clear();
@@ -1128,6 +1139,7 @@ export class Game {
     const w = this.world;
     if (!activateOverdrive(w.overdrive)) return;
     w.overdriveUses++;
+    this.checkCityDeeds(); // DAYBREAK fires stargazer deed
     const p = w.player;
     // clear every non-boss bullet on screen
     w.bullets.forEachActive((b) => { if (!b.fromBoss) w.bullets.release(b); });
@@ -1528,6 +1540,25 @@ export class Game {
       if (!this.dying && !this.winning) {
         const bi = biomeAt(this.world.time).index;
         if (bi !== this.biomeIndex) this.setBiome(bi, true);
+      }
+
+      // THE CITY SPEAKS — per-second deed check for time/wave deeds (throttled, cosmetic)
+      if (!this.dying && !this.winning) {
+        this.deedCheckTimer -= realDt;
+        if (this.deedCheckTimer <= 0) { this.deedCheckTimer = 1; this.checkCityDeeds(); }
+      }
+
+      // THE CITY SPEAKS — biome inhabit beats: mid-biome (~30s) teach + late-biome (~60s) nears
+      if (!this.dying && !this.winning && this.biomeIndex >= 0) {
+        const inBiome = this.world.time - this.biomeEntryTime;
+        if (!this.biomeBeatFired && inBiome >= 30) {
+          this.biomeBeatFired = true;
+          this.narrate('biome_beat', 'toast', NARRATOR.biomeBeat[this.biomeIndex], true);
+        }
+        if (!this.biomeLateFired && inBiome >= 60) {
+          this.biomeLateFired = true;
+          this.narrate('biome_late', 'toast', NARRATOR.biomeLate[this.biomeIndex], true);
+        }
       }
 
       if (this.dying) {
@@ -2498,6 +2529,7 @@ export class Game {
       this.shake.add(0.18);
       this.renderer.flash(t.color, 0.12);
       this.audio.pickup(14);
+      this.checkCityDeeds(); // combo milestone may wake lamplighter / candlemaker
     }
     // COMBO ERUPTION — a big-combo milestone detonates a bullet-clearing nova
     const m = eruptMilestone(w.combo, w.clutch.lastErupt);
@@ -2505,6 +2537,36 @@ export class Game {
       w.clutch.lastErupt = m;
       this.comboErupt(m);
     }
+  }
+
+  /** THE CITY SPEAKS — evaluate in-run deeds against current World state; wake any newly-met
+   *  citizen (persist + surface the dosed beat). Pure-derived; no world.rng. Called at deed
+   *  moments (boss kill, combo tier, overdrive, wave/time ticks). Idempotent via citizenDeeds. */
+  private checkCityDeeds(): void {
+    const w = this.world;
+    const ctx = {
+      bossKindsKilled: Object.keys(w.killsByKind).filter((k) => BOSS_KINDS.has(k)),
+      sovereignDown: w.sovereignDown,
+      bestCombo: w.bestComboRun,
+      bossKills: w.bossKills,
+      daybreaks: w.overdriveUses,
+      maxDashChain: w.maxDashChain,
+      timeSec: w.time,
+      wave: this.director.wave,
+    };
+    for (const id of deedsMet(ctx)) {
+      if (this.save.citizenDeeds.includes(id)) continue; // already woken
+      this.save.citizenDeeds.push(id);
+      this.runWokenFaces.push(id);
+      const c = CITIZENS.find((x) => x.id === id);
+      if (!c) continue;
+      if (wakeIsCeremony(id) && w.clutch.lastBreathActive <= 0) {
+        this.ui.cityFaceBeat(c.name, c.confession); // §A.2 ceremony (queues if in clutch)
+      } else {
+        this.narrate('city_wake', 'toast', [`A face remembered — ${c.name}.`], false);
+      }
+    }
+    saveSave(this.save);
   }
 
   /** COMBO ERUPTION: shatter enemy bullets in a big radius (breathing room),
@@ -2642,6 +2704,9 @@ export class Game {
     w.enemies.release(e);
     w.bossAlive = false;
     w.boss = null;
+    // THE CITY SPEAKS — boss kill wakes the figure-tied citizen + descent foreshadow
+    this.checkCityDeeds();
+    if (w.bossKills === 2 || w.bossKills === 3) this.narrate('descent', 'toast', NARRATOR.descent, false);
     // ARMOR regen (v6 §7) — clearing a boss restores one shield (capped at max)
     if (w.player.maxShields > 0 && w.player.shields < w.player.maxShields) {
       w.player.shields = regenShield(w.player.shields, w.player.maxShields);
@@ -3609,7 +3674,10 @@ export class Game {
     this.renderer.flash(col, 0.3);
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
-    if (boss) this.narrateOne('toast', NARRATOR.bossApproach[boss.kind]);
+    if (boss) {
+      const located = NARRATOR.bossApproach[this.biomeIndex] ?? NARRATOR.bossApproach[0];
+      this.narrateOne('toast', located[boss.kind] ?? NARRATOR.bossApproach[0][boss.kind]);
+    }
     if (boss?.kind === 'sovereign') this.narrate('sovereignForeshadow', 'toast', NARRATOR.sovereignForeshadow);
     // INTEL card — when the player has decrypted this boss's transmission, surface a
     // pre-boss callout. Seeded modes get the card (pattern exists) but no bonus claim.
@@ -3675,6 +3743,10 @@ export class Game {
       this.narrateOne('toast', NARRATOR.strata[index]);
       this.renderer.flash(b.accent, 0.12);
     }
+    // THE CITY SPEAKS — reset biome-scoped beat flags for the 30s/60s inhabit beats
+    this.biomeEntryTime = this.world.time;
+    this.biomeBeatFired = false;
+    this.biomeLateFired = false;
   }
 
   private winRun(): void {
