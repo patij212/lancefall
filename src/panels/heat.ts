@@ -102,7 +102,7 @@ export function buildHeatPanel(deps: HeatPanelDeps): Panel {
         card.append(top, el('div', { class: 'p-card-desc' }, lvl.desc), modGrid);
       }
       // THE VIGIL'S WEIGHT — levels below the floor are locked (the vigil demands the dark)
-      if (lvl.level > 0 && lvl.level < floor) {
+      if (lvl.level < floor) {
         card.disabled = true;
         card.title = `the vigil holds the floor at HEAT ${floor}`;
         card.classList.add('vigil-locked');

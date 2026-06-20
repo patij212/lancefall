@@ -91,6 +91,7 @@ import type { SandboxState, SandboxStep } from './sandbox';
 import { grantCipherMilestones } from './cipherMilestones';
 import { wokenCitizens, CITIZENS } from './citizens';
 import { deedsMet, wakeIsCeremony, vigilHeatFloor, agedEcho } from './cityVoice';
+import { figureDossier, DOSSIER_FIGURES } from './dossiers';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
@@ -2576,7 +2577,7 @@ export class Game {
       const c = CITIZENS.find((x) => x.id === id);
       if (!c) continue;
       if (wakeIsCeremony(id) && w.clutch.lastBreathActive <= 0) {
-        this.ui.cityFaceBeat(c.name, c.confession); // §A.2 ceremony (queues if in clutch)
+        this.ui.cityFaceBeat(c.name, c.confession); // ceremony for meaningful wakes; falls back to a toast if mid-clutch (not replayed)
       } else {
         this.narrate('city_wake', 'toast', [`A face remembered — ${c.name}.`], false);
       }
@@ -3463,10 +3464,19 @@ export class Game {
     const ic = INTERCEPTS.find((i) => i.id === interceptId);
     if (!ic) return;
     const word = nextWordInIntercept(this.save, ic);
+    // snapshot dossier tiers before the decrypt mutates the save
+    const dossierBefore = new Map(DOSSIER_FIGURES.map((k) => [k, figureDossier(this.save, k).lines.length]));
     if (!word || !decryptWord(this.save, word, bombeCostMul(this.save.bombeBranches?.thrift ?? 0))) return;
     // sound: a rising tick that climbs with this transmission's progress
     this.audio.decryptTick(interceptProgress(this.save, ic).done / Math.max(1, interceptProgress(this.save, ic).total));
     const completed = syncInterceptLore(this.save);
+    // surface any dossier-tier advance: a new line unlocked for one of the Six
+    for (const kind of DOSSIER_FIGURES) {
+      const after = figureDossier(this.save, kind);
+      if (after.lines.length > (dossierBefore.get(kind) ?? 0)) {
+        this.ui.toast(`A FILE DEEPENS — ${bossName(kind)}`);
+      }
+    }
     for (const id of completed) this.ui.toast(`MEMORY DECRYPTED — ${loreById(id)?.title ?? ''}`);
     if (completed.length) this.audio.transmissionChord(); // a transmission fully resolved — the reward chord
     if (completed.length) {
