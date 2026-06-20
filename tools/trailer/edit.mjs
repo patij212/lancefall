@@ -30,19 +30,20 @@ const cap = (id) => path.join(ASSETS, `cap_${id}.png`);
 // kinds: 'clip' = smooth gameplay (trim ss..ss+t); 'panel' = a still grabbed from a screencast
 // clip at ss (ken-burns); 'still' = a PNG (ken-burns); 'card' = a static PNG.
 const SHOTS = [
-  { id: 'title',      kind: 'still', src: KEYART, t: 5.5, cap: 'fall', zoom: 'in' },
-  { id: 'combat',     kind: 'clip',  src: 'combat',     ss: 1.5, t: 9.0,  cap: 'verb' },
-  { id: 'coherence',  kind: 'clip',  src: 'coherence',  ss: 1.5, t: 9.0,  cap: 'coherence' },
-  { id: 'cipher',     kind: 'clip',  src: 'cipher',     ss: 3.0, t: 12.5, cap: 'readkey' },
-  { id: 'sovereign',  kind: 'clip',  src: 'sovereign',  ss: 1.4, t: 3.3,  cap: 'sovereign' },
+  { id: 'title',      kind: 'still', src: KEYART, t: 6.0, zoom: 'out' },   // key art opens; the art speaks (no caption)
+  { id: 'combat',     kind: 'clip',  src: 'combat',     ss: 2.0, t: 10.5, cap: 'verb' },
+  { id: 'coherence',  kind: 'clip',  src: 'coherence',  ss: 2.0, t: 9.5,  cap: 'coherence' },
+  { id: 'cipher',     kind: 'clip',  src: 'cipher',     ss: 3.0, t: 13.0, cap: 'readkey' },
+  { id: 'sovereign',  kind: 'clip',  src: 'sovereign',  ss: 1.4, t: 3.5,  cap: 'sovereign' },
+  { id: 'bossfight',  kind: 'clip',  src: 'bossfight',  ss: 2.5, t: 8.5,  cap: 'bosses' },
   { id: 'modes',      kind: 'panel', src: 'modes',      ss: 9.0, t: 4.0,  cap: 'solstice' },
   { id: 'draft',      kind: 'panel', src: 'draft',      ss: 8.0, t: 3.0 },
   { id: 'heat',       kind: 'panel', src: 'heat',       ss: 8.0, t: 3.0 },
   { id: 'codex',      kind: 'panel', src: 'codex',      ss: 9.0, t: 3.0 },
-  { id: 'mirror',     kind: 'clip',  src: 'mirror',     ss: 1.5, t: 6.0,  cap: 'mirror' },
+  { id: 'mirror',     kind: 'clip',  src: 'mirror',     ss: 2.0, t: 6.5,  cap: 'mirror' },
   { id: 'daybreak',   kind: 'clip',  src: 'daybreak',   ss: 0.3, t: 6.5,  cap: 'daybreak' },
   { id: 'choice',     kind: 'panel', src: 'choice',     ss: 8.0, t: 5.5,  cap: 'choice' },
-  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 5.5, cap: 'firstlight', zoom: 'in' },
+  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 6.0, cap: 'firstlight', zoom: 'in' },
   { id: 'endcard',    kind: 'card',  src: path.join(ASSETS, 'card_end.png'), t: 5.5 },
 ];
 

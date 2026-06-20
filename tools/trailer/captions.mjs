@@ -24,9 +24,10 @@ const FONTS = `
 @font-face{font-family:'Space Grotesk';font-weight:500;src:url('${uri(path.join(fontDir('space-grotesk'), 'space-grotesk-latin-500-normal.woff2'))}') format('woff2');}
 `;
 
-const CYAN = '#34d8f0', AMBER = '#f5b942', GOLD = '#ffd54a', VIOLET = '#b08cff';
+const CYAN = '#34d8f0', AMBER = '#f5b942', GOLD = '#ffd54a', VIOLET = '#b08cff', ROSE = '#ff5d7e';
 
 const CAPTIONS = [
+  { id: 'bosses', label: 'BULLET-HELL', line: 'Twelve enemies. Six bosses. A sky of fire — and one spear to thread it.', accent: ROSE },
   { id: 'fall', label: 'THE FALL', line: 'A kingdom of living light — until the Six who let it fall <b>enciphered</b> it into grey.', accent: CYAN },
   { id: 'verb', label: 'ONE VERB', line: 'You are the last key. You don’t shoot — you <b>dash</b> a spear of light.', accent: CYAN },
   { id: 'coherence', label: 'COHERENCE', line: 'Chain the kills. The grey burns off. The city <b>remembers</b>.', accent: CYAN },

@@ -11,6 +11,7 @@
 //
 // Output: tools/trailer/mp4/<beat>.mp4  (true CFR 60fps), fed to edit.mjs.
 import { chromium } from 'playwright';
+import { createServer } from 'vite';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -22,7 +23,9 @@ const FRAMES = path.join(__dirname, 'frames2');
 const MP4 = path.join(__dirname, 'mp4');
 fs.mkdirSync(MP4, { recursive: true });
 
-const URL = process.env.LIVE_URL || 'http://localhost:5197/';
+// URL is resolved at runtime: a self-contained Vite server with HMR OFF (so editing the tree mid
+// render can't reload the page → "execution context destroyed by navigation"). LIVE_URL overrides.
+let URL = process.env.LIVE_URL || null;
 const FPS = 60;
 const SW = 1280, SH = 720;
 const ONLY = new Set(process.argv.slice(2));
@@ -54,6 +57,13 @@ const COH_FORCE = () => {
 const FORCE_DAYBREAK = (delay) => {
   const g = window.__lf; const bp = g.input.poll; let n = 0, fired = 0;
   g.input.poll = () => { const s = bp(); const w = g.world; n++; if (n > delay && fired < 1 && w.overdrive && w.overdrive.meter >= 1) { s.overdrivePressed = true; fired++; } return s; };
+};
+// PIN time-scale to 1 — kill hitstop / slow-mo so every captured frame advances exactly one
+// fixed sim step. Without this the scheduler's juice (freeze-on-kill, overdrive/victory slow-mo)
+// modulates simDt and the constant-rate capture reads as the speed lurching / accelerating.
+const STEADY = () => {
+  const s = window.__lf.scheduler;
+  if (s) { s.requestHitstop = () => {}; s.requestSlowmo = () => {}; s.timeScale = 1; s.update = (dt) => { s.timeScale = 1; return dt; }; }
 };
 // paced cipher solver: dash the core whose .phase === order[progress]; one deliberate wrong dash first
 const CIPHER_PILOT = () => {
@@ -87,8 +97,8 @@ const CIPHER_PILOT = () => {
 async function boot(ctx) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => log('PAGEERR', e.message.slice(0, 100)));
-  await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForFunction(() => !!window.__lf, null, { timeout: 30000 });
+  await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.waitForFunction(() => !!window.__lf, null, { timeout: 120000 }); // cold HMR-off server compiles on first load
   await page.addStyleTag({ content: '.hud-gloss{display:none!important}' });
   await page.evaluate(SEED_SAVE);
   await sleep(2400);
@@ -114,13 +124,37 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: SW, height: SH }, deviceScaleFactor: 1 });
   const page = await boot(ctx);
   await setup(page);
-  // take over the loop
+  await page.evaluate(`(${STEADY.toString()})()`); // uniform speed: pin timeScale=1 (no hitstop/slow-mo)
+  // bulletproof god: the run must NEVER end mid-capture. Per-frame iframe/alive isn't enough when a
+  // boss beam + game-over resolve inside one step, so also neuter finishGameOver (blocks both death
+  // AND the Sovereign-kill win screen → continuous gameplay only).
+  if (opts.god) await page.evaluate(() => { const g = window.__lf; g.finishGameOver = () => {}; });
+  // take over the loop (stub rAF) before any manual driving
   await page.evaluate(() => { const g = window.__lf; g.__t = performance.now(); g.lastTime = g.__t; g.accumulator = 0; window.requestAnimationFrame = () => 0; });
+  // optional warmup: fast-forward to MID/LATE game (render stubbed → fast; kept alive; resolves
+  // drafts so the bot picks up perks + the waves get dense before we start capturing).
+  if (opts.warmup) {
+    await page.evaluate((sec) => {
+      const g = window.__lf;
+      const oR = g.renderer.render.bind(g.renderer), oH = g.ui.updateHud.bind(g.ui);
+      g.renderer.render = () => {}; g.ui.updateHud = () => {};
+      const steps = Math.round(sec * 60);
+      for (let i = 0; i < steps; i++) {
+        const w = g.world, p = w && w.player;
+        if (p) { p.iframe = Math.max(p.iframe || 0, 60); p.alive = true; if (p.shields != null) p.shields = p.maxShields; }
+        g.dying = false; g.winning = false;
+        g.__t += 1000 / 60; g.frame(g.__t);
+      }
+      let guard = 0; // settle onto a clean PLAYING frame so capture opens on gameplay, not a modal
+      while (g.state !== 'playing' && guard++ < 600) { g.__t += 1000 / 60; g.frame(g.__t); }
+      g.renderer.render = oR; g.ui.updateHud = oH;
+    }, opts.warmup);
+  }
   const t0 = Date.now();
   for (let i = 0; i < frameCount; i++) {
     await page.evaluate((o) => {
       const g = window.__lf, w = g.world, p = w && w.player;
-      if (o.god && p) { p.iframe = Math.max(p.iframe || 0, 30); p.alive = true; if (p.shields != null) p.shields = p.maxShields; }
+      if (o.god && p) { p.iframe = Math.max(p.iframe || 0, 60); p.alive = true; if (p.shields != null) p.shields = p.maxShields; g.dying = false; g.winning = false; }
       if (o.pin && w) for (const e of w.enemies.items) if (e.active && e.isBoss) { e.x = o.pin.x; e.y = o.pin.y; e.vx = 0; e.vy = 0; }
       g.__t += 1000 / 60;
       g.frame(g.__t);
@@ -138,16 +172,16 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
 // ── beat directors (gameplay only; panels/title/cards are stills/art handled in edit) ──
 const PIN = { x: Math.round(SW * 0.5), y: Math.round(SH * 0.42) };
 const BEATS = {
-  // combat verb — real bot play, a touch of god so a stray hit can't cut the shot
-  combat: () => renderBeat('combat', Math.round(13 * FPS), async (page) => {
+  // combat verb — fast-forwarded to MID-GAME (dense waves, drafted perks) for the juiciest dashes
+  combat: () => renderBeat('combat', Math.round(14 * FPS), async (page) => {
     await startRun(page, 'arena', true);
-  }, { god: true }),
+  }, { god: true, warmup: 22 }),
 
-  // grey→neon coherence wash (forced full neon; edit cross-fades from a grey shot)
-  coherence: () => renderBeat('coherence', Math.round(10 * FPS), async (page) => {
+  // grey→neon coherence wash, mid-game (forced full neon; edit cuts from a grey shot)
+  coherence: () => renderBeat('coherence', Math.round(12 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(`(${COH_FORCE.toString()})()`);
-  }, { god: true }),
+  }, { god: true, warmup: 18 }),
 
   // HERO — Weaver substitution cipher: READ THE KEY decode under fire → CIPHER BROKEN
   cipher: () => renderBeat('cipher', Math.round(16 * FPS), async (page) => {
@@ -165,8 +199,16 @@ const BEATS = {
     await page.evaluate(`(${CIPHER_PILOT.toString()})()`);
   }, { god: true, pin: PIN }),
 
+  // BULLET-HELL boss — THE BEACON's rotating cross-beams, the bot threading them (a boss IS late-game;
+  // no warmup — a boss present during the fast-forward navigates the page on the win/over path).
+  bossfight: () => renderBeat('bossfight', Math.round(13 * FPS), async (page) => {
+    await startRun(page, 'arena', true);
+    await page.evaluate(() => window.__lf.spawnWarden('beacon'));
+    await page.evaluate(`(${QUIET_ALL.toString()})()`);
+  }, { god: true, pin: PIN }),
+
   // the Mirrorblade — the imitation game
-  mirror: () => renderBeat('mirror', Math.round(8 * FPS), async (page) => {
+  mirror: () => renderBeat('mirror', Math.round(9 * FPS), async (page) => {
     await startRun(page, 'endless', true);
     await page.evaluate(() => window.__lf.spawnWarden('mirrorblade'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
@@ -180,13 +222,20 @@ const BEATS = {
   }, { god: true }),
 };
 
-let browser;
+let browser, server;
 (async () => {
+  if (!URL) {
+    server = await createServer({ root: ROOT, logLevel: 'silent', server: { hmr: false, host: '127.0.0.1' } });
+    await server.listen();
+    URL = server.resolvedUrls?.local?.[0] || `http://127.0.0.1:${server.config.server.port}/`;
+    log('vite (hmr off) @', URL);
+  }
   browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-gl=angle', '--enable-gpu'] });
   try {
     for (const [k, fn] of Object.entries(BEATS)) { if (!want(k)) continue; log('▶', k); await fn(); }
   } finally {
     await browser.close();
+    if (server) await server.close();
   }
   log('done.');
 })();
