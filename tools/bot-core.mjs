@@ -48,7 +48,13 @@ export function createBot() {
     if (!cards.length) return 0;
     // Boss Rush AND the cipher-lock SOLSTICE are BOSS gauntlets — the cipher-armored bosses are
     // the wall (the bot dies at Weaver with low DPS), so draft DAMAGE/sustain, not chaff AoE.
-    const pri = lf.mode && (lf.mode.bossrush || lf.mode.cipherLock) ? BOSS_PRIORITY : CHAFF_PRIORITY;
+    // DAMAGE-FIRST for the boss gauntlets AND the open survival modes: now that the dodge upgrade
+    // handles chaff survival, killing bosses FASTER (to push through to the Sovereign before the
+    // chaff escalates out of hand) beats AoE clear. A/B win: Daily 0→100%, Endless medBoss 3→5.
+    // ARENA + CASUAL stay AoE — they're clear-to-advance (a wave/the director gates on EMPTY), so
+    // crowd-thinning shockwaves matter more than boss DPS there.
+    const aoe = lf.mode && (lf.mode.arena || lf.mode.id === 'casual');
+    const pri = aoe ? CHAFF_PRIORITY : BOSS_PRIORITY;
     let bestIdx = 0, bestRank = 1e9;
     for (let i = 0; i < cards.length; i++) {
       const r = pri.indexOf(cards[i].id);
