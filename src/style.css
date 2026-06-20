@@ -6385,3 +6385,163 @@ body {
 }
 /* DECRYPT MORE button — small margin to float it below the memory grid */
 .codex-pane > .btn.btn-sm { margin-top: 10px; }
+
+/* ============================================================================
+   THE CITY SPEAKS (Phase 4) — new UI layer: city-face beat, premise card,
+   vigil Heat-pip lock, debrief faces row.
+   A11y: every animation is gated by .reduce-motion + prefers-reduced-motion;
+   no strobe; calm fades only; keyboard-reachable; high contrast under .clarity.
+   ============================================================================ */
+
+/* ── "A FACE REMEMBERED" lower-third ceremony beat ── */
+.city-face {
+  position: fixed;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  background: rgba(10, 16, 32, 0.92);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-left: 3px solid #22d3ee;
+  border-radius: 8px;
+  padding: 14px 22px 12px;
+  max-width: min(480px, 90vw);
+  pointer-events: auto;
+  text-align: left;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.city-face.cf-in { opacity: 1; }
+.city-face.cf-out { opacity: 0; transition: opacity 0.55s ease; }
+.cf-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #22d3ee;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+.cf-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #e6f4f1;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+.cf-confession {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+/* soft window-flare — a gentle static glow, NOT a flash */
+.cf-flare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(34, 211, 238, 0.07), transparent 70%);
+  pointer-events: none;
+}
+/* clarity: lift contrast */
+.clarity .city-face { border-color: rgba(34, 211, 238, 0.7); }
+.clarity .cf-name { color: #fff; }
+.clarity .cf-confession { color: var(--text); }
+/* reduce-motion: skip the fade transition (instant appear/disappear) */
+.reduce-motion .city-face,
+.reduce-motion .city-face.cf-in,
+.reduce-motion .city-face.cf-out { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .city-face, .city-face.cf-in, .city-face.cf-out { transition: none !important; }
+}
+
+/* ── Premise card — once-ever first-boot modal ── */
+.premise-overlay {
+  background: rgba(5, 6, 14, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.premise-overlay.premise-in { opacity: 1; }
+.premise-card {
+  max-width: 560px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 36px 32px 28px;
+  text-align: center;
+}
+.premise-city {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 6px;
+  /* grey→cyan wash via opacity filter — matches the "THE CODE IS BREAKING" brand */
+  filter: grayscale(0.4) brightness(0.75);
+  opacity: 0.7;
+}
+.premise-city svg { width: 100%; height: auto; display: block; }
+.premise-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #22d3ee;
+  text-transform: uppercase;
+}
+.premise-line {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 400px;
+}
+.premise-btn { min-width: 160px; margin-top: 8px; }
+/* clarity: lift premise text */
+.clarity .premise-line { color: var(--text); }
+/* reduce-motion: no fade */
+.reduce-motion .premise-overlay,
+.reduce-motion .premise-overlay.premise-in { transition: none !important; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .premise-overlay, .premise-overlay.premise-in { transition: none !important; opacity: 1; }
+}
+
+/* ── Vigil Heat-pip lock (loadout cockpit pips) ── */
+.ck-heat-pip:disabled,
+.ck-heat-pip.vigil-locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: auto; /* keep hover so the tooltip shows */
+}
+/* ── Vigil Heat card lock (HEAT panel ladder) ── */
+.heat-pcard.vigil-locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+.heat-pcard.vigil-locked:hover { border-color: rgba(255, 255, 255, 0.08); }
+
+/* ── Debrief "FACES REMEMBERED THIS RUN" row (game-over screen) ── */
+.go-faces-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(34, 211, 238, 0.05);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 6px;
+}
+.go-faces-names {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px;
+  color: #a8e8ef;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+.clarity .go-faces-names { color: #e6f4f1; }

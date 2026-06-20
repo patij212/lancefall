@@ -57,7 +57,7 @@ import { renderTheSix, renderYourLancefall, renderTheSixth } from './panels/fall
 import { buildHeatPanel } from './panels/heat';
 import { buildBombePanel, type BombePanel } from './panels/bombe';
 import { hasAffordableDecrypt } from './intercepts';
-import { cityCoherence } from './cityCoherence';
+import { cityCoherence, cityCoherenceTagline } from './cityCoherence';
 import { bombeCostMul } from './bombe';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
 import { buildAccountPanel, type AccountPanel } from './panels/account';
@@ -77,6 +77,7 @@ import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
 import { sixthReveal, SOVEREIGN_HANDOFF, completionEpilogue, vigilBeat, canRelease } from './ending';
+import { vigilHeatFloor } from './cityVoice';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -162,6 +163,8 @@ export interface GameOverInfo {
   hitsTaken?: number; // §4 M3 — would-be-fatal hits this run (0 = flawless)
   dailyAttempt?: number; // §4 M4 — which best-of-3 daily attempt this run was (1..3)
   dailyAttemptsMax?: number;
+  /** THE CITY SPEAKS — citizen names woken through deeds this run (e.g. ["The Ferryman"]). */
+  facesRemembered?: string[];
 }
 
 type ScreenId = 'title' | 'playing' | 'paused' | 'gameover' | 'draft' | 'event';
@@ -1086,7 +1089,7 @@ export class UI {
     // title open in refreshTitle. Exposed as a meter (role + aria-valuetext) since it's real state.
     this.cohPct = el('div', { class: 'ck-coh-pct' }, '0%');
     this.cohFill = el('div', { class: 'ck-coh-fill' });
-    this.cohSub = el('div', { class: 'ck-coh-sub' }, 'THE CITY SLEEPS IN GREY');
+    this.cohSub = el('div', { class: 'ck-coh-sub' }, cityCoherenceTagline(0));
     this.cohTrack = el(
       'div',
       { class: 'ck-coh-track', role: 'meter', 'aria-label': 'City coherence', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' },
@@ -1574,8 +1577,10 @@ export class UI {
   }
 
   /** Paint the loadout HEAT pips (one per level 1..MAX_HEAT; first `level` lit). Morphs in
-   *  place — pips persist across refreshes so the .on toggle can transition. */
+   *  place — pips persist across refreshes so the .on toggle can transition.
+   *  THE VIGIL'S WEIGHT: pips below the vigilHeatFloor are disabled (locked) with a tooltip. */
   private paintHeatPips(level: number): void {
+    const floor = this.saveRef ? vigilHeatFloor(this.saveRef) : 0;
     const pips = Array.from({ length: MAX_HEAT }, (_, i) => i + 1);
     reconcile(
       this.heatPipsWrap,
@@ -1589,7 +1594,13 @@ export class UI {
         pip.addEventListener('click', () => this.cb.onHeatChange(n)); // same callback as the steppers → persists + re-paints
         return pip;
       },
-      (node, n) => node.classList.toggle('on', n <= level),
+      (node, n) => {
+        node.classList.toggle('on', n <= level);
+        const locked = n < floor;
+        (node as HTMLButtonElement).disabled = locked;
+        node.classList.toggle('vigil-locked', locked);
+        if (locked) node.title = `the vigil holds the floor at HEAT ${floor}`;
+      },
     );
   }
 
@@ -4024,6 +4035,20 @@ export class UI {
       this.goGradeNote.textContent = `Reached wave ${info.wave}. +${info.shardsEarned} memory shards carried out of the dark.`;
     }
 
+    // ── FACES REMEMBERED THIS RUN (THE CITY SPEAKS §A debrief) ──
+    // Appended after the grade note; only shown when at least one citizen woke through deeds.
+    // Reuses the stat row convention: a labelled row with the citizen names joined.
+    const existingFacesRow = this.goBuild.parentElement?.querySelector('.go-faces-row');
+    if (existingFacesRow) existingFacesRow.remove();
+    if (info.facesRemembered && info.facesRemembered.length > 0) {
+      const facesRow = el('div', { class: 'go-stat-row go-faces-row' });
+      facesRow.append(
+        el('span', { class: 'go-k' }, 'FACES REMEMBERED THIS RUN'),
+        el('span', { class: 'go-faces-names' }, info.facesRemembered.join(' · ')),
+      );
+      this.goGradeNote.insertAdjacentElement('afterend', facesRow);
+    }
+
     // ── build line ──
     this.goBuild.replaceChildren(
       el('span', { class: 'go-ship' }, `${info.mode} · ${info.ship}`),
@@ -4090,18 +4115,64 @@ export class UI {
     while (this.toastLayer.children.length > 3) this.toastLayer.firstChild?.remove();
   }
 
-  // ── PHASE 4 STUBS (THE CITY SPEAKS) — real implementations added in Phase 4 ──
+  // ── PHASE 4 — THE CITY SPEAKS real implementations ──
 
-  /** STUB (Phase 4): "A FACE REMEMBERED" ceremony beat — surfaces the citizen name + confession.
-   *  Routes to a plain toast for now; Phase 4 replaces with the lower-third card + choir cue. */
+  /** "A FACE REMEMBERED" ceremony beat (Phase 4).
+   *  A lower-third card with the citizen's name + confession, fading in/out over ~3 s.
+   *  a11y: calm fade (no strobe); gated under reduceMotion; keyboard-dismissable; never blocks input. */
   cityFaceBeat(name: string, confession: string): void {
-    this.toast(`A FACE REMEMBERED — ${name}. ${confession}`);
+    const card = el('div', { class: 'city-face', role: 'status', 'aria-live': 'polite' });
+    card.append(
+      el('div', { class: 'cf-eyebrow' }, 'A FACE REMEMBERED'),
+      el('div', { class: 'cf-name' }, name),
+      el('div', { class: 'cf-confession' }, confession),
+    );
+    // soft glow overlay (the "window flare") — a translucent overlay that fades then goes.
+    // Skipped when reduceFlashing is on (no brightness burst at all, just the text card).
+    if (!this.settings.reduceFlashing) {
+      const flare = el('div', { class: 'cf-flare', 'aria-hidden': 'true' });
+      card.appendChild(flare);
+    }
+    // keyboard-dismissable
+    card.setAttribute('tabindex', '0');
+    const dismiss = (): void => {
+      card.classList.add('cf-out');
+      setTimeout(() => card.remove(), 600);
+    };
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); dismiss(); } });
+    document.body.appendChild(card);
+    // reduce-motion: skip the fade-in animation (just appear → auto-dismiss sooner)
+    const dur = this.motionOff() ? 2000 : 3200;
+    requestAnimationFrame(() => card.classList.add('cf-in'));
+    setTimeout(dismiss, dur);
   }
 
-  /** STUB (Phase 4): once-ever premise card before the first sandbox.
-   *  Immediately calls onDone() so the game continues; Phase 4 replaces with the real modal. */
+  /** Once-ever premise card before the first sandbox (Phase 4).
+   *  Modal: city grey→cyan wash, three-line premise, DESCEND button calls onDone().
+   *  a11y: keyboard-focusable, keyboard-skippable, no strobe. */
   showPremiseCard(onDone: () => void): void {
-    onDone();
+    const overlay = el('div', { class: 'screen screen-dim premise-overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'THE LAST KEY' });
+    const card = el('div', { class: 'panel premise-card' });
+    const cityArt = el('div', { class: 'premise-city', 'aria-hidden': 'true' });
+    // Reuse the existing night-city SVG constant (CK_CITY_SVG) — the grey→cyan wash is done via CSS.
+    cityArt.innerHTML = CK_CITY_SVG;
+    const title = el('div', { class: 'premise-title' }, 'THE LAST KEY');
+    const line1 = el('p', { class: 'premise-line' }, 'Lancefall was light-code. The Six scrambled it grey.');
+    const line2 = el('p', { class: 'premise-line' }, 'Break the code. Bring back the day.');
+    const btn = el('button', { class: 'btn btn-primary premise-btn', type: 'button' }, 'DESCEND');
+    const close = (): void => {
+      overlay.classList.add('hidden');
+      overlay.remove();
+      onDone();
+    };
+    btn.addEventListener('click', close);
+    // keyboard: Esc or Space also skips
+    overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape' || e.key === ' ') { e.preventDefault(); close(); } });
+    card.append(cityArt, title, line1, line2, btn);
+    overlay.append(card);
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('premise-in'));
+    btn.focus();
   }
 
   /** Big center milestone announcement (RAMPAGE / FRENZY / ...). */
