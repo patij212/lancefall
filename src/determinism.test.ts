@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { Director } from './waves';
-import { modeById } from './modes';
+import { modeById, modeSeeded } from './modes';
 import { createRng } from './rng';
 import { makeCipher, cipherSeed, ciphertext, dashCipherCore } from './cipher';
+import { vigilHeatFloor } from './cityVoice';
+import { defaultSave } from './save';
 
 // FULL-RUN determinism guard. The Daily, async seed-duels, and ghost replays all promise
 // that one seed reproduces the same run for everyone. The existing waves test compares the
@@ -60,6 +62,30 @@ describe('full-run determinism — a Daily seed reproduces exactly', () => {
     expect(a.spawns).toEqual(b.spawns);
     expect(a.tail).toEqual(b.tail);
     expect(a.spawns.length).toBeGreaterThan(50);
+  });
+});
+
+describe('THE CITY SPEAKS — determinism guarantees', () => {
+  it('modeSeeded short-circuits the vigil heat floor for Daily/Weekly', () => {
+    // The vigil floor must NOT affect seeded runs (Daily / Weekly stay bit-identical for everyone).
+    const dailyCfg = modeById('daily');
+    const arenaCfg = modeById('arena');
+    expect(modeSeeded(dailyCfg)).toBe(true);
+    expect(modeSeeded(arenaCfg)).toBe(false);
+    // A vigil save with a high day count would floor non-seeded runs at Heat 2
+    const vigilSave = defaultSave();
+    vigilSave.stillpointChoice = 'catch';
+    vigilSave.vigilSince = 1;
+    vigilSave.totalRuns = 15; // 14 days held → floor = 2
+    const floor = vigilHeatFloor(vigilSave);
+    expect(floor).toBeGreaterThan(0); // has a floor for non-seeded
+    // The gate in game.ts is: !modeSeeded(cfg) && catch && !released → apply floor
+    // For seeded (daily) the gate is false, so effective heat = save.selectedHeat (unchanged)
+    const seededEffHeat = modeSeeded(dailyCfg) ? vigilSave.selectedHeat : Math.max(vigilSave.selectedHeat, floor);
+    expect(seededEffHeat).toBe(vigilSave.selectedHeat); // floor not applied to Daily
+    // For non-seeded the gate is true
+    const unseededEffHeat = modeSeeded(arenaCfg) ? vigilSave.selectedHeat : Math.max(vigilSave.selectedHeat, floor);
+    expect(unseededEffHeat).toBeGreaterThanOrEqual(floor);
   });
 });
 

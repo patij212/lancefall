@@ -80,7 +80,7 @@ import { BeatClock, makeGrid, gradeRelease } from './beat';
 import { glyphArt } from './glyphArt';
 import { newNarrator, pickLine, ambientReady, NARRATOR } from './narrator';
 import { ReplayRecorder, type ShareMeta } from './replay';
-import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
+import { choiceEnding, fragmentsForRun, ngPlusIntensityMul, nemesisOf } from './stillpoint';
 import { canRelease } from './ending';
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
@@ -90,7 +90,7 @@ import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbo
 import type { SandboxState, SandboxStep } from './sandbox';
 import { grantCipherMilestones } from './cipherMilestones';
 import { wokenCitizens, CITIZENS } from './citizens';
-import { deedsMet, wakeIsCeremony } from './cityVoice';
+import { deedsMet, wakeIsCeremony, vigilHeatFloor, agedEcho } from './cityVoice';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
@@ -862,6 +862,11 @@ export class Game {
     // Heat ascension — a DUEL forces the CHALLENGER's heat (baked into the code) so
     // the "same seed" fight is genuinely the same; otherwise the player's selection.
     this.runHeat = challenge ? Math.max(0, Math.min(MAX_HEAT, Math.round(challenge.heat ?? 0))) : this.save.selectedHeat;
+    // THE VIGIL'S WEIGHT — holding the light (Vigil 'catch') raises the Heat floor on non-seeded runs.
+    // Seeded (Daily/Weekly) runs are never affected so the shared leaderboard stays bit-identical.
+    if (!modeSeeded(cfg) && this.save.stillpointChoice === 'catch' && !this.save.released) {
+      this.runHeat = Math.max(this.runHeat, vigilHeatFloor(this.save)); // clamp UP to the vigil floor
+    }
     this.world.postApply = (s) => applyHeatStats(s, this.runHeat);
     const effCfg = applyHeatConfig(applyMutatorConfig(cfg, this.activeMutators), this.runHeat);
     // NG+ — deepen NON-seeded runs only; daily/seeded stays bit-identical for everyone.
@@ -947,7 +952,7 @@ export class Game {
     this.audio.startDrone();
     this.audio.duckMusic(false);
     this.narrate('run_start', 'announce', this.runNgPlus > 0 ? NARRATOR.loop : NARRATOR.runStart);
-    if (cfg.seedKind === 'date') this.narrateOne('toast', echoLine(this.seed)); // ECHO OF THE FALL
+    if (cfg.seedKind === 'date') this.narrateOne('toast', agedEcho(this.seed, this.save.totalRuns)); // ECHO OF THE FALL (aged by run count)
     if (this.ghostRace) this.ui.toast(`◌ Racing ${this.ghostRace.name || 'your best'} · ${this.ghostRace.score.toLocaleString()}`);
     this.replay.start(this.canvas);
 
