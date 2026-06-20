@@ -1752,6 +1752,9 @@ export class Game {
       w.firingKind = e.kind; // attribute any bullets fired this update to this kind (LAST RUN dmg)
       if (e.isBoss) {
         updateBoss(e, w, dt);
+        // INTEL render flag — marks this boss's tell for an early read-ring (render-only).
+        // Gated !modeSeeded so Daily/Weekly stays bit-identical for everyone. Never sim.
+        e.intelRead = !modeSeeded(this.mode) && bossIntel(this.save, e.kind).tellBonus > 0;
         // ENRAGE stinger: one-shot audio + a11y-gated flash the moment the boss first
         // crosses its escalation threshold — make the behavior shift FELT. Cosmetic; no rng.
         if (!e.enrageAnnounced && bossEnraged(e, bossEnrageFrac(e.kind))) {
@@ -3561,6 +3564,12 @@ export class Game {
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
     if (boss) this.narrateOne('toast', NARRATOR.bossApproach[boss.kind]);
+    // INTEL card — when the player has decrypted this boss's transmission, surface a
+    // pre-boss callout. Seeded modes get the card (pattern exists) but no bonus claim.
+    if (boss && bossIntel(this.save, boss.kind).decrypted) {
+      const adv = !modeSeeded(this.mode) ? ' — pattern read' : '';
+      this.ui.announce(`INTEL · ${bossName(boss.kind)}${adv}`, '#67e8f9');
+    }
     // ACT TWO — a one-line mechanic read on this boss's FIRST arrival ever (persisted; the
     // narrator flavour above is per-encounter, this teaches the fight). Cosmetic; no rng.
     if (boss) this.teach(bossReadFor(boss.kind, this.save.taught));

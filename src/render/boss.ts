@@ -67,6 +67,31 @@ export function drawBossFinaleTint(ctx: CanvasRenderingContext2D, e: Enemy, redu
   ctx.restore();
 }
 
+/** INTEL READ RING — a crisp cyan halo drawn as soon as a telegraph begins on an
+ *  intel-flagged boss (player has decrypted that boss's transmission). The ring gives
+ *  an early, uniform "attack incoming" cue regardless of which boss or attack it is.
+ *  Drawn in the boss-centre frame; scales with telegraph progress. Render-only — the
+ *  flag is set each frame by game.ts (never fed back into sim). */
+export function drawBossIntelRead(ctx: CanvasRenderingContext2D, e: Enemy, reduceMotion: boolean): void {
+  if (!e.intelRead || (e.telegraph || 0) <= 0) return;
+  const tg = e.telegraph || 0;
+  const r = e.radius * (1.5 + 0.6 * tg);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.15 + 0.55 * tg;
+  ctx.strokeStyle = '#67e8f9';
+  ctx.lineWidth = 2 + 2 * tg;
+  if (!reduceMotion) {
+    // Rotating dashes — a kinetic "this is real data" cue distinct from all static rings
+    ctx.setLineDash([12, 8]);
+    ctx.lineDashOffset = -(e.spawnTime * 60) % 20; // subtle crawl
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** BEACON enraged counter-beam — the perpendicular 2nd diameter (the rotating cross
  *  the low-HP sweep gains). Mirrors the +π/2 arm in beamHitsPoint(arms=2). Drawn in
  *  the boss-centre frame; telegraphs/fires in lockstep with the primary beam. */

@@ -115,6 +115,7 @@ export interface Enemy {
   enrageAnnounced?: boolean; // boss: one-shot latch — the enrage-crossing stinger+flash has fired
   finaleTrig?: boolean; // boss: one-shot latch — the sub-threshold "last stand" volley has fired
   orbTimer?: number; // SOVEREIGN/WARDEN: countup to the next reflectable ORB spawn (parry-as-offense)
+  /** render-only: Intel makes this boss's tell read earlier (set each frame in game.ts; never sim). */ intelRead?: boolean;
 }
 
 /** Per-shot visual tag (playtest: bullets need identity per enemy + shot type, not colour

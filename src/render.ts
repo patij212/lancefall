@@ -35,7 +35,7 @@ import {
 } from './renderMath';
 // NEW boss-rework telegraph/finale overlays (kept OUT of this file — drawn in the
 // boss-centre frame). render.ts only delegates; no inline drawing was added.
-import { drawNovaSpiralTelegraph, drawSovereignFinaleTint, drawBeaconCounterBeam, drawBossFinaleTint } from './render/boss';
+import { drawNovaSpiralTelegraph, drawSovereignFinaleTint, drawBeaconCounterBeam, drawBossFinaleTint, drawBossIntelRead } from './render/boss';
 import { drawEnemyTells } from './render/enemyTells';
 import { drawSpear } from './render/spear';
 import { mix, mixHex, hexRgb } from './render/colorMix';
@@ -1306,6 +1306,8 @@ export class Renderer {
     // NEW: generic last-stand FINALE tint (no-op unless e.finaleTrig — the 5 non-Sovereign
     // bosses; the Sovereign uses its own crescendo tint). Drawn in render/boss.ts.
     drawBossFinaleTint(ctx, e, this.reduceMotionR);
+    // INTEL READ RING — early tell halo for intel-flagged bosses (render-only). Drawn in render/boss.ts.
+    drawBossIntelRead(ctx, e, this.reduceMotionR);
   }
 
   /** LANCER (biomech) — railgun barrel silhouette (elongated triangle, unchanged) with
