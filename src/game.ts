@@ -87,6 +87,8 @@ import type { Ghost } from './ghost';
 import { solveDailyCipher, DAILY_CIPHER_REWARD } from './dailyCipher';
 import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, currentStep, sandboxBeatTargets, sandboxProgress, overchargeCue } from './sandbox';
 import type { SandboxState, SandboxStep } from './sandbox';
+import { grantCipherMilestones } from './cipherMilestones';
+import { wokenCitizens } from './citizens';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
@@ -3381,7 +3383,16 @@ export class Game {
     const completed = syncInterceptLore(this.save);
     for (const id of completed) this.ui.toast(`MEMORY DECRYPTED — ${loreById(id)?.title ?? ''}`);
     if (completed.length) this.audio.transmissionChord(); // a transmission fully resolved — the reward chord
+    if (completed.length) {
+      const ic = INTERCEPTS.find((i) => i.loreLink === completed[0]);
+      const cz = wokenCitizens(this.save).find((c) => ic && c.wakeBy === ic.id);
+      this.ui.signalRestored(ic?.title ?? 'TRANSMISSION RESTORED', ic ? ic.tokens.join(' ') : '', cz?.name);
+    }
     this.evalMetaAchievements();
+    // 25/50/75% milestone beats — narrator line + Fragments + (backdrop bloom reads the save).
+    for (const m of grantCipherMilestones(this.save)) {
+      this.ui.toast(`CIPHER MILESTONE — ${Math.round(m.tier * 100)}% · the city remembers more (+◆${m.fragments})`);
+    }
     saveSave(this.save);
     this.ui.refreshMemories();
     this.ui.openBombe(word); // pass the just-cracked word so the panel can ripple the cross-reveal
