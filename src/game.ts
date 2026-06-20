@@ -431,6 +431,13 @@ export class Game {
    *  Determinism: the sandbox runs on a SEPARATE throwaway World and NEVER touches
    *  this.world or any seeded rng stream, so start(cfg) below seeds exactly as today. */
   private descend(cfg: RunConfig): void {
+    // THE CITY SPEAKS — once-ever premise card for brand-new players (totalRuns === 0).
+    // Shows before the sandbox/run; re-enters descend via the onDone callback when done.
+    if (!this.save.seenPremiseCard && this.save.totalRuns === 0) {
+      this.save.seenPremiseCard = true; saveSave(this.save);
+      this.ui.showPremiseCard(() => this.descend(cfg));
+      return;
+    }
     // ACT TWO — the no-fail teach is gated by the Tutorial hints toggle too (a veteran who turned
     // hints off skips straight into the run, just like a returning player or reduce-motion).
     if (this.settings.tutorialHints && shouldShowSandbox(this.save.seenSandbox, this.settings.reduceMotion)) {
