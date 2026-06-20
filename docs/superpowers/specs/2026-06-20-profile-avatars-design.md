@@ -136,39 +136,64 @@ Unlock: `save.killsByKind[<bossId>] > 0` (boss kills tally per kind — see `gam
 > Thresholds (*~*) and the exact `flawless*` / `winsByMode` keys are confirmed during implementation
 > against `achievements.ts`, `modes.ts` (`longestday`), and `intercepts.ts` (`vocabulary()`).
 
-## 5. Architecture — `src/avatars.ts` (pure)
+## 5. Architecture
 
-A single pure module (no DOM, no rng, no game state) — testable in isolation.
+**Guiding principle: do not bloat the already-huge files.** `ui.ts` (~3.8k lines), `render.ts`, and
+`game.ts` are at their limit. The avatar feature is built as **new, small, single-purpose modules**;
+existing files only get **thin** delegation hooks (a few lines each). Each new file has one clear
+purpose, a well-defined interface, and is understandable/testable on its own.
+
+**Two decoupled layers** so the visual work can be built and reviewed in parallel, then wired in:
+
+### 5.1 Visual layer — `src/render/avatars/` (pure SVG, zero game/save coupling)
+Buildable and verifiable entirely standalone (via the gallery harness, §8). No imports from `save.ts`,
+`game.ts`, `ui.ts`. One file per concern; one file per sigil scene.
+
+```
+src/render/avatars/
+  primitives.ts      // defsFor(accent, uid), hexClip(uid), small shared svg-string helpers
+  frame.ts           // frame(tier, accent, uid, { animated, variant }) -> medallion frame markup
+  motion.ts          // reusable motion recipes (glint, breathe, twinkle, filament, strike, shatter, implode)
+  scenes/
+    lance.ts ... eternal.ts   // 24 files; each: export function scene(ctx: SceneCtx): string  (hex-window content)
+  registry.ts        // AvatarVisual type + AVATAR_VISUALS array (id→meta+scene) + renderAvatar()
+  index.ts           // public re-exports
+```
 
 ```ts
+// registry.ts — the STABLE interface the rest of the game wires into.
 export type AvatarTier = 1 | 2 | 3;
-export type AvatarMotion = 'strike' | 'resonance' | 'shatter' | 'implode' | /* … */ string;
-
-export interface AvatarDef {
-  id: string;
-  name: string;
-  tier: AvatarTier;
-  accent: string;            // canonical hex
-  group: 'free' | 'boss' | 'cipher' | 'pilot';
-  unlockHint: string;        // shown on locked tiles ("Fell the Warden")
-  isUnlocked: (s: SaveData) => boolean;
-  /** pure SVG-string builder; uid namespaces all internal ids; opts toggle animation/size */
-  svg: (opts: { uid: string; size: number; animated: boolean; variant?: 'full' | 'tile' }) => string;
+export type AvatarGroup = 'free' | 'boss' | 'cipher' | 'pilot';
+export interface SceneCtx { uid: string; accent: string; animated: boolean; variant: 'full' | 'tile'; }
+export interface AvatarVisual {
+  id: string; name: string; tier: AvatarTier; accent: string; group: AvatarGroup;
+  motion: string;            // signature verb, for docs/preview
+  unlockHint: string;        // human text shown on locked tiles ("Fell the Warden") — NO save logic here
+  scene: (ctx: SceneCtx) => string;   // bespoke hex-window content
 }
-
-export const AVATARS: AvatarDef[];                       // length 24
-export function avatarById(id: string): AvatarDef | undefined;
-export function isAvatarUnlocked(id: string, s: SaveData): boolean;
-export function unlockedAvatars(s: SaveData): AvatarDef[];
-export function renderAvatar(id: string, opts?: Partial<…>): string;  // generates uid, returns SVG
+export const AVATAR_VISUALS: AvatarVisual[];                 // length 24
+export function avatarVisual(id: string): AvatarVisual | undefined;
+export const AVATAR_IDS: readonly string[];
+/** Full medallion = frame(tier,accent,uid) + scene(ctx); generates uid, namespaces all ids. */
+export function renderAvatar(id: string, opts?: { size?: number; animated?: boolean; variant?: 'full' | 'tile'; uid?: string }): string;
 export const DEFAULT_AVATAR = 'lance';
 ```
 
-**Shared SVG primitives** (internal helpers, all uid-aware): `frame(tier, accent, uid)` (bezel + rays
-+ guilloché + studs + glints + rune ring), `hexClip(uid)`, `defsFor(accent, uid)` (gradients/filters).
-Each sigil builder composes `frame()` + its bespoke scene. Keep each sigil scene in a small focused
-function; if `avatars.ts` grows large, split scenes into `src/render/avatars/<id>.ts` builders that
-`avatars.ts` imports (mirrors the existing `render/` and `bosses/` split convention).
+All internal `<defs>` ids are **uid-namespaced** (§3.6). `frame()` emits tier-appropriate ornament;
+`scene()` emits only the hex-window content. `motion.ts` holds the copy-shared animation snippets so
+each scene stays small. `animated:false` and `variant:'tile'` produce the static / lightweight forms.
+
+### 5.2 Integration layer (added later, references the visual registry)
+- `src/avatarUnlocks.ts` (pure, save-aware) — `isAvatarUnlocked(id, save)`, `unlockedAvatars(save)`,
+  the §4 predicate table. Imports `AVATAR_IDS` from the registry + `SaveData` from `save.ts`. This is
+  the ONLY avatar module that knows about the save.
+- `src/panels/avatar.ts` — the picker panel (`buildAvatarPanel(deps) → Panel`), per the panel
+  convention. `ui.ts` only gains the modal-lifecycle delegation (a few lines).
+- Cockpit display — a thin call into `renderAvatar(save.selectedAvatar, { variant:'tile' })` at the
+  one spot the handle is drawn.
+
+This split means the avatar agent (§ the handoff prompt) can complete `src/render/avatars/**` and the
+gallery without ever touching save/ui/game; the integration phase wires the stable interface in.
 
 ## 6. Save model
 
@@ -198,31 +223,45 @@ extraction convention used by the other panels):
   `aria-label` per tile. Selecting writes `save.selectedAvatar` and persists.
 - **Cockpit integration:** render `selectedAvatar` (tile variant, small) beside the player handle on
   the title cockpit — the one place YOUR name shows locally.
-- UI wiring stays thin; all rendering/logic lives in `avatars.ts` (ui.ts has zero test coverage).
+- UI wiring stays thin; rendering lives in `render/avatars/`, unlock logic in `avatarUnlocks.ts`,
+  panel markup in `panels/avatar.ts` (ui.ts has zero test coverage — keep it a thin delegate).
 
-## 8. Testing — `src/avatars.test.ts`
+## 8. Gallery harness (standalone review)
 
-- `AVATARS.length === 24`; ids unique; exactly 8 `group:'free'` all tier 1; tier counts (8/14/2).
-- Every `svg()` returns a string starting `<svg`, contains `role="img"` + `<title>`, and is
-  well-formed enough to parse.
+So the visual layer can be created/iterated **without the game**, a generated gallery renders all 24
+(full + tile, animated + static) into a single HTML file for the browser. Reuse the TS toolchain via a
+vitest emitter `src/render/avatars/gallery.test.ts` that writes `mockups/avatars-gallery.html` (matches
+the existing `build-*.cjs` / `mockups/*.html` review patterns). Open it to review; iterate per-sigil.
+
+## 9. Testing
+
+**Visual layer — `src/render/avatars/registry.test.ts`** (no save coupling):
+- `AVATAR_VISUALS.length === 24`; ids unique; exactly 8 `group:'free'` all tier 1; tier counts (8/14/2).
+- Every `renderAvatar(id)` returns a string starting `<svg`, contains `role="img"` + `<title>`, parses.
 - **uid namespacing:** two renders with different uids share **no** `id="…"`; refs resolve internally.
 - `animated:false` output contains **no** `<animate`/`<animateTransform>`/`<animateMotion>` tags.
+- `variant:'tile'` is the lightweight form (≤ the full form's animation count).
+
+**Integration layer — `src/avatarUnlocks.test.ts`:**
 - `isAvatarUnlocked`: a fresh `defaultSave()` unlocks **exactly the 8 free**; crafted saves unlock
-  specific avatars (e.g. `killsByKind.warden=1` → `warden`; `maxHeat=5` → `heat`; full
-  `decryptedWords` → `remember`; `stillpointChoice='catch'` → `vigil` + `choice`).
-- `selectedAvatar` sanitizer: unknown id and locked id both coerce to `'lance'`; an unlocked id passes.
-- A happy-dom render smoke test for the picker grid + a save round-trip test for the new field.
+  specific avatars (`killsByKind.warden=1` → `warden`; `maxHeat=5` → `heat`; full `decryptedWords` →
+  `remember`; `stillpointChoice='catch'` → `vigil` + `choice`).
+- Save: `selectedAvatar` round-trips; sanitizer coerces unknown/locked ids → `'lance'`, passes unlocked.
+- A happy-dom render smoke test for the picker grid.
 
-## 9. Build sequence (for the plan)
+## 10. Build sequence (for the plan)
 
-1. `avatars.ts` skeleton: types, `frame()`/`defsFor()`/`hexClip()` uid-aware primitives, tier system.
-2. The 8 free sigils (port the locked LANCE + COHERENCE prototypes; build the other 6).
+**Track A — visual layer (the avatar agent, parallel & standalone):**
+1. `primitives.ts` + `frame.ts` + `motion.ts` (uid-aware), tier system, `registry.ts` interface, gallery harness.
+2. The 8 free sigils (port the locked LANCE full-scene + COHERENCE prototypes; build the other 6).
 3. The 6 boss crests (port CROWN + HOLLOW + WARDEN; build the other 3).
-4. The 4 cipher + 6 pilot sigils.
-5. `isUnlocked` predicates + `unlockedAvatars` + tests (grounded against real constants).
-6. Save field + default + sanitizer + tests.
-7. Profile-panel AVATAR picker + cockpit display.
-8. `reduceMotion`/`reduceFlashing` static variants + tile variant.
+4. The 4 cipher + 6 pilot sigils. Iterate each against the gallery; `registry.test.ts` green.
+
+**Track B — integration (after the spec, can start in parallel against the stub registry):**
+5. `avatarUnlocks.ts` predicates + tests (grounded against real constants).
+6. `selectedAvatar` save field + default + sanitizer + tests.
+7. `panels/avatar.ts` picker + thin `ui.ts` delegation + cockpit display.
+8. Confirm `reduceMotion`/`reduceFlashing` static + tile variants in-game.
 9. Full test pass + `vite preview` (minified) verify + `reduceMotion` verify.
 
 ## 10. Out of scope / follow-ups
