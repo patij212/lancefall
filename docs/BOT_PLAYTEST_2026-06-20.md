@@ -79,6 +79,35 @@ ready to key; otherwise kite out to regen). Boss-reach over 24 runs went Warden 
 Beacon 5→**16**, Hollow 2→**10**, **Sovereign reached**; median boss kills **1 → 4**, and Solstice
 Sovereign-down **0 % → 4–8 %** (H0–2). No regression (Boss Rush 100/100/57 %, Arena 6 %/0 %).
 
+## Survival ceiling pushed — candidate-direction dodge (broad win)
+
+The bot's deepest limiter was raw bullet survival (it died stamina-starved in escalating chaff
+before boss 6). A **parallel A/B workflow** tried 5 dodging hypotheses against a churn-proof frozen
+snapshot; two won and merged into one change in `tools/bot-core.mjs`:
+
+- **Candidate-direction movement dodge** — instead of summing a perpendicular nudge per bullet
+  (which can vector-cancel or steer *into* a second shot), sample 16 move directions and pick the
+  one whose closest approach to any bullet over a ~0.45 s drift is safest.
+- **Wider/earlier awareness** — scan bullets to 460 px (was 360) with a 1.1 s horizon (was 0.7),
+  leaning out of a forming wall before it's lethal.
+
+Large-sample A/B (50 runs/cell, frozen src) — **improved or held every cell, zero regression**:
+
+| | baseline → merged |
+|---|---|
+| Endless H0 median survival | **206 → 401 s (+94 %)** (medBoss 1→3) |
+| Endless H2 | 267 → 377 s (+41 %) |
+| **Boss Rush H7 (MELTDOWN)** | win **40 → 76 %** |
+| **Arena H0 / H2** | win **8→24 % / 6→16 %** |
+| **Solstice** (40-run confirm) | median boss kills **1 → 5** (now reaches the Sovereign reliably) |
+| Daily | medBoss 2→3, longer survival |
+
+(Rejected: graze-for-stamina — Boss Rush 90→73. Neutral: escapeplus, spacing — gains were noise.)
+Nightmare stays walled at boss 1–2 — its sudden-death shrinking walls aren't a dodging problem.
+**Net: the single biggest capability jump of the whole pass — it lifts survival, boss fights, and
+Arena/Boss-Rush win-rates together.** Sovereign-down in the open survival modes is still the final
+hurdle (the bot now *reaches* the Sovereign; *downing* it consistently is the remaining ceiling).
+
 ## Balance observations for the game (not bot issues)
 
 - **Casual is slow to "see the ending":** brooders hatch new chaff faster than a clear, so the
