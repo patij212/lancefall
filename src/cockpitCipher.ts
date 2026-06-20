@@ -190,6 +190,8 @@ interface Building {
   nrm: number; // normalized spectrum position (0 = bass, 1 = treble) → low-freq stretch bias
   ph: number; // idle-bob phase
   e: number; // smoothed dance energy (runtime)
+  resolveThreshold: number; // [0..1] — city lights left→right as decryptFrac crosses this
+  justLit: number; // [0..1] — one-frame extra glow when a citizen wakes (decays in drawSkyline)
 }
 
 // ── Music reactivity: a read-only master tap ─────────────────────────────────
@@ -285,6 +287,7 @@ function mountCipher(): { stop(): void } {
   let choice = 'none'; // THE CHOICE from the save → coherence floor
   let decryptFrac = 0; // master-cipher progress (decrypted vocabulary fraction) → coherence floor
   let burst = 0; // decode-burst envelope (0..1), spiked on DESCEND
+  let wokenLoreCount = 0; // last-seen stillpointLore length — citizen-glow delta detector
   const mouse = { x: 0.5, y: 0.5 }; // normalized pointer (parallax)
   let buildings: Building[] = []; // neon skyline
   let rBass = 0; // smoothed reactive bands (the music made visible)
@@ -351,6 +354,20 @@ function mountCipher(): { stop(): void } {
     }
   };
 
+  // Citizen glow: reads stillpointLore.length from the save (≈ number of completed transmissions ≈
+  // woken citizens). When the count rises between polls, the leftmost buildings that just "woke"
+  // receive a brief extra justLit glow — a subtle shimmer, not a strobe. Defensive — never throws.
+  const readWokenLoreCount = (): number => {
+    try {
+      const raw = localStorage.getItem('lancefall.save');
+      if (!raw) return 0;
+      const sl = (JSON.parse(raw) as { stillpointLore?: unknown }).stillpointLore;
+      return Array.isArray(sl) ? sl.length : 0;
+    } catch {
+      return 0;
+    }
+  };
+
   // Per-mode accent rides --accent-rgb on .ck-main (set by ui.ts as a numeric triple).
   const readAccent = (): [number, number, number] => {
     const m = document.querySelector<HTMLElement>('.ck-main');
@@ -370,25 +387,33 @@ function mountCipher(): { stop(): void } {
     return clamp01(Math.max(base, decryptFloor));
   };
 
-  // THE LONGEST DAY one-time celebration — the first time we observe a fully-decrypted master cipher
-  // in a session-with-the-cockpit-up, spike a sustained decode bloom (reuses the DESCEND burst path,
-  // a11y-gated like everything here). Persisted so it only blooms once, ever. Defensive — never throws.
-  let longestDayDone = false;
-  try {
-    longestDayDone = localStorage.getItem('lancefall.longestday') === '1';
-  } catch {
-    /* storage may be unavailable — treat as not-yet-celebrated */
+  // Decode-bloom milestones: one-time bursts at 25/50/75/100% decryption, each gated by its own
+  // localStorage flag (same pattern as the original lancefall.longestday). Under reduce-motion the
+  // burst variable is not set (the held STILL frame already reflects full resolve — no strobe needed).
+  // Defensive — never throws.
+  interface MilestoneEntry { frac: number; key: string; burstMag: number; done: boolean }
+  const MILESTONES: MilestoneEntry[] = [
+    { frac: 0.25, key: 'lancefall.cipher25', burstMag: 0.45, done: false },
+    { frac: 0.50, key: 'lancefall.cipher50', burstMag: 0.60, done: false },
+    { frac: 0.75, key: 'lancefall.cipher75', burstMag: 0.75, done: false },
+    { frac: 1.00, key: 'lancefall.longestday', burstMag: 1.00, done: false },
+  ];
+  for (const m of MILESTONES) {
+    try { m.done = localStorage.getItem(m.key) === '1'; } catch { /* storage unavailable */ }
   }
-  const maybeCelebrateLongestDay = (): void => {
-    if (longestDayDone || decryptFrac < 1) return;
-    longestDayDone = true;
-    burst = 1; // the radiant decode bloom (held under reduce-motion via the STILL frame; no strobe)
-    try {
-      localStorage.setItem('lancefall.longestday', '1');
-    } catch {
-      /* best-effort persistence */
+
+  const maybeCelebrateMilestones = (): void => {
+    const rm = prefersReducedMotion();
+    for (const m of MILESTONES) {
+      if (m.done || decryptFrac < m.frac) continue;
+      m.done = true;
+      if (!rm) burst = Math.max(burst, m.burstMag); // additive-safe: take the strongest pending bloom
+      try { localStorage.setItem(m.key, '1'); } catch { /* best-effort persistence */ }
     }
   };
+
+  // Keep the old name as an alias so existing call sites in the loop + refresh still compile.
+  const maybeCelebrateLongestDay = maybeCelebrateMilestones;
 
   const rgbaT = (rgb: [number, number, number], a: number): string =>
     `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
@@ -441,13 +466,17 @@ function mountCipher(): { stop(): void } {
             col: hue < 0.5 ? NEON[0] : hue < 0.8 ? NEON[1] : NEON[2],
           });
         }
-      buildings.push({ x, w, h, windows, bin: 0, nrm: 0, ph: Math.random() * 6.28, e: 0 });
+      buildings.push({ x, w, h, windows, bin: 0, nrm: 0, ph: Math.random() * 6.28, e: 0, resolveThreshold: 0, justLit: 0 });
       x += w + 1 + Math.random() * 7;
     }
-    // spread the front row across the spectrum so each building dances to its own frequency
+    // spread the front row across the spectrum so each building dances to its own frequency;
+    // assign left→right resolve thresholds so the city lights district-by-district as decryption rises.
+    const n = buildings.length;
     buildings.forEach((b, i) => {
-      b.nrm = buildings.length > 1 ? i / (buildings.length - 1) : 0;
-      b.bin = spectrumBin(i, buildings.length, DANCE_BIN_LO, DANCE_BIN_HI);
+      b.nrm = n > 1 ? i / (n - 1) : 0;
+      b.bin = spectrumBin(i, n, DANCE_BIN_LO, DANCE_BIN_HI);
+      // deterministic left→right: building i resolves once decryptFrac passes (i+0.5)/n
+      b.resolveThreshold = (i + 0.5) / Math.max(1, n);
     });
   };
 
@@ -626,6 +655,19 @@ function mountCipher(): { stop(): void } {
     return { bx: b.x + Math.sin(t * 3 + b.ph) * b.e * DANCE_SWAY, topY: H - eh, scale: eh / b.h };
   };
 
+  // District resolve band: a building smoothly transitions from dim/grey (below threshold) to
+  // full neon (at/past threshold) over a small blend window. This is a held brighten — no strobe.
+  const DISTRICT_BAND = 0.06; // fraction of total decrypt range over which neon fades in
+
+  const districtNeonFrac = (b: Building): number => {
+    // How far decryptFrac is past this building's threshold, smoothed over ±DISTRICT_BAND.
+    // Returns 0 (dark) → 1 (fully lit). Clamped so it's never a strobe.
+    const over = decryptFrac - b.resolveThreshold;
+    if (over <= -DISTRICT_BAND) return 0;
+    if (over >= DISTRICT_BAND) return 1;
+    return (over + DISTRICT_BAND) / (2 * DISTRICT_BAND);
+  };
+
   const drawSkyline = (coh: number, glow: number, dt: number): void => {
     if (!buildings.length) return;
     const presence = Math.min(1, rLevel * 3); // how much the music has "taken over"
@@ -650,6 +692,8 @@ function mountCipher(): { stop(): void } {
       // snappy attack so it pops on the hit, slower release so it settles — like an EQ bar
       if (dt > 0) b.e = target > b.e ? easeToward(b.e, target, dt, 24) : easeToward(b.e, target, dt, 8);
       else b.e = idle;
+      // decay the citizen just-lit glow (runs every frame regardless of dt so it always fades)
+      if (b.justLit > 0) b.justLit = Math.max(0, b.justLit - (dt > 0 ? dt * 2.5 : 0.04));
       const { bx, topY } = bGeo(b);
       ctx.fillStyle = rgba('#060a14', 0.9);
       ctx.fillRect(bx, topY, b.w, H - topY);
@@ -657,16 +701,31 @@ function mountCipher(): { stop(): void } {
       ctx.fillRect(bx, topY, b.w, 1.6);
     }
 
-    // window neon (additive) — each building's windows pump with that building's own energy
+    // window neon (additive) — each building's windows pump with that building's own energy,
+    // scaled by how far decryptFrac has progressed past this district's threshold (left→right resolve).
     ctx.globalCompositeOperation = 'lighter';
     for (const b of buildings) {
       const { bx, topY, scale } = bGeo(b);
       const pump = 0.4 + b.e * 2.2 + baseBob;
+      // district resolve: below threshold → dim grey flicker (0.04 base); above → full neon
+      const df = districtNeonFrac(b);
+      const citizenBoost = b.justLit * 0.35; // subtle citizen-glow shimmer (additive, not strobe)
+      // grey-to-neon: interpolate the base alpha from 0.03 (dark/grey) → 0.16 (neon floor) as df rises
+      const baseAlpha = 0.03 + df * 0.13;
+      const cohScale = df * 0.4; // coherence contribution fades in with the district (held brighten)
       for (const wn of b.windows) {
         const flick = 0.6 + 0.4 * Math.sin(t * 2.2 + wn.ph);
-        const a = wn.base * flick * (0.16 + coh * 0.4) * pump * glow;
-        if (a < 0.02) continue;
-        ctx.fillStyle = rgba(wn.col, Math.min(0.95, a));
+        // dark districts: grey tint, low alpha, no color; lit districts: full neon per-window color
+        if (df < 0.05) {
+          // unlit district — a barely-visible grey ghost so the building isn't completely dead
+          const ga = wn.base * flick * 0.04 * pump;
+          if (ga < 0.015) continue;
+          ctx.fillStyle = rgba('#3a4a66', ga);
+        } else {
+          const a = wn.base * flick * (baseAlpha + cohScale * coh) * pump * glow + citizenBoost;
+          if (a < 0.02) continue;
+          ctx.fillStyle = rgba(wn.col, Math.min(0.95, a));
+        }
         ctx.fillRect(bx + wn.x, topY + wn.y * scale, wn.w, wn.h);
       }
     }
@@ -750,6 +809,22 @@ function mountCipher(): { stop(): void } {
         maybeCelebrateLongestDay();
         cohTarget = targetCoh();
         accentRgb = readAccent();
+        // Citizen glow: if a transmission completed since last poll, light the leftmost
+        // buildings whose district just resolved (a subtle per-building justLit pulse).
+        const newCount = readWokenLoreCount();
+        if (newCount > wokenLoreCount && buildings.length) {
+          const delta = newCount - wokenLoreCount;
+          // light the delta leftmost buildings that are near or past their threshold — a gentle shimmer
+          let lit = 0;
+          for (let bi = 0; bi < buildings.length && lit < delta; bi++) {
+            const b = buildings[bi];
+            if (decryptFrac >= b.resolveThreshold - 0.1) {
+              b.justLit = 0.7; // will decay in drawSkyline
+              lit++;
+            }
+          }
+        }
+        wokenLoreCount = newCount;
       }
       cohEased = easeToward(cohEased, cohTarget, dt, 3);
       // music reactivity: punchy attack + smooth release on the kick, gentler on the rest
@@ -798,7 +873,10 @@ function mountCipher(): { stop(): void } {
     }
     canvas.style.display = 'block';
     ensureSize();
-    if (!wasShown) choice = readChoice(); // re-read THE CHOICE only on (re)entry to the title
+    if (!wasShown) {
+      choice = readChoice(); // re-read THE CHOICE only on (re)entry to the title
+      wokenLoreCount = readWokenLoreCount(); // prime the citizen-glow baseline (no false-trigger on entry)
+    }
     decryptFrac = readDecryptFrac(); // master-cipher floor (also primes the reduce-motion STILL frame)
     maybeCelebrateLongestDay();
     if (prefersReducedMotion()) {
