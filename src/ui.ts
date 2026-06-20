@@ -76,6 +76,7 @@ import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
+import { sixthReveal, SOVEREIGN_HANDOFF } from './ending';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -511,6 +512,7 @@ export class UI {
   private rebinding: 'dash' | 'overdrive' | 'parry' | 'pause' | null = null; // active key-capture, if any
   private announceEl!: HTMLElement;
   private choiceRow!: HTMLElement;
+  private goSixth!: HTMLElement; // THE SIXTH reveal — populated in renderSixth() on choice-pending
   private saveReplayBtn!: HTMLButtonElement;
   private sharePanel!: HTMLElement;
   private announceTimer = 0;
@@ -1758,6 +1760,7 @@ export class UI {
           t.append(el('b', {}, 'No machine can decide it'), ' — it can only be chosen.');
           return t;
         })(),
+        (this.goSixth = el('div', { class: 'go-sixth' })),
       ),
       el('div', { class: 'go-choice-row' }, this.goCatchBtn, this.goFallBtn),
     );
@@ -3779,6 +3782,24 @@ export class UI {
     this.show('draft');
   }
 
+  /** Render THE SIXTH reveal into the choice prompt — the thesis (always), the faces you woke,
+   *  the gentle pull if any sleep, and the deepest line at 100%. Read-only over save. */
+  private renderSixth(save: SaveData): void {
+    const r = sixthReveal(save);
+    const kids: HTMLElement[] = [
+      el('div', { class: 'go-sixth-handoff' }, SOVEREIGN_HANDOFF),
+      el('div', { class: 'go-sixth-thesis' }, r.thesis),
+    ];
+    if (r.faces.length) {
+      const faces = el('div', { class: 'go-sixth-faces' });
+      for (const f of r.faces) faces.append(el('div', { class: 'go-sixth-face' }, el('b', {}, f.name), ' — ' + f.line));
+      kids.push(faces);
+    }
+    if (r.unwokenPull) kids.push(el('div', { class: 'go-sixth-pull' }, r.unwokenPull));
+    if (r.deepest) kids.push(el('div', { class: 'go-sixth-deepest' }, r.deepest));
+    this.goSixth.replaceChildren(...kids);
+  }
+
   /** After THE CHOICE commits (game.ts → makeChoice → here): resolve the whole
    *  screen to the chosen ending. The head/line are sourced from
    *  stillpoint.choiceEnding() upstream, so they are faithful by construction.
@@ -3841,6 +3862,7 @@ export class UI {
     this.goScreenInner.classList.toggle('go-lost', !info.won);
     this.goScreenInner.classList.toggle('go-pending', info.choicePending === true);
     this.choiceRow.classList.toggle('hidden', !info.choicePending);
+    if (info.choicePending && this.saveRef) this.renderSixth(this.saveRef);
 
     // ── HEADER brand + the FIRST LIGHT tableau (won) / darker debrief (lost) ──
     if (info.won) {

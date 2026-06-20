@@ -5231,6 +5231,15 @@ body {
   line-height: 1.55;
 }
 .go-choice-turing b { color: var(--go-gold); font-style: normal; font-weight: 600; }
+
+/* THE SIXTH reveal — shown inside the choice prompt at the Sovereign kill */
+.go-sixth { margin-top: 14px; max-height: 30vh; overflow-y: auto; text-align: left; font-size: 0.86rem; line-height: 1.5; color: #c9d4e0; }
+.go-sixth-handoff { font-style: italic; color: #ffd884; margin-bottom: 8px; }
+.go-sixth-thesis { color: #aeb9c7; margin-bottom: 8px; }
+.go-sixth-faces { display: flex; flex-direction: column; gap: 2px; opacity: 0.92; }
+.go-sixth-pull { margin-top: 8px; color: #8a94a3; }
+.go-sixth-deepest { margin-top: 8px; color: #ffd884; font-style: italic; }
+
 .go-choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .go-choice {
   --ac: var(--go-gold);
