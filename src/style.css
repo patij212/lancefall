@@ -5996,3 +5996,25 @@ body {
 .clarity .ck-mi-sub, .clarity .ck-mi-reward { color: #e6edf6; }
 .clarity .ck-mi:not(.selected) .ck-mi-sub, .clarity .ck-mi:not(.selected) .ck-mi-reward { color: #cdd6e3; }
 .clarity .ck-mi-pip { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18) inset; }
+
+/* ════════════════════════════════════════════════════════════════════════════════
+   ── COCKPIT width — use the horizontal space on wide / ultrawide displays ──
+   The title cockpit is a fixed composition uniformly scaled-to-fit by fitCockpit()
+   (ui.ts). On 16:9+ the HEIGHT binds, so a narrow 1160px frame leaves the sides empty
+   and squeezes the SELECT MODE rail. Widening the frame + side columns (height stays
+   put) lets the scaler fill more width and gives every column breathing room — without
+   going full-bleed. Scoped to the desktop fixed-composition range (≥1041px) so the
+   ≤1040px fluid reflow above is untouched. Two tiers: roomy on normal desktops, roomier
+   on big/ultrawide panels.
+   ════════════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1041px) {
+  .ck-frame { max-width: 1340px; }
+  .ck-main { grid-template-columns: 274px minmax(0, 1fr) 298px; }
+  /* a touch more inner gutter now that the columns aren't cramped */
+  .ck-col { padding: 18px 16px; }
+  .ck-col-center { padding: 18px 26px; }
+}
+@media (min-width: 1680px) {
+  .ck-frame { max-width: 1480px; }
+  .ck-main { grid-template-columns: 304px minmax(0, 1fr) 324px; }
+}
