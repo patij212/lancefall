@@ -51,3 +51,8 @@ CREATE TABLE IF NOT EXISTS saves (
   rev         INTEGER,     -- monotonic revision (optimistic concurrency)
   updated_at  INTEGER
 );
+
+-- Player Accounts P3 — bind a score to a linked account (nullable; anon scores leave it NULL).
+-- SQLite has no "ADD COLUMN IF NOT EXISTS"; guard the re-apply by ignoring the duplicate-column
+-- error (the owner applies the whole file; a fresh DB adds it, a re-apply is a harmless no-op).
+ALTER TABLE scores ADD COLUMN account_id TEXT;

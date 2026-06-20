@@ -57,6 +57,8 @@ interface ScoreRow {
   wave: number;
   combo: number;
   heat: number;
+  account_id?: string | null;
+  verified: number;
 }
 
 export default {
@@ -123,9 +125,12 @@ export default {
       if (!(await rateOk(env, ip, 'get', 120))) return json({ error: 'rate limited' }, 429, cors);
       // SQLite bare-column rule: with MAX(score), the other columns come from that row.
       // scope=weekly restricts a non-daily board to the current calendar week.
+      // Verified-board read: linked entries group by account_id (their stored name is the owned
+      // verified name); anon entries group by name. An impostor reusing a verified name has NULL
+      // account_id → groups separately → verified:0.
       const scope = url.searchParams.get('scope');
-      const SELECT = 'SELECT name, MAX(score) AS score, wave, combo, heat FROM scores';
-      const TAIL = 'GROUP BY name ORDER BY score DESC LIMIT 100';
+      const SELECT = 'SELECT name, MAX(score) AS score, wave, combo, heat, CASE WHEN account_id IS NOT NULL THEN 1 ELSE 0 END AS verified FROM scores';
+      const TAIL = 'GROUP BY COALESCE(account_id, name) ORDER BY score DESC LIMIT 100';
       let stmt: D1PreparedStatement;
       if (mode === 'daily') {
         stmt = env.DB.prepare(`${SELECT} WHERE mode = ? AND daily = ? ${TAIL}`).bind(mode, daily ?? '');
@@ -142,6 +147,7 @@ export default {
         wave: r.wave,
         combo: r.combo,
         heat: r.heat,
+        verified: r.verified === 1,
       }));
       const body = JSON.stringify({ entries });
       // store WITHOUT CORS (origin-agnostic) + a short s-maxage; CORS is re-attached below
