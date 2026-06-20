@@ -40,6 +40,14 @@ describe('mergeSaves — categories', () => {
     expect(mergeSaves(mk({ selectedShip: 'comet' }), mk({ selectedShip: 'vortex' }), 1, 2).selectedShip).toBe('vortex');
     expect(mergeSaves(mk({ selectedShip: 'comet' }), mk({ selectedShip: 'vortex' }), 5, 2).selectedShip).toBe('comet');
   });
+  it('minStamp (vigilSince) keeps the earliest stamp and preserves the -1 unset sentinel', () => {
+    // earliest catch (smaller ordinal = longer vigil) wins
+    expect(mergeSaves(mk({ vigilSince: 20 }), mk({ vigilSince: 10 }), 1, 2).vigilSince).toBe(10);
+    // a set stamp beats the -1 unset sentinel (never lose a started vigil)
+    expect(mergeSaves(mk({ vigilSince: -1 }), mk({ vigilSince: 12 }), 1, 2).vigilSince).toBe(12);
+    // both unset → stays -1 (so makeChoice/daysHeld `< 0` guards keep working; never collapses to 0)
+    expect(mergeSaves(mk({ vigilSince: -1 }), mk({ vigilSince: -1 }), 1, 2).vigilSince).toBe(-1);
+  });
 });
 
 describe('mergeSaves — spendable reconcile (the windfall, §7.1)', () => {

@@ -9,6 +9,7 @@ import { defaultSave } from './save';
 export type MergeCategory =
   | 'maxNum'       // accumulative number → max
   | 'minNonZero'   // best-is-smallest → min of the non-zero values (0 = unset)
+  | 'minStamp'     // a stamped run-ordinal, earliest wins → min of the non-negative values; -1 (unset) preserved when both unset
   | 'set'          // string[] → union (deduped, order: a then new-from-b)
   | 'perKeyMax'    // Record<string,number> → per-key max
   | 'latest'       // selection/preference → from whichever save was written more recently
@@ -38,9 +39,12 @@ export const MERGE_CATEGORIES: Record<keyof SaveData, MergeCategory> = {
   baseShields: 'latest', stillpointChoice: 'latest', dailyMutators: 'latest', dailySeed: 'latest',
   dailyAttempts: 'latest', dailyAttemptDate: 'latest', lastPlayedDate: 'latest',
   firstRunsBeatHint: 'latest', seenTutorial: 'latest', seenSandbox: 'latest',
-  // v9 Vigil — latest wins for the choice-relationship fields (device-local; the choiceDate and
-  // vigilSince are stamped once and never regress; released is irreversible once true).
-  vigilSince: 'maxNum', released: 'latest', choiceDate: 'latest',
+  // v9 Vigil — vigilSince is the run-ordinal stamped at the catch choice; the EARLIEST stamp wins
+  // (a smaller ordinal = a longer vigil held), with -1 (unset) preserved so the makeChoice/daysHeld
+  // `< 0` sentinel guards keep working after a both-unset merge. released + choiceDate are 'latest'
+  // (same as their sibling stillpointChoice) so the (choice, released, choiceDate) triple always
+  // resolves together from one device's write and can never desync (released=true with choice!='fall').
+  vigilSince: 'minStamp', released: 'latest', choiceDate: 'latest',
   runHistory: 'ringHistory',
   lastRuns: 'ringLastRuns',
   shards: 'shardsSpecial',
@@ -112,6 +116,11 @@ export function mergeSaves(a: SaveData, b: SaveData, aWrittenAt: number, bWritte
       case 'minNonZero': {
         const xs = [num(av), num(bv)].filter((n) => n > 0);
         o[key] = xs.length ? Math.min(...xs) : 0; break;
+      }
+      case 'minStamp': {
+        // earliest stamp wins (smaller ordinal = longer vigil); -1 (unset) preserved when both unset
+        const xs = [av, bv].filter((n): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0);
+        o[key] = xs.length ? Math.min(...xs) : -1; break;
       }
       case 'set': o[key] = unionSet(av, bv); break;
       case 'perKeyMax': o[key] = perKeyMax(av, bv); break;
