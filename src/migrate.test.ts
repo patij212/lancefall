@@ -408,3 +408,24 @@ describe('migrate — BOMBE meta fields (additive)', () => {
     expect(masterProgress(m).frac).toBe(1); // 100% master cipher achievable
   });
 });
+
+describe('v8 -> v9 (THE LAST WORD vigil fields)', () => {
+  it('default-fills vigilSince/released/choiceDate for a v8 save', () => {
+    const v8 = { version: 8, highScore: 1234, stillpointChoice: 'catch' };
+    const out = migrateSave(v8, defaultSave());
+    expect(out.version).toBe(SAVE_VERSION);
+    expect(out.version).toBe(9);
+    expect(out.highScore).toBe(1234);
+    expect(out.vigilSince).toBe(-1);
+    expect(out.released).toBe(false);
+    expect(out.choiceDate).toBe('');
+  });
+  it('clamps a hand-edited vigilSince to an integer >= -1', () => {
+    const out = migrateSave({ version: 9, vigilSince: 4.7 }, defaultSave());
+    expect(out.vigilSince).toBe(4);
+    const out2 = migrateSave({ version: 9, vigilSince: -50 }, defaultSave());
+    expect(out2.vigilSince).toBe(-1);
+    const out3 = migrateSave({ version: 9, vigilSince: 'x' }, defaultSave());
+    expect(out3.vigilSince).toBe(-1);
+  });
+});

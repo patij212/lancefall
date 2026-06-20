@@ -38,6 +38,9 @@ export const MERGE_CATEGORIES: Record<keyof SaveData, MergeCategory> = {
   baseShields: 'latest', stillpointChoice: 'latest', dailyMutators: 'latest', dailySeed: 'latest',
   dailyAttempts: 'latest', dailyAttemptDate: 'latest', lastPlayedDate: 'latest',
   firstRunsBeatHint: 'latest', seenTutorial: 'latest', seenSandbox: 'latest',
+  // v9 Vigil — latest wins for the choice-relationship fields (device-local; the choiceDate and
+  // vigilSince are stamped once and never regress; released is irreversible once true).
+  vigilSince: 'maxNum', released: 'latest', choiceDate: 'latest',
   runHistory: 'ringHistory',
   lastRuns: 'ringLastRuns',
   shards: 'shardsSpecial',
