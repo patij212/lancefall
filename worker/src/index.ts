@@ -495,31 +495,33 @@ export default {
         }
 
         // ── Name claim: sanitize + check uniqueness among linked accounts (case-folded) ──
+        // P2 final review + P3 Task 2 review: on a collision we PRESERVE canonical's existing
+        // name/name_verified rather than wiping them. A returning VERIFIED player (MERGE/RECOVERY)
+        // must never lose their owned identity just because another account holds the same name.
         const claimedName = claimName(rawName);
-        let verifiedName: string | null = null;
-        let nameVerified = 0;
+        let claimOk = false;
         if (claimedName) {
           // A name is only kept if no OTHER linked account already holds it (case-folded).
           const conflict = await env.DB.prepare(
-            'SELECT id, name_verified FROM accounts WHERE provider IS NOT NULL AND lower(name) = lower(?) AND id != ?',
-          ).bind(claimedName, canonical).first<{ id: string; name_verified: number }>();
-          if (!conflict) {
-            verifiedName = claimedName;
-            nameVerified = 1;
-          }
-          // P2 carry-over (P2 final review): when a name collision is found, only NULL the
-          // conflicting account's name if it had no verified name before. If it already held a
-          // verified name (name_verified=1) keep it — don't silently strip a real player's identity.
-          // (No explicit UPDATE needed here; we simply don't set verifiedName/nameVerified for canonical,
-          // and the conflicting account's row is untouched — the UPDATE below only writes canonical.)
+            'SELECT 1 FROM accounts WHERE provider IS NOT NULL AND lower(name) = lower(?) AND id != ?',
+          ).bind(claimedName, canonical).first();
+          if (!conflict) claimOk = true;
         }
 
         // ── Update accounts row: attach provider + name (or refresh on recovery) ──
         // For the MERGE case canonical = existing.id which already has provider/provider_id; update name anyway.
-        const linkNow = Date.now();
-        await env.DB.prepare(
-          'UPDATE accounts SET provider = ?, provider_id = ?, name = ?, name_verified = ?, updated_at = ? WHERE id = ?',
-        ).bind(provider, providerId, verifiedName, nameVerified, linkNow, canonical).run();
+        // ONLY update name/name_verified when there is a fresh, non-colliding name to claim.
+        // Otherwise set only provider/provider_id/updated_at — leave canonical's existing name untouched.
+        const now2 = Date.now();
+        if (claimOk) {
+          await env.DB.prepare(
+            'UPDATE accounts SET provider = ?, provider_id = ?, name = ?, name_verified = 1, updated_at = ? WHERE id = ?',
+          ).bind(provider, providerId, claimedName, now2, canonical).run();
+        } else {
+          await env.DB.prepare(
+            'UPDATE accounts SET provider = ?, provider_id = ?, updated_at = ? WHERE id = ?',
+          ).bind(provider, providerId, now2, canonical).run();
+        }
 
         // ── Issue a linked session and redirect back to the game ──
         const session = await signSession({ aid: canonical, kind: 'linked', exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
