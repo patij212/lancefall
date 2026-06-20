@@ -5435,6 +5435,10 @@ body {
 .go-resolve-head { font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.16em; }
 .go-resolve-line { font-size: 13px; color: #ecdcc0; max-width: 480px; line-height: 1.65; font-style: italic; }
 
+/* THE COMPLETION — citizen fates listed in the resolve wash */
+.go-fates { margin-top: 16px; max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; text-align: center; font-size: 0.9rem; color: #e6edf5; }
+.go-fate b { color: #ffd884; }
+
 /* ── load-in reveal (won; staggered) — gated under STILL DAWN ── */
 .go-frame.go-won .go-header { animation: goBootIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both; }
 .go-frame.go-won .go-main { animation: goBootIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }

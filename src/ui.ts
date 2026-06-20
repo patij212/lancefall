@@ -76,7 +76,7 @@ import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
-import { sixthReveal, SOVEREIGN_HANDOFF } from './ending';
+import { sixthReveal, SOVEREIGN_HANDOFF, completionEpilogue } from './ending';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -3835,11 +3835,28 @@ export class UI {
     clearTimeout(this.goResolveTimer);
     this.replayAnim(this.goResolve, 'show'); // CSS gates the keyframe under reduce-motion (held, no fade)
     this.goResolveTimer = window.setTimeout(() => this.goResolve.classList.remove('show'), 3200);
+    // name every woken citizen's fate in the wash overlay
+    if (this.saveRef) this.renderFates(which, this.saveRef);
+  }
+
+  /** Render the citizen-fate list into the resolve wash overlay (one entry per woken citizen).
+   *  Called from resolveChoice (first choice) and playCompletion (late Vigil release). */
+  private renderFates(which: 'catch' | 'fall', save: SaveData): void {
+    const existing = this.goResolve.querySelector('.go-fates'); if (existing) existing.remove();
+    const fates = completionEpilogue(save, which);
+    if (!fates.length) return;
+    const list = el('div', { class: 'go-fates' });
+    for (const f of fates) list.append(el('div', { class: 'go-fate' }, el('b', {}, f.name), ' — ' + f.line));
+    this.goResolve.append(list);
   }
 
   /** THE COMPLETION — play the chosen ending over the skyline and name every woken citizen's fate.
-   *  Reuses the resolve wash. Full implementation in Task 14. */
-  playCompletion(_which: 'catch' | 'fall', _save: SaveData, _head: string, _line: string): void { /* Task 14 */ }
+   *  Reuses the resolve wash (already a11y-gated). The late Vigil release path calls this. */
+  playCompletion(_which: 'catch' | 'fall', save: SaveData, head: string, line: string): void {
+    // update saveRef so renderFates (called inside resolveChoice) sees the new save
+    this.saveRef = save;
+    this.resolveChoice(head, line);
+  }
 
   showGameOver(info: GameOverInfo): void {
     this.displayScore = 0;

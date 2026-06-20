@@ -3336,7 +3336,7 @@ export class Game {
     this.save.released = true;
     saveSave(this.save);
     const end = choiceEnding('fall');
-    this.ui.playCompletion('fall', this.save, end.head, end.line); // added in Task 14
+    this.ui.playCompletion('fall', this.save, end.head, end.line);
     return true;
   }
 
