@@ -30,7 +30,7 @@ const CAPTIONS = [
   { id: 'bosses', label: 'BULLET-HELL', line: 'Twelve enemies. Six bosses. A sky of fire — and one spear to thread it.', accent: ROSE },
   { id: 'fall', label: 'THE FALL', line: 'A kingdom of living light — until the Six who let it fall <b>enciphered</b> it into grey.', accent: CYAN },
   { id: 'verb', label: 'ONE VERB', line: 'You are the last key. You don’t shoot — you <b>dash</b> a spear of light.', accent: CYAN },
-  { id: 'flow1', label: 'THE CHAIN', line: 'Spear a cluster, graze the gap, dash again — and the <b>combo never breaks</b>.', accent: CYAN },
+  { id: 'flow1', label: 'THE CHAIN', line: 'Spear a cluster, <b>graze</b> the gap, phase a wall of fire — and dash again.', accent: CYAN },
   { id: 'flow2', label: 'FLOW STATE', line: 'Momentum is the only weapon. Read the swarm; <b>never stop moving</b>.', accent: VIOLET },
   { id: 'coherence', label: 'COHERENCE', line: 'Chain the kills. The grey burns off. The city <b>remembers</b>.', accent: CYAN },
   { id: 'readkey', label: 'READ THE KEY', line: 'Every boss is a cipher. <b>Read the key</b> — and decode it under fire.', accent: AMBER },
@@ -80,6 +80,22 @@ const END = `<!doctype html><meta charset=utf-8><style>${FONTS}
   <div class="url">lancefall.pages.dev</div><div class="jam">JUNE GAME JAM · AN ODE TO ALAN TURING</div></div>
   <div class="cred">Music: Punch Deck &amp; FSM Team / &lt;e s c p&gt; (CC BY) · SFX: Kenney (CC0) · Built in TypeScript, no engine</div>`;
 
+// Transparent overlay for the END-ART card: the owner's art already has the title + tagline, so
+// we only add the play URL + jam credit + audio attribution along the bottom.
+const ENDINFO = `<!doctype html><meta charset=utf-8><style>${FONTS}
+  *{margin:0}html,body{width:${W}px;height:${H}px;background:transparent;overflow:hidden}
+  .blk{position:absolute;left:0;right:0;bottom:72px;text-align:center}
+  .url{font-family:'Space Grotesk';font-weight:500;font-size:40px;color:#fff;letter-spacing:.04em;
+    text-shadow:0 2px 18px rgba(0,0,0,.85),0 0 26px ${CYAN}66}
+  .jam{font-family:'Rajdhani';font-weight:600;font-size:25px;letter-spacing:.34em;color:#dfe8f5;margin-top:12px;
+    text-shadow:0 2px 14px rgba(0,0,0,.9)}
+  .cred{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-family:'Space Grotesk';
+    font-weight:400;font-size:15px;color:#cdd6e6;letter-spacing:.02em;text-shadow:0 1px 10px rgba(0,0,0,.9)}
+  </style>
+  <div class="blk"><div class="url">lancefall.pages.dev</div>
+  <div class="jam">JUNE GAME JAM · AN ODE TO ALAN TURING</div></div>
+  <div class="cred">Music: Punch Deck &amp; FSM Team / &lt;e s c p&gt; (CC BY) · SFX: Kenney (CC0) · Built in TypeScript, no engine</div>`;
+
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
@@ -92,5 +108,6 @@ const END = `<!doctype html><meta charset=utf-8><style>${FONTS}
   };
   for (const c of CAPTIONS) await render(lowerThird(c), `cap_${c.id}.png`);
   await render(END, 'card_end.png');
+  await render(ENDINFO, 'card_endinfo.png');
   await browser.close();
 })();

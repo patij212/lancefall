@@ -197,7 +197,7 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
       // homing seeker, bloomers… (the survival bot dodges + kills them; bullets are thinned above).
       if (o.variety && w && w.spawnEnemy) {
         let n = 0; for (const e of w.enemies.items) if (e.active && !e.isBoss) n++;
-        if (n < 8) { const all = ['orbiter', 'splitter', 'bomber', 'lancer', 'shade', 'brooder', 'drifter', 'seeker', 'herald', 'bloomer', 'wisp', 'darter']; const a = Math.random() * Math.PI * 2; try { w.spawnEnemy(all[Math.floor(Math.random() * all.length)], w.width / 2 + Math.cos(a) * 430, w.height / 2 + Math.sin(a) * 290, 1, 1, false, false); } catch {} }
+        if (n < 6) { const all = ['orbiter', 'splitter', 'bomber', 'lancer', 'shade', 'brooder', 'drifter', 'seeker', 'herald', 'bloomer', 'wisp', 'darter']; const a = Math.random() * Math.PI * 2; try { w.spawnEnemy(all[Math.floor(Math.random() * all.length)], w.width / 2 + Math.cos(a) * 430, w.height / 2 + Math.sin(a) * 290, 1, 1, false, false); } catch {} }
       }
       if (o.pin && w) for (const e of w.enemies.items) if (e.active && e.isBoss) { e.x = o.pin.x; e.y = o.pin.y; e.vx = 0; e.vy = 0; }
       g.__t += 1000 / 60;
@@ -216,65 +216,65 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
 // ── beat directors (gameplay only; panels/title/cards are stills/art handled in edit) ──
 const PIN = { x: Math.round(SW * 0.5), y: Math.round(SH * 0.42) };
 const BEATS = {
-  // combat verb — mid-game, with a rotating VARIETY of the whole bestiary on screen (not just
-  // darters), calmed shake + thinned bullets so it reads. The survival bot dodges + kills.
-  combat: () => renderBeat('combat', Math.round(14 * FPS), async (page) => {
-    await startRun(page, 'arena', true);
-  }, { god: true, warmup: 22, calm: true, thin: 28, variety: true }),
+  // NOTE: NO god-mode anywhere in capture — real bullets, real damage, the bot dodges for real.
+  // The only capture aids are honest ones: calm shake (readability), enemy variety, a framing pin,
+  // and the COHERENCE/DAYBREAK render dials. The warmup fast-forwards to mid-game off-screen (kept
+  // alive there only so the run REACHES mid-game); the captured frames are genuine play.
 
-  // FLOW — the "perfect synergy of movement" section: warm up to draft AoE perks, then the AGGRO
-  // pilot dashes non-stop through a dense melee swarm (spawn) with infinite stamina, the combo
-  // (comboHold) climbing through the chain. Reads as relentless flow + a skyrocketing multiplier.
-  flow: () => renderBeat('flow', Math.round(19 * FPS), async (page) => {
+  // combat — REAL play: mid-game arena with a rotating VARIETY of the bestiary; the survival bot
+  // dodges real fire + kills. Capture long; the edit curates an alive, high-action stretch.
+  combat: () => renderBeat('combat', Math.round(16 * FPS), async (page) => {
     await startRun(page, 'arena', true);
-  }, {
-    god: true, stamina: true, comboHold: true, spawn: true, noOverdrive: true, calm: true, warmup: 14,
-    afterWarmup: async (page) => { await page.evaluate(`(${AGGRO_PILOT.toString()})()`); },
-  }),
+  }, { warmup: 16, calm: true, variety: true }),
 
-  // grey→neon coherence wash, mid-game (forced full neon; edit cuts from a grey shot)
+  // FLOW — real synergy of movement: the survival bot weaving a dense varied wave, dashing/grazing/
+  // chaining a REAL combo. Endless, for a different look than the arena combat beat.
+  flow: () => renderBeat('flow', Math.round(24 * FPS), async (page) => {
+    await startRun(page, 'endless', true);
+  }, { warmup: 16, calm: true, variety: true }),
+
+  // grey→neon coherence wash — real play; the neon is a render dial (COH_FORCE), not a difficulty cheat.
   coherence: () => renderBeat('coherence', Math.round(12 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(`(${COH_FORCE.toString()})()`);
-  }, { god: true, warmup: 18 }),
+  }, { warmup: 16, calm: true, variety: true }),
 
-  // HERO — Weaver substitution cipher: READ THE KEY decode under fire → CIPHER BROKEN
-  cipher: () => renderBeat('cipher', Math.round(16 * FPS), async (page) => {
-    await startRun(page, 'longestday', false);
+  // HERO — Weaver substitution cipher: READ THE KEY decode under REAL fire → CIPHER BROKEN. The
+  // REAL bot now solves cipher-locks itself (dashes the next-in-order core when safe) WHILE dodging
+  // the spiral — no pilot, no god. Authentic decode-under-fire.
+  cipher: () => renderBeat('cipher', Math.round(26 * FPS), async (page) => {
+    await startRun(page, 'longestday', true);
     await page.evaluate(() => window.__lf.spawnWarden('weaver'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-    await page.evaluate(`(${CIPHER_PILOT.toString()})()`);
-  }, { god: true, pin: PIN, calm: true, thin: 20 }),
+  }, { pin: PIN, calm: true }),
 
-  // SOLSTICE PROTOCOL at its best — THE SOVEREIGN, the master (rotor) cipher (a glimpse of the big ring)
-  sovereign: () => renderBeat('sovereign', Math.round(9 * FPS), async (page) => {
-    await startRun(page, 'longestday', false);
+  // SOLSTICE PROTOCOL — THE SOVEREIGN, the master (rotor) cipher; the real bot decodes the big ring.
+  sovereign: () => renderBeat('sovereign', Math.round(13 * FPS), async (page) => {
+    await startRun(page, 'longestday', true);
     await page.evaluate(() => window.__lf.spawnWarden('sovereign'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-    await page.evaluate(`(${CIPHER_PILOT.toString()})()`);
-  }, { god: true, pin: PIN, calm: true, thin: 20 }),
+  }, { pin: PIN, calm: true }),
 
-  // BULLET-HELL boss — THE BEACON's rotating cross-beams, the bot threading them (a boss IS late-game;
-  // no warmup — a boss present during the fast-forward navigates the page on the win/over path).
-  bossfight: () => renderBeat('bossfight', Math.round(13 * FPS), async (page) => {
+  // BULLET-HELL boss — THE BEACON's rotating cross-beams, the survival bot threading them for real.
+  bossfight: () => renderBeat('bossfight', Math.round(12 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(() => window.__lf.spawnWarden('beacon'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { god: true, pin: PIN, calm: true, thin: 30 }),
+  }, { pin: PIN, calm: true }),
 
-  // the Mirrorblade — the imitation game
-  mirror: () => renderBeat('mirror', Math.round(9 * FPS), async (page) => {
+  // the Mirrorblade — the imitation game (real duel)
+  mirror: () => renderBeat('mirror', Math.round(10 * FPS), async (page) => {
     await startRun(page, 'endless', true);
     await page.evaluate(() => window.__lf.spawnWarden('mirrorblade'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { god: true }),
+  }, { calm: true, warmup: 6 }),
 
-  // DAYBREAK ultimate — the screen-clearing burst of light
-  daybreak: () => renderBeat('daybreak', Math.round(8 * FPS), async (page) => {
+  // DAYBREAK ultimate — the real screen-clearing burst (the bot earns the meter + fires it)
+  daybreak: () => renderBeat('daybreak', Math.round(9 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(() => { const w = window.__lf.world; if (w.overdrive) { w.overdrive.meter = 1; w.overdrive.cooldown = 0; } });
     await page.evaluate(`(${FORCE_DAYBREAK.toString()})(90)`);
-  }, { god: true }),
+  }, { calm: true, warmup: 8 }),
 };
 
 let browser, server;
@@ -285,11 +285,18 @@ let browser, server;
     URL = server.resolvedUrls?.local?.[0] || `http://127.0.0.1:${server.config.server.port}/`;
     log('vite (hmr off) @', URL);
   }
-  browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--use-gl=angle', '--enable-gpu'] });
+  const launchArgs = ['--autoplay-policy=no-user-gesture-required', '--use-gl=angle', '--enable-gpu'];
   try {
-    for (const [k, fn] of Object.entries(BEATS)) { if (!want(k)) continue; log('▶', k); await fn(); }
+    for (const [k, fn] of Object.entries(BEATS)) {
+      if (!want(k)) continue;
+      log('▶', k);
+      // FRESH browser per beat — chromium memory/contention accumulates across beats and the later
+      // ones crawl (combat 2.7min → coherence 30min in one run); relaunching keeps every beat fast.
+      browser = await chromium.launch({ args: launchArgs });
+      try { await fn(); } finally { await browser.close(); browser = null; }
+    }
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     if (server) await server.close();
   }
   log('done.');

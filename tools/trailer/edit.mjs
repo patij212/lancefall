@@ -29,14 +29,19 @@ const cap = (id) => path.join(ASSETS, `cap_${id}.png`);
 
 // kinds: 'clip' = smooth gameplay (trim ss..ss+t); 'panel' = a still grabbed from a screencast
 // clip at ss (ken-burns); 'still' = a PNG (ken-burns); 'card' = a static PNG.
+// END CARD = the owner's end art (golden FIRST LIGHT city + title) + a url/jam/credits overlay.
+const ENDART = path.join(PRESS, 'endart.png');
+const ENDCARD = path.join(SEGS, 'endcard.png');
+const useEndArt = fs.existsSync(ENDART);
+if (useEndArt) sh(`ffmpeg -y -loglevel error -i "${ENDART}" -i "${path.join(ASSETS, 'card_endinfo.png')}" -filter_complex "[0]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[bg];[bg][1]overlay" -frames:v 1 "${ENDCARD}"`);
 const SHOTS = [
   { id: 'title',      kind: 'still', src: KEYART, t: 6.0, zoom: 'out' },   // key art opens; the art speaks (no caption)
   { id: 'combat',     kind: 'clip',  src: 'combat',     ss: 2.0, t: 9.0,  cap: 'verb' },
   { id: 'flow_a',     kind: 'clip',  src: 'flow',       ss: 3.0, t: 7.0,  cap: 'flow1' },   // the combo building
   { id: 'flow_b',     kind: 'clip',  src: 'flow',       ss: 11.0, t: 8.0, cap: 'flow2' },   // the x100+ peak + neon
   { id: 'coherence',  kind: 'clip',  src: 'coherence',  ss: 2.0, t: 9.5,  cap: 'coherence' },
-  { id: 'cipher',     kind: 'clip',  src: 'cipher',     ss: 3.0, t: 13.0, cap: 'readkey' },
-  { id: 'sovereign',  kind: 'clip',  src: 'sovereign',  ss: 1.4, t: 3.5,  cap: 'sovereign' },
+  { id: 'cipher',     kind: 'clip',  src: 'cipher',     ss: 18.0, t: 7.5, cap: 'readkey' },   // the decode climax → CIPHER BROKEN (~23s)
+  { id: 'sovereign',  kind: 'clip',  src: 'sovereign',  ss: 2.5, t: 5.0,  cap: 'sovereign' },   // the rotor decode, before the win screen (~9s)
   { id: 'bossfight',  kind: 'clip',  src: 'bossfight',  ss: 2.5, t: 8.5,  cap: 'bosses' },
   { id: 'modes',      kind: 'panel', src: 'modes',      ss: 9.0, t: 4.0,  cap: 'solstice' },
   { id: 'draft',      kind: 'panel', src: 'draft',      ss: 8.0, t: 3.0 },
@@ -46,7 +51,7 @@ const SHOTS = [
   { id: 'daybreak',   kind: 'clip',  src: 'daybreak',   ss: 0.3, t: 6.5,  cap: 'daybreak' },
   { id: 'choice',     kind: 'panel', src: 'choice',     ss: 8.0, t: 5.5,  cap: 'choice' },
   { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 6.0, cap: 'firstlight', zoom: 'in' },
-  { id: 'endcard',    kind: 'card',  src: path.join(ASSETS, 'card_end.png'), t: 5.5 },
+  { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.5, zoom: 'in' },
 ];
 
 const TOTAL = SHOTS.reduce((s, x) => s + x.t, 0);
