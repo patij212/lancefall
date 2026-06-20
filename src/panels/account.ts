@@ -24,6 +24,15 @@ export interface AccountPanel extends Panel {
   open(save: SaveData): void;
 }
 
+/** Shared privacy note rendered in both anonymous and linked states. */
+function privacyNote(): HTMLElement {
+  return el('div', { class: 'account-privacy event-flavor' },
+    'Privacy — signing in stores a provider account id and your game progress, used only to sync ' +
+    'across devices and show a verified name. No third-party analytics. ' +
+    'You can delete your account anytime to wipe your cloud data.',
+  );
+}
+
 export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
   // ── shell (built once) ──
   const head = el('div', { class: 'panel-head' },
@@ -72,7 +81,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
         confirmRow = el('div', { class: 'account-confirm-row' },
           el('span', { class: 'event-flavor' }, 'This wipes your cloud save + verified name.'),
           (() => {
-            const confirm = el('button', { class: 'btn btn-ghost account-confirm-btn' }, 'Confirm');
+            const confirm = el('button', { class: 'btn btn-danger account-confirm-btn' }, 'Confirm');
             confirm.addEventListener('click', () => void deps.onDelete());
             return confirm;
           })(),
@@ -95,6 +104,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
           'Your save is backed up to the cloud. Sign in from another device to continue your run.',
         ),
         deleteBtn,
+        privacyNote(),
       );
     } else {
       // ── anonymous state ──
@@ -117,6 +127,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
         el('div', { class: 'event-flavor account-note' },
           'Signing in links your device to your account. Your local progress carries over.',
         ),
+        privacyNote(),
       );
     }
   };

@@ -206,6 +206,48 @@ describe('buildAccountPanel', () => {
     expect(confirmBtn).toBeUndefined();
   });
 
+  it('anonymous state: shows privacy note', () => {
+    const panel = buildAccountPanel(makeDeps());
+    panel.open(mockSave);
+    const note = panel.root.querySelector('.account-privacy');
+    expect(note).not.toBeNull();
+    expect(note?.textContent).toContain('Privacy');
+    expect(note?.textContent).toContain('No third-party analytics');
+  });
+
+  it('linked state: shows privacy note', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const panel = buildAccountPanel(makeDeps());
+    panel.open(mockSave);
+    const note = panel.root.querySelector('.account-privacy');
+    expect(note).not.toBeNull();
+    expect(note?.textContent).toContain('Privacy');
+  });
+
+  it('linked state: confirm delete button has btn-danger class', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const d = makeDeps();
+    const panel = buildAccountPanel(d);
+    panel.open(mockSave);
+    const deleteBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('delete'),
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+    const confirmBtn = panel.root.querySelector('.account-confirm-btn') as HTMLButtonElement;
+    expect(confirmBtn).not.toBeNull();
+    expect(confirmBtn.classList.contains('btn-danger')).toBe(true);
+  });
+
   it('anonymous state without opted-in: no delete button shown', () => {
     // anonymous + not opted in → nothing to delete
     vi.spyOn(account, 'accountState').mockReturnValue({

@@ -147,14 +147,69 @@ The game client points at the worker via `VITE_LEADERBOARD_URL` (set in `.env` o
 
 ---
 
-## P3 — Guards + Account Deletion (added later)
+## P3 — Verified Leaderboards + Account Deletion + Privacy
 
-This section is a placeholder. When verified-leaderboard guards are wired up (P3), add:
+### 1. Apply the D1 migration (scores.account_id column)
 
-- Rate-limit and abuse-prevention rules
-- Account deletion endpoint + privacy notice
-- Verified submission rules (signature validation, replay prevention)
+Re-run the same schema file to pick up the new `account_id` column on the `scores` table:
+
+```bash
+cd worker
+npx wrangler d1 execute lancefall --remote --file=schema.sql
+```
+
+**Note:** If the database was already migrated (e.g., you ran this once for P1 or P2), the single
+`ALTER TABLE scores ADD COLUMN account_id` statement will report a benign error:
+
+```
+Error: duplicate column name: account_id
+```
+
+All other statements in `schema.sql` use `CREATE TABLE IF NOT EXISTS` and are safe to re-run.
+You can safely ignore the duplicate-column error — it means the column already exists.
+Alternatively, apply just the new line manually:
+
+```bash
+npx wrangler d1 execute lancefall --remote --command "ALTER TABLE scores ADD COLUMN account_id TEXT REFERENCES accounts(id)"
+```
+
+### 2. What P3 adds (no new secrets required)
+
+No new Wrangler secrets are needed for P3. The features below are live after redeployment:
+
+**Verified leaderboards:**
+- Score submissions from authenticated (linked) players attach their `account_id`, surfaced as
+  a `verified: true` flag on leaderboard entries.
+- Unlinked (anonymous) submissions remain accepted but are shown as unverified.
+
+**Light abuse guards (no additional config):**
+- **Per-account rate-limit** — a single account cannot submit more than N scores within a rolling
+  window (enforced in the Worker with an in-memory counter backed by a D1 timestamp check).
+- **Exact-duplicate dedupe** — identical `(account_id, score, seed)` tuples are silently dropped.
+- **Existing plausibility caps** — inherited from the leaderboard worker's existing score-range
+  validation (scores outside realistic bounds are rejected).
+
+**Account deletion (`DELETE /account`):**
+- Players can delete their account and all associated cloud data (save, verified name, scores) from
+  within the game. The endpoint wipes the `accounts` and `saves` rows and nulls the `account_id`
+  foreign key on any existing `scores` rows.
+
+### 3. In-game privacy notice + delete action location
+
+A plain-language **privacy note** is now shown in the Account panel in both the anonymous and
+linked states. Text:
+
+> Privacy — signing in stores a provider account id and your game progress, used only to sync
+> across devices and show a verified name. No third-party analytics. You can delete your account
+> anytime to wipe your cloud data.
+
+The **"Delete my account & cloud data"** action is found at:
+
+**SETTINGS → Manage account** (opens the ACCOUNT panel) → **Delete my account & cloud data** button
+→ inline confirm step (red CONFIRM button) → deletion executes.
+
+Deletion wipes the player's cloud save and verified name. Local (device) progress is unaffected.
 
 ---
 
-*Last updated: P2 shipped (Discord + Google OAuth provisioning).*
+*Last updated: P3 shipped (verified leaderboards + guards + account deletion + privacy notice).*
