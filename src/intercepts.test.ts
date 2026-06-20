@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   INTERCEPTS, wordKey, wordCost, vocabulary, cipherWord, wordRarity, transmissionsComplete,
   isWordDecrypted, interceptWords, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView,
-  decryptWord, syncInterceptLore, hasAffordableDecrypt,
+  decryptWord, syncInterceptLore, hasAffordableDecrypt, isLongestDay,
 } from './intercepts';
 import { loreById, fragmentBalance } from './lore';
 import { defaultSave } from './save';
@@ -148,5 +148,25 @@ describe('intercepts — decrypt action', () => {
     expect(unlocked).toContain(ic.loreLink);
     expect(s.stillpointLore).toContain(ic.loreLink);
     expect(syncInterceptLore(s)).toEqual([]); // idempotent — no re-unlock
+  });
+});
+
+describe('THE LAST TRANSMISSION (int-last)', () => {
+  it('exists, has no loreLink, and adds zero new vocabulary words', () => {
+    const last = INTERCEPTS.find((i) => i.id === 'int-last')!;
+    expect(last).toBeTruthy();
+    expect(last.loreLink).toBeUndefined();
+    // every word of int-last must already appear in the other 13 transmissions
+    const others = new Set(
+      INTERCEPTS.filter((i) => i.id !== 'int-last').flatMap((i) => interceptWords(i)),
+    );
+    for (const w of interceptWords(last)) expect(others.has(w)).toBe(true);
+  });
+  it('isLongestDay is true exactly when every vocabulary word is decrypted', () => {
+    const s = defaultSave();
+    expect(isLongestDay(s)).toBe(false);
+    s.decryptedWords = [...vocabulary()];
+    expect(masterProgress(s).frac).toBe(1);
+    expect(isLongestDay(s)).toBe(true);
   });
 });

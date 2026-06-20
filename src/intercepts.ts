@@ -1,4 +1,4 @@
-// src/intercepts.ts — THE INTERCEPTS. The full history of Lancefall as encrypted transmissions
+﻿// src/intercepts.ts — THE INTERCEPTS. The full history of Lancefall as encrypted transmissions
 // you DECRYPT word-by-word with Memory Fragments. PURE + save-side: the only writes are
 // fragmentsSpent += cost and decryptedWords.push(word) — never rng, never the sim. Decryption is
 // by VOCABULARY: cracking a word reveals every occurrence across all transmissions (you build the
@@ -115,6 +115,13 @@ export const INTERCEPTS: Intercept[] = [
       'the same quiet maths that decides a creature’s stripes. The city loved that a small machine of numbers could flower. So do we.',
     ),
   },
+  {
+    id: 'int-last', title: 'TRANSMISSION XIV — THE LONGEST DAY',
+    tokens: toks(
+      'Every name read. Every cipher broken. You held the line from the last dark edge to the light — ' +
+      'the kingdom’s last memory, now written again. The fall is not the end. The light did not fail.',
+    ),
+  },
 ];
 
 const STOPWORDS = new Set([
@@ -207,6 +214,11 @@ export function masterProgress(save: SaveData): { done: number; total: number; f
   const vocab = vocabulary();
   const done = vocab.filter((w) => isWordDecrypted(save, w)).length;
   return { done, total: vocab.length, frac: vocab.length ? done / vocab.length : 0 };
+}
+
+/** True once every vocabulary word is decrypted — THE LONGEST DAY (100%). Pure save read. */
+export function isLongestDay(save: SaveData): boolean {
+  return masterProgress(save).frac >= 1;
 }
 
 /** The cheapest still-undecrypted word in an intercept (the "decrypt next" + Bombe target). */
