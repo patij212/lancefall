@@ -1431,7 +1431,7 @@ body {
 
 /* THE SIXTH — accreting confession list (woken citizens) (THE FALL tab) */
 .the-sixth .sixth-thesis { color: #aeb9c7; line-height: 1.5; }
-.the-sixth .sixth-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; font-size: 0.86rem; color: #c9d4e0; }
+.the-sixth .sixth-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 40vh; overflow-y: auto; font-size: 0.86rem; color: #c9d4e0; }
 .the-sixth .sixth-pull { color: #8a94a3; margin-top: 8px; }
 .the-sixth .sixth-deepest { color: #ffd884; font-style: italic; margin-top: 8px; }
 

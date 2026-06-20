@@ -3886,7 +3886,9 @@ export class UI {
   }
 
   /** THE COMPLETION — play the chosen ending over the skyline and name every woken citizen's fate.
-   *  Reuses the resolve wash (already a11y-gated). The late Vigil release path calls this. */
+   *  Reuses the resolve wash (already a11y-gated). The late Vigil release path calls this.
+   *  `which` is kept for call-site clarity but unused here — resolveChoice re-derives the catch/fall
+   *  sense from `head`, so renderFates inside it picks the right fate set. */
   playCompletion(_which: 'catch' | 'fall', save: SaveData, head: string, line: string): void {
     // update saveRef so renderFates (called inside resolveChoice) sees the new save
     this.saveRef = save;
