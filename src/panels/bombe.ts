@@ -12,6 +12,7 @@ import type { Panel } from './panel';
 import type { SaveData } from '../save';
 import {
   INTERCEPTS, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView, wordCost, wordRarity,
+  choiceTail,
 } from '../intercepts';
 import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, BRANCH_MAX, upgradeBranchCost, bombeAutoCracks, bombeCostMul } from '../bombe';
 import { fragmentBalance } from '../lore';
@@ -206,6 +207,11 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
           el('button', { class: 'btn btn-sm bombe-decrypt' }, 'DECRYPT'),
         );
         (card.querySelector('.bombe-decrypt') as HTMLButtonElement).addEventListener('click', () => deps.onDecrypt(ic.id));
+        // THE LAST CIPHER — choice-authored tail (only for int-what-remains)
+        if (ic.id === 'int-what-remains') {
+          const tail = el('div', { class: 'bombe-choicetail bombe-pz-hint' });
+          card.appendChild(tail);
+        }
         return card;
       },
       (card, ic) => {
@@ -236,6 +242,21 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
           btn.textContent = `DECRYPT ◆${cost}`;
           btn.className = 'btn btn-sm bombe-decrypt' + (bal >= cost ? ' btn-primary' : '');
           btn.disabled = bal < cost;
+        }
+        // THE LAST CIPHER — reconcile the choice-tail for int-what-remains
+        if (ic.id === 'int-what-remains') {
+          const tail = card.querySelector('.bombe-choicetail') as HTMLElement | null;
+          if (tail) {
+            const ct = choiceTail(save);
+            if (ct) {
+              tail.textContent = ct;
+              // gold for catch (held the light), dusk/cool blue for fall (let it go)
+              tail.style.color = save.stillpointChoice === 'fall' ? '#8bb4d0' : 'var(--amber)';
+            } else {
+              tail.textContent = '— this cipher is not solved; it is chosen, on the longest day —';
+              tail.style.color = '';
+            }
+          }
         }
       },
     );
@@ -278,8 +299,13 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
       (p) => {
         const input = el('input', { class: 'bombe-pz-input', type: 'text', placeholder: 'decode…', 'aria-label': 'puzzle answer' });
         const btn = el('button', { class: 'btn btn-sm bombe-pz-btn' }, 'SOLVE');
+        // enigma puzzles get a ROTOR tag to distinguish the stepping-cipher mechanic
+        const kindTag = p.kind === 'enigma' ? el('span', { class: 'bombe-ic-prog', style: 'margin-left:0; color: var(--amber);' }, 'ROTOR') : null;
+        const headChildren = kindTag
+          ? [el('div', { class: 'bombe-pz-prompt' }), el('div', { class: 'bombe-ic-head', style: 'margin:0 0 6px;' }, kindTag)]
+          : [el('div', { class: 'bombe-pz-prompt' })];
         const card = el('div', { class: 'bombe-puzzle' },
-          el('div', { class: 'bombe-pz-prompt' }),
+          ...headChildren,
           el('div', { class: 'bombe-pz-hint' }),
           el('div', { class: 'bombe-pz-solve' }, input, btn),
           el('div', { class: 'bombe-pz-done' }),
