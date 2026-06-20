@@ -73,6 +73,19 @@ export function sanitizeAchIds(raw: unknown): string[] {
   return [...seen];
 }
 
+// ── §P3 anti-cheat constants ────────────────────────────────────────────────────────────
+// All three are exported and tested in src/workerValidate.test.ts (regression guard).
+
+/** Max score submissions per linked account within ACCOUNT_RATE_WINDOW_MS (D1 count, no KV). */
+export const ACCOUNT_RATE_LIMIT = 10;
+
+/** Rate-limit window in ms (60 s). */
+export const ACCOUNT_RATE_WINDOW_MS = 60_000;
+
+/** Dedupe window in ms (5 min): an exact-duplicate resubmit within this window is silently
+ *  ignored (ok:true, deduped:true) so a retry-on-disconnect doesn't insert twice. */
+export const DEDUPE_WINDOW_MS = 300_000;
+
 /** Edge-cache TTL (seconds) for GET /ach — rarity drifts slowly, so cache it far longer
  *  than a live board; 5 minutes keeps the GROUP BY scan off D1 under any read spike. */
 export const ACH_CACHE_TTL = 300;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from '../worker/src/validate';
+import { sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, MODES, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL, ACCOUNT_RATE_LIMIT, ACCOUNT_RATE_WINDOW_MS, DEDUPE_WINDOW_MS } from '../worker/src/validate';
 
 // The leaderboard worker's security-relevant logic was previously untested. These cover the
 // pure validators it relies on, so the only network-facing component has a regression net.
@@ -125,6 +125,35 @@ describe('worker — isAllowedOrigin', () => {
     expect(isAllowedOrigin('https://evil.lancefall.pages.dev.evil.com')).toBe(false);
     expect(isAllowedOrigin('')).toBe(false);
     expect(isAllowedOrigin('https://notagamelancefall.pages.dev')).toBe(false);
+  });
+});
+
+// ── §P3 anti-cheat constants (regression guard) ────────────────────────────────────────
+// These constants are used directly in index.ts SQL queries; if they drift to insane values
+// the guard silently breaks. The test also re-checks capsOk rejects the classic devtools cheat.
+describe('worker — §P3 anti-cheat constants', () => {
+  it('ACCOUNT_RATE_LIMIT is a sane positive integer (5–100)', () => {
+    expect(Number.isInteger(ACCOUNT_RATE_LIMIT)).toBe(true);
+    expect(ACCOUNT_RATE_LIMIT).toBeGreaterThanOrEqual(5);
+    expect(ACCOUNT_RATE_LIMIT).toBeLessThanOrEqual(100);
+  });
+
+  it('ACCOUNT_RATE_WINDOW_MS is a sane window (10 s – 10 min)', () => {
+    expect(Number.isFinite(ACCOUNT_RATE_WINDOW_MS)).toBe(true);
+    expect(ACCOUNT_RATE_WINDOW_MS).toBeGreaterThanOrEqual(10_000);
+    expect(ACCOUNT_RATE_WINDOW_MS).toBeLessThanOrEqual(600_000);
+  });
+
+  it('DEDUPE_WINDOW_MS is a sane window (1 min – 30 min)', () => {
+    expect(Number.isFinite(DEDUPE_WINDOW_MS)).toBe(true);
+    expect(DEDUPE_WINDOW_MS).toBeGreaterThanOrEqual(60_000);
+    expect(DEDUPE_WINDOW_MS).toBeLessThanOrEqual(1_800_000);
+  });
+
+  // Regression guard: capsOk must still reject the "49M on wave 1" devtools cheat payload
+  // even after any future refactor of the constants or plausibility formula.
+  it('capsOk (regression) — still rejects the classic devtools cheat: 49M on wave 1', () => {
+    expect(capsOk(49_000_000, 1, 0, 0)).toBe(false);
   });
 });
 

@@ -10,7 +10,7 @@
 // can't be cryptographically trusted on a zero-friction casual board. We apply pragmatic
 // sanity + plausibility caps (validate.ts) and per-handle best-only aggregation rather than
 // full replay verification (which is infeasible — the ghost is a position trace, not inputs).
-import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from './validate';
+import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, isAllowedOrigin, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL, ACCOUNT_RATE_LIMIT, ACCOUNT_RATE_WINDOW_MS, DEDUPE_WINDOW_MS } from './validate';
 import { signSession, verifySession, SESSION_TTL_MS } from './session';
 import { newAccountId, sanitizeSaveBlob, mergeServerSave, claimName, mergeForLink } from './accounts';
 import { signState, verifyState, pkceVerifier, pkceChallenge, PROVIDERS, isProvider, extractIdentity } from './oauth';
@@ -71,6 +71,7 @@ export default {
 
     // ── submit a score ──
     if (req.method === 'POST' && url.pathname === '/score') {
+      // Per-IP rate limit (existing, KV-backed, applies to ALL submits including anon).
       if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429, cors);
       let b: Record<string, unknown>;
       try {
@@ -86,16 +87,55 @@ export default {
       const heat = Math.max(0, Math.min(7, Math.floor(Number(b.heat) || 0)));
       // pragmatic sanity + wave-relative plausibility — reject implausible payloads
       if (!capsOk(score, wave, combo, heat)) return json({ error: 'rejected' }, 422, cors);
-      const name = sanitizeName(b.name);
+      // Name + daily resolved from the submitted payload (anon defaults).
+      let name = sanitizeName(b.name);
+      let accountId: string | null = null;
       let daily: string | null = null;
       if (mode === 'daily') {
         daily = String(b.daily ?? '').slice(0, 10);
         if (!validDaily(daily, Date.now())) return json({ error: 'bad daily date' }, 400, cors);
       }
+
+      // ── §P3 account binding (OPTIONAL — anon path unchanged on any failure) ──
+      // Read the Bearer session if present; if it verifies to a linked+verified account,
+      // override the submitted name with the owned verified name and stamp account_id.
+      // A missing or invalid session is the normal anon path — NEVER reject a submit for it.
+      if (env.HMAC_SECRET) {
+        const sess = await verifySession(bearer(req), env.HMAC_SECRET, Date.now());
+        if (sess) {
+          const acct = await env.DB.prepare(
+            'SELECT name, name_verified FROM accounts WHERE id = ?',
+          ).bind(sess.aid).first<{ name: string | null; name_verified: number }>();
+          if (acct && acct.name_verified === 1 && acct.name) {
+            // Verified account: use the owned name + stamp account_id for the verified board column.
+            name = acct.name;
+            accountId = sess.aid;
+
+            // Per-account rate-limit (D1 count, no extra KV namespace required).
+            // Counts submissions in the last ACCOUNT_RATE_WINDOW_MS for this account.
+            const rateRow = await env.DB.prepare(
+              'SELECT COUNT(*) AS n FROM scores WHERE account_id = ? AND ts > ?',
+            ).bind(sess.aid, Date.now() - ACCOUNT_RATE_WINDOW_MS).first<{ n: number }>();
+            if ((rateRow?.n ?? 0) >= ACCOUNT_RATE_LIMIT) {
+              return json({ error: 'rate limited' }, 429, cors);
+            }
+          }
+          // Else: session valid but account has no verified name → treat as anon (accountId stays null).
+        }
+        // Else: no/invalid session → anon path (accountId null, submitted name used as-is).
+      }
+
+      // ── Dedupe: exact-duplicate resubmit within DEDUPE_WINDOW_MS is a silent no-op ──
+      // Covers network retries without inserting duplicate rows for the same run.
+      const dupeRow = await env.DB.prepare(
+        'SELECT 1 FROM scores WHERE mode = ? AND name = ? AND score = ? AND wave = ? AND combo = ? AND ts > ?',
+      ).bind(mode, name, score, wave, combo, Date.now() - DEDUPE_WINDOW_MS).first();
+      if (dupeRow) return json({ ok: true, deduped: true }, 200, cors);
+
       await env.DB.prepare(
-        'INSERT INTO scores (mode, daily, name, score, wave, combo, heat, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO scores (mode, daily, name, score, wave, combo, heat, ts, account_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
-        .bind(mode, daily, name, score, wave, combo, heat, Date.now())
+        .bind(mode, daily, name, score, wave, combo, heat, Date.now(), accountId)
         .run();
       return json({ ok: true }, 200, cors);
     }
@@ -461,12 +501,17 @@ export default {
         if (claimedName) {
           // A name is only kept if no OTHER linked account already holds it (case-folded).
           const conflict = await env.DB.prepare(
-            'SELECT 1 FROM accounts WHERE provider IS NOT NULL AND lower(name) = lower(?) AND id != ?',
-          ).bind(claimedName, canonical).first();
+            'SELECT id, name_verified FROM accounts WHERE provider IS NOT NULL AND lower(name) = lower(?) AND id != ?',
+          ).bind(claimedName, canonical).first<{ id: string; name_verified: number }>();
           if (!conflict) {
             verifiedName = claimedName;
             nameVerified = 1;
           }
+          // P2 carry-over (P2 final review): when a name collision is found, only NULL the
+          // conflicting account's name if it had no verified name before. If it already held a
+          // verified name (name_verified=1) keep it — don't silently strip a real player's identity.
+          // (No explicit UPDATE needed here; we simply don't set verifiedName/nameVerified for canonical,
+          // and the conflicting account's row is untouched — the UPDATE below only writes canonical.)
         }
 
         // ── Update accounts row: attach provider + name (or refresh on recovery) ──
