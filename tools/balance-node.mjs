@@ -19,11 +19,9 @@ import { createServer } from 'vite';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createBot } from './bot-core.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..'); // the lancefall project root (holds index.html / vite config)
 
 // ───────────────────────────── arg parsing ─────────────────────────────
 function parseArgs(argv) {
@@ -37,6 +35,8 @@ function parseArgs(argv) {
     else if (tok.startsWith('--modes=')) a.modes = tok.slice(8).split(',').filter(Boolean);
     else if (tok.startsWith('--heats=')) a.heats = tok.slice(8).split(',').map(Number).filter((n) => !Number.isNaN(n));
     else if (tok.startsWith('--cap=')) a.cap = +tok.slice(6);
+    else if (tok.startsWith('--bot=')) a.bot = tok.slice(6);     // A/B a variant brain (default: ./bot-core.mjs)
+    else if (tok.startsWith('--root=')) a.root = tok.slice(7);   // run against a FROZEN src snapshot (immune to churn)
   }
   // normalize numerics so a fractional/negative flag can't silently corrupt the round-robin
   // split (i % 1.5 drops cells; i % 0 is NaN). 0 workers stays "auto" (the orchestrator picks).
@@ -46,6 +46,8 @@ function parseArgs(argv) {
   return a;
 }
 const ARGS = parseArgs(process.argv.slice(2));
+const ROOT = ARGS.root ? path.resolve(ARGS.root) : path.resolve(__dirname, '..'); // vite project root
+const BOT_URL = ARGS.bot ? pathToFileURL(path.resolve(ARGS.bot)).href : new URL('./bot-core.mjs', import.meta.url).href;
 
 // adaptive cap: winnable modes need the full gauntlet; survival modes get less, and less
 // again at high Heat (the bot dies in ~100–200 s there, so a big cap is wasted).
@@ -167,6 +169,7 @@ async function runWorker() {
     const origFGO = game.finishGameOver.bind(game);
     game.finishGameOver = (won) => { lastWon = !!won; return origFGO(won); };
 
+    const { createBot } = await import(BOT_URL); // the brain — default ./bot-core.mjs, or a --bot variant
     const bot = createBot();
     bot.threatFns = {
       beaconBeamActive: bossMod.beaconBeamActive,
@@ -259,6 +262,8 @@ function spawnWorker(index, workers) {
     if (ARGS.modes) argv.push(`--modes=${ARGS.modes.join(',')}`);
     if (ARGS.heats) argv.push(`--heats=${ARGS.heats.join(',')}`);
     if (ARGS.cap) argv.push(`--cap=${ARGS.cap}`);
+    if (ARGS.bot) argv.push(`--bot=${ARGS.bot}`);
+    if (ARGS.root) argv.push(`--root=${ARGS.root}`);
     const child = spawn(process.execPath, argv, { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'] });
     children.add(child);
     // backstop: a worker that never delivers (a future close/exit hang) must not strand the
