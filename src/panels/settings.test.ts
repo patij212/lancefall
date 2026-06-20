@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { buildSettingsPanel, type SettingsPanelDeps } from './settings';
 import type { Settings } from '../save';
+import * as account from '../account';
 
 const settings = (): Settings =>
   ({
@@ -89,5 +90,38 @@ describe('buildSettingsPanel', () => {
     const panel = buildSettingsPanel(d);
     (panel.root.querySelector('.btn-primary') as HTMLElement).click();
     expect(d.onClose).toHaveBeenCalled();
+  });
+});
+
+// ── Cloud save opt-in (account module, isolated from the settings UI) ─────────
+// The Cloud-save row in settings.ts is gated on leaderboardEnabled() (BASE !== '').
+// In test env VITE_LEADERBOARD_URL is unset → BASE = '' → the row is absent.
+// We test (a) the row is absent when no backend is configured, and
+//         (b) the underlying account.optIn/optOut/optedIn contract works correctly.
+describe('Cloud save row + account opt-in', () => {
+  beforeEach(() => {
+    // ensure a clean localStorage state for account keys
+    try { localStorage.clear(); } catch { /* ignore in environments without localStorage */ }
+  });
+
+  it('Cloud save row is absent when no backend is configured (leaderboardEnabled()=false)', () => {
+    const panel = buildSettingsPanel(deps());
+    // leaderboardEnabled() is false in test env (BASE='') so the row must not render
+    expect(panel.root.querySelector('[data-testid="cloud-save-row"]')).toBeNull();
+  });
+
+  it('account.optedIn() is false by default', () => {
+    expect(account.optedIn()).toBe(false);
+  });
+
+  it('account.optIn() persists the opt-in flag', () => {
+    account.optIn();
+    expect(account.optedIn()).toBe(true);
+  });
+
+  it('account.optOut() clears the opt-in flag', () => {
+    account.optIn();
+    account.optOut();
+    expect(account.optedIn()).toBe(false);
   });
 });
