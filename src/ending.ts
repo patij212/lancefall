@@ -107,6 +107,10 @@ export function canRelease(save: SaveData): boolean {
   return save.stillpointChoice === 'catch' && !save.released && daysHeld(save) >= VIGIL_PERMISSION_THRESHOLD;
 }
 
+// Spoken by the dying Sovereign as THE CHOICE opens — the rhyme with its own crime ("I kept the
+// crown"). Surfaced in the choice prompt (ui.ts).
+export const SOVEREIGN_HANDOFF = 'There is always a moment. I kept the crown. Here is yours.';
+
 // ── THE COMPLETION — the ending sequence names every woken citizen's fate. Release lets each one
 // finish (the Vintner's wine is opened, the Courier's cipher delivered); Hold keeps each awake in
 // the held moment, luminous and unfinished. Pure over wokenCitizens × choice. ──

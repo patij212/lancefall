@@ -90,4 +90,9 @@ export const NARRATOR = {
   // THE LONGEST DAY — the Sovereign-kill DAYBREAK beat (any mode). The summit, paid off.
   daybreak: ['The longest day is won. The light comes back to stay.', 'The code is broken. Dawn over Lancefall.'],
   highCoherence: ['The city resolves. Hold the signal here.'],
+  // pre-Sovereign: the moment that is coming is named, so THE CHOICE never arrives cold
+  sovereignForeshadow: [
+    'The master cipher kept the last word from everyone. It will offer it to you.',
+    'There is always a moment. Below, it is waiting for yours.',
+  ],
 } as const;

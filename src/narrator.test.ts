@@ -100,3 +100,10 @@ describe('narrator pool (data coverage)', () => {
     for (const at of [10, 20, 35, 50, 75, 100]) expect(NARRATOR.comboTier[at]).toBeTruthy();
   });
 });
+
+describe('THE LAST WORD narrator additions', () => {
+  it('has a non-empty sovereign foreshadow pool', () => {
+    expect(NARRATOR.sovereignForeshadow.length).toBeGreaterThan(0);
+    for (const l of NARRATOR.sovereignForeshadow) expect(l.length).toBeGreaterThan(10);
+  });
+});

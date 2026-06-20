@@ -3609,6 +3609,7 @@ export class Game {
     // a proper arrival cinematic (replaces the old toast)
     this.renderer.startBossEntrance(bossName(boss?.kind ?? 'warden'), col);
     if (boss) this.narrateOne('toast', NARRATOR.bossApproach[boss.kind]);
+    if (boss?.kind === 'sovereign') this.narrate('sovereignForeshadow', 'toast', NARRATOR.sovereignForeshadow);
     // INTEL card — when the player has decrypted this boss's transmission, surface a
     // pre-boss callout. Seeded modes get the card (pattern exists) but no bonus claim.
     if (boss && bossIntel(this.save, boss.kind).decrypted) {
