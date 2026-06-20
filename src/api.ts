@@ -63,7 +63,7 @@ export interface AchRarity {
 /** A stable, anonymous device token (random base36) in localStorage — used ONLY to dedupe
  *  achievement-rarity reports so a player who plays 100 runs counts once per achievement.
  *  Not PII, never sent anywhere but the rarity endpoint. '' if storage is unavailable. */
-function deviceId(): string {
+export function deviceId(): string {
   try {
     const k = 'lancefall.device';
     let id = localStorage.getItem(k) ?? '';
