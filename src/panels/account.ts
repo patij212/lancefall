@@ -16,6 +16,8 @@ export interface AccountPanelDeps {
   onSignIn: (provider: 'discord' | 'google') => void;
   /** dismiss the modal (DONE button). */
   onClose: () => void;
+  /** delete the account and cloud data, then repaint. */
+  onDelete: () => Promise<void>;
 }
 
 export interface AccountPanel extends Panel {
@@ -60,6 +62,31 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
     if (state.kind === 'linked') {
       // ── linked state ──
       const displayName = state.name ?? 'Unknown';
+
+      // Inline confirm container (hidden until delete is clicked)
+      let confirmRow: HTMLElement | null = null;
+
+      const deleteBtn = el('button', { class: 'btn btn-ghost account-delete-btn' }, 'Delete my account & cloud data');
+      deleteBtn.addEventListener('click', () => {
+        if (confirmRow) return; // already showing
+        confirmRow = el('div', { class: 'account-confirm-row' },
+          el('span', { class: 'event-flavor' }, 'This wipes your cloud save + verified name.'),
+          (() => {
+            const confirm = el('button', { class: 'btn btn-ghost account-confirm-btn' }, 'Confirm');
+            confirm.addEventListener('click', () => void deps.onDelete());
+            return confirm;
+          })(),
+          (() => {
+            const cancel = el('button', { class: 'btn btn-ghost' }, 'Cancel');
+            cancel.addEventListener('click', () => {
+              if (confirmRow) { confirmRow.remove(); confirmRow = null; }
+            });
+            return cancel;
+          })(),
+        );
+        deleteBtn.insertAdjacentElement('afterend', confirmRow);
+      });
+
       body.append(
         el('div', { class: 'account-status' },
           `Signed in as ${displayName} ✓ — your progress syncs across devices.`,
@@ -67,6 +94,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
         el('div', { class: 'event-flavor account-note' },
           'Your save is backed up to the cloud. Sign in from another device to continue your run.',
         ),
+        deleteBtn,
       );
     } else {
       // ── anonymous state ──

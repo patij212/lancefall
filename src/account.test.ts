@@ -91,6 +91,21 @@ describe('account — startLink offline no-op', () => {
   });
 });
 
+describe('account — deleteAccount (offline no-op)', () => {
+  it('returns false without throwing when offline (BASE is empty)', async () => {
+    const f = vi.fn();
+    vi.stubGlobal('fetch', f);
+    // BASE is '' in vitest env → deleteAccount is a no-op
+    const result = await account.deleteAccount();
+    expect(result).toBe(false);
+    expect(f).not.toHaveBeenCalled();
+  });
+  it('never throws even if fetch rejects', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('net fail')));
+    await expect(account.deleteAccount()).resolves.toBe(false);
+  });
+});
+
 describe('account — mergeCloud (pure boot-merge step)', () => {
   it('returns local unchanged when there is no cloud save', () => {
     const l = { ...defaultSave(), highScore: 7 };

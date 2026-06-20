@@ -2828,6 +2828,7 @@ export class UI {
     this.account = buildAccountPanel({
       onSignIn: (p) => accountLib.startLink(p),
       onClose: () => this.closeModal(this.accountPanel),
+      onDelete: () => accountLib.deleteAccount().then(() => this.openAccount()),
     });
     this.accountPanel = this.account.root;
   }

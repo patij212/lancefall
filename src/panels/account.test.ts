@@ -15,6 +15,7 @@ vi.mock('../api', () => ({ leaderboardEnabled }));
 const makeDeps = (over: Partial<AccountPanelDeps> = {}): AccountPanelDeps => ({
   onSignIn: vi.fn(),
   onClose: vi.fn(),
+  onDelete: vi.fn().mockResolvedValue(undefined),
   ...over,
 });
 
@@ -118,6 +119,107 @@ describe('buildAccountPanel', () => {
       (b) => b.textContent?.includes('Discord') || b.textContent?.includes('Google'),
     );
     expect(signInBtns).toHaveLength(0);
+  });
+
+  it('linked state: shows delete button', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const panel = buildAccountPanel(makeDeps());
+    panel.open(mockSave);
+    const deleteBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('delete'),
+    );
+    expect(deleteBtn).toBeDefined();
+  });
+
+  it('linked state: delete button shows inline confirm, not immediate deletion', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const d = makeDeps();
+    const panel = buildAccountPanel(d);
+    panel.open(mockSave);
+    const deleteBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('delete'),
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+    // onDelete must NOT be called yet — confirm step should appear first
+    expect(d.onDelete).not.toHaveBeenCalled();
+    // Confirm button should now be visible
+    const confirmBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('confirm'),
+    );
+    expect(confirmBtn).toBeDefined();
+  });
+
+  it('linked state: confirming deletion calls deps.onDelete', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const d = makeDeps();
+    const panel = buildAccountPanel(d);
+    panel.open(mockSave);
+    const deleteBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('delete'),
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+    const confirmBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('confirm'),
+    ) as HTMLButtonElement;
+    confirmBtn.click();
+    expect(d.onDelete).toHaveBeenCalled();
+  });
+
+  it('linked state: cancel from confirm hides the confirm, no deletion', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const d = makeDeps();
+    const panel = buildAccountPanel(d);
+    panel.open(mockSave);
+    const deleteBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('delete'),
+    ) as HTMLButtonElement;
+    deleteBtn.click();
+    const cancelBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('cancel'),
+    ) as HTMLButtonElement;
+    cancelBtn.click();
+    expect(d.onDelete).not.toHaveBeenCalled();
+    // Confirm row gone, delete button back
+    const confirmBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('confirm'),
+    );
+    expect(confirmBtn).toBeUndefined();
+  });
+
+  it('anonymous state without opted-in: no delete button shown', () => {
+    // anonymous + not opted in → nothing to delete
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: false,
+      kind: 'anon',
+      name: null,
+      verified: false,
+    });
+    const panel = buildAccountPanel(makeDeps());
+    panel.open(mockSave);
+    const deleteBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('delete'),
+    );
+    expect(deleteBtn).toBeUndefined();
   });
 
   it('open() can be called multiple times (repaints in place)', () => {

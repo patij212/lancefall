@@ -148,6 +148,26 @@ function wireLifecycle(): void {
   window.addEventListener('pagehide', onHide);
 }
 
+/** Delete the current account and all cloud data. Returns true on success, false on any
+ *  failure (offline, no backend, no session). Never throws. */
+export async function deleteAccount(): Promise<boolean> {
+  try {
+    if (!accountEnabled() || !session) return false;
+    const r = await fetch(`${BASE}/account`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${session}` },
+    });
+    if (!r.ok) return false;
+    // Clear local account state
+    session = '';
+    rev = 0;
+    setLs(SESSION_KEY, '');
+    optOut();
+    _accountState = { enabled: accountEnabled(), kind: 'anon', name: null, verified: false };
+    return true;
+  } catch { return false; }
+}
+
 /** One-time wiring: register the save listener + boot the session. Call once from main.ts. */
 export function init(): void {
   if (!accountEnabled()) return;

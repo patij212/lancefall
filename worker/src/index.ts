@@ -533,6 +533,20 @@ export default {
       }
     }
 
+    // ── DELETE /account: wipe the session's own cloud save + account row; scores stay (anon) ──
+    if (req.method === 'DELETE' && url.pathname === '/account') {
+      if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
+      const sess = await verifySession(bearer(req), env.HMAC_SECRET, Date.now());
+      if (!sess) return json({ error: 'unauthorized' }, 401, cors);
+      const { aid } = sess;
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM saves WHERE account_id = ?').bind(aid),
+        env.DB.prepare('UPDATE scores SET account_id = NULL WHERE account_id = ?').bind(aid),
+        env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(aid),
+      ]);
+      return json({ ok: true }, 200, cors);
+    }
+
     return json({ error: 'not found' }, 404, cors);
   },
 };
