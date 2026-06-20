@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deedsMet, type RunDeedCtx } from './cityVoice';
+import { deedsMet, type RunDeedCtx, wakeIsCeremony } from './cityVoice';
 
 const EMPTY: RunDeedCtx = { bossKindsKilled: [], sovereignDown: false, bestCombo: 0, bossKills: 0, daybreaks: 0, maxDashChain: 0, timeSec: 0, wave: 0 };
 
@@ -28,5 +28,16 @@ describe('deedsMet — citizens wake through play', () => {
     expect(deedsMet({ ...EMPTY, maxDashChain: 4 })).toContain('clockwright');
     expect(deedsMet({ ...EMPTY, daybreaks: 1 })).toContain('stargazer');
     expect(deedsMet({ ...EMPTY, bossKills: 3 })).toContain('weaver-cloth');
+  });
+});
+
+describe('the dose — only the 8 meaningful wakes get the ceremony', () => {
+  it('figure-tied + candle-maker + weaver get the ceremony', () => {
+    for (const id of ['gatewarden','chorister','ferryman','glassblower','stonemason','courier','candlemaker','weaver-cloth'])
+      expect(wakeIsCeremony(id)).toBe(true);
+  });
+  it('the common wakes are toasts', () => {
+    for (const id of ['lamplighter','bellringer','archivist','cartographer','clockwright','stargazer','gardener','vintner'])
+      expect(wakeIsCeremony(id)).toBe(false);
   });
 });

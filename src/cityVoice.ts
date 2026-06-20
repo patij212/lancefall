@@ -42,3 +42,12 @@ const DEEDS: Record<string, (c: RunDeedCtx) => boolean> = {
 export function deedsMet(ctx: RunDeedCtx): string[] {
   return Object.keys(DEEDS).filter((id) => DEEDS[id](ctx));
 }
+
+// The dose: the 6 figure-tied + the 2 milestone citizens get the "A FACE REMEMBERED" ceremony;
+// everything else is a restrained toast (restraint preserved for the common case).
+export const CEREMONY_CITIZENS: ReadonlySet<string> = new Set([
+  'gatewarden', 'chorister', 'ferryman', 'glassblower', 'stonemason', 'courier', 'candlemaker', 'weaver-cloth',
+]);
+export function wakeIsCeremony(citizenId: string): boolean {
+  return CEREMONY_CITIZENS.has(citizenId);
+}
