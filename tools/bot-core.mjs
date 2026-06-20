@@ -46,7 +46,9 @@ export function createBot() {
   const pickPerk = (lf) => {
     const cards = lf.draftCards || [];
     if (!cards.length) return 0;
-    const pri = lf.mode && lf.mode.bossrush ? BOSS_PRIORITY : CHAFF_PRIORITY;
+    // Boss Rush AND the cipher-lock SOLSTICE are BOSS gauntlets — the cipher-armored bosses are
+    // the wall (the bot dies at Weaver with low DPS), so draft DAMAGE/sustain, not chaff AoE.
+    const pri = lf.mode && (lf.mode.bossrush || lf.mode.cipherLock) ? BOSS_PRIORITY : CHAFF_PRIORITY;
     let bestIdx = 0, bestRank = 1e9;
     for (let i = 0; i < cards.length; i++) {
       const r = pri.indexOf(cards[i].id);
@@ -77,7 +79,9 @@ export function createBot() {
   //   BEYOND it. Only in safe windows; this is how bosses die.
   // mode 2 HUNT: spear the nearest CHAFF (Arena waves only advance once cleared, and
   //   escape-scoring flees enemies → a wave you can't drift-dodge forever stalls).
-  function bestDash(p, w, bullets, enemies, boss, R, lens, mode, bossHittable) {
+  // mode 3 CIPHER: an escape-safe landing (open, off bullets/beams) that ALSO spears through
+  //   `cipherTarget` (the next-in-order core) — solve the lock without standing in the fire.
+  function bestDash(p, w, bullets, enemies, boss, R, lens, mode, bossHittable, cipherTarget) {
     const DIRS = 20;
     let best = { aimX: p.x + 100, aimY: p.y, charge: 0 }, bestS = -1e18;
     for (let li = 0; li < lens.length; li++) {
@@ -102,7 +106,7 @@ export function createBot() {
           const e = enemies[ei]; if (!e.active) continue;
           const dl = Math.hypot(lx - e.x, ly - e.y);
           if (!e.isBoss) {
-            if (mode === 0 && e.kind !== 'sovereign_core' && dl < nearestE) nearestE = dl; // only ESCAPE flees chaff
+            if ((mode === 0 || mode === 3) && e.kind !== 'sovereign_core' && dl < nearestE) nearestE = dl; // ESCAPE + CIPHER want an open landing
             if (segDist(e.x, e.y, p.x, p.y, lx, ly) < 24 + e.radius) {
               // ARMORED chaff (shielded darter/orbiter) clangs a head-on spear: the shield tracks
               // you, so you only land by SKEWERING THROUGH to the far side. Approximate that: count
@@ -117,9 +121,14 @@ export function createBot() {
             sc -= 60; // never LAND on the boss body
           }
         }
-        if (mode === 0 && boss) { const bd = Math.hypot(lx - boss.x, ly - boss.y); if (bd < nearestE) nearestE = bd; } // escape flees the boss too
-        sc += Math.min(nearestE, 220) * 0.45; // OPENNESS (escape only; a flat constant otherwise)
+        if ((mode === 0 || mode === 3) && boss) { const bd = Math.hypot(lx - boss.x, ly - boss.y); if (bd < nearestE) nearestE = bd; } // escape/cipher keep off the boss body
+        sc += Math.min(nearestE, 220) * 0.45; // OPENNESS (escape/cipher; a flat constant otherwise)
         sc += kills * (mode === 2 ? 42 : 15); // HUNT hard-prioritises spearing chaff to clear the wave
+        // CIPHER — spear THROUGH the next-in-order core (keys it). A TIE-BREAKER bonus (~one
+        // openness unit), NOT an override: among similarly-safe landings prefer the one that
+        // also keys, but never dash into a bullet cluster to key (that got the bot killed). The
+        // dash i-frames cover the travel; the landing must still be safe.
+        if (mode === 3 && cipherTarget && segDist(cipherTarget.x, cipherTarget.y, p.x, p.y, lx, ly) < (cipherTarget.radius || 12) + 24) sc += 120;
         // SPEAR through the boss body — but ONLY when it can take damage (the
         // Sovereign's body is armored until its cores are shattered + it's cracked open).
         if (mode === 1 && boss && bossHittable && segDist(boss.x, boss.y, p.x, p.y, lx, ly) < boss.radius + 26) sc += 55;
@@ -235,6 +244,22 @@ export function createBot() {
       }
     }
 
+    // ── CIPHER (SOLSTICE PROTOCOL + the Sovereign): a cipher-locked boss is ARMORED until its
+    //    orbiting cores are dashed in the DECODED order. We can READ that order straight off
+    //    w.cipher (order[progress] = the next slot) and a core carries its slot in `.phase`, so
+    //    the bot solves it DELIBERATELY: dash through the exact next core. A wrong dash is a
+    //    forgiving no-op, so this can only help. This is the ONLY way to crack a Solstice
+    //    Warden/Weaver/Beacon (and turns the Sovereign's brute-forced solve into an instant one). ──
+    let cipherCore = null;
+    const cipher = w.cipher;
+    if (cipher && !cipher.solved && cipher.order && boss) {
+      const nextSlot = cipher.order[cipher.progress];
+      for (let i = 0; i < E.length; i++) {
+        const e = E[i];
+        if (e.active && e.kind === 'sovereign_core' && e.phase === nextSlot) { cipherCore = e; break; }
+      }
+    }
+
     // ── PARRY decision (the SECOND verb) — pick at most one parry target this frame, by
     //    priority. Parry casts toward the ship's FACING (p.angle, which lerps to aim), so we
     //    aim at the target and fire only once roughly aligned. Parry locks out the dash for
@@ -307,6 +332,15 @@ export function createBot() {
       // keep charging the joust — but if a wall starts to form, drop out (this frame
       // releases the dash early: a shorter spear now beats eating shots while slow)
       aimX = bot.aimX; aimY = bot.aimY; charge = bot.charge; wantDash = true;
+    } else if (cipherCore && canDash && !hard && threatN <= 1 && p.stamina >= DASH_COST * 1.6) {
+      // SOLVE THE CIPHER in a clear-ish window — a mode-3 dash that lands SAFE (open, off
+      // bullets/beams) AND spears the exact next-in-order core. Survival (the hard-escape above)
+      // wins under real fire; this cracks the ARMORED Solstice Warden/Weaver/Beacon (+ Sovereign)
+      // when it's calm. Keying near the boss is dangerous, so it stays gated to safe windows.
+      const dcore = Math.hypot(cipherCore.x - p.x, cipherCore.y - p.y);
+      const bd = bestDash(p, w, near, E, boss, R, [190, Math.max(220, Math.min(540, dcore + 64))], 3, bossHittable, cipherCore);
+      aimX = bd.aimX; aimY = bd.aimY; charge = bd.charge; wantDash = true;
+      bot.committed = true; bot.aimX = aimX; bot.aimY = aimY; bot.charge = bd.charge;
     } else if (canDash && boss && p.stamina >= DASH_COST * 2.9 && threatN === 0 && !hard && bossDist < 360) {
       // JOUST — only in a genuinely clear window (no shots closing, ≥1 charge held
       // back): a LONG dash that spears through the boss and lands in open space
@@ -365,10 +399,22 @@ export function createBot() {
     if (!boss && !hard && !stuck && nE && p.stamina < DASH_COST * 1.6 && nED < 200) {
       mvx -= (nE.x - p.x) / (nED || 1) * 0.9; mvy -= (nE.y - p.y) / (nED || 1) * 0.9;
     }
+    // CIPHER positioning — keep the next-in-order core in dash range (its orbit moves it). This
+    // OVERRIDES the boss-kite below so a low-stamina kite never strands the bot away from the ring.
+    if (cipherCore && !hard && !parryCommit) {
+      // Only crowd the ring (in the boss's bullet field) when actually READY to key — then the
+      // dash's i-frames cover the strike. Otherwise KITE OUT to regen, so the bot isn't loitering
+      // near the boss between dashes (that's what got it killed at Weaver).
+      if (p.stamina >= DASH_COST * 1.5) {
+        const d = Math.hypot(cipherCore.x - p.x, cipherCore.y - p.y) || 1;
+        if (d > 150) { mvx += (cipherCore.x - p.x) / d * 0.8; mvy += (cipherCore.y - p.y) / d * 0.8; }
+      } else if (bossDist < 360) {
+        mvx -= (boss.x - p.x) / bossDist * 1.0; mvy -= (boss.y - p.y) / bossDist * 1.0; // out of dashes → kite to sparse range & regen
+      }
+    } else if (boss && !hard && !parryCommit) {
     // stamina-aware boss spacing: with charges to spare, close in to joust range;
     // when low, KITE OUT to where the boss's radial patterns are sparse (a full ring
     // is a thin arc out there → movement alone dodges it) and let stamina regen.
-    if (boss && !hard && !parryCommit) {
       if (p.stamina < DASH_COST && bossDist < 380) { mvx -= (boss.x - p.x) / bossDist * 1.0; mvy -= (boss.y - p.y) / bossDist * 1.0; } // out of dashes → kite to sparse range & regen
       else if (p.stamina >= DASH_COST * 2 && bossDist > 270) { mvx += (boss.x - p.x) / bossDist * 0.55; mvy += (boss.y - p.y) / bossDist * 0.55; } // charges to spare → close to joust range
     }
