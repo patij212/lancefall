@@ -6,6 +6,8 @@
 import type { SaveData } from './save';
 import { daysHeld } from './ending';
 import { MAX_HEAT } from './heat';
+import { wokenCitizens } from './citizens';
+import { echoVignette } from './stillpoint';
 
 /** Run-stats a deed predicate reads. Filled by the caller from World/run state. */
 export interface RunDeedCtx {
@@ -60,4 +62,24 @@ export function wakeIsCeremony(citizenId: string): boolean {
 // The non-seeded gate lives at the call site (game.ts) so the Daily stays bit-identical.
 export function vigilHeatFloor(save: SaveData): number {
   return Math.min(MAX_HEAT, Math.floor(daysHeld(save) / 5));
+}
+
+/** A woken citizen's name to personify the Vigil line ("You hold the light for THE FERRYMAN").
+ *  Deterministic pick by daysHeld so it's stable within a vigil-day; null if none woken. */
+export function vigilCitizenName(save: SaveData): string | null {
+  const woken = wokenCitizens(save);
+  if (!woken.length) return null;
+  return woken[daysHeld(save) % woken.length].name;
+}
+
+/** The Daily Echo, AGED by the player's run count. The shared citizen/memory (keyed by daySeed) is
+ *  preserved — only the framing deepens, so everyone still sees the same memory; veterans see it
+ *  held more closely. Pure; echoVignette uses its own rng (never the sim stream). */
+export function agedEcho(daySeed: number, totalRuns: number): string {
+  const v = echoVignette(daySeed);            // { citizen: 'a lamplighter', memory: 'remembers the bells…' }
+  const name = 'THE ' + v.citizen.replace(/^(a|an) /, '').toUpperCase();
+  if (totalRuns >= 50) return `${name} ${v.memory.replace(/\.$/, '')} — you have stood here ${totalRuns} times.`;
+  if (totalRuns >= 20) return `${name} — ${v.memory}`;
+  const s = `${v.citizen} ${v.memory}`;        // the original shared line (verbatim shape of echoLine)
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

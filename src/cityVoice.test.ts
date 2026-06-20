@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { deedsMet, type RunDeedCtx, wakeIsCeremony, vigilHeatFloor } from './cityVoice';
+import { deedsMet, type RunDeedCtx, wakeIsCeremony, vigilHeatFloor, vigilCitizenName, agedEcho } from './cityVoice';
 import { defaultSave } from './save';
+import { vocabulary } from './intercepts';
 
 const EMPTY: RunDeedCtx = { bossKindsKilled: [], sovereignDown: false, bestCombo: 0, bossKills: 0, daybreaks: 0, maxDashChain: 0, timeSec: 0, wave: 0 };
 
@@ -57,5 +58,24 @@ describe('vigilHeatFloor — holding the light costs more every 5 days', () => {
   it('resets to 0 once released (no longer catch)', () => {
     const s = holding(50, 2); s.released = true; s.stillpointChoice = 'fall';
     expect(vigilHeatFloor(s)).toBe(0);
+  });
+});
+
+describe('personified long game', () => {
+  it('vigilCitizenName returns a woken citizen name, or null if none woken', () => {
+    expect(vigilCitizenName(defaultSave())).toBeNull();
+    const s = defaultSave(); s.decryptedWords = vocabulary();
+    expect(typeof vigilCitizenName(s)).toBe('string');
+  });
+  it('agedEcho keeps the shared citizen/memory and only deepens the framing by run count', () => {
+    const early = agedEcho(1234, 3);
+    const mid = agedEcho(1234, 25);
+    const vet = agedEcho(1234, 60);
+    expect(early.length).toBeGreaterThan(0);
+    expect(mid).toMatch(/THE /);          // run 20+ names the citizen
+    expect(vet).toMatch(/time/i);          // run 50+ adds "...the Nth time"
+    // the same daySeed → the same underlying memory clause in all three
+    const clause = agedEcho(1234, 0);
+    expect(mid).toContain(clause.replace(/^[A-Z]/, (m) => m.toLowerCase()).split(' ').slice(-3).join(' '));
   });
 });
