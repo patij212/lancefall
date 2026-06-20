@@ -13,7 +13,7 @@ import type { SaveData } from '../save';
 import {
   INTERCEPTS, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView, wordCost, wordRarity,
 } from '../intercepts';
-import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, upgradeBombeCost, bombeAutoCracks, bombeCostMul } from '../bombe';
+import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, BRANCH_MAX, upgradeBranchCost, bombeAutoCracks, bombeCostMul } from '../bombe';
 import { fragmentBalance } from '../lore';
 import { dailyCipher, letterFrequency } from '../dailyCipher';
 import { seedFromDate, dateString } from '../rng';
@@ -22,8 +22,8 @@ import { seedFromDate, dateString } from '../rng';
 export interface BombePanelDeps {
   /** decrypt the cheapest undecrypted word of an intercept (spend Fragments). */
   onDecrypt: (interceptId: string) => void;
-  /** build / upgrade the Bombe meta-tool (spend Fragments). */
-  onUpgradeBombe: () => void;
+  /** upgrade one of the three Bombe specialisation branches (THRIFT/SPEED/INSIGHT). */
+  onUpgradeBombe: (branch: 'thrift' | 'speed' | 'insight') => void;
   /** submit a console-puzzle answer. */
   onSolvePuzzle: (puzzleId: string, guess: string) => void;
   /** submit a daily-cipher guess. */
@@ -71,9 +71,26 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
   // a little working-machine motif — rotor drums that spin while the Bombe runs (CSS; held under reduce-motion)
   const machine = el('div', { class: 'bombe-machine', 'aria-hidden': 'true' },
     el('span', { class: 'bombe-drum' }), el('span', { class: 'bombe-drum' }), el('span', { class: 'bombe-drum' }));
-  const bombeBtn = el('button', { class: 'btn btn-sm bombe-upgrade' }, 'BUILD THE BOMBE');
-  bombeBtn.addEventListener('click', () => deps.onUpgradeBombe());
-  const statusRow = el('div', { class: 'bombe-statusrow' }, machine, el('div', { class: 'bombe-statuscol' }, fragLine, bombeStatus), bombeBtn);
+
+  // Three branch upgrade buttons (THRIFT / SPEED / INSIGHT)
+  const BRANCHES = [
+    { id: 'thrift', label: 'THRIFT', desc: 'cost discount' },
+    { id: 'speed',  label: 'SPEED',  desc: 'free cracks/run' },
+    { id: 'insight',label: 'INSIGHT',desc: 'key words first' },
+  ] as const;
+  const branchBtns = BRANCHES.map(({ id, label }) => {
+    const btn = el('button', { class: 'btn btn-sm bombe-branch-btn' }, label);
+    btn.addEventListener('click', () => deps.onUpgradeBombe(id));
+    return btn;
+  });
+  const branchEls = BRANCHES.map(({ label, desc }, i) => {
+    const lvlEl = el('span', { class: 'bombe-branch-lvl' });
+    const nameEl = el('span', { class: 'bombe-branch-name' }, `${label} — ${desc}`);
+    return el('div', { class: 'bombe-branch' }, nameEl, lvlEl, branchBtns[i]);
+  });
+  const branchesRow = el('div', { class: 'bombe-branches' }, ...branchEls);
+
+  const statusRow = el('div', { class: 'bombe-statusrow' }, machine, el('div', { class: 'bombe-statuscol' }, fragLine, bombeStatus));
 
   const listLabel = el('div', { class: 'stats-label' }, 'INTERCEPTS');
   const list = el('div', { class: 'bombe-list' });
@@ -100,7 +117,7 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
   const close = el('button', { class: 'btn btn-primary' }, 'DONE');
   close.addEventListener('click', () => deps.onClose());
 
-  const body = el('div', { class: 'bombe-body' }, lead, overnight, master, statusRow, listLabel, list, dailyLabel, daily, pzLabel, puzzles, close);
+  const body = el('div', { class: 'bombe-body' }, lead, overnight, master, statusRow, branchesRow, listLabel, list, dailyLabel, daily, pzLabel, puzzles, close);
   const root = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, el('div', { class: 'panel panel-wide' }, head, body));
 
   /** Ripple the cross-reveal: flash EVERY token of the just-cracked word across all transmissions,
@@ -129,7 +146,9 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
     const ov = opts.overnight ?? [];
     overnight.classList.toggle('hidden', ov.length === 0);
     if (ov.length) {
-      overnight.textContent = `⚙ THE BOMBE ran overnight — cracked ${ov.length} word${ov.length === 1 ? '' : 's'}: ${ov.join(', ')}`;
+      const insightActive = (save.bombeBranches?.insight ?? 0) > 0;
+      const suffix = insightActive ? ' (key words first — INSIGHT)' : '';
+      overnight.textContent = `⚙ THE BOMBE ran overnight — cracked ${ov.length} word${ov.length === 1 ? '' : 's'}: ${ov.join(', ')}${suffix}`;
     }
 
     // ── master cipher meter (the longest-day progress) ──
@@ -141,23 +160,38 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
       ? `MASTER CIPHER — 100% · THE LONGEST DAY · ${mp.done}/${mp.total} words`
       : `MASTER CIPHER — ${pct}% decrypted · ${mp.done}/${mp.total} words`;
 
-    // ── Bombe status + upgrade + the working-machine motif ──
+    // ── Bombe status + branch upgrade controls + the working-machine motif ──
     fragLine.textContent = `◆ ${bal} Fragment${bal === 1 ? '' : 's'}`;
     const lvl = save.bombeLevel;
-    bombeStatus.textContent = lvl <= 0
-      ? 'THE BOMBE — not yet built'
-      : `THE BOMBE — Lv ${lvl}/${BOMBE_MAX_LEVEL} · −${Math.round((1 - bombeCostMul(lvl)) * 100)}% cost · ${bombeAutoCracks(lvl)} free crack${bombeAutoCracks(lvl) === 1 ? '' : 's'}/run`;
+    const branches = save.bombeBranches ?? { thrift: 0, speed: 0, insight: 0 };
+    const thriftPct = Math.round((1 - bombeCostMul(branches.thrift)) * 100);
+    const speedCracks = bombeAutoCracks(branches.speed);
+    const insight = branches.insight;
+    if (lvl <= 0) {
+      bombeStatus.textContent = 'THE BOMBE — not yet built · choose a branch to start';
+    } else {
+      const parts: string[] = [];
+      if (branches.thrift > 0) parts.push(`−${thriftPct}% cost`);
+      if (speedCracks > 0) parts.push(`${speedCracks} free crack${speedCracks === 1 ? '' : 's'}/run`);
+      if (insight > 0) parts.push('key words first');
+      bombeStatus.textContent = `THE BOMBE — Lv ${lvl}/${BOMBE_MAX_LEVEL} · ${parts.join(' · ')}`;
+    }
     machine.className = 'bombe-machine' + (lvl > 0 ? ' running' : '');
     machine.style.setProperty('--lvl', String(lvl));
-    if (lvl >= BOMBE_MAX_LEVEL) {
-      bombeBtn.classList.add('hidden');
-    } else {
-      bombeBtn.classList.remove('hidden');
-      const cost = upgradeBombeCost(lvl);
-      bombeBtn.textContent = `${lvl <= 0 ? 'BUILD' : 'UPGRADE'} THE BOMBE ◆${cost}`;
-      bombeBtn.className = 'btn btn-sm bombe-upgrade' + (bal >= cost ? ' btn-primary' : '');
-      bombeBtn.disabled = bal < cost;
-    }
+
+    // update the three branch buttons
+    const branchKeys = ['thrift', 'speed', 'insight'] as const;
+    branchKeys.forEach((key, i) => {
+      const branchLvl = branches[key];
+      const maxed = branchLvl >= BRANCH_MAX;
+      const cost = upgradeBranchCost(branchLvl);
+      const affordable = bal >= cost;
+      const lvlEl = branchEls[i].querySelector('.bombe-branch-lvl') as HTMLElement;
+      lvlEl.textContent = maxed ? `${BRANCH_MAX}/${BRANCH_MAX} MAXED` : `${branchLvl}/${BRANCH_MAX} · ◆${cost}`;
+      branchBtns[i].textContent = maxed ? 'MAXED' : `UPGRADE ◆${cost}`;
+      branchBtns[i].className = 'btn btn-sm bombe-branch-btn' + (maxed ? ' hidden' : affordable ? ' btn-primary' : '');
+      branchBtns[i].disabled = maxed || !affordable;
+    });
 
     // ── intercept cards (reconciled — morph in place on decrypt; the click closes over the
     //    immutable intercept id, like the codex memories do) ──
@@ -198,7 +232,7 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
           btn.classList.add('hidden');
         } else {
           btn.classList.remove('hidden');
-          const cost = Math.max(1, Math.round(wordCost(next) * bombeCostMul(lvl)));
+          const cost = Math.max(1, Math.round(wordCost(next) * bombeCostMul(branches.thrift)));
           btn.textContent = `DECRYPT ◆${cost}`;
           btn.className = 'btn btn-sm bombe-decrypt' + (bal >= cost ? ' btn-primary' : '');
           btn.disabled = bal < cost;

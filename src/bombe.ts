@@ -2,42 +2,70 @@
 // bombe), plus the cockpit's optional cryptanalysis PUZZLES. PURE + save-side (no rng, no sim):
 // upgradeBombe/runBombe/solvePuzzle only spend Fragments / push decrypted words / push solved ids.
 import type { SaveData } from './save';
-import { vocabulary, wordCost, isWordDecrypted } from './intercepts';
+import { vocabulary, wordCost, wordRarity, isWordDecrypted } from './intercepts';
 
-export const BOMBE_MAX_LEVEL = 5;
+/** Three upgrade specialisation branches — THRIFT (cost discount), SPEED (free cracks/run),
+ *  INSIGHT (cracks key/rare words first). Each branch caps at BRANCH_MAX. bombeLevel stays
+ *  as the synced derived total (thrift+speed+insight) for back-compat with ~15 read sites. */
+export type BombeBranch = 'thrift' | 'speed' | 'insight';
 
-/** Word-cost multiplier from the Bombe level: 1.0 at L0 down to 0.5 at max (a smooth discount). */
+/** Per-branch level cap (0..3). */
+export const BRANCH_MAX = 3;
+
+/** Total level cap (= 3×BRANCH_MAX = 9). bombeLevel is the sum of all branches. */
+export const BOMBE_MAX_LEVEL = 9;
+
+/** Word-cost multiplier driven by the THRIFT branch level: 1.0 at L0 down to 0.5 at BRANCH_MAX.
+ *  Caller passes `save.bombeBranches.thrift`. Signature unchanged — level is now the thrift level. */
 export function bombeCostMul(level: number): number {
-  const l = Math.max(0, Math.min(BOMBE_MAX_LEVEL, level));
-  return 1 - (l / BOMBE_MAX_LEVEL) * 0.5;
+  const l = Math.max(0, Math.min(BRANCH_MAX, level));
+  return 1 - (l / BRANCH_MAX) * 0.5;
 }
 
-/** How many words the Bombe auto-cracks for free at run-end (0 until built; +1 per ~2 levels). */
+/** Free auto-cracks per run, driven by the SPEED branch level (0..BRANCH_MAX).
+ *  Caller passes `save.bombeBranches.speed`. Signature unchanged. */
 export function bombeAutoCracks(level: number): number {
-  return level <= 0 ? 0 : Math.ceil(level / 2);
+  // one free crack per SPEED level (0..3)
+  return Math.max(0, Math.min(BRANCH_MAX, level));
 }
 
-/** Fragment price to go from `level` to `level+1` (rising). */
+/** Fragment price to go from `level` to `level+1` on any single branch (rising). */
 export function upgradeBombeCost(level: number): number {
   return 8 + level * 6;
 }
 
-/** Decrypt the globally-cheapest `n` still-undecrypted words for FREE (no Fragment spend). Pure
- *  save mutation; deterministic (cost then alphabetical tiebreak — no rng). Returns the words. */
-export function crackCheapestFree(save: SaveData, n: number): string[] {
+/** Alias for clarity in callers that read a branch cost — same formula as upgradeBombeCost. */
+export function upgradeBranchCost(level: number): number {
+  return 8 + level * 6;
+}
+
+const RARITY_RANK: Record<string, number> = { key: 0, rare: 1, common: 2 };
+
+/** Decrypt `n` still-undecrypted words for FREE (no Fragment spend). Pure save mutation;
+ *  deterministic. When `insightFirst` is true, sorts by rarity (key>rare>common) THEN cost —
+ *  so the INSIGHT branch preferentially reveals the load-bearing vocabulary. */
+export function crackCheapestFree(save: SaveData, n: number, insightFirst = false): string[] {
   if (n <= 0) return [];
   const undone = vocabulary()
     .filter((w) => !isWordDecrypted(save, w))
-    .sort((a, b) => wordCost(a) - wordCost(b) || a.localeCompare(b));
+    .sort((a, b) => {
+      if (insightFirst) {
+        const rd = (RARITY_RANK[wordRarity(a)] ?? 2) - (RARITY_RANK[wordRarity(b)] ?? 2);
+        if (rd !== 0) return rd;
+      }
+      return wordCost(a) - wordCost(b) || a.localeCompare(b);
+    });
   const cracked = undone.slice(0, n);
   for (const w of cracked) save.decryptedWords.push(w);
   return cracked;
 }
 
-/** Run the Bombe: decrypt the globally-cheapest still-undecrypted words for FREE (no spend). The
- *  "it ran overnight" payoff. Returns the words cracked. Pure save mutation. */
+/** Run the Bombe: auto-crack undecrypted words for FREE (no spend). Uses the SPEED branch level
+ *  for crack count; uses INSIGHT ordering when the insight branch > 0. Returns words cracked. */
 export function runBombe(save: SaveData): string[] {
-  return crackCheapestFree(save, bombeAutoCracks(save.bombeLevel));
+  const count = bombeAutoCracks(save.bombeBranches?.speed ?? 0);
+  const insightFirst = (save.bombeBranches?.insight ?? 0) > 0;
+  return crackCheapestFree(save, count, insightFirst);
 }
 
 /** Available Fragment balance (mirrors lore.fragmentBalance; kept local to avoid an import cycle). */
@@ -45,14 +73,29 @@ function balance(save: SaveData): number {
   return Math.max(0, save.stillpointFragments.length - save.fragmentsSpent);
 }
 
-/** Build / upgrade the Bombe (spends Fragments). Returns false if maxed or unaffordable. */
-export function upgradeBombe(save: SaveData): boolean {
-  if (save.bombeLevel >= BOMBE_MAX_LEVEL) return false;
-  const cost = upgradeBombeCost(save.bombeLevel);
+/** Upgrade one of the three Bombe branches (THRIFT / SPEED / INSIGHT).
+ *  Returns false if that branch is already at BRANCH_MAX or balance is insufficient.
+ *  On success: charges Fragments, increments that branch, resyncs bombeLevel = sum. */
+export function upgradeBombeBranch(save: SaveData, branch: BombeBranch): boolean {
+  const branches = save.bombeBranches ?? { thrift: 0, speed: 0, insight: 0 };
+  if (branches[branch] >= BRANCH_MAX) return false;
+  const cost = upgradeBranchCost(branches[branch]);
   if (balance(save) < cost) return false;
   save.fragmentsSpent += cost;
-  save.bombeLevel += 1;
+  branches[branch] += 1;
+  save.bombeBranches = branches;
+  // resync the derived total so all existing bombeLevel read-sites keep working
+  save.bombeLevel = branches.thrift + branches.speed + branches.insight;
   return true;
+}
+
+/** @deprecated Use upgradeBombeBranch instead. Kept for any legacy callers during migration. */
+export function upgradeBombe(save: SaveData): boolean {
+  // Legacy single-ladder: try to upgrade the cheapest maxed branch (thrift → speed → insight)
+  for (const branch of ['thrift', 'speed', 'insight'] as BombeBranch[]) {
+    if (upgradeBombeBranch(save, branch)) return true;
+  }
+  return false;
 }
 
 export interface ConsolePuzzle {

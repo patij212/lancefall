@@ -6125,3 +6125,42 @@ body {
 /* clarity: drop the badge glow, keep the text crisp */
 .clarity .ck-mi-badge.start,
 .clarity .ck-mi-badge.daily { text-shadow: none; color: #e6edf6; border-width: 1px; }
+
+/* ════════════════════════════════════════════════════════════════════════════════
+   THE BOMBE — branch upgrade controls (D2/D3)
+   Three specialisation tracks (THRIFT / SPEED / INSIGHT). Mono font, accent-driven,
+   reduce-motion safe (no animation; the machine rotor already has a prefer-motion guard).
+   ════════════════════════════════════════════════════════════════════════════════ */
+.bombe-branches {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--hud-scale, 1));
+  margin: calc(10px * var(--hud-scale, 1)) 0;
+}
+.bombe-branch {
+  display: flex;
+  align-items: center;
+  gap: calc(8px * var(--hud-scale, 1));
+  font-family: var(--font-mono, monospace);
+  font-size: calc(11px * var(--hud-scale, 1));
+  color: var(--text-muted);
+  padding: calc(6px * var(--hud-scale, 1)) calc(10px * var(--hud-scale, 1));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.04);
+}
+.bombe-branch-name {
+  flex: 1;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.bombe-branch-lvl {
+  min-width: 9ch;
+  text-align: right;
+  color: var(--text-muted);
+}
+.bombe-branch-btn {
+  flex-shrink: 0;
+}
+.bombe-branch-btn.hidden { display: none; }

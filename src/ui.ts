@@ -102,8 +102,8 @@ export interface UICallbacks {
   onUnlockLore: (id: string) => void;
   /** THE BOMBE — decrypt the cheapest word of an intercept (spend Fragments) */
   onDecryptWord: (interceptId: string) => void;
-  /** THE BOMBE — build/upgrade the auto-crack meta-tool */
-  onUpgradeBombe: () => void;
+  /** THE BOMBE — upgrade one of the three specialisation branches (THRIFT/SPEED/INSIGHT) */
+  onUpgradeBombe: (branch: string) => void;
   /** THE BOMBE — submit a console-puzzle answer */
   onSolvePuzzle: (puzzleId: string, guess: string) => void;
   /** THE BOMBE — submit a daily-cipher guess */
@@ -2594,7 +2594,7 @@ export class UI {
   private buildBombe(): void {
     this.bombe = buildBombePanel({
       onDecrypt: (id) => this.cb.onDecryptWord(id),
-      onUpgradeBombe: () => this.cb.onUpgradeBombe(),
+      onUpgradeBombe: (branch) => this.cb.onUpgradeBombe(branch),
       onSolvePuzzle: (id, guess) => this.cb.onSolvePuzzle(id, guess),
       onSolveDailyCipher: (guess) => this.cb.onSolveDailyCipher(guess),
       onShareDailyCipher: () => this.cb.onShareDailyCipher(),
@@ -2717,7 +2717,7 @@ export class UI {
 
     // THE BOMBE nav pip — glow (gold) when there's affordable decryption waiting; a discovery nudge.
     this.bombeNavBtn?.querySelector('.ck-nav-pip')
-      ?.classList.toggle('gold', hasAffordableDecrypt(save, bombeCostMul(save.bombeLevel)));
+      ?.classList.toggle('gold', hasAffordableDecrypt(save, bombeCostMul(save.bombeBranches?.thrift ?? 0)));
 
     // ── coerce an invalid/locked selection ONCE so the rail always has a valid card ──
     // (e.g. a Nightmare/Solstice selection from before it was earned). Every mode is now a

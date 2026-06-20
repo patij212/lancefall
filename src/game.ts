@@ -23,7 +23,7 @@ import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEn
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign, sovereignCoreBonusForBeat } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { INTERCEPTS, nextWordInIntercept, decryptWord, syncInterceptLore, interceptProgress, transmissionsComplete, masterProgress } from './intercepts';
-import { bombeCostMul, upgradeBombe as bombeUpgrade, solvePuzzleReward, runBombe, CRYPTANALYST_TRAIL } from './bombe';
+import { bombeCostMul, upgradeBombeBranch, solvePuzzleReward, runBombe, CRYPTANALYST_TRAIL, type BombeBranch } from './bombe';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, longestDayBonus, perfectThreadReady, perfectThreadScore } from './combat';
 import { crossedComboTier } from './comboTiers';
@@ -242,7 +242,7 @@ export class Game {
       onSaveReplay: () => this.shareReplay(),
       onUnlockLore: (id) => this.unlockLore(id),
       onDecryptWord: (interceptId) => this.decryptIntercept(interceptId),
-      onUpgradeBombe: () => this.upgradeBombe(),
+      onUpgradeBombe: (branch) => this.upgradeBombe(branch as BombeBranch),
       onSolvePuzzle: (puzzleId, guess) => this.solveConsolePuzzle(puzzleId, guess),
       onSolveDailyCipher: (guess) => this.solveDailyCipherCallback(guess),
       onShareDailyCipher: () => this.shareDailyCipherCallback(),
@@ -3375,7 +3375,7 @@ export class Game {
     const ic = INTERCEPTS.find((i) => i.id === interceptId);
     if (!ic) return;
     const word = nextWordInIntercept(this.save, ic);
-    if (!word || !decryptWord(this.save, word, bombeCostMul(this.save.bombeLevel))) return;
+    if (!word || !decryptWord(this.save, word, bombeCostMul(this.save.bombeBranches?.thrift ?? 0))) return;
     // sound: a rising tick that climbs with this transmission's progress
     this.audio.decryptTick(interceptProgress(this.save, ic).done / Math.max(1, interceptProgress(this.save, ic).total));
     const completed = syncInterceptLore(this.save);
@@ -3387,9 +3387,9 @@ export class Game {
     this.ui.openBombe(word); // pass the just-cracked word so the panel can ripple the cross-reveal
   }
 
-  /** THE BOMBE — build / upgrade the auto-crack meta-tool (spends Fragments). */
-  private upgradeBombe(): void {
-    if (!bombeUpgrade(this.save)) return;
+  /** THE BOMBE — upgrade one of the three Bombe branches (spends Fragments). */
+  private upgradeBombe(branch: BombeBranch): void {
+    if (!upgradeBombeBranch(this.save, branch)) return;
     this.audio.bombeClunk();
     this.evalMetaAchievements();
     saveSave(this.save);
