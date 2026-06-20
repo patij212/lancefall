@@ -339,6 +339,23 @@ describe('save migration', () => {
   });
 });
 
+describe('migrate — solvedDailyCiphers (additive, no version bump)', () => {
+  it('default-fills solvedDailyCiphers to [] for a save that predates it', () => {
+    expect(migrateSave({ version: 8, highScore: 1 }, defaultSave()).solvedDailyCiphers).toEqual([]);
+  });
+  it('coerces a malformed value to []', () => {
+    expect(migrateSave({ version: 8, solvedDailyCiphers: 'corrupt' }, defaultSave()).solvedDailyCiphers).toEqual([]);
+    expect(migrateSave({ version: 8, solvedDailyCiphers: 42 }, defaultSave()).solvedDailyCiphers).toEqual([]);
+  });
+  it('preserves valid date strings and dedupes', () => {
+    const out = migrateSave(
+      { version: 8, solvedDailyCiphers: ['2026-06-20', '2026-06-20', '2026-06-19'] },
+      defaultSave(),
+    );
+    expect(out.solvedDailyCiphers.sort()).toEqual(['2026-06-19', '2026-06-20']);
+  });
+});
+
 describe('migrate — BOMBE meta fields (additive)', () => {
   it('defaults the three new fields and survives a missing/garbage blob', () => {
     const d = migrateSave({}, defaultSave());

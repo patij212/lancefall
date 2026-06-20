@@ -191,6 +191,8 @@ export interface SaveData {
   bombeLevel: number;
   /** ids of console cryptanalysis puzzles already solved (once-ever; unlocks their rewards) */
   solvedPuzzles: string[];
+  /** YYYY-MM-DD days whose daily cipher is solved (once each, additive). */
+  solvedDailyCiphers: string[];
 }
 
 export interface Settings {
@@ -307,6 +309,7 @@ export function defaultSave(): SaveData {
     decryptedWords: [],
     bombeLevel: 0,
     solvedPuzzles: [],
+    solvedDailyCiphers: [],
   };
 }
 

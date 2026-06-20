@@ -119,6 +119,7 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // intercepts without bounding a legitimate complete decryption.
   out.decryptedWords = sanitizeTaught(out.decryptedWords, 1024);
   out.solvedPuzzles = sanitizeTaught(out.solvedPuzzles);
+  out.solvedDailyCiphers = sanitizeTaught(out.solvedDailyCiphers);
   if (typeof out.bombeLevel === 'number') out.bombeLevel = Math.max(0, Math.floor(out.bombeLevel));
   // v8 ship-skin cosmetics — per-(ship,set) ownership keyed `${shipId}:${setId}`, plus the
   // per-ship equipped-set record. Both are filtered to real ship + set ids; an equipped entry the
