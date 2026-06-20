@@ -827,6 +827,9 @@ export class UI {
     const opener = this.modalOpener.get(panel);
     this.modalOpener.delete(panel);
     if (opener && opener.isConnected) opener.focus();
+    // keep the title CITY COHERENCE bar current when a panel that changed it (THE BOMBE: decrypt /
+    // puzzle / daily cipher) closes back to the title — cheap, idempotent, save-derived.
+    if (this.saveRef) this.refreshCoherence(this.saveRef);
   }
 
   /** Inject a top-right close-X into a modal's card once (mock parity — every panel has one).
@@ -2880,6 +2883,18 @@ export class UI {
     }
   }
 
+  /** Repaint ONLY the title CITY COHERENCE bar from the live save — cheap + idempotent, no rail
+   *  morph / mode coercion. Called by refreshTitle and by closeModal, so a decrypt / puzzle solve
+   *  in THE BOMBE is reflected on the bar the instant you return to the title. */
+  private refreshCoherence(save: SaveData): void {
+    const coh = cityCoherence(save);
+    this.cohPct.textContent = `${coh.pct}%`;
+    this.cohFill.style.setProperty('--ck-coh-pct', `${coh.pct}%`);
+    this.cohSub.textContent = coh.tagline;
+    this.cohTrack.setAttribute('aria-valuenow', String(coh.pct));
+    this.cohTrack.setAttribute('aria-valuetext', `${coh.pct}% — ${coh.tagline}`);
+  }
+
   refreshTitle(save: SaveData): void {
     this.saveRef = save;
 
@@ -2915,12 +2930,7 @@ export class UI {
 
     // ── CITY COHERENCE bar — REAL now: a save-derived %, dynamic tagline, a11y-safe eased fill.
     //    Agrees with the cockpit backdrop + the BOMBE master meter (all decryption-led). ──
-    const coh = cityCoherence(save);
-    this.cohPct.textContent = `${coh.pct}%`;
-    this.cohFill.style.setProperty('--ck-coh-pct', `${coh.pct}%`);
-    this.cohSub.textContent = coh.tagline;
-    this.cohTrack.setAttribute('aria-valuenow', String(coh.pct));
-    this.cohTrack.setAttribute('aria-valuetext', `${coh.pct}% — ${coh.tagline}`);
+    this.refreshCoherence(save);
 
     // NG+ toggle — appears only once the Sovereign has been felled
     const ngUnlocked = save.ngPlusLevel >= 1;
