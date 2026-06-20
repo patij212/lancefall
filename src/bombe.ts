@@ -100,7 +100,7 @@ export function upgradeBombe(save: SaveData): boolean {
 
 export interface ConsolePuzzle {
   id: string;
-  kind: 'caesar' | 'substitution' | 'vigenere';
+  kind: 'caesar' | 'substitution' | 'vigenere' | 'enigma';
   prompt: string; // the ciphertext shown
   hint: string; // a one-line nudge
   answer: string; // the plaintext solution
@@ -142,7 +142,19 @@ export const CONSOLE_PUZZLES: ConsolePuzzle[] = [
     prompt: 'ORTSG GSV HRTMZO',
     hint: 'Atbash — the mirror alphabet, A↔Z, B↔Y. The signal the Beacon never sent.',
     answer: 'LIGHT THE SIGNAL',
-    reward: `a free word + ◆${PUZZLE_FRAGMENT_REWARD} Fragments · solve all three for the CIPHER trail`,
+    reward: `a free word + ◆${PUZZLE_FRAGMENT_REWARD} Fragments`,
+  },
+  {
+    // Single-rotor stepping Caesar: shift increments by 1 per letter (letter 0 → +1, letter 1 → +2,
+    // … mod 26). Spaces and punctuation pass through unchanged and do NOT advance the rotor counter.
+    // Plaintext:  T  U  R  N     T  H  E     L  A  S  T     R  O  T  O  R
+    // Shift:      1  2  3  4     5  6  7     8  9 10 11    12 13 14 15 16
+    // Ciphertext: U  W  U  R     Y  N  L     T  J  C  E     D  B  H  D  H
+    id: 'pz-enigma-1', kind: 'enigma',
+    prompt: 'UWUR YNL TJCE DBHDH',
+    hint: 'A single rotor — the shift advances by one with every letter. Spaces are transparent.',
+    answer: 'TURN THE LAST ROTOR',
+    reward: `a free word + ◆${PUZZLE_FRAGMENT_REWARD} Fragments · solve all four for the CIPHER trail`,
   },
 ];
 
@@ -184,4 +196,20 @@ export function solvePuzzleReward(save: SaveData, id: string, guess: string): Pu
   const cracked = crackCheapestFree(save, 1);
   const allSolved = CONSOLE_PUZZLES.every((p) => save.solvedPuzzles.includes(p.id));
   return { solved: true, crackedWord: cracked[0] ?? null, fragments: PUZZLE_FRAGMENT_REWARD, allSolved };
+}
+
+/** Grant +1 INSIGHT when ALL console puzzles are solved, once. Idempotent: gates on a synthetic
+ *  sentinel id (`'__cryptanalyst_bonus__'`) pushed to save.solvedPuzzles so no new save field is
+ *  needed. Resyncs save.bombeLevel (= thrift + speed + insight) on success. Returns true only on
+ *  the granting transition. */
+export function grantCryptanalystBonus(save: SaveData): boolean {
+  const SENTINEL = '__cryptanalyst_bonus__';
+  const allSolved = CONSOLE_PUZZLES.every((p) => save.solvedPuzzles.includes(p.id));
+  if (!allSolved || save.solvedPuzzles.includes(SENTINEL)) return false;
+  save.solvedPuzzles.push(SENTINEL);
+  const branches = save.bombeBranches ?? { thrift: 0, speed: 0, insight: 0 };
+  branches.insight = Math.min(BRANCH_MAX, branches.insight + 1);
+  save.bombeBranches = branches;
+  save.bombeLevel = branches.thrift + branches.speed + branches.insight;
+  return true;
 }

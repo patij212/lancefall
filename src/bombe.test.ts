@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BOMBE_MAX_LEVEL, BRANCH_MAX, bombeCostMul, bombeAutoCracks, upgradeBombeCost, upgradeBranchCost, runBombe, upgradeBombe, upgradeBombeBranch, CONSOLE_PUZZLES, checkPuzzle, solvePuzzle, crackCheapestFree, solvePuzzleReward, PUZZLE_FRAGMENT_REWARD } from './bombe';
+import { BOMBE_MAX_LEVEL, BRANCH_MAX, bombeCostMul, bombeAutoCracks, upgradeBombeCost, upgradeBranchCost, runBombe, upgradeBombe, upgradeBombeBranch, CONSOLE_PUZZLES, checkPuzzle, solvePuzzle, crackCheapestFree, solvePuzzleReward, PUZZLE_FRAGMENT_REWARD, grantCryptanalystBonus } from './bombe';
 import { defaultSave } from './save';
 import { isWordDecrypted, vocabulary, wordRarity } from './intercepts';
 import { fragmentBalance } from './lore';
@@ -152,6 +152,32 @@ describe('bombe — console cryptanalysis puzzles', () => {
     const results = CONSOLE_PUZZLES.map((p) => solvePuzzleReward(s, p.id, p.answer));
     expect(results.slice(0, -1).every((r) => r.allSolved === false)).toBe(true);
     expect(results[results.length - 1].allSolved).toBe(true);
+  });
+});
+
+describe('THE ENIGMA puzzle', () => {
+  it('exists, is kind enigma, and round-trips (prompt decodes to answer, prompt != answer)', () => {
+    const p = CONSOLE_PUZZLES.find((x) => x.id === 'pz-enigma-1')!;
+    expect(p).toBeDefined();
+    expect(p.kind).toBe('enigma');
+    expect(checkPuzzle('pz-enigma-1', p.answer)).toBe(true);
+    expect(p.prompt).not.toBe(p.answer);
+  });
+});
+
+describe('grantCryptanalystBonus', () => {
+  it('grants +1 INSIGHT once all puzzles are solved, idempotent', () => {
+    const s = defaultSave();
+    s.solvedPuzzles = CONSOLE_PUZZLES.map((p) => p.id);
+    expect(grantCryptanalystBonus(s)).toBe(true);
+    expect(s.bombeBranches.insight).toBe(1);
+    expect(grantCryptanalystBonus(s)).toBe(false); // idempotent
+    expect(s.bombeBranches.insight).toBe(1);
+  });
+  it('does nothing until all are solved', () => {
+    const s = defaultSave();
+    s.solvedPuzzles = CONSOLE_PUZZLES.slice(0, -1).map((p) => p.id);
+    expect(grantCryptanalystBonus(s)).toBe(false);
   });
 });
 
