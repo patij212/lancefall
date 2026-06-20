@@ -63,8 +63,21 @@ A higher-sample re-run via the headless Node harness (`tools/balance-node.mjs`) 
   run kills 5 bosses, ~785 s). `*`H5–7 read 0 % but are **cap-limited**: high-Heat Casual was
   given a 32k-frame cap on the assumption it dies fast, but it actually survives and stalls at
   boss 3–4, so the true rate there is low-but-untested (full-cap Casual is ~20 s/run, expensive).
-- The escalating survival modes (Endless/Daily/Solstice/Weekly/Nightmare) stay **0 %** — the bot
-  is boss-competent but chaff-survival-limited, and those modes out-escalate it before boss 6.
+- The escalating survival modes (Endless/Daily/Weekly/Nightmare) stay **0 %** — the bot is
+  boss-competent but chaff-survival-limited, and those modes out-escalate it before boss 6.
+
+## SOLSTICE — cipher mastered (0 % → 4–8 % Sovereign-down)
+
+A focused follow-up taught the bot the **SOLSTICE PROTOCOL cipher**: its bosses are armored until
+the orbiting cores are dashed in the *decoded order*. The bot can read the order straight off
+`w.cipher.order[progress]` (a core carries its slot in `.phase`), so it now solves deliberately.
+A death-cause trace showed the real wall wasn't the cipher (it solves ~4×/run) but **dying at
+Weaver to bullets** — the cipher-locked fights dragged and the bot loitered in the bullet field.
+Three fixes (in `tools/bot-core.mjs`): solve via a safe **mode-3 dash**, draft **damage perks**
+for cipher-lock modes, and — the big one — **stamina-aware positioning** (crowd the ring only when
+ready to key; otherwise kite out to regen). Boss-reach over 24 runs went Warden 24, Weaver 17→**23**,
+Beacon 5→**16**, Hollow 2→**10**, **Sovereign reached**; median boss kills **1 → 4**, and Solstice
+Sovereign-down **0 % → 4–8 %** (H0–2). No regression (Boss Rush 100/100/57 %, Arena 6 %/0 %).
 
 ## Balance observations for the game (not bot issues)
 
