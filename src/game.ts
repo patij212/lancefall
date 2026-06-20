@@ -46,6 +46,7 @@ import type { RunEventId, EventChoice } from './events';
 import { SHIPS, shipById } from './ships';
 import { THEMES, themeById, canUnlockTheme } from './themes';
 import { grantLongestDayRewards } from './longestDay';
+import { bossIntel } from './intel';
 import { TRAILS, trailById, trailParticleColor, canUnlockTrail } from './trails';
 import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
@@ -2225,6 +2226,12 @@ export class Game {
     // (Nova Dash / Chain Reaction / FRENZY) that would otherwise shatter cores out
     // of order and soft-lock a ring boss. Non-dash AoE is blocked always.
     if (e.kind === 'sovereign_core' && (!fromDash || (this.world.cipher != null && !this.world.cipher.solved))) return;
+    // DECRYPTION INTEL — +damage vs a boss whose transmission you've decrypted. Non-seeded only
+    // (seeded Daily/Weekly untouched). No rng → determinism preserved.
+    if (e.isBoss && !modeSeeded(this.mode)) {
+      const intel = bossIntel(this.save, e.kind);
+      if (intel.damageBonus) dmg *= 1 + intel.damageBonus;
+    }
     e.hp -= dmg;
     e.hitFlash = 0.1;
     if (e.hp > 0) {
