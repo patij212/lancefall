@@ -1,4 +1,4 @@
-﻿// src/intercepts.ts — THE INTERCEPTS. The full history of Lancefall as encrypted transmissions
+// src/intercepts.ts — THE INTERCEPTS. The full history of Lancefall as encrypted transmissions
 // you DECRYPT word-by-word with Memory Fragments. PURE + save-side: the only writes are
 // fragmentsSpent += cost and decryptedWords.push(word) — never rng, never the sim. Decryption is
 // by VOCABULARY: cracking a word reveals every occurrence across all transmissions (you build the
