@@ -5710,6 +5710,10 @@ body {
 .bombe-tok.enc.r-rare { color: #6b7a93; }
 .bombe-tok.enc.r-key { color: color-mix(in srgb, var(--amber) 55%, #6b7a93); text-shadow: 0 0 6px color-mix(in srgb, var(--amber) 30%, transparent); }
 
+/* THE LAST WORD — the un-decryptable token at the foot of "What Remains" */
+.bombe-tok.last-word.enc { color: #6b7280; letter-spacing: 0.12em; opacity: 0.85; }
+.bombe-tok.last-word.r-key { color: var(--amber); text-shadow: 0 0 18px #ffd88488; }
+
 /* the cross-reveal FLASH — a just-cracked word lights up across every transmission */
 .bombe-tok.just {
   animation: bombe-resolve 0.9s ease-out both;
