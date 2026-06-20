@@ -7,6 +7,7 @@ import { el } from './dom';
 import { HEAT_LEVELS } from '../heat';
 import type { SaveData } from '../save';
 import type { Panel } from './panel';
+import { vigilHeatFloor } from '../cityVoice';
 
 /** What the HEAT ladder needs from its host UI. */
 export interface HeatPanelDeps {
@@ -45,6 +46,7 @@ export function buildHeatPanel(deps: HeatPanelDeps): Panel {
   const root = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, el('div', { class: 'panel panel-wide' }, head, body));
 
   const open = (save: SaveData): void => {
+    const floor = vigilHeatFloor(save);
     const maxMul = HEAT_LEVELS[HEAT_LEVELS.length - 1].scoreMul;
     // score-multiplier CURVE (mock .heat-mult) — difficulty → reward at a glance; selected lit.
     curve.replaceChildren();
@@ -99,7 +101,14 @@ export function buildHeatPanel(deps: HeatPanelDeps): Panel {
         }
         card.append(top, el('div', { class: 'p-card-desc' }, lvl.desc), modGrid);
       }
-      card.addEventListener('click', () => deps.onSelect(lvl.level));
+      // THE VIGIL'S WEIGHT — levels below the floor are locked (the vigil demands the dark)
+      if (lvl.level > 0 && lvl.level < floor) {
+        card.disabled = true;
+        card.title = `the vigil holds the floor at HEAT ${floor}`;
+        card.classList.add('vigil-locked');
+      } else {
+        card.addEventListener('click', () => deps.onSelect(lvl.level));
+      }
       grid.append(card);
     }
   };
