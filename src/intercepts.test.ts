@@ -182,7 +182,6 @@ describe('THE LAST CIPHER (choice-authored tail)', () => {
   });
   it('the tail text adds NO new vocabulary words (100% reachable without a choice)', () => {
     const vocab = new Set(vocabulary());
-    void (`${CHOICE_TAIL.catch} ${CHOICE_TAIL.fall}`.toLowerCase().match(/[a-z0-9']+/g) ?? []);
     // tail is separate data — it must not be among INTERCEPTS tokens, so vocab is unchanged size.
     expect(vocab.size).toBe(265); // adjust to the current vocabulary count if it differs
   });

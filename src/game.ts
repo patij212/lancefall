@@ -23,7 +23,7 @@ import { spawnBoss, updateBoss, bossName, isBossKind, beaconBeamActive, beaconEn
 import { beamHitsPoint, sovereignBeamActive, sovereignBodyArmored, exposeSovereign, sovereignCoreBonusForBeat } from './sovereign';
 import { dashCipherCore } from './cipher';
 import { INTERCEPTS, nextWordInIntercept, decryptWord, syncInterceptLore, interceptProgress, transmissionsComplete, masterProgress } from './intercepts';
-import { bombeCostMul, upgradeBombeBranch, solvePuzzleReward, runBombe, CRYPTANALYST_TRAIL, type BombeBranch } from './bombe';
+import { bombeCostMul, upgradeBombeBranch, solvePuzzleReward, runBombe, CRYPTANALYST_TRAIL, grantCryptanalystBonus, CONSOLE_PUZZLES, type BombeBranch } from './bombe';
 import { segCircleHit, circleHit, shieldBlocks, withinArc } from './collision';
 import { comboMultiplier, scoreForKill, grazeScore, registerKill, tickCombo, shouldSlowmo, hitstopFor, clearTimeBonus, longestDayBonus, perfectThreadReady, perfectThreadScore } from './combat';
 import { crossedComboTier } from './comboTiers';
@@ -3346,7 +3346,7 @@ export class Game {
         decryptedCount: masterProgress(this.save).done,
         transmissionsComplete: transmissionsComplete(this.save),
         bombeLevel: this.save.bombeLevel,
-        puzzlesSolvedCount: this.save.solvedPuzzles.length,
+        puzzlesSolvedCount: CONSOLE_PUZZLES.filter((p) => this.save.solvedPuzzles.includes(p.id)).length,
         masterFrac: masterProgress(this.save).frac,
       }),
     );
@@ -3414,6 +3414,9 @@ export class Game {
     if (!r.solved) return;
     this.audio.puzzleSting();
     this.ui.toast(`CIPHER SOLVED — ${r.crackedWord ? `revealed “${r.crackedWord}” · ` : ''}◆${r.fragments} Fragments`);
+    if (grantCryptanalystBonus(this.save)) {
+      this.ui.toast('CRYPTANALYST — THE BOMBE gains INSIGHT');
+    }
     this.evalMetaAchievements();
     saveSave(this.save);
     this.ui.openBombe(r.crackedWord ?? undefined);
