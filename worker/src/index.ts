@@ -11,11 +11,14 @@
 // sanity + plausibility caps (validate.ts) and per-handle best-only aggregation rather than
 // full replay verification (which is infeasible — the ghost is a position trace, not inputs).
 import { MODES, DATE_RE, sanitizeName, validDaily, weekStartMs, capsOk, corsHeaders, boardCacheKey, BOARD_CACHE_TTL, sanitizeDevice, sanitizeAchIds, ACH_CACHE_TTL } from './validate';
+import { signSession, verifySession, SESSION_TTL_MS } from './session';
+import { newAccountId, sanitizeSaveBlob, mergeServerSave } from './accounts';
 
 export interface Env {
   DB: D1Database;
   /** optional KV namespace for IP rate-limiting; if unbound, limiting is skipped */
   RL?: KVNamespace;
+  HMAC_SECRET?: string;
 }
 
 /** Soft IP rate limit via KV (eventually-consistent, best-effort). Allows all if
@@ -34,6 +37,11 @@ function json(data: unknown, status: number, cors: Record<string, string>): Resp
     status,
     headers: { 'content-type': 'application/json', ...cors },
   });
+}
+
+function bearer(req: Request): string | null {
+  const h = req.headers.get('Authorization') || '';
+  return h.startsWith('Bearer ') ? h.slice(7) : null;
 }
 
 interface ScoreRow {
@@ -206,6 +214,57 @@ export default {
         200,
         cors,
       );
+    }
+
+    // ── account boot: validate/issue a session + return the cloud save (ONE call) ──
+    if (req.method === 'POST' && url.pathname === '/hello') {
+      if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
+      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429, cors);
+      let b: Record<string, unknown>;
+      try { b = (await req.json()) as Record<string, unknown>; } catch { return json({ error: 'bad json' }, 400, cors); }
+      const now = Date.now();
+      let aid: string | null = null;
+      const sess = await verifySession(typeof b.session === 'string' ? b.session : null, env.HMAC_SECRET, now);
+      if (sess) aid = sess.aid;
+      if (!aid) {
+        const device = sanitizeDevice(b.device);
+        if (!device) return json({ error: 'bad device' }, 400, cors);
+        const existing = await env.DB.prepare('SELECT id FROM accounts WHERE anon_token = ?').bind(device).first<{ id: string }>();
+        if (existing) aid = existing.id;
+        else {
+          aid = newAccountId();
+          await env.DB.prepare('INSERT INTO accounts (id, anon_token, created_at, updated_at) VALUES (?, ?, ?, ?)')
+            .bind(aid, device, now, now).run();
+        }
+      }
+      const row = await env.DB.prepare('SELECT blob, rev FROM saves WHERE account_id = ?').bind(aid).first<{ blob: string; rev: number }>();
+      let save: unknown = null;
+      if (row?.blob) { try { save = JSON.parse(row.blob); } catch { save = null; } }
+      const session = await signSession({ aid, kind: sess?.kind ?? 'anon', exp: now + SESSION_TTL_MS }, env.HMAC_SECRET);
+      return json({ session, save, rev: row?.rev ?? 0 }, 200, cors);
+    }
+
+    // ── store the cloud save: verify session, sanitize, merge server-side, bump rev ──
+    if (req.method === 'PUT' && url.pathname === '/save') {
+      if (!env.HMAC_SECRET) return json({ error: 'accounts disabled' }, 503, cors);
+      if (!(await rateOk(env, ip, 'post', 20))) return json({ error: 'rate limited' }, 429, cors);
+      const sess = await verifySession(bearer(req), env.HMAC_SECRET, Date.now());
+      if (!sess) return json({ error: 'unauthorized' }, 401, cors);
+      let b: Record<string, unknown>;
+      try { b = (await req.json()) as Record<string, unknown>; } catch { return json({ error: 'bad json' }, 400, cors); }
+      const incoming = sanitizeSaveBlob(b.save);
+      const incomingAt = typeof b.writtenAt === 'number' && Number.isFinite(b.writtenAt) ? b.writtenAt : Date.now();
+      const row = await env.DB.prepare('SELECT blob, rev, updated_at FROM saves WHERE account_id = ?').bind(sess.aid).first<{ blob: string; rev: number; updated_at: number }>();
+      let server: ReturnType<typeof sanitizeSaveBlob> | null = null;
+      if (row?.blob) { try { server = sanitizeSaveBlob(JSON.parse(row.blob)); } catch { server = null; } }
+      const merged = mergeServerSave(server, incoming, row?.updated_at ?? 0, incomingAt);
+      const rev = (row?.rev ?? 0) + 1;
+      const now = Date.now();
+      await env.DB.prepare(
+        'INSERT INTO saves (account_id, blob, rev, updated_at) VALUES (?, ?, ?, ?) ' +
+        'ON CONFLICT(account_id) DO UPDATE SET blob = excluded.blob, rev = excluded.rev, updated_at = excluded.updated_at',
+      ).bind(sess.aid, JSON.stringify(merged), rev, now).run();
+      return json({ save: merged, rev }, 200, cors);
     }
 
     return json({ error: 'not found' }, 404, cors);
