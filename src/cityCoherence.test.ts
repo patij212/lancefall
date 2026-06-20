@@ -83,7 +83,7 @@ describe('cityCoherence (save-derived)', () => {
     next = cityCoherence(s).frac; expect(next).toBeGreaterThanOrEqual(prev);
   });
 
-  it('a fully-restored save reads 100% + THE LONGEST DAY', () => {
+  it('a fully-restored save reads 100% + DAYBREAK', () => {
     const s = fresh();
     s.decryptedWords = vocabulary();
     s.stillpointLore = LORE.map((l) => l.id);

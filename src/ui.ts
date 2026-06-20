@@ -1599,7 +1599,13 @@ export class UI {
         const locked = n < floor;
         (node as HTMLButtonElement).disabled = locked;
         node.classList.toggle('vigil-locked', locked);
-        if (locked) node.title = `the vigil holds the floor at HEAT ${floor}`;
+        if (locked) {
+          node.title = `the vigil holds the floor at HEAT ${floor}`;
+        } else {
+          node.title = heatTooltip(n);
+          (node as HTMLButtonElement).disabled = false;
+          node.classList.remove('vigil-locked');
+        }
       },
     );
   }
@@ -4161,7 +4167,6 @@ export class UI {
     const line2 = el('p', { class: 'premise-line' }, 'Break the code. Bring back the day.');
     const btn = el('button', { class: 'btn btn-primary premise-btn', type: 'button' }, 'DESCEND');
     const close = (): void => {
-      overlay.classList.add('hidden');
       overlay.remove();
       onDone();
     };
@@ -4171,8 +4176,10 @@ export class UI {
     card.append(cityArt, title, line1, line2, btn);
     overlay.append(card);
     document.body.appendChild(overlay);
-    requestAnimationFrame(() => overlay.classList.add('premise-in'));
-    btn.focus();
+    requestAnimationFrame(() => {
+      overlay.classList.add('premise-in');
+      btn.focus();
+    });
   }
 
   /** Big center milestone announcement (RAMPAGE / FRENZY / ...). */

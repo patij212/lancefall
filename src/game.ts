@@ -94,6 +94,7 @@ import { deedsMet, wakeIsCeremony, vigilHeatFloor, agedEcho } from './cityVoice'
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
 
+// the 6 boss EnemyKinds — keep in sync with the boss roster (bosses/ + bestiary 'boss' cat).
 /** The 6 boss EnemyKinds — used to filter killsByKind for deed evaluation. */
 const BOSS_KINDS = new Set<string>(['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign']);
 
@@ -2566,10 +2567,12 @@ export class Game {
       timeSec: w.time,
       wave: this.director.wave,
     };
+    let woke = false;
     for (const id of deedsMet(ctx)) {
       if (this.save.citizenDeeds.includes(id)) continue; // already woken
       this.save.citizenDeeds.push(id);
       this.runWokenFaces.push(id);
+      woke = true;
       const c = CITIZENS.find((x) => x.id === id);
       if (!c) continue;
       if (wakeIsCeremony(id) && w.clutch.lastBreathActive <= 0) {
@@ -2578,7 +2581,7 @@ export class Game {
         this.narrate('city_wake', 'toast', [`A face remembered — ${c.name}.`], false);
       }
     }
-    saveSave(this.save);
+    if (woke) saveSave(this.save);
   }
 
   /** COMBO ERUPTION: shatter enemy bullets in a big radius (breathing room),
