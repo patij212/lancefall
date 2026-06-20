@@ -12,8 +12,8 @@ import type { Panel } from './panel';
 import type { SaveData } from '../save';
 import {
   INTERCEPTS, interceptProgress, isInterceptComplete, masterProgress, nextWordInIntercept, tokenView, wordCost, wordRarity,
-  choiceTail,
 } from '../intercepts';
+import { choiceTail } from '../ending';
 import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, BRANCH_MAX, upgradeBranchCost, bombeAutoCracks, bombeCostMul } from '../bombe';
 import { fragmentBalance } from '../lore';
 import { DAILY_CIPHER_REWARD, dailyCipher, letterFrequency } from '../dailyCipher';

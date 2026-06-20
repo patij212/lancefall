@@ -221,16 +221,8 @@ export function isLongestDay(save: SaveData): boolean {
   return masterProgress(save).frac >= 1;
 }
 
-/** THE LAST CIPHER — the one that "cannot be solved, only chosen." Separate authored data (NOT in
- *  any transmission's tokens, so vocabulary()/masterProgress are untouched). Resolves by the
- *  Sovereign-kill choice. Echoes stillpoint.choiceEnding. */
-export const CHOICE_TAIL: Record<'catch' | 'fall', string> = {
-  catch: 'And the last word, you did not decode — you held it. The light stays. The longest day does not end.',
-  fall: 'And the last word, you did not decode — you let it go. The light is released, and the dark comes gently, and it is over.',
-};
-export function choiceTail(save: SaveData): string | null {
-  return save.stillpointChoice === 'catch' || save.stillpointChoice === 'fall' ? CHOICE_TAIL[save.stillpointChoice] : null;
-}
+// THE LAST CIPHER tail moved to ./ending (single source). Re-exported for back-compat.
+export { CHOICE_TAIL, choiceTail } from './ending';
 
 /** The cheapest still-undecrypted word in an intercept (the "decrypt next" + Bombe target). */
 export function nextWordInIntercept(save: SaveData, ic: Intercept): string | null {
