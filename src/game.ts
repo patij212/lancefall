@@ -84,6 +84,7 @@ import { choiceEnding, echoLine, fragmentsForRun, ngPlusIntensityMul, nemesisOf 
 import { fragmentBalance, loreById } from './lore';
 import { newGhost, recordGhost, ghostAt, serializeGhost, deserializeGhost, toChallengeCode, fromChallengeCode, buildDuelUrl, extractDuelCode, stripDuelQuery } from './ghost';
 import type { Ghost } from './ghost';
+import { solveDailyCipher, DAILY_CIPHER_REWARD } from './dailyCipher';
 import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbox, currentStep, sandboxBeatTargets, sandboxProgress, overchargeCue } from './sandbox';
 import type { SandboxState, SandboxStep } from './sandbox';
 
@@ -243,6 +244,8 @@ export class Game {
       onDecryptWord: (interceptId) => this.decryptIntercept(interceptId),
       onUpgradeBombe: () => this.upgradeBombe(),
       onSolvePuzzle: (puzzleId, guess) => this.solveConsolePuzzle(puzzleId, guess),
+      onSolveDailyCipher: (guess) => this.solveDailyCipherCallback(guess),
+      onShareDailyCipher: () => this.shareDailyCipherCallback(),
       onToggleNgPlus: () => this.toggleNgPlus(),
       onCreateChallenge: () => this.createChallenge(),
       onAcceptChallenge: (code) => this.acceptChallenge(code),
@@ -3403,6 +3406,30 @@ export class Game {
     this.evalMetaAchievements();
     saveSave(this.save);
     this.ui.openBombe(r.crackedWord ?? undefined);
+  }
+
+  /** THE BOMBE — submit a daily-cipher guess; grants Fragments on first correct solve today. */
+  private solveDailyCipherCallback(guess: string): void {
+    const r = solveDailyCipher(this.save, seedFromDate(), guess);
+    if (r.solved) {
+      this.ui.toast(`DAILY CIPHER SOLVED — +◆${DAILY_CIPHER_REWARD} Fragments`);
+      this.evalMetaAchievements();
+      saveSave(this.save);
+    } else {
+      this.ui.toast('Not quite — try again');
+    }
+    this.ui.openBombe();
+  }
+
+  /** THE BOMBE — copy a daily-cipher share string to the clipboard (mirrors copyScore). */
+  private shareDailyCipherCallback(): void {
+    const str = `THE LAST KEY · daily cipher ${dateString()} — solved. lancefall.pages.dev`;
+    try {
+      void navigator.clipboard?.writeText(str);
+      this.ui.toast('Cipher share copied to clipboard!');
+    } catch {
+      this.ui.toast(str);
+    }
   }
 
   /** Toggle NG+ for the next run (only once unlocked by a Sovereign kill). */

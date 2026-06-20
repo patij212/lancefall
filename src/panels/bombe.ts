@@ -15,6 +15,8 @@ import {
 } from '../intercepts';
 import { CONSOLE_PUZZLES, BOMBE_MAX_LEVEL, upgradeBombeCost, bombeAutoCracks, bombeCostMul } from '../bombe';
 import { fragmentBalance } from '../lore';
+import { dailyCipher, letterFrequency } from '../dailyCipher';
+import { seedFromDate, dateString } from '../rng';
 
 /** What THE BOMBE console needs from its host UI (the host persists + re-opens). */
 export interface BombePanelDeps {
@@ -24,6 +26,10 @@ export interface BombePanelDeps {
   onUpgradeBombe: () => void;
   /** submit a console-puzzle answer. */
   onSolvePuzzle: (puzzleId: string, guess: string) => void;
+  /** submit a daily-cipher guess. */
+  onSolveDailyCipher: (guess: string) => void;
+  /** copy the daily-cipher solved share string to clipboard. */
+  onShareDailyCipher: () => void;
   /** dismiss the modal. */
   onClose: () => void;
 }
@@ -71,13 +77,30 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
 
   const listLabel = el('div', { class: 'stats-label' }, 'INTERCEPTS');
   const list = el('div', { class: 'bombe-list' });
+
+  // ── DAILY CIPHER block (built once; reconciled in open()) ──
+  const dailyLabel = el('div', { class: 'stats-label' }, 'DAILY CIPHER');
+  const dailyPrompt = el('div', { class: 'bombe-daily-prompt' });
+  const dailyHint = el('div', { class: 'bombe-pz-hint' });
+  const dailyFreq = el('div', { class: 'bombe-freq' });
+  const dailyInput = el('input', { class: 'bombe-pz-input bombe-daily-input', type: 'text', placeholder: 'decode…', 'aria-label': 'daily cipher answer' });
+  const dailySolveBtn = el('button', { class: 'btn btn-sm bombe-pz-btn' }, 'SOLVE');
+  const dailySolveRow = el('div', { class: 'bombe-pz-solve' }, dailyInput, dailySolveBtn);
+  const dailyDone = el('div', { class: 'bombe-pz-done' });
+  const dailyShareBtn = el('button', { class: 'btn btn-sm bombe-daily-share hidden' }, 'SHARE');
+  const daily = el('div', { class: 'bombe-daily' }, dailyPrompt, dailyHint, dailyFreq, dailySolveRow, dailyDone, dailyShareBtn);
+  const submitDaily = () => deps.onSolveDailyCipher(dailyInput.value);
+  dailySolveBtn.addEventListener('click', submitDaily);
+  dailyInput.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') submitDaily(); });
+  dailyShareBtn.addEventListener('click', () => deps.onShareDailyCipher());
+
   const pzLabel = el('div', { class: 'stats-label' }, 'CONSOLE — CRYPTANALYSIS');
   const puzzles = el('div', { class: 'bombe-puzzles' });
 
   const close = el('button', { class: 'btn btn-primary' }, 'DONE');
   close.addEventListener('click', () => deps.onClose());
 
-  const body = el('div', { class: 'bombe-body' }, lead, overnight, master, statusRow, listLabel, list, pzLabel, puzzles, close);
+  const body = el('div', { class: 'bombe-body' }, lead, overnight, master, statusRow, listLabel, list, dailyLabel, daily, pzLabel, puzzles, close);
   const root = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, el('div', { class: 'panel panel-wide' }, head, body));
 
   /** Ripple the cross-reveal: flash EVERY token of the just-cracked word across all transmissions,
@@ -182,6 +205,36 @@ export function buildBombePanel(deps: BombePanelDeps): BombePanel {
         }
       },
     );
+
+    // ── DAILY CIPHER — today's cryptogram; solved state persists in save.solvedDailyCiphers ──
+    {
+      const daySeed = seedFromDate();
+      const dc = dailyCipher(daySeed);
+      const today = dateString();
+      const isSolved = save.solvedDailyCiphers.includes(today);
+
+      dailyPrompt.textContent = dc.prompt;
+      dailyHint.textContent = dc.hint;
+
+      // compact letter-frequency strip (top letters by count)
+      const freq = letterFrequency(dc.prompt);
+      const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+      dailyFreq.replaceChildren(
+        ...sorted.map(([letter, count]) => {
+          const cell = el('div', { class: 'bombe-freq-cell' });
+          const lEl = el('span', { class: 'bombe-freq-letter' }, letter.toUpperCase());
+          const cEl = el('span', { class: 'bombe-freq-count' }, String(count));
+          cell.append(lEl, cEl);
+          return cell;
+        }),
+      );
+
+      daily.className = 'bombe-daily' + (isSolved ? ' done' : '');
+      dailySolveRow.classList.toggle('hidden', isSolved);
+      dailyDone.textContent = isSolved ? `✓ SOLVED — +◆${4} Fragments` : '';
+      dailyShareBtn.classList.toggle('hidden', !isSolved);
+      if (!isSolved) dailyInput.value = '';
+    }
 
     // ── console puzzles (reconciled) ──
     reconcile(

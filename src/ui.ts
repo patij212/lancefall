@@ -106,6 +106,10 @@ export interface UICallbacks {
   onUpgradeBombe: () => void;
   /** THE BOMBE — submit a console-puzzle answer */
   onSolvePuzzle: (puzzleId: string, guess: string) => void;
+  /** THE BOMBE — submit a daily-cipher guess */
+  onSolveDailyCipher: (guess: string) => void;
+  /** THE BOMBE — copy the daily-cipher share string to clipboard */
+  onShareDailyCipher: () => void;
   onToggleNgPlus: () => void;
   onCreateChallenge: () => void;
   onAcceptChallenge: (code: string) => void;
@@ -2592,6 +2596,8 @@ export class UI {
       onDecrypt: (id) => this.cb.onDecryptWord(id),
       onUpgradeBombe: () => this.cb.onUpgradeBombe(),
       onSolvePuzzle: (id, guess) => this.cb.onSolvePuzzle(id, guess),
+      onSolveDailyCipher: (guess) => this.cb.onSolveDailyCipher(guess),
+      onShareDailyCipher: () => this.cb.onShareDailyCipher(),
       onClose: () => this.closeModal(this.bombePanel),
     });
     this.bombePanel = this.bombe.root;

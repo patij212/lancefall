@@ -6018,3 +6018,74 @@ body {
   .ck-frame { max-width: 1480px; }
   .ck-main { grid-template-columns: 304px minmax(0, 1fr) 324px; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════════
+   ── DAILY CIPHER block (C3/C4) — .bombe-daily, .bombe-daily-prompt,
+      .bombe-freq, .bombe-freq-cell ──
+   Mirrors the .bombe-puzzle card structure and reuses the mono cipher font,
+   --accent, and calc(px * var(--hud-scale)) scaling. No animation added
+   (honor reduce-motion — the only animated element is the shared .bombe-tok).
+   ════════════════════════════════════════════════════════════════════════════════ */
+.bombe-daily {
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  transition: border-color 0.3s;
+}
+.bombe-daily.done { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+
+/* today's ciphertext — big mono glyphs, accent-coloured, consistent with .bombe-pz-prompt */
+.bombe-daily-prompt {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(20px * var(--hud-scale));
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 35%, transparent);
+  margin: 0 0 8px;
+  word-break: break-word;
+}
+.bombe-daily.done .bombe-daily-prompt { color: var(--text-muted); text-shadow: none; opacity: 0.7; }
+
+/* compact letter-frequency strip — a horizontal row of letter/count cells */
+.bombe-freq {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 11px;
+}
+.bombe-freq-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: calc(26px * var(--hud-scale));
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+}
+.bombe-freq-letter {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(11px * var(--hud-scale));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  line-height: 1.2;
+}
+.bombe-freq-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: calc(9px * var(--hud-scale));
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+/* share button — small, secondary; hidden until solved */
+.bombe-daily-share { margin-top: 8px; }
+
+/* A11y — reduce-motion: no transition on the done border (already covered by .bombe-daily
+   transition: border-color which is non-animation; no extra rules needed). */
+/* clarity (high-contrast): match .bombe-puzzle clarity rules */
+:root.clarity .bombe-daily { border-width: 2px; }
+:root.clarity .bombe-daily-prompt { text-shadow: none; }
+:root.clarity .bombe-freq-cell { border-width: 1.5px; }
+:root.clarity .bombe-freq-letter { color: var(--text); }

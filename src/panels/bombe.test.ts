@@ -6,7 +6,7 @@ import { INTERCEPTS, interceptWords, masterProgress } from '../intercepts';
 import { CONSOLE_PUZZLES } from '../bombe';
 
 describe('buildBombePanel', () => {
-  const deps = { onDecrypt: vi.fn(), onUpgradeBombe: vi.fn(), onSolvePuzzle: vi.fn(), onClose: vi.fn() };
+  const deps = { onDecrypt: vi.fn(), onUpgradeBombe: vi.fn(), onSolvePuzzle: vi.fn(), onSolveDailyCipher: vi.fn(), onShareDailyCipher: vi.fn(), onClose: vi.fn() };
 
   it('renders a master meter + one card per intercept + a DECRYPT control + a puzzle per cryptogram', () => {
     const p = buildBombePanel(deps);
