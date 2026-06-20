@@ -3380,6 +3380,7 @@ export class Game {
       hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
       dailyAttempt: this.mode.id === 'daily' && !this.inChallenge ? this.save.dailyAttempts : undefined,
       dailyAttemptsMax: MAX_DAILY_ATTEMPTS,
+      facesRemembered: this.runWokenFaces.map((id) => CITIZENS.find((c) => c.id === id)?.name).filter((n): n is string => !!n),
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
