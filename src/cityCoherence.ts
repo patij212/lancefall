@@ -27,14 +27,15 @@ const W_LORE = 0.2;
 const W_ACH = 0.15;
 const W_ARC = 0.1;
 
-/** The tagline for a coherence fraction, by band. 0 = grey sleep, 1 = THE LONGEST DAY. The level is
- *  carried by the words (+ the %), not by colour — colourblind-safe. Pure. */
+/** The tagline for a coherence fraction, by band. 0 = grey sleep, 1 = DAYBREAK. The level is
+ *  carried by the words (+ the %), not by colour — colourblind-safe. Pure.
+ *  Cipher-breaking framing (THE CITY SPEAKS §15): each band describes where the code stands. */
 export function cityCoherenceTagline(frac: number): string {
-  if (frac >= 1) return 'THE LONGEST DAY · THE CITY IS WHOLE';
-  if (frac <= 0) return 'THE CITY SLEEPS IN GREY';
-  if (frac < 0.34) return 'A FEW LIGHTS REMEMBER';
-  if (frac < 0.67) return 'NEON BLOOMS AS THE CITY REMEMBERS';
-  return 'THE CITY IS ALMOST WHOLE';
+  if (frac >= 1) return 'DAYBREAK · THE CITY IS WHOLE';
+  if (frac <= 0) return 'THE CIPHER HOLDS · THE CITY SLEEPS IN GREY';
+  if (frac < 0.34) return 'THE CODE IS BREAKING · A FEW LIGHTS REMEMBER';
+  if (frac < 0.67) return 'THE CODE IS BREAKING · NEON BLOOMS';
+  return 'ALMOST DECRYPTED · THE CITY WAKES';
 }
 
 /** How whole the city is, derived purely from persistent save state. Monotonic in every input

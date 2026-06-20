@@ -9,23 +9,23 @@ import type { SaveData } from './save';
 const fresh = (): SaveData => defaultSave();
 
 describe('cityCoherenceTagline (bands)', () => {
-  it('grey sleep at exactly 0', () => {
-    expect(cityCoherenceTagline(0)).toBe('THE CITY SLEEPS IN GREY');
+  it('cipher holds at exactly 0', () => {
+    expect(cityCoherenceTagline(0)).toBe('THE CIPHER HOLDS · THE CITY SLEEPS IN GREY');
   });
-  it('a few lights below 0.34', () => {
-    expect(cityCoherenceTagline(0.01)).toBe('A FEW LIGHTS REMEMBER');
-    expect(cityCoherenceTagline(0.33)).toBe('A FEW LIGHTS REMEMBER');
+  it('code is breaking below 0.34', () => {
+    expect(cityCoherenceTagline(0.01)).toBe('THE CODE IS BREAKING · A FEW LIGHTS REMEMBER');
+    expect(cityCoherenceTagline(0.33)).toBe('THE CODE IS BREAKING · A FEW LIGHTS REMEMBER');
   });
   it('neon blooms in the middle band', () => {
-    expect(cityCoherenceTagline(0.34)).toBe('NEON BLOOMS AS THE CITY REMEMBERS');
-    expect(cityCoherenceTagline(0.66)).toBe('NEON BLOOMS AS THE CITY REMEMBERS');
+    expect(cityCoherenceTagline(0.34)).toBe('THE CODE IS BREAKING · NEON BLOOMS');
+    expect(cityCoherenceTagline(0.66)).toBe('THE CODE IS BREAKING · NEON BLOOMS');
   });
-  it('almost whole in the upper band', () => {
-    expect(cityCoherenceTagline(0.67)).toBe('THE CITY IS ALMOST WHOLE');
-    expect(cityCoherenceTagline(0.99)).toBe('THE CITY IS ALMOST WHOLE');
+  it('almost decrypted in the upper band', () => {
+    expect(cityCoherenceTagline(0.67)).toBe('ALMOST DECRYPTED · THE CITY WAKES');
+    expect(cityCoherenceTagline(0.99)).toBe('ALMOST DECRYPTED · THE CITY WAKES');
   });
-  it('the longest day at 1', () => {
-    expect(cityCoherenceTagline(1)).toBe('THE LONGEST DAY · THE CITY IS WHOLE');
+  it('DAYBREAK at 1', () => {
+    expect(cityCoherenceTagline(1)).toBe('DAYBREAK · THE CITY IS WHOLE');
   });
 });
 
@@ -34,7 +34,7 @@ describe('cityCoherence (save-derived)', () => {
     const c = cityCoherence(fresh());
     expect(c.frac).toBe(0);
     expect(c.pct).toBe(0);
-    expect(c.tagline).toBe('THE CITY SLEEPS IN GREY');
+    expect(c.tagline).toBe('THE CIPHER HOLDS · THE CITY SLEEPS IN GREY');
   });
 
   it('rises with decryption', () => {
@@ -92,7 +92,7 @@ describe('cityCoherence (save-derived)', () => {
     const c = cityCoherence(s);
     expect(c.frac).toBe(1);
     expect(c.pct).toBe(100);
-    expect(c.tagline).toBe('THE LONGEST DAY · THE CITY IS WHOLE');
+    expect(c.tagline).toBe('DAYBREAK · THE CITY IS WHOLE');
   });
 
   it('is bounded — over-filled inputs never exceed 1 / 100', () => {

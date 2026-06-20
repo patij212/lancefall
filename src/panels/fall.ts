@@ -8,6 +8,7 @@ import { BESTIARY } from '../bestiary';
 import type { SaveData } from '../save';
 import { CITIZENS, isCitizenWoken } from '../citizens';
 import { sixthReveal, daysHeld } from '../ending';
+import { vigilCitizenName } from '../cityVoice';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
@@ -38,11 +39,16 @@ export function renderYourLancefall(save: SaveData): HTMLElement {
     box.append(el('div', { class: 'yl-pending' }, 'The last word is unread. Descend, fell the Sovereign, and choose.'));
     return box;
   }
+  const days = daysHeld(save);
+  // personify the "still holding" line — use a woken citizen's name if one exists
+  const citizenName = (!save.released && save.stillpointChoice === 'catch') ? vigilCitizenName(save) : null;
   const held = save.released
     ? 'You held the light, then let the day turn. It is finished.'
     : save.stillpointChoice === 'fall'
       ? 'You let the day turn. It is finished.' // chose to let it go at the kill — never held
-      : `You hold the longest day. Day held: ${daysHeld(save)}.`;
+      : citizenName
+        ? `You hold the light for ${citizenName}. Day held: ${days}.`
+        : `You hold the longest day. Day held: ${days}.`;
   const verb = save.stillpointChoice === 'catch' && !save.released ? 'YOU HOLD THE LIGHT' : 'YOU LET IT GO';
   box.append(
     el('div', { class: 'yl-verb' }, verb),
