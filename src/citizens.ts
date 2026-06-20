@@ -210,8 +210,10 @@ export const CITIZENS: Citizen[] = [
   },
 ];
 
-/** A citizen is woken once the transmission (or master-% milestone) that names them is decrypted. */
+/** A citizen is woken once the transmission (or master-% milestone) that names them is decrypted,
+ *  OR once an in-run deed has woken them through play (cityVoice deed-wake; see save.citizenDeeds). */
 export function isCitizenWoken(save: SaveData, c: Citizen): boolean {
+  if (save.citizenDeeds.includes(c.id)) return true; // woken through play (cityVoice deed-wake)
   if (c.wakeBy in MILESTONE_WAKE) return masterProgress(save).frac >= MILESTONE_WAKE[c.wakeBy];
   const ic = INTERCEPTS.find((i) => i.id === c.wakeBy);
   return !!ic && isInterceptComplete(save, ic);

@@ -63,3 +63,12 @@ describe('wokenCitizens', () => {
     expect(cityRememberedCount(s)).toEqual({ woken: 0, total: 16 });
   });
 });
+
+describe('deed-wake — citizens wake through play, not only decryption', () => {
+  it('a citizen whose id is in save.citizenDeeds is woken, even with no decryption', () => {
+    const s = defaultSave();
+    expect(wokenCitizens(s)).toHaveLength(0);
+    s.citizenDeeds = ['gatewarden'];
+    expect(wokenCitizens(s).some((c) => c.id === 'gatewarden')).toBe(true);
+  });
+});
