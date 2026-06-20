@@ -48,6 +48,13 @@ describe('achievements', () => {
     expect(m({ masterFrac: 1 })).toContain('mastercipher');
     expect(m({ masterFrac: 1 })).toContain('longestday-read');
     expect(m({ masterFrac: 0.99 })).not.toContain('longestday-read');
+    // partial cipher milestones
+    expect(m({ masterFrac: 0.25 })).toContain('decrypt25');
+    expect(m({ masterFrac: 0.5 })).toContain('decrypt50');
+    expect(m({ masterFrac: 0.75 })).toContain('decrypt75');
+    expect(m({ masterFrac: 0.24 })).not.toContain('decrypt25');
+    expect(m({ masterFrac: 0.49 })).not.toContain('decrypt50');
+    expect(m({ masterFrac: 0.74 })).not.toContain('decrypt75');
     // partial solves don't earn the cryptanalyst
     expect(m({ puzzlesSolvedCount: CONSOLE_PUZZLES.length - 1 })).not.toContain('cryptanalyst');
   });
