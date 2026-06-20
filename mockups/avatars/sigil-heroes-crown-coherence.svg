@@ -1,0 +1,112 @@
+<svg width="100%" viewBox="0 0 680 430" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Two high-detail LANCEFALL sigils: a shattering crown and a resonance engine</title>
+<desc>THE FALLEN CROWN with a spike splintering into many flying shards, and COHERENCE as a layered animated resonance sigil.</desc>
+<defs>
+<radialGradient id="vg" cx="50%" cy="38%" r="72%"><stop offset="0%" stop-color="#0e1730"/><stop offset="100%" stop-color="#03050c"/></radialGradient>
+<radialGradient id="coreC" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="#ffffff"/><stop offset="35%" stop-color="#9bffff"/><stop offset="70%" stop-color="#22a6c4"/><stop offset="100%" stop-color="#0a3a4a" stop-opacity="0"/></radialGradient>
+<radialGradient id="coreG" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="#fffdf0"/><stop offset="35%" stop-color="#ffe46b"/><stop offset="70%" stop-color="#caa12a"/><stop offset="100%" stop-color="#5a4408" stop-opacity="0"/></radialGradient>
+<linearGradient id="bzC" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#16202f"/><stop offset="35%" stop-color="#4fd6ee"/><stop offset="50%" stop-color="#e9feff"/><stop offset="66%" stop-color="#3fb8d8"/><stop offset="100%" stop-color="#101826"/></linearGradient>
+<linearGradient id="bzG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#221a08"/><stop offset="30%" stop-color="#e6bf3e"/><stop offset="50%" stop-color="#fff6cf"/><stop offset="70%" stop-color="#c79a26"/><stop offset="100%" stop-color="#1c1404"/></linearGradient>
+<linearGradient id="goldSh" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0%" stop-color="#a87b16"/><stop offset="45%" stop-color="#ffe46b"/><stop offset="100%" stop-color="#fff8d6"/></linearGradient>
+<linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="40%" stop-color="#ffffff" stop-opacity="0.06"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<filter id="bl" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.2"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="blS" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="1.1"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="big" x="-130%" y="-130%" width="360%" height="360%"><feGaussianBlur stdDeviation="10"/></filter>
+<g id="rays" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="42" y1="0" x2="92" y2="0"/><line x1="36.4" y1="21" x2="79.7" y2="46"/><line x1="21" y1="36.4" x2="46" y2="79.7"/><line x1="0" y1="42" x2="0" y2="92"/><line x1="-21" y1="36.4" x2="-46" y2="79.7"/><line x1="-36.4" y1="21" x2="-79.7" y2="46"/><line x1="-42" y1="0" x2="-92" y2="0"/><line x1="-36.4" y1="-21" x2="-79.7" y2="-46"/><line x1="-21" y1="-36.4" x2="-46" y2="-79.7"/><line x1="0" y1="-42" x2="0" y2="-92"/><line x1="21" y1="-36.4" x2="46" y2="-79.7"/><line x1="36.4" y1="-21" x2="79.7" y2="-46"/></g>
+<g id="r12" fill="currentColor"><circle cx="0" cy="-72" r="2.6"/><circle cx="62.4" cy="-36" r="2.6"/><circle cx="62.4" cy="36" r="2.6"/><circle cx="0" cy="72" r="2.6"/><circle cx="-62.4" cy="36" r="2.6"/><circle cx="-62.4" cy="-36" r="2.6"/><circle cx="31.2" cy="-54" r="1.7"/><circle cx="62.4" cy="0" r="1.7"/><circle cx="31.2" cy="54" r="1.7"/><circle cx="-31.2" cy="54" r="1.7"/><circle cx="-62.4" cy="0" r="1.7"/><circle cx="-31.2" cy="-54" r="1.7"/></g>
+<g id="guil" fill="none" stroke="currentColor" stroke-width="0.5"><ellipse rx="96" ry="80"/><ellipse rx="96" ry="80" transform="rotate(30)"/><ellipse rx="96" ry="80" transform="rotate(60)"/><ellipse rx="96" ry="80" transform="rotate(90)"/><ellipse rx="96" ry="80" transform="rotate(120)"/><ellipse rx="96" ry="80" transform="rotate(150)"/></g>
+<clipPath id="hx"><polygon points="0,-72 62.4,-36 62.4,36 0,72 -62.4,36 -62.4,-36"/></clipPath>
+</defs>
+
+<rect x="0" y="0" width="680" height="430" rx="16" fill="url(#vg)"/>
+
+<g transform="translate(186,196) scale(1.46)">
+<circle r="84" fill="#7df9ff" opacity="0.10" filter="url(#big)"><animate attributeName="opacity" values="0.06;0.15;0.06" dur="5s" repeatCount="indefinite"/></circle>
+<circle r="90" fill="none" stroke="url(#bzC)" stroke-width="5"/>
+<circle r="86" fill="none" stroke="#06121c" stroke-width="1.6"/>
+<circle r="82" fill="none" stroke="#7df9ff" stroke-width="0.6" stroke-dasharray="6 6" opacity="0.4"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="50s" repeatCount="indefinite"/></circle>
+<circle r="90" fill="none" stroke="#eafdff" stroke-width="5" stroke-linecap="round" stroke-dasharray="14 9999" opacity="0.8"><animate attributeName="stroke-dashoffset" values="0;-565" dur="6s" repeatCount="indefinite"/></circle>
+<g clip-path="url(#hx)">
+<polygon points="0,-72 62.4,-36 62.4,36 0,72 -62.4,36 -62.4,-36" fill="#06101e"/>
+<circle r="62" fill="url(#coreC)" opacity="0.20"><animate attributeName="opacity" values="0.12;0.28;0.12" dur="4s" repeatCount="indefinite"/></circle>
+<g stroke="#1d4d60" stroke-width="0.7" opacity="0.6"><line x1="0" y1="-60" x2="0" y2="60"/><line x1="-60" y1="0" x2="60" y2="0"/><line x1="-42" y1="-42" x2="42" y2="42"/><line x1="42" y1="-42" x2="-42" y2="42"/><line x1="-23" y1="-56" x2="23" y2="56"/><line x1="-56" y1="-23" x2="56" y2="23"/><line x1="23" y1="-56" x2="-23" y2="56"/><line x1="56" y1="-23" x2="-56" y2="23"/></g>
+<g fill="#cffaff"><circle cx="-44" cy="-26" r="1"><animate attributeName="opacity" values="0.2;1;0.2" dur="2.6s" repeatCount="indefinite"/></circle><circle cx="40" cy="-40" r="0.9"><animate attributeName="opacity" values="1;0.2;1" dur="3.1s" repeatCount="indefinite"/></circle><circle cx="48" cy="22" r="1"><animate attributeName="opacity" values="0.3;1;0.3" dur="2.2s" repeatCount="indefinite"/></circle><circle cx="-30" cy="44" r="0.8"><animate attributeName="opacity" values="1;0.3;1" dur="3.6s" repeatCount="indefinite"/></circle><circle cx="14" cy="52" r="0.7"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.9s" repeatCount="indefinite"/></circle></g>
+<g fill="none"><circle r="56" stroke="#2f6f88" stroke-width="0.7" stroke-dasharray="3 6" opacity="0.5"/><circle r="45" stroke="#4fd6ee" stroke-width="1" opacity="0.55"/><circle r="34" stroke="#9bffff" stroke-width="1.2" opacity="0.7"/></g>
+<circle r="58" fill="none" stroke="#7df9ff" stroke-width="1.2" stroke-dasharray="2 12" opacity="0.7"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="20s" repeatCount="indefinite"/></circle>
+<circle r="50" fill="none" stroke="#7df9ff" stroke-width="1.4" stroke-dasharray="5 11" opacity="0.85"><animate attributeName="stroke-dashoffset" from="0" to="-160" dur="7s" repeatCount="indefinite"/></circle>
+<circle r="38" fill="none" stroke="#9bffff" stroke-width="1" stroke-dasharray="3 9" opacity="0.7"><animate attributeName="stroke-dashoffset" from="0" to="120" dur="5s" repeatCount="indefinite"/></circle>
+<path d="M -52 0 Q -39 -14 -26 0 Q -13 14 0 0 Q 13 -14 26 0 Q 39 14 52 0" fill="none" stroke="#bdf6ff" stroke-width="1" opacity="0.5"><animate attributeName="stroke-dashoffset" from="0" to="-52" dur="4s" repeatCount="indefinite"/><animate attributeName="d" values="M -52 0 Q -39 -14 -26 0 Q -13 14 0 0 Q 13 -14 26 0 Q 39 14 52 0;M -52 0 Q -39 14 -26 0 Q -13 -14 0 0 Q 13 14 26 0 Q 39 -14 52 0;M -52 0 Q -39 -14 -26 0 Q -13 14 0 0 Q 13 -14 26 0 Q 39 14 52 0" dur="6s" repeatCount="indefinite"/></path>
+<g><animateTransform attributeName="transform" type="scale" values="0.9;1.08;0.9" dur="3.4s" repeatCount="indefinite"/>
+<polygon points="0,-24 9,-9 24,0 9,9 0,24 -9,9 -24,0 -9,-9" fill="url(#coreC)" opacity="0.9"/>
+<polygon points="0,-15 13,0 0,15 -13,0" fill="url(#coreC)"/>
+<polygon points="0,-9 7,0 0,9 -7,0" fill="#eafdff"/>
+<g stroke="#3fb8d8" stroke-width="0.5" opacity="0.85"><line x1="0" y1="-15" x2="0" y2="15"/><line x1="-13" y1="0" x2="13" y2="0"/><line x1="0" y1="-9" x2="7" y2="0"/><line x1="0" y1="9" x2="-7" y2="0"/></g></g>
+<circle r="2.6" fill="#ffffff"/>
+<g filter="url(#bl)"><g><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="9s" repeatCount="indefinite"/><circle cx="40" cy="0" r="3" fill="#9bffff"/><path d="M 40 0 A 40 40 0 0 0 30 -26" fill="none" stroke="#9bffff" stroke-width="1.4" opacity="0.5"/></g><g><animateTransform attributeName="transform" type="rotate" from="200" to="560" dur="14s" repeatCount="indefinite"/><circle cx="-50" cy="0" r="2.4" fill="#bdf6ff"/><path d="M -50 0 A 50 50 0 0 1 -38 32" fill="none" stroke="#bdf6ff" stroke-width="1.2" opacity="0.45"/></g><g><animateTransform attributeName="transform" type="rotate" from="90" to="450" dur="24s" repeatCount="indefinite"/><circle cx="0" cy="58" r="2" fill="#dffaff"/></g></g>
+<path d="M -62 -36 L 0 -72 L 62.4 -36 L 40 -20 Q 0 -44 -40 -20 Z" fill="url(#glass)"/>
+</g>
+<polygon points="0,-72 62.4,-36 62.4,36 0,72 -62.4,36 -62.4,-36" fill="none" stroke="url(#bzC)" stroke-width="2.2"/>
+<polygon points="0,-63 54.6,-31.5 54.6,31.5 0,63 -54.6,31.5 -54.6,-31.5" fill="none" stroke="#7df9ff" stroke-width="0.5" opacity="0.35"/>
+<g fill="#bff8ff"><circle cx="0" cy="-72" r="1.9"/><circle cx="62.4" cy="-36" r="1.9"/><circle cx="62.4" cy="36" r="1.9"/><circle cx="0" cy="72" r="1.9"/><circle cx="-62.4" cy="36" r="1.9"/><circle cx="-62.4" cy="-36" r="1.9"/></g>
+</g>
+
+<g transform="translate(496,196) scale(1.46)">
+<circle r="106" fill="#fde047" opacity="0.16" filter="url(#big)"><animate attributeName="opacity" values="0.1;0.24;0.1" dur="4.4s" repeatCount="indefinite"/></circle>
+<use href="#rays" style="color:#fde047" opacity="0.22"/>
+<use href="#rays" style="color:#fff3c0" opacity="0.14" transform="rotate(15)"/>
+<g clip-path="url(#hx)"><use href="#guil" style="color:#fde047" opacity="0.16"/></g>
+<use href="#guil" style="color:#5a4408" opacity="0.5"/>
+<circle r="111" fill="none" stroke="#fde047" stroke-width="0.6" stroke-dasharray="1 6" opacity="0.5"/>
+<circle r="107" fill="none" stroke="#caa12a" stroke-width="4" stroke-dasharray="3 4" opacity="0.6"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="80s" repeatCount="indefinite"/></circle>
+<circle r="103" fill="none" stroke="#fde047" stroke-width="3" stroke-dasharray="1.2 2.6" opacity="0.6"/>
+<circle r="98" fill="none" stroke="url(#bzG)" stroke-width="8"/>
+<circle r="92" fill="none" stroke="#140e02" stroke-width="2.4"/>
+<circle r="86" fill="none" stroke="#ffe46b" stroke-width="0.8" stroke-dasharray="11 6" opacity="0.5"><animateTransform attributeName="transform" type="rotate" from="360" to="0" dur="50s" repeatCount="indefinite"/></circle>
+<circle r="98" fill="none" stroke="#fffbe6" stroke-width="8" stroke-linecap="round" stroke-dasharray="18 9999" opacity="0.9"><animate attributeName="stroke-dashoffset" values="0;-616" dur="4.5s" repeatCount="indefinite"/></circle>
+<circle r="98" fill="none" stroke="#fffbe6" stroke-width="8" stroke-linecap="round" stroke-dasharray="18 9999" opacity="0.7"><animate attributeName="stroke-dashoffset" values="-308;-924" dur="4.5s" repeatCount="indefinite"/></circle>
+<g stroke="#ffe46b" stroke-width="1.6" stroke-linecap="round" opacity="0.85"><line x1="0" y1="-99" x2="0" y2="-110"/><line x1="70" y1="-70" x2="77.8" y2="-77.8"/><line x1="99" y1="0" x2="110" y2="0"/><line x1="-70" y1="-70" x2="-77.8" y2="-77.8"/><line x1="-99" y1="0" x2="-110" y2="0"/></g>
+<g fill="none" stroke="#caa12a" stroke-width="2" opacity="0.6"><path d="M -96 40 Q -118 36 -110 58 Q -98 52 -96 40"/><path d="M 96 40 Q 118 36 110 58 Q 98 52 96 40"/></g>
+<g clip-path="url(#hx)">
+<polygon points="0,-72 62.4,-36 62.4,36 0,72 -62.4,36 -62.4,-36" fill="#0d0a02"/>
+<circle r="64" fill="url(#coreG)" opacity="0.26"><animate attributeName="opacity" values="0.16;0.34;0.16" dur="4.6s" repeatCount="indefinite"/></circle>
+<g fill="none" stroke="#fde047" opacity="0.32" stroke-width="0.9"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="40s" repeatCount="indefinite"/><path d="M -58 -10 A 58 58 0 0 1 -10 -58"/><path d="M 58 14 A 58 58 0 0 1 14 58"/><path d="M -52 30 A 56 56 0 0 0 30 52" stroke-dasharray="3 5"/><path d="M 20 -50 A 56 56 0 0 1 50 -20" stroke-dasharray="2 6"/></g>
+<circle r="50" fill="none" stroke="#ffe46b" stroke-width="1" stroke-dasharray="2 10" opacity="0.6"><animate attributeName="stroke-dashoffset" from="0" to="-120" dur="9s" repeatCount="indefinite"/></circle>
+<g fill="#ffe46b"><circle cx="-44" cy="-30" r="0.9"><animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite"/></circle><circle cx="-30" cy="48" r="0.8"><animate attributeName="opacity" values="1;0.3;1" dur="3.2s" repeatCount="indefinite"/></circle></g>
+<g transform="translate(0,14)">
+<path d="M -46 2 L -40 -14 L -30 2 L -20 -30 L -10 2 L 0 -42 L 10 2 L 20 -30 L 24 -8 L 28 2 L 46 2 L 46 22 L -46 22 Z" fill="url(#goldSh)" filter="url(#blS)"/>
+<g stroke="#7a5a10" stroke-width="0.6" opacity="0.55" fill="none"><path d="M -38 22 L -38 6"/><path d="M -22 22 L -22 8"/><path d="M -4 22 L -4 6"/><path d="M 14 22 L 14 8"/><path d="M 32 22 L 32 6"/><path d="M -40 12 Q -30 6 -20 12 Q -10 18 0 12 Q 10 6 20 12 Q 30 18 40 12"/></g>
+<g fill="#3a2a06"><circle cx="-34" cy="20" r="1.2"/><circle cx="-22" cy="20" r="1.2"/><circle cx="-10" cy="20" r="1.2"/><circle cx="2" cy="20" r="1.2"/><circle cx="14" cy="20" r="1.2"/><circle cx="26" cy="20" r="1.2"/></g>
+<line x1="-46" y1="5" x2="46" y2="5" stroke="#fff8d6" stroke-width="0.7" opacity="0.6"/>
+<g filter="url(#bl)"><polygon points="-40,-14 -36,-9 -40,-4 -44,-9" fill="#fffdf0"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.3s" repeatCount="indefinite"/></polygon><polygon points="-20,-30 -15,-24 -20,-18 -25,-24" fill="#fffdf0"><animate attributeName="opacity" values="1;0.4;1" dur="2.7s" repeatCount="indefinite"/></polygon><polygon points="0,-42 6,-35 0,-28 -6,-35" fill="#fffdf0"><animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/></polygon><polygon points="20,-30 25,-24 20,-18 15,-24" fill="#fffdf0"><animate attributeName="opacity" values="1;0.5;1" dur="3s" repeatCount="indefinite"/></polygon></g>
+<g><polygon points="0,2 11,12 0,22 -11,12" fill="#fff3c0"/><polygon points="0,5 7,12 0,19 -7,12" fill="#d99a1a"/><line x1="0" y1="5" x2="0" y2="19" stroke="#fff8d6" stroke-width="0.5"/><line x1="-7" y1="12" x2="7" y2="12" stroke="#fff8d6" stroke-width="0.5"/><animate attributeName="opacity" values="0.85;1;0.85" dur="3s" repeatCount="indefinite"/></g>
+<g stroke="#3a2a06" stroke-width="0.9" fill="none" opacity="0.85"><path d="M 30 -6 L 24 6 L 30 12 L 22 18"><animate attributeName="stroke-dashoffset" values="40;0" dur="0.5s" begin="0s;3.4s;6.8s" fill="freeze"/><animate attributeName="stroke-dasharray" values="0 40;40 0" dur="0.5s" begin="0s;3.4s;6.8s" fill="freeze"/></path><path d="M 34 -2 L 40 8"/><path d="M 26 0 L 16 -6"/></g>
+<polygon points="40,-14 30,2 24,-8 32,-22" fill="#0d0a02" opacity="0.85"/>
+<g><polygon points="32,-20 39,-16 33,-9 28,-15" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="0s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;18 -26" dur="3.4s" begin="0s" repeatCount="indefinite"/></polygon>
+<polygon points="40,-14 47,-12 43,-4 37,-8" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="0.25s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;36 -14" dur="3.4s" begin="0.25s" repeatCount="indefinite"/></polygon>
+<polygon points="36,-8 42,-5 38,2 33,-3" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="0.5s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;44 0" dur="3.4s" begin="0.5s" repeatCount="indefinite"/></polygon>
+<polygon points="34,-2 40,2 34,8 30,3" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="0.75s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;40 16" dur="3.4s" begin="0.75s" repeatCount="indefinite"/></polygon>
+<polygon points="30,4 36,7 31,13 27,8" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="1s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;28 30" dur="3.4s" begin="1s" repeatCount="indefinite"/></polygon>
+<polygon points="38,-18 44,-15 40,-9 35,-13" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="1.3s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;52 -28" dur="3.4s" begin="1.3s" repeatCount="indefinite"/></polygon>
+<polygon points="33,-12 38,-9 34,-3 30,-8" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="1.6s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;24 -40" dur="3.4s" begin="1.6s" repeatCount="indefinite"/></polygon>
+<polygon points="37,-4 43,-1 39,5 34,0" fill="url(#goldSh)" opacity="0"><animate attributeName="opacity" values="0;1;0.9;0" keyTimes="0;0.12;0.6;1" dur="3.4s" begin="1.9s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;56 6" dur="3.4s" begin="1.9s" repeatCount="indefinite"/></polygon>
+<circle cx="36" cy="-12" r="1.2" fill="#fff8d6" opacity="0"><animate attributeName="opacity" values="0;1;0" keyTimes="0;0.2;1" dur="3.4s" begin="0.4s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;30 -34" dur="3.4s" begin="0.4s" repeatCount="indefinite"/></circle>
+<circle cx="38" cy="-6" r="1" fill="#fff8d6" opacity="0"><animate attributeName="opacity" values="0;1;0" keyTimes="0;0.2;1" dur="3.4s" begin="0.9s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;48 -8" dur="3.4s" begin="0.9s" repeatCount="indefinite"/></circle>
+<circle cx="34" cy="2" r="1.1" fill="#fff8d6" opacity="0"><animate attributeName="opacity" values="0;1;0" keyTimes="0;0.2;1" dur="3.4s" begin="1.45s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;34 26" dur="3.4s" begin="1.45s" repeatCount="indefinite"/></circle>
+</g>
+</g>
+</g>
+<path d="M -62 -36 L 0 -72 L 62.4 -36 L 40 -20 Q 0 -44 -40 -20 Z" fill="url(#glass)"/>
+</g>
+<polygon points="0,-72 62.4,-36 62.4,36 0,72 -62.4,36 -62.4,-36" fill="none" stroke="url(#bzG)" stroke-width="3"/>
+<polygon points="0,-63 54.6,-31.5 54.6,31.5 0,63 -54.6,31.5 -54.6,-31.5" fill="none" stroke="#fde047" stroke-width="0.7" opacity="0.45"/>
+<use href="#r12" style="color:#fff3c0"/>
+<g fill="#fffbe6" filter="url(#bl)"><circle cx="0" cy="-72" r="3.4"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite"/></circle><circle cx="62.4" cy="-36" r="3"><animate attributeName="opacity" values="1;0.4;1" dur="3s" repeatCount="indefinite"/></circle><circle cx="-62.4" cy="-36" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="2.7s" repeatCount="indefinite"/></circle></g>
+</g>
+
+<g font-family="ui-monospace, monospace" text-anchor="middle">
+<text x="186" y="392" fill="#bff8ff" font-size="14" letter-spacing="2.5">COHERENCE</text>
+<text x="186" y="409" fill="#46707f" font-size="9.5" letter-spacing="3">FREE · TIER I</text>
+<text x="496" y="392" fill="#ffe46b" font-size="14" letter-spacing="2.5">THE FALLEN CROWN</text>
+<text x="496" y="409" fill="#8a7530" font-size="9.5" letter-spacing="3">PRESTIGE · TIER III</text>
+</g>
+</svg>
