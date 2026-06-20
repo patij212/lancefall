@@ -6,8 +6,38 @@ modifies the shipped game: every hook/stub is installed at run time and restored
 
 | File | What it is |
 |------|------------|
-| `balance-bot.js` | The **PRO autopilot** — overrides `input.poll` with a heuristic player (dash-dodges, joust/hunt/flank offence, beam prediction, mode-aware perk drafting). Also ships the headless probe + a live-watch. |
+| `bot-core.mjs` | The **autopilot brain** — the pure, framework-agnostic decision logic (dash-dodge, joust/hunt, beam prediction, PARRY, stall-breaker, threat-priority targeting). Shared by every harness so the headless numbers are the SAME bot as the live watch. No DOM, no `/src` imports — the host injects the engine + threat predicates. |
+| `balance-bot.js` | The **browser host** — wires the brain to `window.__lf`, loads the sim's threat predicates, and exposes the probe + live-watch + sweeps (`__watch`, `__runProbe`, `__heatSweep`, `__bigSweep`). |
+| `balance-node.mjs` | **Headless Node harness** (no browser, all cores) — boots a real `Game` under DOM/canvas/audio stubs via Vite `ssrLoadModule`, fans the mode×Heat grid across worker processes. The fast path. |
+| `balance-tabs.mjs` | **Parallel-tabs harness** — spins its own Vite dev server (HMR off) + headless Chromium, runs the grid across N pages. The true-browser-runtime measure. |
 | `balance-metrics.js` | The **balance telemetry rig** — drives the bot headless and scrapes per-run stats into hotspot tables (kills, bosses, every source of damage taken, death hotspots, economy). |
+
+## Running a full sweep FAST (three ways, fastest first)
+
+The browser-console path is one core + a round-trip per batch. For the whole 8-mode × 8-Heat
+grid, use one of these instead — all drive the same `bot-core.mjs` brain:
+
+```bash
+# 1. Node + worker pool — no browser, every core, immune to dev-server churn. ~15–40× faster.
+node tools/balance-node.mjs                          # full grid, NG+0
+node tools/balance-node.mjs --modes=arena,bossrush --heats=0,3,7 --runs=20 --workers=8
+node tools/balance-node.mjs --json                   # machine-readable
+
+# 2. Parallel browser tabs — true shipped-runtime, self-contained (own Vite, HMR off).
+node tools/balance-tabs.mjs --tabs=8 --runs=12
+node tools/balance-tabs.mjs --url=http://localhost:5197   # or reuse a running dev server
+```
+
+```js
+// 3. In-page whole-grid sweep — one call, yields between runs (no eval-timeout), adaptive
+//    caps + early-exit on Sovereign-down. Best when you're already in the devtools console.
+await import('/tools/balance-bot.js'); await new Promise(r => setTimeout(r, 450));
+const grid = await __bigSweep({ runs: 10 });          // poll window.__bigSweepState.done for progress
+```
+
+Caveat: the adaptive survival cap is tuned for "does it reach the Sovereign in a normal run";
+**Casual** needs ~840 s of clean play to win, so measure it with an explicit big cap
+(`--cap=60000`) or it reads 0% Sovereign-down.
 
 ## Quick start (devtools console on a running `npm run dev`)
 
