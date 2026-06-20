@@ -30,3 +30,17 @@ export function mergeServerSave(
   if (!server) return incoming;
   return mergeSaves(server, incoming, serverAt, incomingAt);
 }
+
+/** Sanitize a provider-supplied display name to the same shape as the client handle
+ *  (word chars/space/hyphen, trimmed, ≤16). '' when blank/all-junk. */
+export function claimName(raw: unknown): string {
+  return String(raw ?? '').replace(/[^\w \-]/g, '').trim().slice(0, 16);
+}
+
+/** Merge two real saves on link (no "server" side — both are kept fully; write-times only
+ *  decide `latest` fields). Names the intent; delegates to the shared pure merge. */
+export function mergeForLink(existing: SaveData | null, current: SaveData | null, existingAt: number, currentAt: number): SaveData {
+  if (!existing) return current ?? sanitizeSaveBlob(null);
+  if (!current) return existing;
+  return mergeSaves(existing, current, existingAt, currentAt);
+}

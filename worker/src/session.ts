@@ -47,29 +47,33 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-export async function signSession(p: SessionPayload, secret: string): Promise<string> {
-  const body = b64urlFromString(JSON.stringify(p));
+/** Sign any JSON-serialisable object into a compact base64url(body).base64url(HMAC) token. */
+export async function signCompact(obj: unknown, secret: string): Promise<string> {
+  const body = b64urlFromString(JSON.stringify(obj));
   const sig = b64urlFromBytes(await hmac(body, secret));
   return `${body}.${sig}`;
 }
 
-export async function verifySession(token: string | null, secret: string, now: number): Promise<SessionPayload | null> {
+/** Verify a compact token. Returns the parsed payload on success, null on any failure (never throws). */
+export async function verifyCompact(token: string | null, secret: string): Promise<unknown | null> {
   if (!token || typeof token !== 'string') return null;
   const dot = token.indexOf('.');
-  if (dot <= 0 || token.indexOf('.', dot + 1) !== -1) return null; // exactly one dot
+  if (dot <= 0 || token.indexOf('.', dot + 1) !== -1) return null;
   const body = token.slice(0, dot);
   const sigBytes = bytesFromB64url(token.slice(dot + 1));
   if (!sigBytes) return null;
-  const expected = await hmac(body, secret);
-  if (!timingSafeEqual(sigBytes, expected)) return null;
+  if (!timingSafeEqual(sigBytes, await hmac(body, secret))) return null;
   const json = bytesFromB64url(body);
   if (!json) return null;
-  let p: SessionPayload;
-  try {
-    p = JSON.parse(new TextDecoder().decode(json));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(new TextDecoder().decode(json)); } catch { return null; }
+}
+
+export async function signSession(p: SessionPayload, secret: string): Promise<string> {
+  return signCompact(p, secret);
+}
+
+export async function verifySession(token: string | null, secret: string, now: number): Promise<SessionPayload | null> {
+  const p = (await verifyCompact(token, secret)) as SessionPayload | null;
   if (!p || typeof p.aid !== 'string' || (p.kind !== 'anon' && p.kind !== 'linked') || typeof p.exp !== 'number') return null;
   if (now >= p.exp) return null;
   return p;
