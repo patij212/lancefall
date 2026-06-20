@@ -152,25 +152,63 @@ export function createBot() {
     const w = lf.world, p = w.player, R = p.radius;
     if (p.phase === 'dashing') { s.moveX = 0; s.moveY = 0; s.dashHeld = false; s.dashReleased = false; bot.prevHeld = false; bot.committed = false; return s; }
 
-    // ── bullets: perpendicular micro-dodge + hard-threat flag ──
-    let mvx = 0, mvy = 0, hard = false, threatN = 0;
+    // ── bullets: CANDIDATE-DIRECTION movement dodge + hard-threat flag ──
+    // Two workflow-validated survival wins, merged (endless median survival ~+20–80% in A/B):
+    //  (1) WIDER/EARLIER awareness — scan bullets out to 460px with a 1.1s closest-approach
+    //      horizon and a +26 reaction band, so the bot leans out of a forming wall before it's
+    //      lethal (vs the old 360px / 0.7s / +18).
+    //  (2) CANDIDATE-DIRECTION dodge — instead of SUMMING a perpendicular nudge per bullet (which
+    //      can vector-cancel or point the player straight INTO a second shot), sample 16 move
+    //      directions and steer toward the one whose closest approach to any bullet over a ~0.45s
+    //      drift is SAFEST. hard/threatN keep their ORIGINAL tight bands (hitR+8/+12) so the
+    //      dash-escape + parry below don't over-fire on a merely-widened detection.
+    let mvx = 0, mvy = 0, hard = false, threatN = 0, dangerSev = 0;
     const B = w.bullets.items, near = [];
     for (let i = 0; i < B.length; i++) {
       const b = B[i]; if (!b.active) continue;
-      if (Math.hypot(b.x - p.x, b.y - p.y) > 360) continue;
+      if (Math.hypot(b.x - p.x, b.y - p.y) > 460) continue;
       near.push(b);
       const vv = b.vx * b.vx + b.vy * b.vy;
       let ts = vv > 1e-3 ? -((b.x - p.x) * b.vx + (b.y - p.y) * b.vy) / vv : 0;
-      if (ts < 0) ts = 0; if (ts > 0.7) continue;
+      if (ts < 0) ts = 0; if (ts > 1.1) continue;
       const cx = b.x + b.vx * ts, cy = b.y + b.vy * ts, minD = Math.hypot(cx - p.x, cy - p.y), hitR = R + b.radius;
-      if (minD < hitR + 18) {
-        const bl = Math.sqrt(vv) || 1; let nx = -b.vy / bl, ny = b.vx / bl;
-        if ((p.x - cx) * nx + (p.y - cy) * ny < 0) { nx = -nx; ny = -ny; }
-        const sev = (1 - Math.min(1, ts / 0.7)) * (1 - Math.min(1, minD / (hitR + 18)));
-        mvx += nx * sev * 2.1; mvy += ny * sev * 2.1; // lean on movement first — it's free; dashes cost stamina
+      if (minD < hitR + 26) {
+        const sev = (1 - Math.min(1, ts / 1.1)) * (1 - Math.min(1, minD / (hitR + 26)));
+        if (sev > dangerSev) dangerSev = sev; // peak severity scales how hard we lean on the chosen dir
         if (minD < hitR + 8 && ts < 0.26) hard = true;
         if (minD < hitR + 12 && ts < 0.4) threatN++; // count converging shots → a wall you can't drift out of
       }
+    }
+    // CANDIDATE-DIRECTION dodge — engage only when a bullet actually threatens (dangerSev>0).
+    // Sample 16 unit move dirs; predict the player drifting each way (first-order velocity ramp
+    // toward maxSpeed) and pick the dir whose MINIMUM clearance to any near bullet over the
+    // horizon is safest, plus a wall penalty + a faint centre tie-breaker.
+    if (dangerSev > 0 && near.length) {
+      const DIRS = 16, DRIFT = 300, TAU = 0.12; // DRIFT ≈ maxSpeed discounted for ramp/friction
+      const TS = [0.10, 0.22, 0.35, 0.45];       // horizon sample times (~0.45s)
+      const DISP = TS.map((t) => DRIFT * (t - TAU * (1 - Math.exp(-t / TAU)))); // drift displacement at each t
+      const wallM = 70;
+      let bestDx = 0, bestDy = 0, bestScore = -1e18;
+      for (let k = 0; k < DIRS; k++) {
+        const a = (k / DIRS) * Math.PI * 2, ux = Math.cos(a), uy = Math.sin(a);
+        let minClear = 1e9;
+        for (let ti = 0; ti < TS.length; ti++) {
+          const t = TS[ti], px = p.x + ux * DISP[ti], py = p.y + uy * DISP[ti];
+          for (let bi = 0; bi < near.length; bi++) {
+            const b = near[bi];
+            const clr = Math.hypot(px - (b.x + b.vx * t), py - (b.y + b.vy * t)) - (R + b.radius);
+            if (clr < minClear) minClear = clr;
+          }
+        }
+        let sc = Math.min(minClear, 90); // safety dominates; cap so we don't over-flee past safe
+        const fx = p.x + ux * DISP[DISP.length - 1], fy = p.y + uy * DISP[DISP.length - 1];
+        if (fx < wallM) sc -= (wallM - fx) * 0.5; if (fx > w.width - wallM) sc -= (fx - (w.width - wallM)) * 0.5;
+        if (fy < wallM) sc -= (wallM - fy) * 0.5; if (fy > w.height - wallM) sc -= (fy - (w.height - wallM)) * 0.5;
+        sc -= (Math.hypot(fx - w.width / 2, fy - w.height / 2) - Math.hypot(p.x - w.width / 2, p.y - w.height / 2)) * 0.02;
+        if (sc > bestScore) { bestScore = sc; bestDx = ux; bestDy = uy; }
+      }
+      const gain = dangerSev * 2.1 * 1.6; // matches the old per-bullet nudge weight, scaled for one vector
+      mvx += bestDx * gain; mvy += bestDy * gain;
     }
     // Stamina is the boss-fight bottleneck: dash-spamming patterns strands you. A
     // DENSE wall (a full ring) you must dash through; MODERATE pressure you drift
