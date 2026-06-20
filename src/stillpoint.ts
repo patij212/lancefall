@@ -75,6 +75,7 @@ export function fragmentsForRun(c: RunFragmentCtx): string[] {
   if (c.deepestWave >= 10) ids.push('m-deep');
   if (c.bestComboRun >= 25) ids.push('m-combo');
   if (c.sovereignDown) ids.push('m-sovereign');
+  for (let i = 0; i < c.bossKills; i++) ids.push(`enc-frag:${c.runOrdinal}:${i}`);
   return ids;
 }
 

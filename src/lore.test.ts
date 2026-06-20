@@ -44,9 +44,9 @@ describe('lore — THE FALL (Memory Fragments)', () => {
     const full = fragmentsForRun({ runOrdinal: 9, bossKills: 2, deepestWave: 12, bestComboRun: 40, sovereignDown: true });
     expect(full).toContain('run-9');
     expect(full).toEqual(expect.arrayContaining(['m-firstboss', 'm-deep', 'm-combo', 'm-sovereign']));
-    // pure: same ctx → same ids
+    // pure: same ctx → same ids (bossKills:1 now also emits enc-frag:3:0)
     expect(fragmentsForRun({ runOrdinal: 3, bossKills: 1, deepestWave: 0, bestComboRun: 0, sovereignDown: false })).toEqual(
-      ['run-3', 'm-firstboss'],
+      ['run-3', 'm-firstboss', 'enc-frag:3:0'],
     );
   });
 

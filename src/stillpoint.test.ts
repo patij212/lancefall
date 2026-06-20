@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from './rng';
-import { choiceEnding, echoVignette, echoLine, nemesisOf, ngPlusIntensityMul } from './stillpoint';
+import { choiceEnding, echoVignette, echoLine, nemesisOf, ngPlusIntensityMul, fragmentsForRun } from './stillpoint';
 import { NG_PLUS } from './tune';
 
 describe('stillpoint — THE CHOICE + ECHO + nemesis', () => {
@@ -44,6 +44,18 @@ describe('stillpoint — THE CHOICE + ECHO + nemesis', () => {
   it('nemesisOf returns the most-died-to kind, null when empty', () => {
     expect(nemesisOf({})).toBeNull();
     expect(nemesisOf({ warden: 2, sovereign: 5, hollow: 1 })).toEqual({ kind: 'sovereign', count: 5 });
+  });
+});
+
+describe('fragmentsForRun — boss-drop encrypted-fragment faucet', () => {
+  it('emits one enc-frag per boss felled (bossKills:2 → enc-frag:5:0 and enc-frag:5:1)', () => {
+    const ids = fragmentsForRun({ runOrdinal: 5, bossKills: 2, deepestWave: 0, bestComboRun: 0, sovereignDown: false });
+    expect(ids).toContain('enc-frag:5:0');
+    expect(ids).toContain('enc-frag:5:1');
+  });
+  it('emits no enc-frag when bossKills is 0', () => {
+    const ids = fragmentsForRun({ runOrdinal: 5, bossKills: 0, deepestWave: 0, bestComboRun: 0, sovereignDown: false });
+    expect(ids.filter((id) => id.startsWith('enc-frag:'))).toHaveLength(0);
   });
 });
 
