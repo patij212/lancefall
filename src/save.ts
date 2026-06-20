@@ -193,6 +193,9 @@ export interface SaveData {
   solvedPuzzles: string[];
   /** YYYY-MM-DD days whose daily cipher is solved (once each, additive). */
   solvedDailyCiphers: string[];
+  /** BOMBE upgrade branches — three specialisation tracks (D1 additive; no version bump).
+   *  bombeLevel is kept as the synced derived total (thrift+speed+insight) for back-compat. */
+  bombeBranches: { thrift: number; speed: number; insight: number };
 }
 
 export interface Settings {
@@ -310,6 +313,7 @@ export function defaultSave(): SaveData {
     bombeLevel: 0,
     solvedPuzzles: [],
     solvedDailyCiphers: [],
+    bombeBranches: { thrift: 0, speed: 0, insight: 0 },
   };
 }
 

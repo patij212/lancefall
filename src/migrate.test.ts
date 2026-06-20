@@ -356,6 +356,33 @@ describe('migrate — solvedDailyCiphers (additive, no version bump)', () => {
   });
 });
 
+describe('migrate — bombeBranches (D1, additive, no version bump)', () => {
+  it('seeds branches from legacy bombeLevel when bombeBranches is absent', () => {
+    const out = migrateSave({ bombeLevel: 3 }, defaultSave());
+    expect(out.bombeBranches).toEqual({ thrift: 2, speed: 1, insight: 0 });
+    expect(out.bombeLevel).toBe(3);
+  });
+  it('preserves explicit branches and recomputes bombeLevel as their sum', () => {
+    const out = migrateSave({ bombeLevel: 0, bombeBranches: { thrift: 1, speed: 2, insight: 3 } }, defaultSave());
+    expect(out.bombeBranches).toEqual({ thrift: 1, speed: 2, insight: 3 });
+    expect(out.bombeLevel).toBe(6);
+  });
+  it('default-fills bombeBranches to all zeros for a fresh save', () => {
+    const out = migrateSave({}, defaultSave());
+    expect(out.bombeBranches).toEqual({ thrift: 0, speed: 0, insight: 0 });
+    expect(out.bombeLevel).toBe(0);
+  });
+  it('clamps negative / fractional branch values to non-negative ints', () => {
+    const out = migrateSave({ bombeBranches: { thrift: -2, speed: 1.9, insight: 0 } }, defaultSave());
+    expect(out.bombeBranches).toEqual({ thrift: 0, speed: 1, insight: 0 });
+    expect(out.bombeLevel).toBe(1);
+  });
+  it('handles a corrupt bombeBranches blob (non-object)', () => {
+    const out = migrateSave({ bombeLevel: 0, bombeBranches: 'corrupt' }, defaultSave());
+    expect(out.bombeBranches).toEqual({ thrift: 0, speed: 0, insight: 0 });
+  });
+});
+
 describe('migrate — BOMBE meta fields (additive)', () => {
   it('defaults the three new fields and survives a missing/garbage blob', () => {
     const d = migrateSave({}, defaultSave());

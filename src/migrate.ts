@@ -111,6 +111,19 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // (an unknown key simply never matches a live teach); we only keep deduped strings.
   // The generic loop above already reset a non-array to []. Additive → no version bump.
   out.taught = sanitizeTaught(out.taught);
+  // v8 additive — BOMBE BRANCHING. Seed the three branches from the legacy bombeLevel (no
+  // progress lost); keep bombeLevel as the synced derived total. No version bump.
+  {
+    const b = (out.bombeBranches ?? {}) as Record<string, unknown>;
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0);
+    let branches = { thrift: num(b.thrift), speed: num(b.speed), insight: num(b.insight) };
+    if (branches.thrift + branches.speed + branches.insight === 0 && (out.bombeLevel ?? 0) > 0) {
+      const lvl = out.bombeLevel; // legacy ladder → thrift+speed split
+      branches = { thrift: Math.ceil(lvl / 2), speed: Math.floor(lvl / 2), insight: 0 };
+    }
+    out.bombeBranches = branches;
+    out.bombeLevel = branches.thrift + branches.speed + branches.insight;
+  }
   // Plan 2 BOMBE — additive. decryptedWords/solvedPuzzles are open-ended string sets (deduped,
   // capped like `taught`); bombeLevel is a non-negative integer (the generic loop only ensured it's
   // a finite number). No version bump — the generic loader already default-filled them.
