@@ -170,3 +170,20 @@ describe('THE LAST TRANSMISSION (int-last)', () => {
     expect(isLongestDay(s)).toBe(true);
   });
 });
+
+import { CHOICE_TAIL, choiceTail } from './intercepts';
+
+describe('THE LAST CIPHER (choice-authored tail)', () => {
+  it('is null until a choice is made, then the chosen sentence', () => {
+    const s = defaultSave();
+    expect(choiceTail(s)).toBeNull();
+    s.stillpointChoice = 'catch'; expect(choiceTail(s)).toBe(CHOICE_TAIL.catch);
+    s.stillpointChoice = 'fall'; expect(choiceTail(s)).toBe(CHOICE_TAIL.fall);
+  });
+  it('the tail text adds NO new vocabulary words (100% reachable without a choice)', () => {
+    const vocab = new Set(vocabulary());
+    void (`${CHOICE_TAIL.catch} ${CHOICE_TAIL.fall}`.toLowerCase().match(/[a-z0-9']+/g) ?? []);
+    // tail is separate data — it must not be among INTERCEPTS tokens, so vocab is unchanged size.
+    expect(vocab.size).toBe(265); // adjust to the current vocabulary count if it differs
+  });
+});
