@@ -52,6 +52,10 @@ const ARGS = parseArgs(process.argv.slice(2));
 function capFor(mode, heat) {
   if (ARGS.cap) return ARGS.cap;
   if (mode.arena || mode.bossrush) return 42000;
+  // CASUAL is the eased mode — the bot survives but clears slowly, so downing the Sovereign
+  // takes ~840 s (≈50k frames). Give it a fat cap (less at high Heat, where it dies faster)
+  // so its Sovereign-down rate is real instead of an artifact of too-short a cap.
+  if (mode.id === 'casual') return heat >= 5 ? 32000 : 58000;
   return heat >= 5 ? 16000 : heat >= 3 ? 26000 : 34000;
 }
 
@@ -203,9 +207,17 @@ async function runWorker() {
       for (let r = 0; r < ARGS.runs; r++) rows.push(runOne(mode, capFor(mode, heat), heat, !winnable));
       out.push(summarize(id, heat, rows));
     }
-    process.stdout.write('LFRESULT:' + JSON.stringify(out) + '\n');
-  } finally {
-    await server.close();
+    // Deliver the result, then HARD-EXIT. The vite SSR server + the Game's happy-dom timers
+    // leave handles open that keep the process alive — `await server.close()` can itself HANG
+    // (it did: stranded the orchestrator's Promise.all for hours). The parent only needs the
+    // LFRESULT line, so flush it and exit; the OS reclaims everything. Fire close best-effort,
+    // never await it.
+    server.close().catch(() => {});
+    process.stdout.write('LFRESULT:' + JSON.stringify(out) + '\n', () => process.exit(0));
+  } catch (e) {
+    console.error(e && e.stack ? e.stack : String(e));
+    server.close().catch(() => {});
+    process.exit(1);
   }
 }
 
@@ -249,11 +261,14 @@ function spawnWorker(index, workers) {
     if (ARGS.cap) argv.push(`--cap=${ARGS.cap}`);
     const child = spawn(process.execPath, argv, { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'] });
     children.add(child);
+    // backstop: a worker that never delivers (a future close/exit hang) must not strand the
+    // grid forever. 30 min is far beyond any legitimate cell batch.
+    const killTimer = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } reject(new Error(`worker ${index} timed out (>30 min)`)); }, 30 * 60 * 1000);
     let buf = '';
     child.stdout.on('data', (d) => { buf += d; });
-    child.on('error', (e) => { children.delete(child); reject(e); });
+    child.on('error', (e) => { clearTimeout(killTimer); children.delete(child); reject(e); });
     child.on('close', (code) => {
-      children.delete(child);
+      clearTimeout(killTimer); children.delete(child);
       if (code !== 0) return reject(new Error(`worker ${index} exited ${code}`));
       const line = buf.split('\n').find((l) => l.startsWith('LFRESULT:'));
       if (!line) return reject(new Error(`worker ${index} produced no result`));

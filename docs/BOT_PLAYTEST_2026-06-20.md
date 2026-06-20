@@ -46,6 +46,26 @@ bosses**, not at the bosses.
    targeting lifted **Arena H0 from 0 % → 17 %**.
 5. **PARRY taught** — Mirrorblade lunge-stagger, reflectable-orb reflect, defensive deflect.
 
+## Steady-state grid (Node harness, 30 runs/cell · Casual 24)
+
+A higher-sample re-run via the headless Node harness (`tools/balance-node.mjs`) — the noisy
+12-run browser numbers smoothed out. arena/bossrush = win%; the rest = Sovereign-down%.
+
+| Mode | H0 | H1 | H2 | H3 | H4 | H5 | H6 | H7 |
+|------|----|----|----|----|----|----|----|----|
+| **Boss Rush** | 87 | 93 | 93 | 100 | 83 | 87 | 67 | **40** |
+| **Arena** | 10 | 13 | 0 | 3 | 3 | 0 | 0 | 0 |
+| **Casual** (Sov%) | 38 | 42 | 46 | 17 | 67 | 0\* | 0\* | 0\* |
+| Endless / Daily / Solstice / Weekly / Nightmare (Sov%) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+- **Boss Rush is solved at every Heat**, MELTDOWN (H7) settling at **40 %** over 30 runs.
+- **Casual genuinely beats the game** — the Sovereign goes down **38–67 % at Heat 0–4** (median
+  run kills 5 bosses, ~785 s). `*`H5–7 read 0 % but are **cap-limited**: high-Heat Casual was
+  given a 32k-frame cap on the assumption it dies fast, but it actually survives and stalls at
+  boss 3–4, so the true rate there is low-but-untested (full-cap Casual is ~20 s/run, expensive).
+- The escalating survival modes (Endless/Daily/Solstice/Weekly/Nightmare) stay **0 %** — the bot
+  is boss-competent but chaff-survival-limited, and those modes out-escalate it before boss 6.
+
 ## Balance observations for the game (not bot issues)
 
 - **Casual is slow to "see the ending":** brooders hatch new chaff faster than a clear, so the
