@@ -102,19 +102,21 @@ export function scene(ctx: SceneCtx): string {
     [[-1, -16, 0.9], [1, -22, 0.7], [-1.5, -28, 0.6], [1, -34, 0.5]].map(([sx, sy, sr], i) =>
       `<circle cx="${sx}" cy="${sy}" r="${sr}" opacity="${a ? 0.3 : 0.6}">${twinkle(a, 1.4 + i * 0.3, 0.2, 0.9)}</circle>`).join('') + `</g>`;
   const head =
-    `<circle r="13" fill="${u('pool', uid)}" opacity="0.85"/>` +
-    `<polygon points="0,-11 3,-3 11,0 3,3 0,11 -3,3 -11,0 -3,-3" fill="${light}"/>` +
-    `<polygon points="0,-6 1.8,0 0,6 -1.8,0" fill="#ffffff"/>` +
-    `<g stroke="#ffffff" stroke-width="0.8" opacity="0.85"><line x1="-16" y1="0" x2="16" y2="0"/><line x1="0" y1="-16" x2="0" y2="16"/><line x1="-9" y1="-9" x2="9" y2="9"/><line x1="9" y1="-9" x2="-9" y2="9"/></g>` +
-    `<circle r="2.4" fill="#ffffff"/>`;
+    `<circle r="19" fill="none" stroke="${light}" stroke-width="0.6" opacity="0.4"/>` +
+    `<circle r="14" fill="${u('pool', uid)}" opacity="0.9"/>` +
+    `<polygon points="0,-13 3.6,-3.6 13,0 3.6,3.6 0,13 -3.6,3.6 -13,0 -3.6,-3.6" fill="${light}"/>` +
+    `<polygon points="0,-8 2.4,0 0,8 -2.4,0" fill="${accent}"/>` +
+    `<polygon points="0,-5 1.6,0 0,5 -1.6,0" fill="#ffffff"/>` +
+    `<g stroke="#ffffff" stroke-width="0.8" opacity="0.85"><line x1="-18" y1="0" x2="18" y2="0"/><line x1="0" y1="-18" x2="0" y2="18"/><line x1="-10" y1="-10" x2="10" y2="10"/><line x1="10" y1="-10" x2="-10" y2="10"/></g>` +
+    `<circle r="2.6" fill="#ffffff"/>`;
   const starInner =
     `<path d="M -7 2 L -2 -42 L 2 -42 L 7 2 Z" fill="${accent}" opacity="0.4" filter="${u('bl', uid)}"/>` +
     `<path d="M -5 0 L -1.6 -40 L 1.6 -40 L 5 0 Z" fill="url(#${id('tail')})"/>` +
     `<line x1="0" y1="-38" x2="0" y2="0" stroke="#ffffff" stroke-width="1" opacity="0.8"/>` +
     sparkleTrail + head;
   const star = a
-    ? `<g transform="translate(-6,-56)"><animateTransform attributeName="transform" type="translate" values="-6 -56;10 28;10 28" keyTimes="0;0.7;1" dur="3.6s" repeatCount="indefinite"/>` +
-      `<g opacity="0"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.1;0.6;0.72;1" dur="3.6s" repeatCount="indefinite"/>${starInner}</g></g>`
+    ? `<g transform="translate(-6,-56)"><animateTransform attributeName="transform" type="translate" values="-6 -56;10 30;10 32" keyTimes="0;0.8;1" dur="3.6s" repeatCount="indefinite"/>` +
+      `<g opacity="0"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.06;0.76;0.88;1" dur="3.6s" repeatCount="indefinite"/>${starInner}</g></g>`
     : `<g transform="translate(4,-8)">${starInner}</g>`;
 
   // a second, smaller falling streak (depth)
@@ -131,9 +133,16 @@ export function scene(ctx: SceneCtx): string {
       : `<circle cx="${(sx + dx * 0.5).toFixed(1)}" cy="${(sy + dy * 0.5).toFixed(1)}" r="${r}" fill="${light}" opacity="0.6"/>`;
   const shower = `<g>${frag(-2, -14, -14, 30, 1.1, 0)}${frag(2, -10, 10, 34, 0.9, 0.4)}${frag(0, -18, 20, 26, 1, 0.8)}${frag(-4, -8, -6, 36, 0.8, 1.2)}${frag(4, -16, 24, 32, 0.9, 1.6)}${frag(-1, -12, -20, 28, 0.7, 2)}${frag(3, -20, 16, 22, 0.8, 2.4)}</g>`;
 
+  // the impact — a flash, a shockwave ring and a debris burst where the star lands
+  const impact = a
+    ? `<circle cx="10" cy="42" r="22" fill="${u('pool', uid)}" opacity="0"><animate attributeName="opacity" values="0;0;0.85;0.3;0" keyTimes="0;0.74;0.82;0.92;1" dur="3.6s" repeatCount="indefinite"/></circle>` +
+      `<circle cx="10" cy="42" r="6" fill="none" stroke="${light}" stroke-width="1.4" opacity="0"><animate attributeName="r" values="6;6;40" keyTimes="0;0.8;1" dur="3.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0;0.85;0" keyTimes="0;0.8;0.84;1" dur="3.6s" repeatCount="indefinite"/></circle>` +
+      `<g>${Array.from({ length: 6 }, (_, i) => { const ang = (-150 + i * 24) * Math.PI / 180; return `<circle cx="10" cy="42" r="1.1" fill="${light}" opacity="0"><animate attributeName="opacity" values="0;0;0.9;0" keyTimes="0;0.8;0.86;1" dur="3.6s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0 0;${(Math.cos(ang) * 22).toFixed(1)} ${(Math.sin(ang) * 14).toFixed(1)}" keyTimes="0;1" dur="3.6s" repeatCount="indefinite"/></circle>`; }).join('')}</g>`
+    : `<circle cx="10" cy="40" r="14" fill="${u('pool', uid)}" opacity="0.25"/><circle cx="10" cy="40" r="20" fill="none" stroke="${light}" stroke-width="1" opacity="0.3"/>`;
+
   return (
     defs +
     coreGlow(ctx, { r: 58, op: 0.12, lo: 0.08, hi: 0.18, dur: 5 }) +
-    nebula + starfield + auroras + moon + arcs + lightRain + skyline + pool + shower + minor + star
+    nebula + starfield + auroras + moon + arcs + lightRain + skyline + pool + shower + impact + minor + star
   );
 }

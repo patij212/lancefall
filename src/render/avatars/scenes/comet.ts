@@ -72,12 +72,15 @@ export function scene(ctx: SceneCtx): string {
   const [lx, ly] = bez(0.92);
   const lead =
     `<g transform="translate(${lx.toFixed(1)},${ly.toFixed(1)}) rotate(${ang(0.92).toFixed(1)})">` +
+    `<path d="M 16 0 L -18 -18 L -26 0 L -18 18 Z" fill="${accent}" opacity="0.12"/>` + // Mach cone
+    `<g stroke="${p.core[0]}" stroke-width="0.8" opacity="0.4" stroke-linecap="round"><line x1="15" y1="0" x2="-18" y2="-16"/><line x1="15" y1="0" x2="-18" y2="16"/></g>` +
+    `<circle cx="20" cy="0" r="9" fill="none" stroke="${p.core[0]}" stroke-width="0.8" opacity="${a ? 0.5 : 0.4}">${a ? `<animate attributeName="opacity" values="0.2;0.6;0.2" dur="0.8s" repeatCount="indefinite"/>` : ''}</circle>` + // compression ring
+    `<g fill="${p.core[0]}"><polygon points="-8,-3 -22,-1 -8,0" opacity="0.6"/><polygon points="-8,3 -22,1 -8,0" opacity="0.6"/><ellipse cx="-12" cy="0" rx="6" ry="3" fill="${accent}" opacity="0.4" filter="${u('blS', uid)}"/></g>` + // engine glow
     `<path d="M -8 0 L -12 -7 L -2 -4 Z" fill="${tone(accent, 0.8, 0.4)}"/><path d="M -8 0 L -12 7 L -2 4 Z" fill="${tone(accent, 0.8, 0.4)}"/>` + // wings
     `<polygon points="15,0 -8,7 -2,0 -8,-7" fill="${u('core', uid)}"/>` +
     `<polygon points="11,0 -4,4 0,0 -4,-4" fill="#ffffff"/>` +
     `<circle cx="2" cy="0" r="1.4" fill="${p.core[0]}"/>` +
-    `<g stroke="#ffffff" stroke-width="0.7" opacity="0.8"><line x1="-12" y1="0" x2="18" y2="0"/></g>` +
-    `<g fill="${p.core[0]}" opacity="0.7"><polygon points="-8,-3 -16,-1 -8,0"/><polygon points="-8,3 -16,1 -8,0"/></g></g>`; // thruster
+    `<g stroke="#ffffff" stroke-width="0.7" opacity="0.8"><line x1="-12" y1="0" x2="18" y2="0"/></g></g>`;
 
   const pulse = a
     ? `<g><animateMotion path="${pathD}" dur="${dur}s" rotate="auto" repeatCount="indefinite"/><circle r="3.4" fill="#fff"/><circle r="7" fill="${accent}" opacity="0.4" filter="${u('blS', uid)}"/></g>`
@@ -96,9 +99,17 @@ export function scene(ctx: SceneCtx): string {
   };
   const sparks = `<g>${spark(0.25, 14, 1.4)}${spark(0.45, 12, 1.1)}${spark(0.65, 12, 1.6)}${spark(0.8, 10, 1.3)}</g>`;
 
+  // warp-speed tunnel — streaks converging at the ship's vanishing point
+  let tunnel = '';
+  const vAng = ang(0.92) + 180;
+  for (let i = 0; i < 9; i++) {
+    const aa = (vAng + (-60 + i * 15)) * Math.PI / 180;
+    tunnel += `<line x1="${(lx + Math.cos(aa) * 14).toFixed(1)}" y1="${(ly + Math.sin(aa) * 14).toFixed(1)}" x2="${(lx + Math.cos(aa) * 52).toFixed(1)}" y2="${(ly + Math.sin(aa) * 52).toFixed(1)}" stroke="${accent}" stroke-width="0.7" stroke-dasharray="3 11" opacity="0.13" stroke-linecap="round">${drift(a, 56, 1.6 + i * 0.12)}</line>`;
+  }
+
   return (
     coreGlow(ctx, { op: 0.13, lo: 0.09, hi: 0.2, dur: 4.2 }) +
     starfield(ctx, [[-44, -34, 0.9, 2.6, 0.3], [42, 38, 0.8, 3.1, 0.5], [50, 14, 0.9, 2.2, 0.3], [-48, 20, 0.7, 3.6, 0.5]]) +
-    field + ribbons + underglow + chevrons + shock + warps + echoes + sparks + lead + pulse
+    field + `<g>${tunnel}</g>` + ribbons + underglow + chevrons + shock + warps + echoes + sparks + lead + pulse
   );
 }
