@@ -90,7 +90,7 @@ import { newSandbox, stepSandbox, sandboxComplete, sandboxText, shouldShowSandbo
 import type { SandboxState, SandboxStep } from './sandbox';
 import { grantCipherMilestones } from './cipherMilestones';
 import { wokenCitizens, CITIZENS } from './citizens';
-import { deedsMet, wakeIsCeremony, vigilHeatFloor, agedEcho } from './cityVoice';
+import { deedsMet, wakeIsCeremony, vigilHeatFloor, agedEcho, comboTierCityLine } from './cityVoice';
 import { figureDossier, DOSSIER_FIGURES } from './dossiers';
 
 type State = 'title' | 'sandbox' | 'playing' | 'paused' | 'draft' | 'event' | 'victory' | 'gameover';
@@ -2539,7 +2539,7 @@ export class Game {
     if (t) {
       w.lastTierAnnounced = t.at;
       this.ui.announce(`${t.name}  ×${w.combo}`, t.color);
-      this.narrateOne('toast', NARRATOR.comboTier[t.at]);
+      this.narrateOne('toast', comboTierCityLine(t.at, this.save) ?? NARRATOR.comboTier[t.at]);
       this.shake.add(0.18);
       this.renderer.flash(t.color, 0.12);
       this.audio.pickup(14);
@@ -2577,6 +2577,7 @@ export class Game {
       const c = CITIZENS.find((x) => x.id === id);
       if (!c) continue;
       if (wakeIsCeremony(id) && w.clutch.lastBreathActive <= 0) {
+        this.audio.transmissionChord(); // soft choir chord — a signal restored moment
         this.ui.cityFaceBeat(c.name, c.confession); // ceremony for meaningful wakes; falls back to a toast if mid-clutch (not replayed)
       } else {
         this.narrate('city_wake', 'toast', [`A face remembered — ${c.name}.`], false);
