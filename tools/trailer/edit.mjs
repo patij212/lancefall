@@ -34,24 +34,29 @@ const ENDART = path.join(PRESS, 'endart.png');
 const ENDCARD = path.join(SEGS, 'endcard.png');
 const useEndArt = fs.existsSync(ENDART);
 if (useEndArt) sh(`ffmpeg -y -loglevel error -i "${ENDART}" -i "${path.join(ASSETS, 'card_endinfo.png')}" -filter_complex "[0]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[bg];[bg][1]overlay" -frames:v 1 "${ENDCARD}"`);
+// Winning treatment: COLD-OPEN on the dash → name the Turing ode → teach the cipher (READ THE KEY →
+// DASH THE DECODED ORDER → CIPHER BROKEN) → stakes/bosses → depth (labeled) → THE CHOICE → FIRST LIGHT.
 const SHOTS = [
-  { id: 'title',      kind: 'still', src: KEYART, t: 6.0, zoom: 'out' },   // key art opens; the art speaks (no caption)
-  { id: 'combat',     kind: 'clip',  src: 'combat',     ss: 2.0, t: 9.0,  cap: 'verb' },
-  { id: 'flow_a',     kind: 'clip',  src: 'flow',       ss: 3.0, t: 7.0,  cap: 'flow1' },   // the combo building
-  { id: 'flow_b',     kind: 'clip',  src: 'flow',       ss: 11.0, t: 8.0, cap: 'flow2' },   // the x100+ peak + neon
-  { id: 'coherence',  kind: 'clip',  src: 'coherence',  ss: 2.0, t: 9.5,  cap: 'coherence' },
-  { id: 'cipher',     kind: 'clip',  src: 'cipher',     ss: 18.0, t: 7.5, cap: 'readkey' },   // the decode climax → CIPHER BROKEN (~23s)
-  { id: 'sovereign',  kind: 'clip',  src: 'sovereign',  ss: 2.5, t: 5.0,  cap: 'sovereign' },   // the rotor decode, before the win screen (~9s)
-  { id: 'bossfight',  kind: 'clip',  src: 'bossfight',  ss: 2.5, t: 8.5,  cap: 'bosses' },
-  { id: 'modes',      kind: 'panel', src: 'modes',      ss: 9.0, t: 4.0,  cap: 'solstice' },
-  { id: 'draft',      kind: 'panel', src: 'draft',      ss: 8.0, t: 3.0 },
-  { id: 'heat',       kind: 'panel', src: 'heat',       ss: 8.0, t: 3.0 },
-  { id: 'codex',      kind: 'panel', src: 'codex',      ss: 9.0, t: 3.0 },
-  { id: 'mirror',     kind: 'clip',  src: 'mirror',     ss: 2.0, t: 6.5,  cap: 'mirror' },
-  { id: 'daybreak',   kind: 'clip',  src: 'daybreak',   ss: 0.3, t: 6.5,  cap: 'daybreak' },
-  { id: 'choice',     kind: 'panel', src: 'choice',     ss: 8.0, t: 5.5,  cap: 'choice' },
-  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 6.0, cap: 'firstlight', zoom: 'in' },
-  { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.5, zoom: 'in' },
+  { id: 'title',      kind: 'still', src: KEYART, t: 2.2, zoom: 'out' },   // brief brand stamp (owner's art); the hook is the cold-open dash next
+  { id: 'verb',       kind: 'clip',  src: 'combat',    ss: 2.0,  t: 4.0, cap: 'verb' },
+  { id: 'dash',       kind: 'clip',  src: 'combat',    ss: 7.0,  t: 4.0, cap: 'dash' },
+  { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 4.0, cap: 'turing' },     // seed the ode early
+  { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.0, cap: 'readkey' },
+  { id: 'order',      kind: 'clip',  src: 'cipher',    ss: 13.0, t: 5.0, cap: 'order' },
+  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 3.0, cap: 'broken' },     // CIPHER BROKEN ~25s
+  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 5.0, cap: 'graze' },
+  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 4.0, cap: 'enemies' },
+  { id: 'bosses',     kind: 'clip',  src: 'bossfight', ss: 1.0,  t: 4.0, cap: 'bosses' },
+  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 6.0, cap: 'imitation' },
+  { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 5.0, cap: 'sovereign' },
+  { id: 'build',      kind: 'panel', src: 'draft',     ss: 8.0,  t: 3.0, cap: 'build' },
+  { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0,  t: 3.0, cap: 'solstice' },
+  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0,  t: 4.0, cap: 'memory' },     // a MOVING shot breaks up the panels
+  { id: 'seed',       kind: 'panel', src: 'heat',      ss: 8.0,  t: 3.0, cap: 'seed' },
+  { id: 'halting',    kind: 'panel', src: 'choice',    ss: 8.0,  t: 5.0, cap: 'halting' },    // the near-silence beat (music dips)
+  { id: 'daybreak',   kind: 'clip',  src: 'daybreak',  ss: 1.0,  t: 4.0, cap: 'daybreak' },
+  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 4.0, cap: 'firstlight', zoom: 'in' },
+  { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.0, zoom: 'in' },
 ];
 
 const TOTAL = SHOTS.reduce((s, x) => s + x.t, 0);
@@ -109,8 +114,19 @@ const silent = path.join(SEGS, 'video.mp4');
 sh(`ffmpeg -y -loglevel error -f concat -safe 0 -i "${listFile}" -c copy "${silent}"`);
 console.log('[edit] ✓ concatenated');
 
+// MUSIC ARC (one track, dynamically shaped — can't audition stem-layering, so this stays safe but
+// delivers the dynamics): a smooth BUILD from the cold open, a hard near-silence DIP on THE CHOICE,
+// and a SWELL as FIRST LIGHT floods gold. Timings derive from the shot offsets.
+let _acc = 0, choiceStart = 0, firstlightStart = 0;
+for (const s of SHOTS) { if (s.id === 'halting') choiceStart = _acc; if (s.id === 'firstlight') firstlightStart = _acc; _acc += s.t; }
+const cm = (choiceStart + 2.5).toFixed(2);       // dip centered mid-CHOICE
+const sm = (firstlightStart + 0.8).toFixed(2);   // swell as the gold floods
+const volExpr =
+  `(0.72+0.28*(1-exp(-t/12)))` +                 // build: 0.72 → ~1.0 over the open
+  `*(1-0.85*exp(-(t-${cm})*(t-${cm})/9.7))` +    // CHOICE dip → ~0.15 (near-silence)
+  `*(1+0.12*exp(-(t-${sm})*(t-${sm})/16))`;      // FIRST LIGHT swell
 const bed = path.join(SEGS, 'bed.m4a');
-sh(`ffmpeg -y -loglevel error -stream_loop -1 -i "${MUSIC}" -t ${TOTAL.toFixed(2)} -af "loudnorm=I=-15:TP=-1.5,afade=in:st=0:d=0.8,afade=out:st=${(TOTAL - 3).toFixed(2)}:d=3" -c:a aac -b:a 192k "${bed}"`);
+sh(`ffmpeg -y -loglevel error -stream_loop -1 -i "${MUSIC}" -t ${TOTAL.toFixed(2)} -af "loudnorm=I=-15:TP=-1.5,volume=eval=frame:volume='${volExpr}',afade=in:st=0:d=0.8,afade=out:st=${(TOTAL - 3).toFixed(2)}:d=3,alimiter=limit=0.97" -c:a aac -b:a 192k "${bed}"`);
 sh(`ffmpeg -y -loglevel error -i "${silent}" -i "${bed}" -map 0:v -map 1:a -c:v copy -c:a copy -movflags +faststart -shortest "${OUT}"`);
 sh(`ffmpeg -y -loglevel error -i "${path.join(PRESS, 'firstlight-winframe.png')}" -vf "scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}" -frames:v 1 "${POSTER}"`);
 
