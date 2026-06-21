@@ -145,7 +145,7 @@ function orbiter(e: Enemy, world: World, dt: number): void {
 
   e.timer -= dt;
   if (e.timer <= 0) {
-    e.timer = ORBITER.fireCadence;
+    e.timer = ORBITER.fireCadence * world.fireCadenceMul;
     // VERB: every Nth shot is a dropped MINE — a stationary hazard parked where the
     // orbiter stands, denying that patch of arena. It expires on its OWN short life
     // (ORBITER.mineLife) — a parked mine that lingered the full 8s bullet life denied
@@ -176,7 +176,7 @@ function bloomer(e: Enemy, world: World, dt: number): void {
     e.vy *= 0.2;
   }
   if (e.timer <= 0) {
-    e.timer = BLOOMER.ringCadence;
+    e.timer = BLOOMER.ringCadence * world.fireCadenceMul;
     e.telegraph = 0;
     const n = BLOOMER.ringCount;
     // ring offset = the bloomer's FIXED phase (e.angle, seeded at spawn) → bullets sit at
@@ -211,7 +211,7 @@ function brooder(e: Enemy, world: World, dt: number): void {
   // pulse the core in the windup before a hatch (the tell)
   e.telegraph = e.subPhase < BROODER.maxSpawns && e.timer < BROODER.windup ? clamp(1 - e.timer / BROODER.windup, 0, 1) : 0;
   if (e.timer <= 0) {
-    e.timer = BROODER.spawnEvery;
+    e.timer = BROODER.spawnEvery * world.fireCadenceMul;
     e.telegraph = 0;
     if (e.subPhase < BROODER.maxSpawns) {
       // deterministic hatch angle (golden-angle spread) — NEVER draw world.rng here:
@@ -296,7 +296,7 @@ function herald(e: Enemy, world: World, dt: number): void {
       const shots = heraldWall(e.x, e.y, e.angle, e.subPhase, base, gapHalf);
       for (const s of shots) world.spawnBullet(s.x, s.y, s.vx, s.vy, 6, '#bef264', false, 'dart');
       e.phase = 0;
-      e.timer = HERALD.repositionTime;
+      e.timer = HERALD.repositionTime * world.fireCadenceMul;
       e.telegraph = 0;
     }
   }
@@ -361,7 +361,7 @@ function seeker(e: Enemy, world: World, dt: number): void {
       const b = world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, feint ? '#fbcfe8' : '#f5d0fe', false);
       if (b && !feint) b.homing = SEEKER_TUNE.homeTime; // the HOMER curves toward you; the feint flies straight
       e.phase = 0;
-      e.timer = SEEKER_TUNE.fireCadence;
+      e.timer = SEEKER_TUNE.fireCadence * world.fireCadenceMul;
       e.telegraph = 0;
     }
   }
@@ -412,7 +412,7 @@ function lancer(e: Enemy, world: World, dt: number): void {
       const bs = LANCER.bulletSpeed * e.bulletMul;
       world.spawnBullet(e.x, e.y, Math.cos(e.angle) * bs, Math.sin(e.angle) * bs, 7, '#ffb066', false, 'dart');
       e.phase = 0;
-      e.timer = LANCER.repositionTime;
+      e.timer = LANCER.repositionTime * world.fireCadenceMul;
     }
   }
 }
@@ -514,7 +514,7 @@ function drifter(e: Enemy, world: World, dt: number): void {
         world.spawnBullet(e.x, e.y, Math.cos(a + s) * base * o, Math.sin(a + s) * base * o, 6, '#34d399', false);
       }
       e.phase = 0;
-      e.timer = DRIFTER_TUNE.repositionTime;
+      e.timer = DRIFTER_TUNE.repositionTime * world.fireCadenceMul;
       e.telegraph = 0;
     }
   }
@@ -557,7 +557,7 @@ function shade(e: Enemy, world: World, dt: number): void {
     e.timer -= dt;
     if (e.timer <= 0) {
       e.phase = 0;
-      e.timer = SHADE_TUNE.strikeCadence;
+      e.timer = SHADE_TUNE.strikeCadence * world.fireCadenceMul;
       e.telegraph = 0;
       e.vx *= 0.2;
       e.vy *= 0.2;
@@ -575,7 +575,7 @@ function hollowEcho(e: Enemy, world: World, dt: number): void {
   steerToward(e, tx, ty, 90 * e.speedMul);
   e.timer -= dt;
   if (e.timer <= 0) {
-    e.timer = HOLLOW.echoFireEvery;
+    e.timer = HOLLOW.echoFireEvery * world.fireCadenceMul;
     const [nx, ny] = norm(p.x - e.x, p.y - e.y);
     const sp = HOLLOW.echoBulletSpeed * e.bulletMul;
     world.spawnBullet(e.x, e.y, nx * sp, ny * sp, 6, HOLLOW.echoColor, true);
