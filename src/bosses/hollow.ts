@@ -75,7 +75,7 @@ export function updateHollow(e: Enemy, world: World, dt: number): void {
   e.angle += HOLLOW.ringSpin * dt;
   e.fireTimer -= dt;
   if (e.fireTimer <= 0) {
-    e.fireTimer = HOLLOW.ringEvery * (enraged ? 0.7 : 1);
+    e.fireTimer = HOLLOW.ringEvery * (enraged ? 0.7 : 1) * world.fireCadenceMul;
     const n = HOLLOW.ringCount;
     const gap = Math.floor(world.rng.next() * n);
     const sp = HOLLOW.ringSpeed;

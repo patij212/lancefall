@@ -143,10 +143,10 @@ export function updateSovereign(e: Enemy, world: World, dt: number): void {
       if (e.subPhase < SOVEREIGN.fanShots) {
         fireAimedFan(e, world, SOVEREIGN.fanBullets, SOVEREIGN.fanSpread, SOVEREIGN.fanBulletSpeed, SOVEREIGN.coreColor);
         e.subPhase++;
-        e.fireTimer = SOVEREIGN.fanGap;
+        e.fireTimer = SOVEREIGN.fanGap * world.fireCadenceMul;
       } else {
         e.subPhase = 0;
-        e.fireTimer = SOVEREIGN.fanRest;
+        e.fireTimer = SOVEREIGN.fanRest * world.fireCadenceMul;
       }
     }
 
@@ -154,7 +154,7 @@ export function updateSovereign(e: Enemy, world: World, dt: number): void {
     if (e.ringTimer === undefined) e.ringTimer = SOVEREIGN.exposeRingEvery;
     e.ringTimer -= dt;
     if (e.ringTimer <= 0) {
-      e.ringTimer = SOVEREIGN.exposeRingEvery * (finale ? 1 / SOVEREIGN.finaleFireMul : 1);
+      e.ringTimer = SOVEREIGN.exposeRingEvery * (finale ? 1 / SOVEREIGN.finaleFireMul : 1) * world.fireCadenceMul;
       const n = SOVEREIGN.exposeRingBullets, sp = SOVEREIGN.exposeRingSpeed;
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + e.angle;
@@ -216,7 +216,7 @@ export function updateSovereign(e: Enemy, world: World, dt: number): void {
       e.telegraph = 0;
       while (e.fireTimer <= 0) {
         fireSpiralArms(e, world);
-        e.fireTimer += SOVEREIGN.spiralEvery * rate;
+        e.fireTimer += SOVEREIGN.spiralEvery * rate * world.fireCadenceMul;
       }
     }
   }

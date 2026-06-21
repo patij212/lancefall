@@ -91,10 +91,10 @@ export function updateBeacon(e: Enemy, world: World, dt: number): void {
           world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#7dd3fc', true);
         }
         e.subPhase++;
-        e.fireTimer = BEACON.fanGap * rate;
+        e.fireTimer = BEACON.fanGap * rate * world.fireCadenceMul;
       } else {
         e.subPhase = 0;
-        e.fireTimer = BEACON.fanRest;
+        e.fireTimer = BEACON.fanRest * world.fireCadenceMul;
       }
     }
   }

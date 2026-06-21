@@ -75,7 +75,7 @@ export function updateWarden(e: Enemy, world: World, dt: number): void {
         world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#ff6b95', true);
       }
       e.angle += WARDEN.spiralSpin;
-      e.fireTimer += WARDEN.spiralBulletEvery * rate;
+      e.fireTimer += WARDEN.spiralBulletEvery * rate * world.fireCadenceMul;
     }
   } else {
     // aimed fans then a rest window
@@ -99,10 +99,10 @@ export function updateWarden(e: Enemy, world: World, dt: number): void {
           }
         }
         e.subPhase++;
-        e.fireTimer = WARDEN.fanGap;
+        e.fireTimer = WARDEN.fanGap * world.fireCadenceMul;
       } else {
         e.subPhase = 0;
-        e.fireTimer = WARDEN.fanRest;
+        e.fireTimer = WARDEN.fanRest * world.fireCadenceMul;
       }
     }
   }

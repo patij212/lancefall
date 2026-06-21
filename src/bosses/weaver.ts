@@ -85,7 +85,7 @@ export function updateWeaver(e: Enemy, world: World, dt: number): void {
         const a = e.angle + (i / WEAVER.armCount) * Math.PI * 2;
         world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#c084fc', true);
       }
-      e.fireTimer += WEAVER.pinwheelEvery * rate;
+      e.fireTimer += WEAVER.pinwheelEvery * rate * world.fireCadenceMul;
     }
   } else {
     // PULSE RINGS with a randomly-placed safe lane to dash through. ENRAGED adds a
@@ -103,7 +103,7 @@ export function updateWeaver(e: Enemy, world: World, dt: number): void {
         world.spawnBullet(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp, 7, '#d8b4fe', true);
       }
       e.fireCount++;
-      e.fireTimer = WEAVER.ringEvery * rate;
+      e.fireTimer = WEAVER.ringEvery * rate * world.fireCadenceMul;
     }
   }
 }
