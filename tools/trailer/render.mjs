@@ -275,6 +275,20 @@ const BEATS = {
     await page.evaluate(() => { const w = window.__lf.world; if (w.overdrive) { w.overdrive.meter = 1; w.overdrive.cooldown = 0; } });
     await page.evaluate(`(${FORCE_DAYBREAK.toString()})(90)`);
   }, { calm: true, warmup: 8 }),
+
+  // THE WARDEN — the first boss: rotating fans + spiral volleys (a different lock than the beams/cipher)
+  warden: () => renderBeat('warden', Math.round(11 * FPS), async (page) => {
+    await startRun(page, 'arena', true);
+    await page.evaluate(() => window.__lf.spawnWarden('warden'));
+    await page.evaluate(`(${QUIET_ALL.toString()})()`);
+  }, { pin: PIN, calm: true }),
+
+  // THE HOLLOW — echo-hunt boss (spawns mirror echoes you must read); rounds out all 6 bosses shown
+  hollow: () => renderBeat('hollow', Math.round(11 * FPS), async (page) => {
+    await startRun(page, 'arena', true);
+    await page.evaluate(() => window.__lf.spawnWarden('hollow'));
+    await page.evaluate(`(${QUIET_ALL.toString()})()`);
+  }, { pin: PIN, calm: true }),
 };
 
 let browser, server;

@@ -34,28 +34,43 @@ const ENDART = path.join(PRESS, 'endart.png');
 const ENDCARD = path.join(SEGS, 'endcard.png');
 const useEndArt = fs.existsSync(ENDART);
 if (useEndArt) sh(`ffmpeg -y -loglevel error -i "${ENDART}" -i "${path.join(ASSETS, 'card_endinfo.png')}" -filter_complex "[0]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[bg];[bg][1]overlay" -frames:v 1 "${ENDCARD}"`);
-// Winning treatment: COLD-OPEN on the dash → name the Turing ode → teach the cipher (READ THE KEY →
-// DASH THE DECODED ORDER → CIPHER BROKEN) → stakes/bosses → depth (labeled) → THE CHOICE → FIRST LIGHT.
+// v3 — the FULL professional showcase (~105s): cold-open verb → cipher teach → ALL SIX bosses →
+// roguelite depth (native-1080p panels) → the story → THE CHOICE → FIRST LIGHT. Native panel stills
+// from panels.mjs; the two new bosses (warden, hollow) complete the gauntlet.
+const ppng = (n) => path.join(__dirname, 'panels', n + '.png');
 const SHOTS = [
-  { id: 'title',      kind: 'still', src: KEYART, t: 2.2, zoom: 'out' },   // brief brand stamp (owner's art); the hook is the cold-open dash next
-  { id: 'verb',       kind: 'clip',  src: 'combat',    ss: 2.0,  t: 4.0, cap: 'verb' },
-  { id: 'dash',       kind: 'clip',  src: 'combat',    ss: 7.0,  t: 4.0, cap: 'dash' },
-  { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 4.0, cap: 'turing' },     // seed the ode early
-  { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.0, cap: 'readkey' },
-  { id: 'order',      kind: 'clip',  src: 'cipher',    ss: 13.0, t: 5.0, cap: 'order' },
-  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 3.0, cap: 'broken' },     // CIPHER BROKEN ~25s
-  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 5.0, cap: 'graze' },
-  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 4.0, cap: 'enemies' },
-  { id: 'bosses',     kind: 'clip',  src: 'bossfight', ss: 1.0,  t: 4.0, cap: 'bosses' },
-  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 6.0, cap: 'imitation' },
-  { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 5.0, cap: 'sovereign' },
-  { id: 'build',      kind: 'panel', src: 'draft',     ss: 8.0,  t: 3.0, cap: 'build' },
-  { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0,  t: 3.0, cap: 'solstice' },
-  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0,  t: 4.0, cap: 'memory' },     // a MOVING shot breaks up the panels
-  { id: 'seed',       kind: 'panel', src: 'heat',      ss: 8.0,  t: 3.0, cap: 'seed' },
-  { id: 'halting',    kind: 'panel', src: 'choice',    ss: 8.0,  t: 5.0, cap: 'halting' },    // the near-silence beat (music dips)
-  { id: 'daybreak',   kind: 'clip',  src: 'daybreak',  ss: 1.0,  t: 4.0, cap: 'daybreak' },
-  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 4.0, cap: 'firstlight', zoom: 'in' },
+  // ACT 1 — the verb
+  { id: 'title',      kind: 'still', src: KEYART, t: 2.5, zoom: 'in' },     // brief brand stamp (smooth push); the hook is the cold-open dash next
+  { id: 'verb',       kind: 'clip',  src: 'combat',    ss: 2.0,  t: 4.0,  cap: 'verb' },
+  { id: 'dash',       kind: 'clip',  src: 'combat',    ss: 7.0,  t: 4.0,  cap: 'dash' },
+  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 4.5,  cap: 'graze' },
+  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 4.0,  cap: 'enemies' },
+  // ACT 2 — the cipher (the Turing hook)
+  { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 4.0,  cap: 'turing' },
+  { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.0,  cap: 'readkey' },
+  { id: 'order',      kind: 'clip',  src: 'cipher',    ss: 13.0, t: 5.0,  cap: 'order' },
+  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 3.0,  cap: 'broken' },
+  // ACT 3 — all six bosses
+  { id: 'sixbosses',  kind: 'clip',  src: 'warden',    ss: 2.0,  t: 4.0,  cap: 'sixbosses' },
+  { id: 'beacon',     kind: 'clip',  src: 'bossfight', ss: 1.0,  t: 4.0,  cap: 'beacon' },
+  { id: 'hollow',     kind: 'clip',  src: 'hollow',    ss: 2.0,  t: 4.0,  cap: 'hollow' },
+  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 5.5,  cap: 'imitation' },
+  { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 5.0,  cap: 'sovereign' },
+  { id: 'daybreak',   kind: 'clip',  src: 'daybreak',  ss: 1.0,  t: 4.0,  cap: 'daybreak' },
+  // ACT 4 — roguelite depth (native panels)
+  { id: 'ships',      kind: 'still', src: ppng('ships'),     t: 2.7, zoom: 'in', cap: 'ships' },
+  { id: 'build',      kind: 'still', src: ppng('archetype'), t: 2.7, zoom: 'in', cap: 'build' },
+  { id: 'meta',       kind: 'still', src: ppng('upgrades'),  t: 2.7, zoom: 'in', cap: 'meta' },
+  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0, t: 4.0, cap: 'memory' },      // a MOVING shot breaks the panel run
+  { id: 'cosmetics',  kind: 'still', src: ppng('cosmetics'), t: 2.7, zoom: 'in', cap: 'cosmetics' },
+  { id: 'bestiary',   kind: 'still', src: ppng('codex'),     t: 2.7, zoom: 'in', cap: 'bestiary' },
+  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.7, zoom: 'in', cap: 'boards' },
+  { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 3.0, cap: 'solstice' },
+  // ACT 5 — the story
+  { id: 'fall',       kind: 'still', src: ppng('fall'),      t: 4.0, zoom: 'in', cap: 'fall' },
+  // ACT 6 — the climax
+  { id: 'halting',    kind: 'panel', src: 'choice',    ss: 8.0, t: 5.0, cap: 'halting' },     // the near-silence beat (music dips)
+  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 4.5, cap: 'firstlight', zoom: 'in' },
   { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.0, zoom: 'in' },
 ];
 
@@ -80,9 +95,16 @@ function buildSeg(shot, i, isFirst, isLast) {
       sh(`ffmpeg -y -loglevel error -ss ${shot.ss} -i "${clip(shot.src)}" -frames:v 1 "${img}"`);
     } else { img = shot.src; }
     if (shot.zoom) {
-      const z = shot.zoom === 'in' ? `min(zoom+0.0009,1.12)` : `if(eq(on,0),1.12,max(zoom-0.0009,1.0))`;
+      // SMOOTH Ken-Burns push-in. zoompan judders when the source is small (crop window snaps
+      // between integer px) — so scale to a LARGE intermediate (5760w) and size the zoom range so
+      // motion is ~1.3px/frame (sub-pixel-smooth). Always a gentle push-IN (zoom-out is the juddery
+      // direction). Render the zoom at 30fps then interpolate to 60 (no benefit to 60 on a slow pan).
+      const SS = 5760, SSH = 3240;
+      const range = Math.min(0.12, Math.max(0.04, (1.3 * frames) / SS));
+      const step = (range / frames).toFixed(7);
+      const zmax = (1 + range).toFixed(4);
       inputs.push(`-i "${img}"`);
-      base = `[0:v]scale=${Math.round(W * 1.5)}:${Math.round(H * 1.5)}:force_original_aspect_ratio=increase,crop=${Math.round(W * 1.5)}:${Math.round(H * 1.5)},zoompan=z='${z}':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},setsar=1[b]`;
+      base = `[0:v]scale=${SS}:${SSH}:force_original_aspect_ratio=increase,crop=${SS}:${SSH},zoompan=z='min(zoom+${step}\\,${zmax})':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${W}x${H}:fps=${FPS},setsar=1[b]`;
     } else {
       inputs.push(`-loop 1 -t ${t} -i "${img}"`);
       base = `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${FPS}[b]`;

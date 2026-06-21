@@ -27,23 +27,36 @@ const FONTS = `
 const CYAN = '#34d8f0', AMBER = '#f5b942', GOLD = '#ffd54a', VIOLET = '#b08cff', ROSE = '#ff5d7e';
 
 const CAPTIONS = [
+  // ACT 1 — the verb
   { id: 'verb', label: 'NO GUNS', line: 'You never fire a shot. Your only weapon is a charged <b>dash</b> — a spear of light.', accent: CYAN },
-  { id: 'dash', label: 'THE DASH', line: 'Thrust through bullet walls, <b>invulnerable</b>. Skewer enemies. Land. Recharge.', accent: CYAN },
-  { id: 'turing', label: 'AN ODE TO ALAN TURING', line: 'And cryptanalysis is the loop: every boss is <b>cipher-locked</b>. You break the code.', accent: AMBER },
+  { id: 'dash', label: 'THE DASH', line: 'Thrust through bullet walls, <b>invulnerable</b>. Skewer, land, recharge, repeat.', accent: CYAN },
+  { id: 'graze', label: 'GRAZE &amp; CHAIN', line: 'Skim a near-miss to refuel the dash — greed versus survival, sixty frames a second.', accent: CYAN },
+  { id: 'enemies', label: '12 ENEMY TYPES', line: 'Snipers, bombers, splitters, a homing seeker, a gap-wall herald — each a different read.', accent: ROSE },
+  // ACT 2 — the cipher (the Turing hook)
+  { id: 'turing', label: 'AN ODE TO ALAN TURING', line: 'Your real weapon is cryptanalysis. Every boss is <b>cipher-locked</b>.', accent: AMBER },
   { id: 'readkey', label: 'READ THE KEY', line: 'The HUD gives a plaintext word and a glyph key — each letter maps to one symbol.', accent: AMBER },
   { id: 'order', label: 'DASH THE DECODED ORDER', line: 'Dash the boss’s glyph-cores in the order the key spells — <b>under fire</b>.', accent: AMBER },
   { id: 'broken', label: 'CIPHER BROKEN', line: 'Code-breaking, actually <b>played</b>. Crack the lock and the armor falls.', accent: GOLD },
-  { id: 'graze', label: 'GRAZE &amp; CHAIN', line: 'Skim a near-miss to refuel the dash, skewer the cluster, keep the chain alive.', accent: CYAN },
-  { id: 'enemies', label: '12 ENEMY TYPES', line: 'Snipers, bombers, splitters, a homing seeker, a gap-wall herald — each demands a read.', accent: ROSE },
-  { id: 'bosses', label: '6 BOSSES', line: 'Thread THE BEACON’s rotating cross-beams — every boss is a different lock.', accent: ROSE },
+  // ACT 3 — all six bosses
+  { id: 'sixbosses', label: 'SIX BOSSES', line: 'THE WARDEN opens the gauntlet — rotating fans, closing spirals.', accent: ROSE },
+  { id: 'beacon', label: 'THE BEACON', line: 'Thread the rotating cross-beams — every boss is a different lock.', accent: ROSE },
+  { id: 'hollow', label: 'THE HOLLOW', line: 'It splits into echoes of itself. Read the real one.', accent: VIOLET },
   { id: 'imitation', label: 'THE IMITATION GAME', line: 'THE MIRRORBLADE wears your ship and mirrors your every move. <b>Which of you is real?</b>', accent: VIOLET },
   { id: 'sovereign', label: 'THE SOVEREIGN · ROTOR CIPHER', line: 'The final boss spins a stepping rotor that <b>re-scrambles</b> the key with every core.', accent: AMBER },
-  { id: 'build', label: 'BUILD YOUR RUN', line: 'Draft 11 perks, fuse 7 evolutions, 6 ships — no two runs decode the same.', accent: CYAN },
-  { id: 'solstice', label: 'SOLSTICE PROTOCOL', line: 'The flagship mode: not just bosses — <b>every wave</b> is a cipher to break.', accent: AMBER },
-  { id: 'memory', label: 'MEMORY IS LIGHT-CODE', line: 'The Six enciphered the city to grey. Each lock you break decrypts it back toward color.', accent: CYAN },
-  { id: 'seed', label: 'ONE DETERMINISTIC SEED', line: 'The whole sim is one algorithm — same seed, same world for everyone, every day.', accent: VIOLET },
-  { id: 'halting', label: 'THE HALTING PROBLEM', line: 'The last lock has no key — no code can decide it. <b>Only you can choose.</b>', accent: GOLD },
   { id: 'daybreak', label: 'DAYBREAK', line: 'Chain enough light to fire <b>DAYBREAK</b> — a screen-clearing burst that ends the dark.', accent: GOLD },
+  // ACT 4 — the roguelite depth
+  { id: 'ships', label: 'SIX SHIPS', line: 'Each ship rewrites the dash — pick your spear.', accent: CYAN },
+  { id: 'build', label: 'DRAFT YOUR BUILD', line: '11 perks, 7 fusion evolutions, cursed relics — no two runs decode the same.', accent: CYAN },
+  { id: 'meta', label: 'META PROGRESSION', line: 'A permanent upgrade tree and an eight-level <b>HEAT</b> prestige ladder.', accent: ROSE },
+  { id: 'cosmetics', label: 'UNLOCK &amp; CUSTOMIZE', line: 'Dash-trails, ship skins, palettes, a 76-skin enemy gallery.', accent: VIOLET },
+  { id: 'bestiary', label: 'BESTIARY &amp; LORE', line: 'Every foe and memory-fragment, catalogued and decrypted.', accent: VIOLET },
+  { id: 'boards', label: 'DAILY &amp; WEEKLY BOARDS', line: 'One deterministic seed — the same world for everyone, every day.', accent: CYAN },
+  { id: 'solstice', label: 'SOLSTICE PROTOCOL', line: 'The flagship mode: not just bosses — <b>every wave</b> is a cipher.', accent: AMBER },
+  // ACT 5 — the story
+  { id: 'fall', label: 'THE FALL', line: 'The Six who let the city fall <b>enciphered</b> it — its light scrambled to grey.', accent: CYAN },
+  { id: 'memory', label: 'MEMORY IS LIGHT-CODE', line: 'Forgetting is encryption. Each lock you break <b>decrypts</b> the city back to color.', accent: CYAN },
+  // ACT 6 — the climax
+  { id: 'halting', label: 'THE HALTING PROBLEM', line: 'The last lock has no key — no code can decide it. <b>Only you can choose.</b>', accent: GOLD },
   { id: 'firstlight', label: 'FIRST LIGHT', line: 'Break the last code and grey floods to <b>gold</b> — the longest day returns.', accent: GOLD },
 ];
 
