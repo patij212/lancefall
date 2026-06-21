@@ -1442,15 +1442,6 @@ body {
   font-size: calc(14px * var(--s));
   color: var(--ckey-title, #fef3c7);
 }
-.ckey-rotor {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: calc(12px * var(--s));
-  letter-spacing: 0.12em;
-  color: #b8c6e6;
-  border: 1px solid rgba(159, 176, 212, 0.35);
-  border-radius: calc(6px * var(--s));
-  padding: calc(3px * var(--s)) calc(9px * var(--s));
-}
 .ckey-row { display: flex; gap: calc(10px * var(--s)); align-items: flex-end; }
 .ckey-chip {
   position: relative;
@@ -1469,16 +1460,13 @@ body {
 .ckey-sig { width: calc(34px * var(--s)); height: calc(34px * var(--s)); display: block; }
 .ckey-sig path { fill: none; stroke: var(--ckey-sig, #fde047); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
 .ckey-sig circle { fill: var(--ckey-sig, #fde047); stroke: none; }
-.ckey-letter { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: calc(22px * var(--s)); line-height: 1; color: var(--ckey-sig, #fde047); }
-.ckey-lock { width: calc(30px * var(--s)); height: calc(30px * var(--s)); display: grid; place-items: center; color: #7d8bad; font-size: calc(18px * var(--s)); }
-/* states — done dims + ✓, next lifts + whitens, upcoming = accent, hidden withholds the mark */
+/* states — done dims + ✓, next lifts + whitens, upcoming = accent */
 .ckey-chip.up { opacity: 0.96; }
 .ckey-chip.done { border-color: rgba(52, 211, 153, 0.55); background: rgba(16, 40, 32, 0.5); opacity: 0.82; }
 .ckey-chip.done .ckey-ltr { color: #34d399; }
 .ckey-chip.done .ckey-div { background: rgba(52, 211, 153, 0.3); }
 .ckey-chip.done .ckey-sig path { stroke: #5ce0b0; }
 .ckey-chip.done .ckey-sig circle { fill: #5ce0b0; }
-.ckey-chip.done .ckey-letter { color: #5ce0b0; }
 .ckey-tick {
   position: absolute;
   top: calc(-7px * var(--s));
@@ -1504,8 +1492,6 @@ body {
 .ckey-chip.next .ckey-div { background: rgba(255, 255, 255, 0.45); }
 .ckey-chip.next .ckey-sig path { stroke: #fff; }
 .ckey-chip.next .ckey-sig circle { fill: #fff; }
-.ckey-chip.next .ckey-letter { color: #fff; }
-.ckey-chip.hidden .ckey-sig { opacity: 0.5; }
 /* CODEX teaching legend reuses .ckey-sig at a calmer size in the panel's violet palette */
 .cipher-box .ckey-sig { width: 28px; height: 28px; margin: 0 auto; }
 .cipher-box .ckey-sig path { stroke: #e9d5ff; }

@@ -1713,24 +1713,13 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Draw a cipher Mark centred at the origin: a Caesar LETTER (Orbitron, dark-haloed) or a
-   *  designed SIGIL (the unit 0..100 path scaled to a ~r*0.92 footprint, neon stroke). */
+  /** Draw a cipher Mark centred at the origin: the designed SIGIL (the unit 0..100 path scaled
+   *  to a ~r*0.92 footprint, neon stroke). The renderer stays general over Mark, but every
+   *  cipher now produces sigils (the read is unified — see cipherDecode.ts). */
   private drawCipherMark(ctx: CanvasRenderingContext2D, mark: Mark, r: number, color: string): void {
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    if (mark.kind === 'letter') {
-      ctx.font = `700 ${Math.round(r * 1.1)}px 'Orbitron', 'Space Grotesk', system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineWidth = Math.max(2, r * 0.12);
-      ctx.strokeStyle = 'rgba(4,6,12,0.7)'; // thin dark halo keeps the letter legible on any disc
-      ctx.strokeText(mark.char, 0, 1);
-      ctx.fillStyle = color;
-      ctx.fillText(mark.char, 0, 1);
-      ctx.restore();
-      return;
-    }
     const R = r * 0.92;
     const def = sigilFor(mark.index);
     ctx.translate(-R, -R);

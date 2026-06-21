@@ -1,7 +1,17 @@
 # Boss cipher — readability & polish pass
 
+> **Revision (2026-06-21, post-playtest):** the per-class *deduce* variants below (Warden
+> Caesar **letters** + crib-only key, Beacon **partial** hidden half, Sovereign **rotor**
+> rotated key) read as "the new glyphs aren't present / the key length doesn't match the
+> cores" in a live fight. Per owner decision they were **unified**: every boss cipher now
+> shows the designed **sigils** on every core, and the HUD shows the **full key** in dash
+> order — a 1:1 match with the cores, nothing hidden/shifted/rotated. `decodeView` ignores
+> `cls` (always sigils, `revealed` all-true, `rotorOffset` 0); the `Mark` union collapsed to
+> `{kind:'sigil'}` and the Caesar-letter render/HUD paths were removed. The per-boss accent
+> tint is unchanged. Determinism still byte-identical (view-only).
+
 **Date:** 2026-06-21
-**Status:** approved (mockup-validated), implementing
+**Status:** shipped (v6), unified per the revision note above
 **Scope:** visual only. The cipher *mechanic*, the pure `cipher.ts` reducer, the seeded
 generation, and all determinism stay byte-identical. Two surfaces change: the orbiting
 cipher **cores** (canvas) and the **READ THE KEY** HUD legend (DOM).

@@ -4492,30 +4492,19 @@ export class UI {
 
 
 /** Build the READ THE KEY console (the boss-cipher step-chip legend) as an HTML string. Each
- *  chip = plaintext letter / divider / mark (a designed sigil, or a Caesar letter), in dash
- *  order; states: done (✓, dim) / next (lifted) / upcoming / hidden (mark withheld). All
- *  content is internal constants (fixed plaintext words + A–Z Caesar letters + static sigil
- *  SVG), so the innerHTML sink carries no untrusted input. */
+ *  chip = plaintext letter / divider / its designed sigil, in dash order — the full key, 1:1
+ *  with the cores. States: done (✓, dim) / next (lifted) / upcoming. All content is internal
+ *  constants (fixed plaintext words + static sigil SVG), so the innerHTML sink is injection-safe. */
 function buildCipherKey(v: DecodeView): string {
   const chips = v.key
     .map((step, i) => {
       const state = i < v.progress ? 'done' : i === v.progress ? 'next' : 'up';
-      let mark: string;
-      let hidden = '';
-      if (!v.revealed[i]) {
-        mark = '<span class="ckey-lock">▢</span>';
-        hidden = ' hidden';
-      } else if (step.mark.kind === 'sigil') {
-        mark = sigilSvgMarkup(step.mark.index, 'ckey-sig');
-      } else {
-        mark = `<span class="ckey-letter">${step.mark.char}</span>`;
-      }
+      const mark = sigilSvgMarkup(step.mark.index, 'ckey-sig');
       const tick = state === 'done' ? '<span class="ckey-tick">✓</span>' : '';
-      return `<div class="ckey-chip ${state}${hidden}"><span class="ckey-ltr">${step.plain}</span><span class="ckey-div"></span>${mark}${tick}</div>`;
+      return `<div class="ckey-chip ${state}"><span class="ckey-ltr">${step.plain}</span><span class="ckey-div"></span>${mark}${tick}</div>`;
     })
     .join('');
-  const rotor = v.cls === 'rotor' ? `<span class="ckey-rotor">ROTOR +${v.rotorOffset}</span>` : '';
-  return `<div class="ckey"><div class="ckey-head"><span class="ckey-dot"></span><span class="ckey-title">READ THE KEY</span>${rotor}</div><div class="ckey-row">${chips}</div></div>`;
+  return `<div class="ckey"><div class="ckey-head"><span class="ckey-dot"></span><span class="ckey-title">READ THE KEY</span></div><div class="ckey-row">${chips}</div></div>`;
 }
 
 /** Render a decoded Build DNA into readable label/value rows. Defensive: unknown
