@@ -2884,13 +2884,12 @@ body {
 .ck-signin {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  max-width: 92px;
-  padding: 1px 7px;
+  gap: 5px;
+  padding: 4px 12px;
   font-family: 'Orbitron', 'Space Grotesk', sans-serif;
   font-weight: 700;
-  font-size: 7px;
-  letter-spacing: 0.06em;
+  font-size: 9px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #9fe9ff;
   background: linear-gradient(180deg, rgba(34, 211, 238, 0.12), rgba(34, 211, 238, 0.04));
@@ -2908,25 +2907,29 @@ body {
 }
 .ck-signin:active { transform: translateY(1px); }
 .ck-signin:focus-visible { outline: 2px solid rgba(34, 211, 238, 0.75); outline-offset: 2px; }
-.ck-signin-ico { width: 9px; height: 9px; flex-shrink: 0; display: block; }
-.ck-signin-ico svg { width: 9px; height: 9px; display: block; }
+.ck-signin-ico { width: 12px; height: 12px; flex-shrink: 0; display: block; }
+.ck-signin-ico svg { width: 12px; height: 12px; display: block; }
 .ck-signin-label { overflow: hidden; text-overflow: ellipsis; }
 .ck-signin.hidden { display: none; }
-/* linked / verified — green accent so a signed-in player reads at a glance */
-.ck-signin.is-linked {
-  color: #8effc0;
-  border-color: rgba(96, 255, 170, 0.45);
-  background: linear-gradient(180deg, rgba(96, 255, 170, 0.14), rgba(96, 255, 170, 0.05));
+/* signed-in: the cockpit logo BECOMES the player's chosen avatar — a large hero medallion (no name
+   pill; the avatar alone replaces the compass) that IS the clickable account button. Hover lifts +
+   glows; click/Enter opens the profile panel; the name rides a title tooltip. */
+.ck-logo.is-avatar {
+  width: 100px;
+  height: 100px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 0.18s ease, filter 0.18s ease;
 }
-.ck-signin.is-linked:hover {
-  color: #d6ffe7;
-  border-color: rgba(96, 255, 170, 0.82);
-  box-shadow: 0 0 14px rgba(96, 255, 170, 0.3);
+.ck-logo.is-avatar svg { width: 100px; height: 100px; animation: none; }
+.ck-logo.is-avatar:hover {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 13px rgba(127, 223, 255, 0.45));
 }
-/* signed-in: the cockpit logo BECOMES the player's chosen avatar — a hero medallion, noticeably
-   bigger than the compass + no opacity pulse, so the sigil art gets the spotlight it earns. */
-.ck-logo.is-avatar { width: 88px; height: 88px; }
-.ck-logo.is-avatar svg { width: 88px; height: 88px; animation: none; }
+.ck-logo.is-avatar:focus-visible {
+  outline: 2px solid rgba(127, 223, 255, 0.85);
+  outline-offset: 4px;
+}
 /* PROFILE avatar picker (account panel, signed-in) */
 .account-avatars { margin: 4px 0 2px; }
 .account-avatars-lbl {

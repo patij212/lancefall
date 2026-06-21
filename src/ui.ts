@@ -1122,6 +1122,11 @@ export class UI {
     ) as HTMLButtonElement;
     this.signInBtn.addEventListener('click', () => this.openAccount());
     this.logoSlot = iconEl('ck-logo', LOGO_SVG); // compass by default; swapped to the chosen avatar when signed in
+    // Signed in, the avatar IS the account button (no name pill) — clickable + keyboard-accessible.
+    this.logoSlot.addEventListener('click', () => { if (this.logoSlot.classList.contains('is-avatar')) this.openAccount(); });
+    this.logoSlot.addEventListener('keydown', (e) => {
+      if (this.logoSlot.classList.contains('is-avatar') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); this.openAccount(); }
+    });
     const logoCol = el('div', { class: 'ck-logo-col' }, this.logoSlot, this.signInBtn);
     const hdrLeft = el('div', { class: 'ck-hdr-left' }, logoCol, brand);
 
@@ -2950,37 +2955,41 @@ export class UI {
     this.openModal(this.accountPanel);
   }
 
-  /** Title sign-in button state: hidden with no backend; "SIGN IN" when anonymous, your
-   *  (verified) account name when linked. Cheap + idempotent; called on every title open. */
+  /** Title SIGN IN call-to-action: shown ONLY when signed out (the prompt to sign in). When
+   *  signed in the avatar itself becomes the account button (see refreshLogo), so this pill is
+   *  hidden — no name to cram into it. Hidden too when no backend is configured (offline-first).
+   *  Cheap + idempotent; called on every title open + account change. */
   private refreshSignIn(): void {
     if (!this.signInBtn) return;
-    const on = leaderboardEnabled();
-    this.signInBtn.classList.toggle('hidden', !on);
-    if (!on) return;
-    const st = accountLib.accountState();
-    const linked = st.kind === 'linked';
-    this.signInBtn.classList.toggle('is-linked', linked);
-    this.signInLabel.textContent = linked ? st.name || 'ACCOUNT' : 'SIGN IN';
-    this.signInBtn.setAttribute(
-      'aria-label',
-      linked
-        ? `Account${st.name ? ' — ' + st.name : ''}${st.verified ? ' (verified)' : ''}. Manage your account.`
-        : 'Sign in to sync your progress and claim a verified name',
-    );
-    this.signInBtn.title = linked ? 'Manage your account' : 'Sign in to sync across devices + claim a verified name';
+    const linked = leaderboardEnabled() && accountLib.accountState().kind === 'linked';
+    this.signInBtn.classList.toggle('hidden', !leaderboardEnabled() || linked);
   }
 
-  /** Cockpit logo: the player's chosen avatar (a verified-profile flourish) when signed in, else
-   *  the compass. Reads the live save's selectedAvatar; cheap; called on title open + account change. */
+  /** Cockpit logo: signed in, the player's chosen avatar becomes a large animated medallion that
+   *  IS the account button (click/Enter → the profile panel, which holds the name + manage/logout);
+   *  hovering reveals the name. Signed out, it's the plain compass (not interactive). Reads the live
+   *  save's selectedAvatar; cheap; called on title open + account change. */
   private refreshLogo(): void {
     if (!this.logoSlot) return;
-    const linked = leaderboardEnabled() && accountLib.accountState().kind === 'linked';
+    const st = accountLib.accountState();
+    const linked = leaderboardEnabled() && st.kind === 'linked';
     if (linked) {
-      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 88, animated: !this.motionOff() });
+      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 100, animated: !this.motionOff() });
       this.logoSlot.classList.add('is-avatar');
+      this.logoSlot.setAttribute('role', 'button');
+      this.logoSlot.setAttribute('tabindex', '0');
+      this.logoSlot.setAttribute(
+        'aria-label',
+        `Account${st.name ? ' — ' + st.name : ''}${st.verified ? ' (verified)' : ''}. Manage your account.`,
+      );
+      this.logoSlot.title = st.name ? `${st.name}${st.verified ? ' ✓' : ''} — manage your account` : 'Manage your account';
     } else {
       this.logoSlot.innerHTML = LOGO_SVG;
       this.logoSlot.classList.remove('is-avatar');
+      this.logoSlot.removeAttribute('role');
+      this.logoSlot.removeAttribute('tabindex');
+      this.logoSlot.removeAttribute('aria-label');
+      this.logoSlot.removeAttribute('title');
     }
   }
 
