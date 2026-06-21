@@ -74,6 +74,17 @@ export function mountMobileControls(
   overlay.style.display = 'none';
   root.appendChild(overlay);
 
+  // Portrait rotate-hint — always present on mobile, shown by CSS ONLY in portrait (kept
+  // separate from the play-gated overlay so it covers the title/menus too). Landscape-primary.
+  const rotate = el(
+    'div',
+    { class: 'lf-rotate' },
+    el('div', { class: 'lf-rotate-icon' }, '⟳'),
+    el('div', { class: 'lf-rotate-title' }, 'ROTATE YOUR DEVICE'),
+    el('div', { class: 'lf-rotate-sub' }, 'THE LAST LANCE plays in landscape'),
+  );
+  root.appendChild(rotate);
+
   // ── live touch state ───────────────────────────────────────────────────────
   let moveId = -1,
     moveSX = 0,
@@ -292,6 +303,7 @@ export function mountMobileControls(
       canvas.removeEventListener('touchend', onEnd);
       canvas.removeEventListener('touchcancel', onEnd);
       overlay.remove();
+      rotate.remove();
     },
   };
 }

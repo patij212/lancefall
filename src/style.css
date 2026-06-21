@@ -6937,9 +6937,34 @@ html.lf-mobile .lf-tbtn {
   font: 700 11px/1 'Rajdhani', sans-serif;
   letter-spacing: 0.06em;
 }
-html.lf-mobile .lf-parry { right: 14px; bottom: 46%; }
-html.lf-mobile .lf-over { right: 14px; bottom: 64%; border-color: rgba(245, 215, 138, 0.5); background: rgba(245, 215, 138, 0.1); }
-html.lf-mobile .lf-pause { right: 16px; top: 14px; width: 44px; height: 44px; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.06); }
+html.lf-mobile .lf-parry { right: calc(14px + env(safe-area-inset-right)); bottom: 46%; }
+html.lf-mobile .lf-over { right: calc(14px + env(safe-area-inset-right)); bottom: 64%; border-color: rgba(245, 215, 138, 0.5); background: rgba(245, 215, 138, 0.1); }
+html.lf-mobile .lf-pause { right: calc(16px + env(safe-area-inset-right)); top: calc(14px + env(safe-area-inset-top)); width: 44px; height: 44px; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.06); }
 html.lf-mobile .lf-touch.mirror .lf-parry,
-html.lf-mobile .lf-touch.mirror .lf-over { right: auto; left: 14px; }
-html.lf-mobile .lf-touch.mirror .lf-pause { right: auto; left: 16px; }
+html.lf-mobile .lf-touch.mirror .lf-over { right: auto; left: calc(14px + env(safe-area-inset-left)); }
+html.lf-mobile .lf-touch.mirror .lf-pause { right: auto; left: calc(16px + env(safe-area-inset-left)); }
+
+/* portrait rotate-hint — shown only when html.lf-mobile AND the viewport is portrait (landscape-primary) */
+html.lf-mobile .lf-rotate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px;
+  text-align: center;
+  background: #0a0b0f;
+  color: #e8eefc;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+@media (orientation: portrait) {
+  html.lf-mobile .lf-rotate { display: flex; }
+}
+html.lf-mobile .lf-rotate-icon { font-size: 52px; color: #22d3ee; animation: lf-rotate-spin 2.4s ease-in-out infinite; }
+html.lf-mobile .lf-rotate-title { font-size: 20px; font-weight: 700; letter-spacing: 0.1em; color: #22d3ee; }
+html.lf-mobile .lf-rotate-sub { font-size: 13px; color: #9fb0cc; letter-spacing: 0.04em; }
+@keyframes lf-rotate-spin { 0%, 55% { transform: rotate(0deg); } 80%, 100% { transform: rotate(-90deg); } }
+html.reduce-motion .lf-rotate-icon { animation: none; }
