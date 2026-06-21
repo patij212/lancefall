@@ -7,6 +7,7 @@ import {
   lerp,
   clamp,
   angleDiff,
+  rotateToward,
   easeOutQuad,
   easeOutCubic,
   easeOutBack,
@@ -77,5 +78,21 @@ describe('easings', () => {
     let maxV = 0;
     for (let t = 0; t <= 1; t += 0.01) maxV = Math.max(maxV, easeOutBack(t));
     expect(maxV).toBeGreaterThan(1);
+  });
+});
+
+describe('rotateToward', () => {
+  it('clamps a large turn to maxDelta, shortest direction', () => {
+    expect(rotateToward(0, 1.5, 0.1)).toBeCloseTo(0.1); // target ahead
+    expect(rotateToward(0, -1.5, 0.1)).toBeCloseTo(-0.1); // target behind → short way is negative
+  });
+
+  it('lands exactly on target when the gap is within maxDelta', () => {
+    expect(rotateToward(0, 0.05, 0.1)).toBeCloseTo(0.05);
+  });
+
+  it('takes the short way across the ±π seam', () => {
+    // from 3.0 rad toward -3.0 rad, the short hop is +across π (~+0.283), not -6
+    expect(rotateToward(3.0, -3.0, 0.1)).toBeCloseTo(3.1);
   });
 });

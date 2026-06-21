@@ -48,6 +48,12 @@ export function angleDiff(a: number, b: number): number {
   return d;
 }
 
+/** Rotate `current` toward `target` by at most `maxDelta` radians, the shortest way
+ *  around the ±π seam. Bounded-turn tracking (e.g. a shield with rotational inertia). */
+export function rotateToward(current: number, target: number, maxDelta: number): number {
+  return current + clamp(angleDiff(current, target), -maxDelta, maxDelta);
+}
+
 export const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
 export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 export const easeInCubic = (t: number) => t * t * t;
