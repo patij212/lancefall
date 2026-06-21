@@ -912,6 +912,39 @@ body {
 .codex-tabs .btn-sm:hover { color: #cfe0f5; }
 .codex-tabs .btn-sm.active { color: var(--cyan); border-bottom-color: var(--cyan); }
 .codex-tabs .btn-sm:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+/* SKINS modal — a prominent 2-way SEGMENTED toggle (SHIPS · BESTIARY), so neither tab is
+   missable (unlike the subtle codex underline strip). Pill container, active tab filled. */
+.skins-tabs {
+  display: flex;
+  gap: 4px;
+  align-self: center;
+  margin: 16px auto 6px;
+  padding: 4px;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.skins-tab {
+  flex: 1 1 0;
+  min-width: 140px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  font: 700 12.5px/1 'Space Grotesk', sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8aa3c2;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.skins-tab:hover:not(.active) { color: #cfe0f5; background: rgba(255, 255, 255, 0.04); }
+.skins-tab.active {
+  background: var(--cyan);
+  color: #04121a;
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.32);
+}
+.skins-tab:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 /* each tab's content flows like the old codex-body did (column + 8px gap between sections). */
 .codex-pane { display: flex; flex-direction: column; gap: 8px; }
 /* THE FALL / HOW TO panes carry width-capped reading content. Give both the SAME centred reading
@@ -1005,10 +1038,10 @@ body {
 }
 .skin-card.locked { opacity: 0.78; cursor: help; }
 .skin-preview {
-  width: 64px;
-  height: 64px;
+  width: 88px;
+  height: 88px;
   display: block;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 48%, transparent));
 }
 .skin-card.locked .skin-preview { filter: grayscale(0.55) brightness(0.8); }
 .skin-name {

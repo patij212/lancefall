@@ -509,6 +509,7 @@ export class UI {
   private skinsBody!: HTMLElement;
   private shipSkinsBody!: HTMLElement;
   private skinsShowTab?: (key: string) => void; // switch the SKINS tabs ('ships' | 'bestiary')
+  private skinsBalanceEl!: HTMLElement; // shard balance shown in the SKINS modal head
   private creditsPanel!: HTMLElement;
   private ngBtn!: HTMLButtonElement;
   private bombeNavBtn?: HTMLElement; // THE BOMBE nav button — its pip lights when decryption is affordable
@@ -2218,7 +2219,12 @@ export class UI {
   /** Build the per-kind enemy-skin picker modal. The grid itself is rebuilt every
    *  open from the live save (refreshSkins) — this just lays out the shell. */
   private buildSkins(): void {
-    const h = el('h2', {}, 'SKINS');
+    const skinsIcon = el('div', { class: 'panel-head-icon' });
+    skinsIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3 L20 19 L12 15 L4 19 Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    this.skinsBalanceEl = el('div', { class: 'panel-balance' }, '◆ 0');
+    const head = el('div', { class: 'panel-head' }, skinsIcon,
+      el('div', { class: 'panel-head-titles' }, el('div', { class: 'panel-eyebrow' }, 'LOADOUT · COSMETICS'), el('h2', { class: 'panel-head-title' }, 'SKINS')),
+      this.skinsBalanceEl);
     // SHIPS tab (first) — the player-hull reskins: the plain hull + the 3 Solstice sets, shown on every ship.
     const shipsIntro = el(
       'div',
@@ -2237,13 +2243,13 @@ export class UI {
     const bestiaryPane = el('div', { class: 'codex-pane hidden' }, bestIntro, this.skinsBody);
     const panes: Record<string, HTMLElement> = { ships: shipsPane, bestiary: bestiaryPane };
     const tabBtns = new Map<string, HTMLElement>();
-    const tabBar = el('div', { class: 'codex-tabs', role: 'tablist' });
+    const tabBar = el('div', { class: 'skins-tabs', role: 'tablist' });
     this.skinsShowTab = (key: string): void => {
       for (const k of Object.keys(panes)) panes[k].classList.toggle('hidden', k !== key);
       for (const [k, btn] of tabBtns) btn.classList.toggle('active', k === key);
     };
     for (const [key, label] of [['ships', 'SHIPS'], ['bestiary', 'BESTIARY']] as [string, string][]) {
-      const btn = el('button', { class: 'btn-sm', type: 'button' }, label);
+      const btn = el('button', { class: 'skins-tab', type: 'button', role: 'tab' }, label);
       btn.addEventListener('click', () => this.skinsShowTab!(key));
       tabBtns.set(key, btn);
       tabBar.append(btn);
@@ -2251,11 +2257,12 @@ export class UI {
     const body = el('div', { class: 'codex-body' }, shipsPane, bestiaryPane);
     const close = el('button', { class: 'btn btn-primary' }, 'DONE');
     close.addEventListener('click', () => this.closeModal(this.skinsPanel));
-    const panel = el('div', { class: 'panel panel-wide' }, h, tabBar, body, close);
+    const panel = el('div', { class: 'panel panel-wide' }, head, tabBar, body, close);
     this.skinsPanel = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' }, panel);
   }
 
   private openSkins(): void {
+    if (this.saveRef) this.skinsBalanceEl.textContent = `◆ ${this.saveRef.shards.toLocaleString()} shards`;
     this.refreshShipSkins();
     this.refreshSkins();
     this.skinsShowTab?.('ships'); // SHIPS first
@@ -2266,7 +2273,7 @@ export class UI {
    *  hull for 'none'), nose-up in a hangar glow. Frozen frame (reduceMotion) — never animates. */
   private paintShipSkinPreview(canvas: HTMLCanvasElement, shipId: string, setId: string, accent: string): void {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const size = 96;
+    const size = 128;
     canvas.width = Math.round(size * dpr);
     canvas.height = Math.round(size * dpr);
     const ctx = canvas.getContext('2d');
@@ -2288,11 +2295,11 @@ export class UI {
       if (setId === 'none') {
         ctx.save();
         ctx.rotate(-Math.PI / 2); // drawShipSilhouette is nose-+x → point it up
-        drawShipSilhouette(ctx, shipId, size * 0.3, { fill: '#0a0b0f', stroke: accent, lineWidth: 2.5, detail: accent, core: '#eaf2ff' });
+        drawShipSilhouette(ctx, shipId, size * 0.36, { fill: '#0a0b0f', stroke: accent, lineWidth: 2.5, detail: accent, core: '#eaf2ff' });
         ctx.restore();
       } else {
         // drawShipSkin is authored nose-up → already points up, no rotation
-        drawShipSkin(setId, shipId, ctx, size * 0.3, 1.2, { reduceMotion: true });
+        drawShipSkin(setId, shipId, ctx, size * 0.36, 1.2, { reduceMotion: true });
       }
     } catch {
       /* a preview should never break the picker */
@@ -2529,7 +2536,7 @@ export class UI {
    *  reduceMotion forced so the gallery is a calm, non-strobing single frame. */
   private paintSkinPreview(canvas: HTMLCanvasElement, skin: SkinDef, color: string, unlocked: boolean): void {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const size = 96;
+    const size = 128;
     canvas.width = Math.round(size * dpr);
     canvas.height = Math.round(size * dpr);
     const ctx = canvas.getContext('2d');
@@ -2555,7 +2562,7 @@ export class UI {
     ctx.strokeStyle = rimColor;
     ctx.fillStyle = darken(color, 0.18);
     ctx.lineWidth = 2;
-    const r = UI.BIG_PREVIEW_KINDS.has(skin.kind) ? 16 : 22; // big-native bosses → preview smaller
+    const r = UI.BIG_PREVIEW_KINDS.has(skin.kind) ? 20 : 30; // big-native bosses → preview smaller
     ctx.save();
     try {
       skin.draw(ctx, stub, r, {
