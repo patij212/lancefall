@@ -7,6 +7,32 @@ import { describe, it, expect } from 'vitest';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { AVATAR_VISUALS, renderAvatar, type AvatarVisual, type AvatarGroup } from './registry';
+import { frame } from './frame';
+import { scene as drownedBell } from './scenes/drownedbell';
+
+// A non-roster validation sample (skill check) — rendered via frame() directly,
+// so it never enters AVATAR_VISUALS / the registry tests.
+const BELL_ACCENT = '#2dd4bf';
+function bellSvg(animated: boolean, uid: string): string {
+  const inner = drownedBell({ uid, accent: BELL_ACCENT, animated, variant: 'full' });
+  const med = frame(2, BELL_ACCENT, uid, { animated, variant: 'full' }, inner);
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="148" height="148" ` +
+    `role="img" aria-label="THE DROWNED BELL"><title>THE DROWNED BELL</title>` +
+    `<g transform="translate(120,120)">${med}</g></svg>`
+  );
+}
+function sampleSection(): string {
+  const cardOf = (animated: boolean, uid: string, tag: string) =>
+    `<figure class="card" style="--accent:${BELL_ACCENT}"><div class="medallion">${bellSvg(animated, uid)}</div>` +
+    `<figcaption><span class="name">THE DROWNED BELL</span><span class="meta">SAMPLE · toll · ${tag}</span>` +
+    `<span class="hint">authored from the lancefall-avatars skill — not in the roster</span></figcaption></figure>`;
+  return section(
+    'SKILL VALIDATION SAMPLE',
+    'Not a roster avatar — a fresh sigil authored from the lancefall-avatars skill to prove the craft is reproducible.',
+    `<div class="grid">${cardOf(true, 'bell-full', 'animated')}${cardOf(false, 'bell-static', 'static')}</div>`,
+  );
+}
 
 const GROUP_LABEL: Record<AvatarGroup, string> = {
   free: 'FREE · THE SIGIL SET',
@@ -95,6 +121,7 @@ function buildHtml(): string {
       tileGrid()) +
     section('STATIC · reduceMotion', 'Fully-composed still frame — no <animate> tags, no missing elements, no layout shift.',
       groupedCards({ variant: 'full', animated: false, size: 148, uidPrefix: 'static' })) +
+    sampleSection() +
     `</body></html>`
   );
 }
@@ -106,8 +133,9 @@ describe('avatar gallery', () => {
     mkdirSync(outDir, { recursive: true });
     const outFile = fileURLToPath(new URL('../../../mockups/avatars-gallery.html', import.meta.url));
     writeFileSync(outFile, html, 'utf-8');
-    // smoke: full + tile + static = 3 svgs per avatar
-    expect((html.match(/<svg/g) || []).length).toBe(AVATAR_VISUALS.length * 3);
+    // smoke: full + tile + static = 3 svgs per avatar, + 2 sample (animated/static)
+    expect((html.match(/<svg/g) || []).length).toBe(AVATAR_VISUALS.length * 3 + 2);
     expect(html).toContain('THE LANCE');
+    expect(html).toContain('THE DROWNED BELL');
   });
 });
