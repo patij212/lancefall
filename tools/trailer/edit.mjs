@@ -34,46 +34,46 @@ const ENDART = path.join(PRESS, 'endart.png');
 const ENDCARD = path.join(SEGS, 'endcard.png');
 const useEndArt = fs.existsSync(ENDART);
 if (useEndArt) sh(`ffmpeg -y -loglevel error -i "${ENDART}" -i "${path.join(ASSETS, 'card_endinfo.png')}" -filter_complex "[0]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[bg];[bg][1]overlay" -frames:v 1 "${ENDCARD}"`);
-// v6 — PARED to the core story (~1:52). Only SIX captions, spread far apart with long uncaptioned
-// visual stretches so each line has room to read: the city in darkness + you bring the light →
-// decrypt the ciphers to defeat the bosses → unlock the mystery of the Fall → bring back the solstice.
-// Captioned beats run ~5s; everything else is pure-visual showcase (no text to chase). Music-only.
+// v7 — BALANCED (~1:57). ~12 captions: each hook sold clearly + the best parts named, spread out with
+// uncaptioned visual beats so every line reads. Arc: darkness + you are the light → the cipher (READ
+// THE KEY → decode to defeat) → the light returns → six bosses + the imitation game + the Sovereign →
+// unlock the Fall + a deep roguelite → bring back the solstice. Captioned beats ~4.5-5.5s. Music-only.
 const ppng = (n) => path.join(__dirname, 'panels', n + '.png');
 const SHOTS = [
-  // ACT 1 — darkness, and you are the light
+  // ACT 1 — darkness, the verb (you are the light)
   { id: 'title',      kind: 'still', src: KEYART, t: 2.5, zoom: 'in' },
-  { id: 'fall',       kind: 'still', src: ppng('fall'),      t: 5.0, zoom: 'in', cap: 'darkness' },   // [1] the city in darkness
-  { id: 'verb',       kind: 'clip',  src: 'combat',    ss: 2.0,  t: 5.0,  cap: 'light' },             // [2] you are the light
-  { id: 'dash',       kind: 'clip',  src: 'combat',    ss: 7.0,  t: 4.0 },
-  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 4.0 },
-  // ACT 2 — decrypt the ciphers to defeat the bosses, and the light returns
-  { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 4.0 },
-  { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.5,  cap: 'decrypt' },           // [3] decrypt to defeat
+  { id: 'fall',       kind: 'still', src: ppng('fall'),      t: 5.0, zoom: 'in', cap: 'darkness' },
+  { id: 'verb',       kind: 'clip',  src: 'combat',    ss: 2.0,  t: 5.0,  cap: 'light' },
+  { id: 'dash',       kind: 'clip',  src: 'combat',    ss: 7.0,  t: 3.5 },
+  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 4.5,  cap: 'momentum' },
+  // ACT 2 — the cipher (READ THE KEY → decode to defeat) → the light returns
+  { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 3.5 },
+  { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.0,  cap: 'readkey' },
   { id: 'order',      kind: 'clip',  src: 'cipher',    ss: 13.0, t: 4.0 },
-  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 3.0 },
-  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0,  t: 5.0,  cap: 'returns' },           // [4] the light returns
-  // ACT 3 — the threat + all six bosses (pure visual)
-  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 3.5 },
-  { id: 'sixbosses',  kind: 'clip',  src: 'warden',    ss: 2.0,  t: 3.5 },
+  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 4.5,  cap: 'defeat' },
+  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0,  t: 5.0,  cap: 'returns' },
+  // ACT 3 — the threat + the six bosses (incl. the Turing pillars)
+  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 3.0 },
+  { id: 'sixbosses',  kind: 'clip',  src: 'warden',    ss: 2.0,  t: 4.5,  cap: 'sixbosses' },
   { id: 'beacon',     kind: 'clip',  src: 'bossfight', ss: 1.0,  t: 3.5 },
   { id: 'hollow',     kind: 'clip',  src: 'hollow',    ss: 2.0,  t: 3.5 },
-  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 4.5 },
-  { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 4.0 },
+  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 5.0,  cap: 'imitation' },
+  { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 4.5,  cap: 'sovereign' },
   { id: 'daybreak',   kind: 'clip',  src: 'daybreak',  ss: 1.0,  t: 3.5 },
-  // ACT 4 — unlock the Fall (the codebreaker) + a quick depth showcase (pure visual)
-  { id: 'codebreaker',kind: 'still', src: ppng('codebreaker'), t: 5.0, zoom: 'in', cap: 'unlock' },   // [5] unlock the Fall
-  { id: 'ships',      kind: 'still', src: ppng('ships'),     t: 2.6, zoom: 'in' },
-  { id: 'skins',      kind: 'still', src: ppng('skins'),     t: 2.6, zoom: 'in' },
-  { id: 'build',      kind: 'still', src: ppng('archetype'), t: 2.6, zoom: 'in' },
-  { id: 'meta',       kind: 'still', src: ppng('upgrades'),  t: 2.6, zoom: 'in' },
-  { id: 'bestiary',   kind: 'still', src: ppng('codex'),     t: 2.6, zoom: 'in' },
-  { id: 'dossier',    kind: 'still', src: ppng('stats'),     t: 2.6, zoom: 'in' },
-  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.6, zoom: 'in' },
-  { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 2.6 },
-  { id: 'avatars',    kind: 'still', src: ppng('avatar_gallery'), t: 3.0, zoom: 'in' },
+  // ACT 4 — unlock the Fall (the codebreaker) + a deep roguelite (quick visual depth)
+  { id: 'codebreaker',kind: 'still', src: ppng('codebreaker'), t: 5.0, zoom: 'in', cap: 'unlock' },
+  { id: 'ships',      kind: 'still', src: ppng('ships'),     t: 4.5, zoom: 'in', cap: 'roguelite' },
+  { id: 'skins',      kind: 'still', src: ppng('skins'),     t: 2.4, zoom: 'in' },
+  { id: 'build',      kind: 'still', src: ppng('archetype'), t: 2.4, zoom: 'in' },
+  { id: 'meta',       kind: 'still', src: ppng('upgrades'),  t: 2.4, zoom: 'in' },
+  { id: 'bestiary',   kind: 'still', src: ppng('codex'),     t: 2.4, zoom: 'in' },
+  { id: 'dossier',    kind: 'still', src: ppng('stats'),     t: 2.4, zoom: 'in' },
+  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.4, zoom: 'in' },
+  { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 2.4 },
+  { id: 'avatars',    kind: 'still', src: ppng('avatar_gallery'), t: 2.8, zoom: 'in' },
   // ACT 5 — the climax: the choice (visual tease) → live FIRST LIGHT → bring back the solstice
-  { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 4.0, zoom: 'in' },                    // visual tease (no spoiler text)
-  { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.5, cap: 'solstice' },           // [6] bring back the solstice
+  { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 3.5, zoom: 'in' },
+  { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.5, cap: 'solstice' },
   { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.0, zoom: 'in' },
 ];
 

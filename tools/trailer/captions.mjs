@@ -26,15 +26,22 @@ const FONTS = `
 
 const CYAN = '#34d8f0', AMBER = '#f5b942', GOLD = '#ffd54a', VIOLET = '#b08cff', ROSE = '#ff5d7e';
 
-// PARED to the core story (6 lines, spread far apart so each has room to read; everything else is
-// uncaptioned, pure-visual showcase). The three beats: the city is in darkness + you bring the light →
-// decrypt the ciphers to defeat the bosses → unlock the mystery of the Fall to bring back the solstice.
+// BALANCED (~12 lines): sell each hook clearly + name the best parts, spread out with uncaptioned
+// visual beats between so every line has room to read. Arc: darkness + you are the light → the cipher
+// (READ THE KEY → decode to defeat) → the light returns → the bosses + the Turing pillars → unlock
+// the Fall + the roguelite depth → bring back the solstice.
 const CAPTIONS = [
   { id: 'darkness', label: 'THE CITY IN DARKNESS', line: 'Lancefall — a kingdom of living light, now lost to the dark.', accent: CYAN },
-  { id: 'light', label: 'YOU ARE THE LIGHT', line: 'You alone can bring it back — a <b>spear of light</b> you dash through the dark.', accent: CYAN },
-  { id: 'decrypt', label: 'DECRYPT TO DEFEAT', line: 'Every boss is a <b>cipher</b>. Break its code to break the boss.', accent: AMBER },
+  { id: 'light', label: 'YOU ARE THE LIGHT', line: 'You don’t shoot. Your only weapon is a dash — a <b>spear of light</b>.', accent: CYAN },
+  { id: 'momentum', label: 'PURE MOMENTUM', line: 'Phase through the bullets, skewer the swarm, chain the dash.', accent: CYAN },
+  { id: 'readkey', label: 'READ THE KEY', line: 'Every boss is a <b>cipher</b> — the HUD shows the word and the key.', accent: AMBER },
+  { id: 'defeat', label: 'DECODE TO DEFEAT', line: 'Dash the glyphs in order; crack the code and the armor falls.', accent: AMBER },
   { id: 'returns', label: 'THE LIGHT RETURNS', line: 'Each code you break <b>decrypts</b> the city — grey, back to gold.', accent: GOLD },
-  { id: 'unlock', label: 'UNLOCK THE FALL', line: 'Decrypt the lost transmissions — and uncover who let the light die.', accent: AMBER },
+  { id: 'sixbosses', label: 'SIX BOSSES', line: 'Each a different lock — rotating fans, cross-beams, echoes.', accent: ROSE },
+  { id: 'imitation', label: 'THE IMITATION GAME', line: 'The Mirrorblade mirrors your every move — Turing’s test, made flesh.', accent: VIOLET },
+  { id: 'sovereign', label: 'THE SOVEREIGN', line: 'The master cipher — a rotor that <b>re-scrambles</b> with every core.', accent: AMBER },
+  { id: 'unlock', label: 'UNLOCK THE FALL', line: 'Decrypt the lost transmissions — uncover who let the light die.', accent: AMBER },
+  { id: 'roguelite', label: 'A DEEP ROGUELITE', line: 'Six ships, a stacking perk draft, meta-progression — no two runs alike.', accent: VIOLET },
   { id: 'solstice', label: 'BRING BACK THE SOLSTICE', line: 'Break the last cipher, and the <b>longest day</b> returns.', accent: GOLD },
 ];
 
