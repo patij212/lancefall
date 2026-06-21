@@ -1,58 +1,83 @@
-// THE CODEBREAKER — rotate. A stack of counter-rotating cipher rotors with a
-// glyph ring, and a decrypt window where an enciphered glyph flips to plaintext.
-// Bringing the city's record back, one wheel at a time.
+// THE CODEBREAKER — rotate. A cipher engine: counter-rotating gear-tooth rotors
+// carrying glyph rings, plugboard cables arcing across with flowing signal, a
+// lampboard ring where the resolved letter sweeps lit, and a bolted decrypt
+// window flipping glyph→plaintext under a scanline. The city's record, rebuilt.
 
 import type { SceneCtx } from '../registry';
 import { paletteFor, tone } from '../primitives';
-import { spin } from '../motion';
+import { spin, drift, when } from '../motion';
 import { coreGlow, u } from './_common';
+
+const GLYPHS = ['§', 'Ѯ', '¶', 'Ω', '⋔', 'Ψ', 'Æ', 'þ', 'Ø', 'Ξ', 'ʮ', 'Ϟ'];
 
 export function scene(ctx: SceneCtx): string {
   const { uid, accent, animated: a } = ctx;
   const p = paletteFor(accent);
 
-  // a rotor disk: ring + tick marks + glyph hints, rotating
-  const rotor = (r: number, dur: number, dir: 1 | -1, sw: number, op: number) => {
-    const ticks = Array.from({ length: 12 }, (_, i) => {
-      const ang = (i * 30 * Math.PI) / 180;
-      const x1 = (Math.cos(ang) * (r - 4)).toFixed(1);
-      const y1 = (Math.sin(ang) * (r - 4)).toFixed(1);
-      const x2 = (Math.cos(ang) * r).toFixed(1);
-      const y2 = (Math.sin(ang) * r).toFixed(1);
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
-    }).join('');
-    return (
-      `<g opacity="${op}">${spin(a, dur, dir === 1 ? 0 : 360, dir === 1 ? 360 : 0)}` +
-      `<circle r="${r}" fill="none" stroke="${accent}" stroke-width="${sw}"/>` +
-      `<g stroke="${p.light}" stroke-width="1" opacity="0.8">${ticks}</g></g>`
-    );
+  // a gear-tooth ring
+  const gearRing = (r: number, teeth: number, dur: number, dir: 1 | -1, sw: number, op: number) => {
+    let t = '';
+    for (let i = 0; i < teeth; i++) {
+      t += `<g transform="rotate(${(i * 360) / teeth})"><rect x="-1.5" y="${(-(r + 3.5)).toFixed(1)}" width="3" height="4.5" rx="0.6" fill="${accent}"/></g>`;
+    }
+    return `<g opacity="${op}">${spin(a, dur, dir === 1 ? 0 : 360, dir === 1 ? 360 : 0)}<circle r="${r}" fill="none" stroke="${accent}" stroke-width="${sw}"/>${t}</g>`;
   };
 
-  // glyph ring (enciphered marks orbiting)
-  const glyphRing = `<g opacity="0.6">${spin(a, 30)}${
-    ['§', 'Ѯ', '¶', 'Ω', '⋔', 'Ψ', 'Æ', 'þ'].map((g, i) => {
-      const ang = (i * 45 - 90) * (Math.PI / 180);
-      const x = (Math.cos(ang) * 56).toFixed(1);
-      const y = (Math.sin(ang) * 56 + 3).toFixed(1);
-      return `<text x="${x}" y="${y}" font-family="ui-monospace,monospace" font-size="8" fill="${p.light}" text-anchor="middle">${g}</text>`;
-    }).join('')
-  }</g>`;
+  // a glyph rotor ring
+  const glyphRotor = (r: number, count: number, dur: number, dir: 1 | -1, size: number, op: number) => {
+    let g = '';
+    for (let i = 0; i < count; i++) {
+      const ang = (i * (360 / count) - 90) * (Math.PI / 180);
+      g += `<text x="${(Math.cos(ang) * r).toFixed(1)}" y="${(Math.sin(ang) * r + size * 0.35).toFixed(1)}" font-family="ui-monospace,monospace" font-size="${size}" fill="${p.light}" text-anchor="middle">${GLYPHS[i % GLYPHS.length]}</text>`;
+    }
+    return `<g opacity="${op}">${spin(a, dur, dir === 1 ? 0 : 360, dir === 1 ? 360 : 0)}${g}</g>`;
+  };
 
-  // the decrypt window — a cipher glyph flips to a plaintext letter
+  // plugboard cables arcing across, signal flowing
+  const cable = (a1: number, a2: number, col: string, d: number) => {
+    const r = 40;
+    const x1 = Math.cos((a1 * Math.PI) / 180) * r, y1 = Math.sin((a1 * Math.PI) / 180) * r;
+    const x2 = Math.cos((a2 * Math.PI) / 180) * r, y2 = Math.sin((a2 * Math.PI) / 180) * r;
+    return (
+      `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} Q 0 0 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="${col}" stroke-width="1.6" opacity="0.25"/>` +
+      `<path d="M ${x1.toFixed(1)} ${y1.toFixed(1)} Q 0 0 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="${col}" stroke-width="1" stroke-dasharray="3 9" opacity="0.7">${drift(a, -48, d)}</path>` +
+      `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="2" fill="${col}"/><circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="2" fill="${col}"/>`
+    );
+  };
+  const plugboard = `<g>${cable(-150, -20, accent, 4)}${cable(150, 30, p.light, 5)}${cable(-60, 100, accent, 4.6)}</g>`;
+
+  // lampboard ring — small lamps, the resolved one sweeping lit
+  let lamps = '';
+  const L = 16;
+  for (let i = 0; i < L; i++) {
+    const ang = (i * (360 / L) - 90) * (Math.PI / 180);
+    const cx = (Math.cos(ang) * 30).toFixed(1), cy = (Math.sin(ang) * 30).toFixed(1);
+    const lit = when(a, `<animate attributeName="opacity" values="0.25;0.25;1;0.25" keyTimes="0;${(i / L).toFixed(3)};${(i / L + 0.04).toFixed(3)};1" dur="3.2s" repeatCount="indefinite"/>`);
+    lamps += `<circle cx="${cx}" cy="${cy}" r="1.6" fill="${p.core[0]}" opacity="${a ? 0.25 : 0.5}">${lit}</circle>`;
+  }
+  const lampboard = `<g>${lamps}<circle r="30" fill="none" stroke="${p.deep}" stroke-width="0.4" stroke-dasharray="1 6" opacity="0.4"/></g>`;
+
+  // central decrypt window — bolted frame + glyph→letter flip + scanline
   const flip = a
-    ? `<g><text x="0" y="5" font-family="ui-monospace,monospace" font-size="16" fill="${p.deep}" text-anchor="middle">Ѯ<animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.45;0.5;0.95;1" dur="3s" repeatCount="indefinite"/></text>` +
-      `<text x="0" y="5" font-family="ui-monospace,monospace" font-size="16" font-weight="bold" fill="${p.core[0]}" text-anchor="middle" opacity="0">A<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.45;0.55;0.95;1" dur="3s" repeatCount="indefinite"/></text></g>`
-    : `<text x="0" y="5" font-family="ui-monospace,monospace" font-size="16" font-weight="bold" fill="${p.core[0]}" text-anchor="middle">A</text>`;
+    ? `<text x="0" y="5.5" font-family="ui-monospace,monospace" font-size="17" fill="${p.deep}" text-anchor="middle">Ѯ<animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.45;0.5;0.95;1" dur="3s" repeatCount="indefinite"/></text>` +
+      `<text x="0" y="5.5" font-family="ui-monospace,monospace" font-size="17" font-weight="bold" fill="${p.core[0]}" text-anchor="middle" opacity="0">A<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.45;0.55;0.95;1" dur="3s" repeatCount="indefinite"/></text>`
+    : `<text x="0" y="5.5" font-family="ui-monospace,monospace" font-size="17" font-weight="bold" fill="${p.core[0]}" text-anchor="middle">A</text>`;
+  const scan = a
+    ? `<rect x="-12" y="-2" width="24" height="2" fill="${p.core[0]}" opacity="0.5"><animate attributeName="y" values="-13;11;-13" dur="2.4s" repeatCount="indefinite"/></rect>`
+    : '';
   const windowFrame =
-    `<rect x="-13" y="-13" width="26" height="26" rx="3" fill="${tone(accent, 0.8, 0.08)}" stroke="${accent}" stroke-width="1.2"/>` +
-    `<rect x="-13" y="-13" width="26" height="26" rx="3" fill="${u('core', uid)}" opacity="0.25"/>`;
+    `<rect x="-14" y="-14" width="28" height="28" rx="3" fill="${tone(accent, 0.8, 0.07)}" stroke="${accent}" stroke-width="1.4"/>` +
+    `<rect x="-14" y="-14" width="28" height="28" rx="3" fill="${u('core', uid)}" opacity="0.22"/>` +
+    `<g fill="${p.light}"><circle cx="-11" cy="-11" r="1.1"/><circle cx="11" cy="-11" r="1.1"/><circle cx="-11" cy="11" r="1.1"/><circle cx="11" cy="11" r="1.1"/></g>`;
 
   return (
-    coreGlow(ctx, { op: 0.15, lo: 0.1, hi: 0.22, dur: 4 }) +
-    rotor(56, 60, 1, 0.7, 0.45) +
-    glyphRing +
-    rotor(44, 26, -1, 1, 0.6) +
-    rotor(32, 18, 1, 1.2, 0.75) +
-    windowFrame + flip
+    coreGlow(ctx, { op: 0.15, lo: 0.1, hi: 0.24, dur: 4 }) +
+    gearRing(58, 36, 80, 1, 0.7, 0.4) +
+    glyphRotor(52, 12, 60, 1, 8, 0.6) +
+    gearRing(44, 24, 40, -1, 1, 0.55) +
+    glyphRotor(40, 10, 34, -1, 7, 0.45) +
+    plugboard +
+    lampboard +
+    windowFrame + `<g>${scan}${flip}</g>`
   );
 }
