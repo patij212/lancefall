@@ -358,7 +358,9 @@ export class World {
     e.hitFlash = 0;
     e.lastDashId = -1;
     e.shielded = shielded && (kind === 'darter' || kind === 'orbiter');
-    e.shieldAngle = 0;
+    // seed the shield FACING the player so a fresh shield has no phantom flank (and the
+    // tracking-lag swing starts from the right place, not from due-east)
+    e.shieldAngle = e.shielded ? Math.atan2(this.player.y - y, this.player.x - x) : 0;
     e.elite = elite;
     e.speedMul = elite ? speedMul * ELITE.speedMul : speedMul;
     e.bulletMul = bulletMul;

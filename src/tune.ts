@@ -497,6 +497,11 @@ export const SHIELD = {
   // there's a real landing arc on the flanks while the shield still rewards a side/back
   // approach. arcHalf MUST equal the rendered arc half-width (render.ts:1011).
   arcHalf: 0.8, // radians (±) — a ~92° frontal block cone
+  // The shield can no longer SNAP to face you — it re-aims at this max angular rate, so
+  // footwork (strafe/circle faster than it can turn) opens a flank to dash through. This
+  // is the cure for a lone shielded darter/orbiter stalling a wave: the laggy arc you see
+  // is the tell for when the kill is open. Tuned so a lone orbiter is reliably down-able.
+  trackRate: 2.0, // rad/s — max shield re-aim speed (tracking lag)
 } as const;
 
 // THE HOLLOW — 5th boss. An intangible phantom: NEVER contact-lethal. It seeds

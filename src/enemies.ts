@@ -1,8 +1,8 @@
 // Enemy AI + bullet emission for the 4 archetypes. Each behavior sets the
 // enemy's velocity and may emit bullets; a common integrate step applies motion.
 
-import { ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER, BOMBER } from './tune';
-import { norm, clamp } from './vec';
+import { ORBITER, SPLITTER, BLOOMER, LANCER, WISP, DRIFTER_TUNE, SHADE_TUNE, HOLLOW, SOVEREIGN, BROODER, HERALD, SEEKER_TUNE, ZONER, BOMBER, SHIELD } from './tune';
+import { norm, clamp, rotateToward } from './vec';
 import { updateDarter } from './enemies/darter';
 import type { World } from './world';
 import type { Enemy, EnemyKind } from './types';
@@ -97,9 +97,12 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
       break;
   }
 
-  // shield faces the player
+  // shield TRACKS the player but with rotational inertia — it can't snap, so footwork
+  // (strafe/circle faster than it can re-aim) opens a flank to dash through. The laggy arc
+  // is the tell. Pure (dt + angle math, no rng) so the seeded Daily stays bit-identical.
   if (e.shielded) {
-    e.shieldAngle = Math.atan2(p.y - e.y, p.x - e.x);
+    const target = Math.atan2(p.y - e.y, p.x - e.x);
+    e.shieldAngle = rotateToward(e.shieldAngle, target, SHIELD.trackRate * dt);
   }
 
   // keep standoff zoners off the walls (playtest: edge-hugging sniper); phase 0 = mobile state
