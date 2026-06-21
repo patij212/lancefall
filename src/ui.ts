@@ -70,7 +70,9 @@ import { buildInspectPanel, type InspectPanel } from './panels/inspect';
 import { buildArchetypePanel } from './panels/archetype';
 import { buildSettingsPanel, type SettingsPanel } from './panels/settings';
 import { LORE, loreUnlocked } from './lore';
-import { decodeView } from './cipherDecode';
+import { decodeView, type DecodeView } from './cipherDecode';
+import { sigilSvgMarkup } from './cipherSigils';
+import { mixHex, hexRgb } from './render/colorMix';
 import { type ShareGif } from './replay';
 import { buildSharePanel, type SharePanel } from './panels/share';
 import { shareBlockView } from './shareBlock';
@@ -573,6 +575,7 @@ export class UI {
   private odFill!: HTMLElement;
   private odLabel!: HTMLElement;
   private cipherEl!: HTMLElement;
+  private cipherSig = ''; // memo key for the READ THE KEY console — rebuild only on change
   private puWrap!: HTMLElement;
   private puFill!: HTMLElement;
   private puLabel!: HTMLElement;
@@ -4443,41 +4446,27 @@ export class UI {
     this.odWrap.classList.toggle('od-ready', ready);
     this.odLabel.textContent = od.cooldown > 0 ? `FADING ${Math.ceil(od.cooldown)}s` : ready ? 'DAYBREAK READY [F]' : 'DAYBREAK';
 
-    // READ THE KEY — the substitution decode (an ode to Turing, *played*). Show the plaintext
-    // MESSAGE you're decrypting + the KEY (letter ↔ ciphered symbol); the player reads the key
-    // and dashes the core showing the next letter's symbol. The next pair is lit as the crib.
+    // READ THE KEY — the boss-cipher console (designed-sigil redesign): one row of step-chips
+    // (plaintext letter / its mark, in dash order). Rebuilt only when the cipher signature
+    // changes (cheap); tinted per boss via inline CSS vars derived from cipher.accent.
     const cipher = world.cipher;
     if (cipher && !cipher.solved) {
       const v = decodeView(cipher);
-      const cls = (i: number) => (i < v.progress ? ' done' : i === v.progress ? ' next' : '');
-      this.cipherEl.replaceChildren(
-        el('span', { class: 'cipher-label' }, 'READ THE KEY'),
-        el(
-          'div',
-          { class: 'cipher-msg' },
-          ...v.plaintext.map((ltr, i) => el('span', { class: 'cipher-glyph' + cls(i) }, ltr)),
-        ),
-        el(
-          'div',
-          { class: 'cipher-key' },
-          ...v.key.map((k, i) =>
-            el(
-              'span',
-              { class: 'cipher-pair' + cls(i) + (v.revealed[i] ? '' : ' dim') },
-              el('span', { class: 'cipher-plain' }, k.plain),
-              el('span', { class: 'cipher-eq' }, '→'),
-              el('span', { class: 'cipher-sym' }, v.revealed[i] ? k.cipher : '?'),
-            ),
-          ),
-        ),
-        // SOLSTICE rotor (Sovereign): the legend steps each key — surface the offset to track.
-        ...(v.cls === 'rotor'
-          ? [el('div', { class: 'cipher-label' }, `ROTOR +${v.rotorOffset}`)]
-          : []),
-      );
+      const sig = `${v.cls}|${cipher.accent}|${v.progress}|${v.rotorOffset}|${v.plaintext.join('')}|${v.revealed.map(Number).join('')}`;
+      if (sig !== this.cipherSig) {
+        this.cipherSig = sig;
+        const accent = cipher.accent || '#fde047';
+        const { r, g, b } = hexRgb(accent);
+        this.cipherEl.style.setProperty('--ckey-accent', accent);
+        this.cipherEl.style.setProperty('--ckey-rgb', `${r}, ${g}, ${b}`);
+        this.cipherEl.style.setProperty('--ckey-sig', mixHex(accent, '#ffffff', 0.18));
+        this.cipherEl.style.setProperty('--ckey-title', mixHex(accent, '#ffffff', 0.4));
+        this.cipherEl.innerHTML = buildCipherKey(v);
+      }
       this.cipherEl.classList.add('on');
     } else {
       this.cipherEl.classList.remove('on');
+      this.cipherSig = '';
     }
 
     // active POWER-UP badge
@@ -4501,6 +4490,33 @@ export class UI {
   }
 }
 
+
+/** Build the READ THE KEY console (the boss-cipher step-chip legend) as an HTML string. Each
+ *  chip = plaintext letter / divider / mark (a designed sigil, or a Caesar letter), in dash
+ *  order; states: done (✓, dim) / next (lifted) / upcoming / hidden (mark withheld). All
+ *  content is internal constants (fixed plaintext words + A–Z Caesar letters + static sigil
+ *  SVG), so the innerHTML sink carries no untrusted input. */
+function buildCipherKey(v: DecodeView): string {
+  const chips = v.key
+    .map((step, i) => {
+      const state = i < v.progress ? 'done' : i === v.progress ? 'next' : 'up';
+      let mark: string;
+      let hidden = '';
+      if (!v.revealed[i]) {
+        mark = '<span class="ckey-lock">▢</span>';
+        hidden = ' hidden';
+      } else if (step.mark.kind === 'sigil') {
+        mark = sigilSvgMarkup(step.mark.index, 'ckey-sig');
+      } else {
+        mark = `<span class="ckey-letter">${step.mark.char}</span>`;
+      }
+      const tick = state === 'done' ? '<span class="ckey-tick">✓</span>' : '';
+      return `<div class="ckey-chip ${state}${hidden}"><span class="ckey-ltr">${step.plain}</span><span class="ckey-div"></span>${mark}${tick}</div>`;
+    })
+    .join('');
+  const rotor = v.cls === 'rotor' ? `<span class="ckey-rotor">ROTOR +${v.rotorOffset}</span>` : '';
+  return `<div class="ckey"><div class="ckey-head"><span class="ckey-dot"></span><span class="ckey-title">READ THE KEY</span>${rotor}</div><div class="ckey-row">${chips}</div></div>`;
+}
 
 /** Render a decoded Build DNA into readable label/value rows. Defensive: unknown
  *  ids (from an older/edited code) are skipped, never looked up blindly. */

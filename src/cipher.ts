@@ -26,6 +26,9 @@ export interface CipherState {
   cls: CipherClass;
   /** the seed this cipher was built from — per-class view params derive from it, purely */
   seed: number;
+  /** VIEW-only: the boss accent for the to-key core tint + HUD key. Defaults to Sovereign
+   *  gold; ring bosses override it at spawn (cipherAccentFor). Never read by the reducer. */
+  accent: string;
 }
 
 /** Stable 32-bit seed from (runSeed, bossWave) — pure, no rng draw. A given
@@ -48,6 +51,7 @@ export function makeCipher(n: number, seed: number, cls: CipherClass = 'substitu
     solved: false,
     cls,
     seed: seed >>> 0,
+    accent: '#fde047', // Sovereign gold; ring bosses override via spawn (cipherAccentFor)
   };
 }
 

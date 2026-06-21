@@ -19,7 +19,8 @@ import type { Lod, SkinDef } from './skins';
 import { themeById } from './themes';
 import { shipById } from './ships';
 import { drawShipSilhouette } from './shipModels';
-import { coreSymbolForSlot } from './cipherDecode';
+import { markFor, type Mark } from './cipherDecode';
+import { sigilFor } from './cipherSigils';
 import {
   washSaturation,
   cityGlowAlpha,
@@ -40,6 +41,22 @@ import { drawEnemyTells } from './render/enemyTells';
 import { drawSpear } from './render/spear';
 import { mix, mixHex, hexRgb } from './render/colorMix';
 import { beaconEnraged } from './bosses/beacon';
+
+// CIPHER core decoded-state colours (the universal "recovered" green; recedes vs the
+// per-boss to-key tint). State always reads via brightness + the mark + a HUD ✓, never hue.
+const CIPHER_DECODED = '#5ce0b0';
+const CIPHER_DECODED_RING = '#34d399';
+// Lazily-built Path2D per designed sigil — Path2D is browser-only, so it's NEVER touched at
+// module load (keeps render.ts importable in a non-DOM test env). Keyed by glyph index 0..9.
+const SIGIL_PATH_CACHE: (Path2D | undefined)[] = [];
+function sigilPath2D(index: number): Path2D {
+  let p = SIGIL_PATH_CACHE[index];
+  if (!p) {
+    p = new Path2D(sigilFor(index).d);
+    SIGIL_PATH_CACHE[index] = p;
+  }
+  return p;
+}
 
 // ── BIOMECHANICAL enemy art direction (Proposal B) ──────────────────────────
 // Enemies/bosses render as "living machines": their shape-coded silhouette
@@ -1608,62 +1625,128 @@ export class Renderer {
     ctx.stroke();
   }
 
+  // A CIPHER core, redrawn as "a lock to crack": a dark inner disc (so the mark reads through
+  // the bloom + COHERENCE wash), a slowly-rotating notched key-ring, and the designed sigil —
+  // or a Caesar LETTER — as the hero, upright. The to-key state takes the per-boss accent; a
+  // decoded core recedes (cool green); the NEXT core lights white ONLY under cipherAssist (no
+  // give-away — decoding IS the act). A11y: rotation/breathing gate off reduceMotion, glow
+  // pulse off reduceFlashing, and state reads via brightness + the mark, never hue alone.
   private drawSovereignCore(ctx: CanvasRenderingContext2D, e: Enemy, r: number): void {
-    const flash = e.hitFlash > 0;
-    // glow
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.45 + 0.3 * Math.sin(e.spawnTime * 6 + e.phase);
-    ctx.fillStyle = SOVEREIGN.coreColor;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-    // spinning diamond shell
-    ctx.save();
-    ctx.rotate(Math.PI / 4 + e.spawnTime * 2);
-    ctx.strokeStyle = flash ? '#ffffff' : '#fde047';
-    ctx.lineWidth = 2.5;
-    rect(ctx, r * 1.1);
-    ctx.restore();
-    // bright pip
-    ctx.fillStyle = flash ? '#ffffff' : '#fff7c2';
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    // CIPHER core — shows the ciphered SYMBOL. The player READS the substitution key on the
-    // HUD to find the next core (no give-away highlight — decoding IS the act). Keyed cores go
-    // green; the NEXT core lights white only under cipherAssist (Casual / opt-in).
     const cipher = this.cipher;
-    if (cipher && !cipher.solved) {
-      const slot = e.phase;
-      const keyed = cipher.order.indexOf(slot) < cipher.progress; // already keyed
-      // `cipherAssist` (Casual / opt-in) re-lights the next core for players who want help
-      const isNext = this.cipherAssistR && cipher.order[cipher.progress] === slot;
-      ctx.save();
-      ctx.lineWidth = isNext ? 3.5 : 2;
-      ctx.globalAlpha = 0.9;
-      ctx.strokeStyle = keyed ? '#34d399' : isNext ? '#ffffff' : 'rgba(253,224,71,0.6)';
+    if (!cipher || cipher.solved) {
+      // no live cipher (cores linger a beat before they shatter) → a calm spent pip
+      ctx.fillStyle = e.hitFlash > 0 ? '#ffffff' : '#fff7c2';
       ctx.beginPath();
-      ctx.arc(0, 0, r * (isNext ? 1.7 : 1.5), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    const slot = e.phase;
+    const keyed = cipher.order.indexOf(slot) < cipher.progress; // already decoded
+    const isNext = this.cipherAssistR && cipher.order[cipher.progress] === slot; // assist highlight
+    const accent = cipher.accent || '#fde047';
+    const color = isNext ? '#ffffff' : keyed ? CIPHER_DECODED : accent;
+    const ringCol = isNext ? '#ffffff' : keyed ? CIPHER_DECODED_RING : accent;
+    const breathe = keyed || this.reduceMotionR ? 0 : 0.5 + 0.5 * Math.sin(e.spawnTime * 2.4 + slot);
+    const spin = this.reduceMotionR ? 0 : e.spawnTime * 0.7;
+    const flick = this.reduceFlashingR ? 0 : breathe;
+
+    ctx.save();
+    ctx.globalAlpha = keyed && !isNext ? 0.62 : 1; // decoded cores recede → eye goes to what's left
+
+    // soft outer glow — live (to-key/next) targets only; reduceFlashing holds it steady
+    if (!keyed || isNext) {
       ctx.save();
-      ctx.font = `bold ${Math.round(r * 0.8)}px 'Space Grotesk', system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      // The SYMBOL must READ — decoding it IS the act. A thin dark outline under a bright
-      // fill keeps it legible on any core fill, through the bloom + the COHERENCE wash.
-      // (Was a near-black fill that vanished on the dark core — the one mark you must read.)
-      const sym = coreSymbolForSlot(cipher, slot);
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = Math.max(2, r * 0.14);
-      ctx.strokeStyle = 'rgba(4,6,12,0.72)';
-      ctx.strokeText(sym, 0, 0);
-      ctx.fillStyle = keyed ? '#34d399' : isNext ? '#ffffff' : '#fde047';
-      ctx.fillText(sym, 0, 0);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = (isNext ? 0.42 : 0.18) + flick * 0.12;
+      ctx.fillStyle = isNext ? '#fff7cf' : accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.75, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     }
+
+    // slowly-rotating notched key-ring (the only moving part; the mark stays upright)
+    ctx.save();
+    ctx.rotate(spin);
+    ctx.globalAlpha = keyed && !isNext ? 0.55 : 0.9;
+    ctx.strokeStyle = ringCol;
+    ctx.lineWidth = isNext ? 2.6 : 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.42, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r * 1.3, Math.sin(a) * r * 1.3);
+      ctx.lineTo(Math.cos(a) * r * 1.52, Math.sin(a) * r * 1.52);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // dark inner disc — guarantees the mark reads through bloom + the COHERENCE wash
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.12, 0, Math.PI * 2);
+    ctx.fillStyle = keyed ? 'rgba(8,24,19,0.92)' : 'rgba(7,10,20,0.93)';
+    ctx.fill();
+    ctx.save();
+    ctx.globalAlpha *= 0.55;
+    ctx.strokeStyle = ringCol;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.restore();
+
+    // a faint accent hearth behind a live mark (warms it apart from the cool decoded green)
+    if (!keyed) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.12 + flick * 0.06;
+      ctx.fillStyle = isNext ? '#ffffff' : accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // the mark — the hero, upright. A hit flash whites it; decoding it IS the act.
+    this.drawCipherMark(ctx, markFor(cipher, slot), r, e.hitFlash > 0 ? '#ffffff' : color);
+    ctx.restore();
+  }
+
+  /** Draw a cipher Mark centred at the origin: a Caesar LETTER (Orbitron, dark-haloed) or a
+   *  designed SIGIL (the unit 0..100 path scaled to a ~r*0.92 footprint, neon stroke). */
+  private drawCipherMark(ctx: CanvasRenderingContext2D, mark: Mark, r: number, color: string): void {
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (mark.kind === 'letter') {
+      ctx.font = `700 ${Math.round(r * 1.1)}px 'Orbitron', 'Space Grotesk', system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = Math.max(2, r * 0.12);
+      ctx.strokeStyle = 'rgba(4,6,12,0.7)'; // thin dark halo keeps the letter legible on any disc
+      ctx.strokeText(mark.char, 0, 1);
+      ctx.fillStyle = color;
+      ctx.fillText(mark.char, 0, 1);
+      ctx.restore();
+      return;
+    }
+    const R = r * 0.92;
+    const def = sigilFor(mark.index);
+    ctx.translate(-R, -R);
+    ctx.scale(R / 50, R / 50); // unit box centre (50,50) → origin; footprint radius R
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 9;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.stroke(sigilPath2D(mark.index));
+    if (def.dot) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(def.dot[0], def.dot[1], def.dot[2], 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   // ── BIOMECH boss draws ───────────────────────────────────────────────────────

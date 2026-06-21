@@ -1,35 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import { makeCipher, cipherSeed, dashCipherCore } from './cipher';
-import { decodeView, plaintextFor, cipherSymbol, caesarShiftLetter, rotateSymbol } from './cipherDecode';
+import { decodeView, plaintextFor, markFor, markKey, caesarShiftLetter, rotateMark, type Mark } from './cipherDecode';
 
-// READ THE KEY must be a REAL substitution decode (not follow-the-highlight): reading the
-// on-HUD key and finding each core by its cipher symbol, in plaintext order, must reproduce
-// the solution. And it must stay pure — it only reads a CipherState (no World, no rng).
+// READ THE KEY must be a REAL decode (not follow-the-highlight): reading the on-HUD key and
+// finding each core by its mark, in plaintext order, must reproduce the solution. And it must
+// stay pure — it only reads a CipherState (no World, no rng). Marks are designed sigils (or
+// shifted letters for Caesar); a mark identifies a core via its stable markKey.
+
+/** index of the core (slot) wearing a given mark */
+const slotOf = (marks: Mark[], m: Mark) => marks.findIndex((x) => markKey(x) === markKey(m));
 
 describe('cipherDecode — a real, solvable substitution view', () => {
-  it('plaintext + symbols + key are all sized to the ring', () => {
+  it('plaintext + marks + key are all sized to the ring', () => {
     const c = makeCipher(5, cipherSeed(20260621, 97));
     const v = decodeView(c);
     expect(v.plaintext.length).toBe(5);
-    expect(v.symbolForSlot.length).toBe(5);
+    expect(v.markForSlot.length).toBe(5);
     expect(v.key.length).toBe(5);
     expect(v.plaintext.join('')).toBe('LIGHT');
   });
 
-  it('the cipher symbols on the cores are distinct (the key is a bijection)', () => {
+  it('the marks on the cores are distinct (the key is a bijection)', () => {
     const v = decodeView(makeCipher(6, cipherSeed(777, 2)));
-    expect(new Set(v.symbolForSlot).size).toBe(6);
+    expect(new Set(v.markForSlot.map(markKey)).size).toBe(6);
   });
 
-  it('reading the key and finding each core by its symbol, in order, solves the cipher', () => {
+  it('reading the key and finding each core by its mark, in order, solves the cipher', () => {
     for (const [n, seed] of [[3, 1], [4, 42], [5, 999], [6, 20260621]] as const) {
       const c = makeCipher(n, cipherSeed(seed, n * 97));
       const v = decodeView(c);
       // simulate a player decoding: for each plaintext letter in order, the key gives its
-      // cipher symbol; the core showing that symbol is the one to dash.
+      // mark; the core showing that mark is the one to dash.
       for (let step = 0; step < n; step++) {
-        const sym = v.key[step].cipher;
-        const slot = v.symbolForSlot.indexOf(sym); // the core displaying that ciphered mark
+        const slot = slotOf(v.markForSlot, v.key[step].mark);
         const r = dashCipherCore(c, slot);
         expect(r === 'progress' || r === 'solved').toBe(true); // never a wrong key
       }
@@ -37,24 +40,25 @@ describe('cipherDecode — a real, solvable substitution view', () => {
     }
   });
 
-  it('plaintextFor / cipherSymbol are stable pure lookups', () => {
+  it('plaintextFor / markFor are stable pure lookups', () => {
     expect(plaintextFor(3)).toBe('DAY');
     expect(plaintextFor(4)).toBe('DAWN');
-    expect(cipherSymbol(0)).toBe(cipherSymbol(0));
-    expect(cipherSymbol(0)).not.toBe(cipherSymbol(1));
+    const c = makeCipher(4, cipherSeed(1, 4));
+    expect(markKey(markFor(c, 0))).toBe(markKey(markFor(c, 0)));
+    expect(markKey(markFor(c, 0))).not.toBe(markKey(markFor(c, 1))); // distinct slots, distinct marks
   });
 });
 
 describe('decodeView — extended, class-aware shape', () => {
-  it('substitution is unchanged: full key, all revealed, no rotor', () => {
+  it('substitution is unchanged: full key, all revealed, no rotor, all sigils', () => {
     const c = makeCipher(5, cipherSeed(20260621, 97), 'substitution');
     const v = decodeView(c);
     expect(v.cls).toBe('substitution');
     expect(v.rotorOffset).toBe(0);
     expect(v.revealed).toEqual([true, true, true, true, true]);
-    // the legacy solve property still holds (read the full key in order → solve)
     expect(v.key.length).toBe(5);
-    expect(new Set(v.symbolForSlot).size).toBe(5);
+    expect(new Set(v.markForSlot.map(markKey)).size).toBe(5);
+    expect(v.markForSlot.every((m) => m.kind === 'sigil')).toBe(true);
   });
 });
 
@@ -65,8 +69,8 @@ describe('decodeView — Caesar (the crib)', () => {
     expect(v.cls).toBe('caesar');
     expect(v.revealed.filter(Boolean).length).toBe(1); // just the crib
     expect(v.revealed[0]).toBe(true);
-    expect(new Set(v.symbolForSlot).size).toBe(5); // distinct shifted letters
-    expect(v.symbolForSlot.every((s) => /^[A-Z]$/.test(s))).toBe(true);
+    expect(new Set(v.markForSlot.map(markKey)).size).toBe(5); // distinct shifted letters
+    expect(v.markForSlot.every((m) => m.kind === 'letter' && /^[A-Z]$/.test(m.char))).toBe(true);
   });
 
   it('deducing k from the crib, then shifting each letter, solves the cipher', () => {
@@ -75,11 +79,12 @@ describe('decodeView — Caesar (the crib)', () => {
       const v = decodeView(c);
       // a player derives k from the one revealed pair (plain[0] → its shifted letter)…
       const crib = v.key[0];
-      const k = (crib.cipher.charCodeAt(0) - crib.plain.charCodeAt(0) + 26) % 26;
+      const cribChar = crib.mark.kind === 'letter' ? crib.mark.char : '?';
+      const k = (cribChar.charCodeAt(0) - crib.plain.charCodeAt(0) + 26) % 26;
       // …then for each plaintext letter computes its shifted mark and finds that core.
       for (let step = 0; step < n; step++) {
-        const mark = caesarShiftLetter(v.plaintext[step], k);
-        const slot = v.symbolForSlot.indexOf(mark);
+        const mark: Mark = { kind: 'letter', char: caesarShiftLetter(v.plaintext[step], k) };
+        const slot = slotOf(v.markForSlot, mark);
         const r = dashCipherCore(c, slot);
         expect(r === 'progress' || r === 'solved').toBe(true);
       }
@@ -109,8 +114,8 @@ describe('decodeView — partial (the earned key)', () => {
     for (let step = 0; step < 6; step++) {
       const v = decodeView(c); // re-read each step (reveal of the current step tracks progress)
       expect(v.revealed[step]).toBe(true);
-      expect(v.key[step].cipher).toBe(truth[step].cipher); // a revealed pair is never a lie
-      const slot = v.symbolForSlot.indexOf(v.key[step].cipher);
+      expect(markKey(v.key[step].mark)).toBe(markKey(truth[step].mark)); // a revealed pair is never a lie
+      const slot = slotOf(v.markForSlot, v.key[step].mark);
       const r = dashCipherCore(c, slot);
       expect(r === 'progress' || r === 'solved').toBe(true);
     }
@@ -131,10 +136,10 @@ describe('decodeView — rotor (the stepping key, Enigma)', () => {
       const c = makeCipher(n, cipherSeed(seed, n * 17), 'rotor');
       for (let step = 0; step < n; step++) {
         const v = decodeView(c);
-        const off = v.rotorOffset;             // shown on the HUD as a dial
-        const displayed = v.key[step].cipher;  // the rotated mark the player reads
-        const trueMark = rotateSymbol(displayed, -off); // un-rotate by the offset
-        const slot = v.symbolForSlot.indexOf(trueMark);
+        const off = v.rotorOffset;            // shown on the HUD as a dial
+        const displayed = v.key[step].mark;   // the rotated mark the player reads
+        const trueMark = rotateMark(displayed, -off); // un-rotate by the offset
+        const slot = slotOf(v.markForSlot, trueMark);
         const r = dashCipherCore(c, slot);
         expect(r === 'progress' || r === 'solved').toBe(true);
       }

@@ -7,17 +7,19 @@
 
 import { el } from './dom';
 import { BESTIARY, CODEX_CATEGORIES } from '../bestiary';
+import { sigilSvgMarkup } from '../cipherSigils';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
-// The CIPHER teaching crib (mock): a fixed glyph→letter legend that spells TURING — the
-// thematic key behind the real per-seed cipher ("an ode to Alan Turing", see cipher.ts). The
-// live boss cipher is a deterministic per-seed permutation; this legend teaches HOW to read it.
-const CIPHER_CRIB: ReadonlyArray<readonly [string, string]> = [
-  ['T', '▯'], ['U', '◈'], ['R', '⬡'], ['I', '◇'], ['N', '⬢'], ['G', '✦'],
+// The CIPHER teaching crib (mock): a fixed mark→letter legend that spells TURING — the
+// thematic key behind the real per-seed cipher ("an ode to Alan Turing", see cipher.ts). Each
+// mark is one of the designed cipher sigils (by index); the live boss cipher is a deterministic
+// per-seed permutation, so this legend teaches HOW to read a mark, not the answer.
+const CIPHER_CRIB: ReadonlyArray<readonly [string, number]> = [
+  ['T', 4], ['U', 7], ['R', 5], ['I', 2], ['N', 8], ['G', 6],
 ];
 
-/** The "READ THE KEY · THE CIPHER" explainer + 6-glyph legend for the CODEX panel. */
+/** The "READ THE KEY · THE CIPHER" explainer + 6-mark legend for the CODEX panel. */
 export function renderCipherLegend(): HTMLElement {
   const box = el('div', { class: 'cipher-box' });
   box.append(
@@ -25,14 +27,16 @@ export function renderCipherLegend(): HTMLElement {
       'div',
       { class: 'cipher-explain' },
       'Each boss locks its core behind a substitution cipher. A crib is pre-lit; ',
-      el('b', {}, 'derive the next glyph'),
-      " and dash its core to decrypt it — a wrong dash strikes the glyph from the legend. Break all six to read the Sovereign's last key.",
+      el('b', {}, 'derive the next mark'),
+      " and dash the core wearing it to decrypt — a wrong dash strikes the mark from the legend. Break all six to read the Sovereign's last key.",
     ),
   );
   const legend = el('div', { class: 'cipher-legend' });
-  for (const [letter, glyph] of CIPHER_CRIB) {
+  for (const [letter, sigil] of CIPHER_CRIB) {
+    const gl = el('div', { class: 'gl' });
+    gl.innerHTML = sigilSvgMarkup(sigil, 'ckey-sig'); // static sigil SVG (no untrusted input)
     legend.append(
-      el('div', { class: 'cipher-pair' }, el('div', { class: 'gl' }, glyph), el('div', { class: 'ar' }, '↓'), el('div', { class: 'lt' }, letter)),
+      el('div', { class: 'cipher-pair' }, gl, el('div', { class: 'ar' }, '↓'), el('div', { class: 'lt' }, letter)),
     );
   }
   box.append(legend);

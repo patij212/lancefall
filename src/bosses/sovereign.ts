@@ -3,13 +3,24 @@
 // this file owns the side-effecting loop + the core/cipher spawn helpers. Split
 // out of boss.ts so the dispatch file stays thin (see ../bosses/* siblings).
 
-import { SOVEREIGN, ZONE, ORB } from '../tune';
+import { SOVEREIGN, ZONE, ORB, WARDEN, WEAVER, BEACON } from '../tune';
 import { cipherSeed, makeCipher, cipherClassFor } from '../cipher';
 import { norm } from '../vec';
 import { sovereignFinale, novaSpiralTelegraphFrac } from '../sovereign';
 import { zoneTarget, tickReflectableOrb } from './util';
 import type { World } from '../world';
 import type { Enemy } from '../types';
+
+/** The cipher's VIEW accent — the to-key core tint + HUD key colour for this boss. Pure
+ *  (boss kind → fixed colour), set outside world.rng, so it never perturbs a seeded run. */
+function cipherAccentFor(kind: string): string {
+  switch (kind) {
+    case 'warden': return WARDEN.color;
+    case 'weaver': return WEAVER.color;
+    case 'beacon': return BEACON.color;
+    default: return SOVEREIGN.color; // sovereign + any fallback → decryption gold
+  }
+}
 
 /** Fire an aimed fan of `n` bullets at the player. */
 function fireAimedFan(e: Enemy, world: World, n: number, spread: number, sp: number, color: string): void {
@@ -51,6 +62,7 @@ export function spawnSovereignCores(world: World, boss: Enemy): void {
   // hash of (seed, bossWave) via a LOCAL generator — shared on a Daily seed and
   // NEVER drawing world.rng, so the scoring stream stays bit-identical.
   world.cipher = makeCipher(SOVEREIGN.coreCount, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle), cipherClassFor(boss.kind));
+  world.cipher.accent = cipherAccentFor(boss.kind); // view-only tint (Sovereign → gold)
   world.cipherCycle++; // each re-lock is a fresh code
 }
 
@@ -73,6 +85,7 @@ export function spawnCipherRing(world: World, boss: Enemy, n: number): void {
   }
   boss.cipherExposed = 0;
   world.cipher = makeCipher(n, cipherSeed(world.seed, boss.bossWave * 97 + world.cipherCycle), cipherClassFor(boss.kind));
+  world.cipher.accent = cipherAccentFor(boss.kind); // view-only tint (Warden/Weaver/Beacon)
   world.cipherCycle++; // each re-lock is a fresh code
 }
 

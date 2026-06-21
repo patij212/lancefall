@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LANCEFALL — boss cipher redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --gold:#fde047; --gold-soft:#fff3a8; --green:#34d399; --amber:#fbbf24; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; background:#06090f; color:#e8eefc; font-family:'Rajdhani',sans-serif; }
+  .page { padding:26px 30px 50px; }
+  h1 { font-family:'Orbitron',sans-serif; font-weight:900; letter-spacing:.16em; font-size:20px; margin:0 0 2px; color:#fff; }
+  .sub { color:#7e8aa8; font-size:14px; letter-spacing:.04em; margin:0 0 22px; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start; }
+  .col { }
+  .tag { display:inline-block; font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.28em; font-size:12px; padding:5px 12px; border-radius:6px; margin-bottom:12px; }
+  .tag.cur { color:#8b95b2; border:1px solid rgba(139,149,178,.4); }
+  .tag.new { color:#0a0e1a; background:linear-gradient(90deg,var(--gold),var(--gold-soft)); }
+  .stage { position:relative; width:100%; aspect-ratio:1/0.82; border-radius:14px; overflow:hidden;
+           background:radial-gradient(120% 120% at 50% 38%, #0d1424 0%, #080c16 55%, #05080e 100%);
+           border:1px solid rgba(120,140,190,.14); }
+  canvas { position:absolute; inset:0; width:100%; height:100%; }
+  /* ── HUD legend host sits over the bottom of each stage ── */
+  .hudwrap { position:absolute; left:50%; bottom:16px; transform:translateX(-50%); pointer-events:none; }
+
+  /* ════ CURRENT HUD (faithful to live .hud-cipher) ════ */
+  .cipher-cur { display:flex; flex-direction:column; align-items:center; gap:7px; font-family:'JetBrains Mono',monospace; }
+  .cipher-cur .lbl { color:var(--amber); letter-spacing:.25em; font-size:11px; opacity:.85; }
+  .cipher-cur .msg, .cipher-cur .key { display:flex; gap:6px; align-items:center; justify-content:center; flex-wrap:wrap; }
+  .cipher-cur .g { width:26px; height:26px; display:grid; place-items:center; border:1px solid rgba(253,224,71,.5);
+                   border-radius:6px; color:#fde047; font-weight:700; font-size:14px; background:rgba(8,11,23,.55); }
+  .cipher-cur .g.done { opacity:.4; border-color:#34d399; color:#34d399; }
+  .cipher-cur .g.next { border-color:#fff; color:#fff; box-shadow:0 0 12px rgba(255,255,255,.5); }
+  .cipher-cur .pair { display:inline-flex; align-items:center; gap:2px; font-size:12px; padding:2px 7px; border-radius:5px;
+                      border:1px solid rgba(253,224,71,.25); color:rgba(253,224,71,.8); }
+  .cipher-cur .pair .pl { color:#e8eefc; font-weight:700; }
+  .cipher-cur .pair .eq { opacity:.5; }
+  .cipher-cur .pair .sy { color:#fbbf24; font-weight:700; }
+  .cipher-cur .pair.done { opacity:.4; border-color:#34d399; }
+  .cipher-cur .pair.next { border-color:#fff; box-shadow:0 0 10px rgba(255,255,255,.4); }
+  .cipher-cur .pair.next .pl, .cipher-cur .pair.next .sy { color:#fff; }
+
+  /* ════ REDESIGN HUD — one row of step-chips inside a console strip ════ */
+  /* per-boss tint via --ck-accent (Warden crimson / Weaver violet / Beacon sky / Sovereign gold) */
+  .ck { --ck-accent:#fde047; --sig:color-mix(in srgb, var(--ck-accent) 82%, #ffffff);
+        display:flex; flex-direction:column; align-items:center; gap:11px; padding:14px 20px 16px;
+        border-radius:16px; background:rgba(7,11,20,.78);
+        border:1px solid color-mix(in srgb, var(--ck-accent) 30%, transparent);
+        box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 14px 38px -12px rgba(0,0,0,.85); backdrop-filter:blur(2px); }
+  .ck-head { display:flex; align-items:center; gap:10px; }
+  .ck-head .dot { width:8px; height:8px; border-radius:50%; background:var(--ck-accent); box-shadow:0 0 9px var(--ck-accent); }
+  .ck-head .t { font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.36em; font-size:14px;
+                color:color-mix(in srgb, var(--ck-accent) 60%, #ffffff); }
+  .ck-head .rotor { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.12em; color:#b8c6e6;
+                    border:1px solid rgba(159,176,212,.35); border-radius:6px; padding:3px 9px; }
+  .ck-row { display:flex; gap:10px; align-items:flex-end; }
+  .chip { position:relative; width:58px; display:flex; flex-direction:column; align-items:center; gap:5px;
+          padding:9px 0 8px; border-radius:12px; background:rgba(15,21,37,.72); transition:none;
+          border:1px solid color-mix(in srgb, var(--ck-accent) 34%, transparent); }
+  .chip .ltr { font-family:'Orbitron',sans-serif; font-weight:700; font-size:20px; line-height:1; color:#f2f6ff; }
+  .chip .div { width:62%; height:1px; background:color-mix(in srgb, var(--ck-accent) 36%, transparent); margin:1px 0 0; }
+  .chip .sig { width:34px; height:34px; display:block; }
+  .chip .sig path { fill:none; stroke:var(--sig); stroke-width:9.5; stroke-linecap:round; stroke-linejoin:round; }
+  .chip .sig circle { fill:var(--sig); stroke:none; }
+  /* states */
+  .chip.up { opacity:.96; }
+  .chip.done { border-color:rgba(52,211,153,.55); background:rgba(16,40,32,.5); opacity:.82; }
+  .chip.done .ltr { color:var(--green); }
+  .chip.done .div { background:rgba(52,211,153,.3); }
+  .chip.done .sig path { stroke:var(--green); }
+  .chip.done .sig circle { fill:var(--green); }
+  .chip.done .tick { position:absolute; top:-7px; right:-6px; width:17px; height:17px; border-radius:50%; background:var(--green);
+                     color:#06140e; font-size:11px; font-weight:900; display:grid; place-items:center; font-family:'Orbitron',sans-serif; }
+  .chip.next { border-color:#fff; background:rgba(34,38,30,.6); transform:translateY(-4px) scale(1.16);
+               box-shadow:0 0 0 1px rgba(255,255,255,.55), 0 0 26px color-mix(in srgb, var(--ck-accent) 60%, transparent); }
+  .chip.next .ltr { color:#fff; }
+  .chip.next .div { background:rgba(255,255,255,.45); }
+  .chip.next .sig path { stroke:#fff; }
+  .chip.next .sig circle { fill:#fff; }
+  .chip.hidden .sig { opacity:.5; }
+  .chip.hidden .lock { width:30px; height:30px; display:grid; place-items:center; color:#7d8bad; font-size:18px; }
+  .note { margin-top:34px; color:#9aa6c4; font-size:14px; line-height:1.65; max-width:900px; }
+  .note b { color:#e8eefc; font-weight:700; }
+  .legend2 { display:flex; gap:18px; margin-top:14px; flex-wrap:wrap; color:#8b95b2; font-size:13px; }
+  .legend2 span b { color:#cdd6ee; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>THE BOSS CIPHER — READABILITY &amp; POLISH PASS</h1>
+  <p class="sub">Same mechanic, same a11y guarantees. Left: live. Right: designed sigils + rebuilt legend &amp; cores.</p>
+
+  <div class="cols">
+    <div class="col">
+      <span class="tag cur">CURRENT — LIVE</span>
+      <div class="stage">
+        <canvas id="cvCur"></canvas>
+        <div class="hudwrap"><div class="cipher-cur" id="hudCur"></div></div>
+      </div>
+    </div>
+    <div class="col">
+      <span class="tag new">REDESIGN</span>
+      <div class="stage">
+        <canvas id="cvNew"></canvas>
+        <div class="hudwrap"><div id="hudNew"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend2">
+    <span><b>state read:</b> brightness + the mark, never hue alone</span>
+    <span><b style="color:var(--gold)">●</b> to key</span>
+    <span><b style="color:#fff">●</b> next</span>
+    <span><b style="color:var(--green)">●</b> decoded</span>
+  </div>
+
+  <p class="note">
+    Decoding <b>SOLACE</b> — two cores keyed (S, O), next is <b>L</b>. The redesign collapses the old two-row
+    message + key into <b>one row of step-chips</b> (letter over its mark, in dash order), so you read the word and
+    its target sigil in one place. The orbiting cores wear the <b>same designed sigils</b> on a dark inner disc so the
+    mark always reads through bloom &amp; the COHERENCE wash; decoded cores recede so the eye goes to what's left.
+  </p>
+
+  <h2 style="font-family:'Orbitron',sans-serif;font-weight:700;letter-spacing:.1em;font-size:14px;color:#cdd6ee;margin:26px 0 4px;">STATES &amp; CLASSES THE SYSTEM COVERS</h2>
+  <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:start;margin-top:10px;">
+    <div>
+      <div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(120,140,190,.14);
+                  background:radial-gradient(120% 120% at 50% 50%, #0d1424 0%, #070b14 70%);height:150px;">
+        <canvas id="cvVariants" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+      </div>
+      <div class="legend2" style="margin-top:8px;">
+        <span><b style="color:#ffe35c">●</b> to key (breathing)</span>
+        <span><b style="color:#fff">●</b> next — assist on</span>
+        <span><b style="color:#5ce0b0">●</b> decoded (recedes)</span>
+        <span><b style="color:#cdd6ee">K</b> Caesar letter (Warden)</span>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start;">
+        <div id="hudHidden"></div>
+        <div id="hudRotor"></div>
+      </div>
+      <p class="note" style="margin-top:12px;">
+        Caesar (Warden) &amp; partial (Beacon) keep <b>hidden</b> chips — letter shown, mark withheld until earned.
+        The Sovereign's rotor surfaces its <b>offset</b> so the stepping key stays trackable.
+      </p>
+    </div>
+  </div>
+
+  <h2 style="font-family:'Orbitron',sans-serif;font-weight:700;letter-spacing:.1em;font-size:14px;color:#cdd6ee;margin:30px 0 4px;">PER-BOSS TINT — to-key takes the boss's accent</h2>
+  <p class="sub" style="margin:0 0 10px;">decoded stays green (universal) &amp; next stays white-hot across every boss; only the live mark colour changes.</p>
+  <div style="position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(120,140,190,.14);
+              background:radial-gradient(120% 120% at 50% 45%, #0d1424 0%, #070b14 72%);height:140px;max-width:760px;">
+    <canvas id="cvPerBoss" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Designed sigil set — 10 maximally-distinct marks (replace Σ Δ Λ Φ Ψ Ω Θ Ξ Π Γ).
+// One source of truth: an SVG path 'd' (+ optional centre dot) used by BOTH the
+// DOM legend (<svg>) and the canvas cores (Path2D). Normalised to a 100×100 box.
+// ─────────────────────────────────────────────────────────────────────────────
+const SIGILS = [
+  { d:"M74 50 A24 24 0 1 0 26 50 A24 24 0 1 0 74 50", dot:[50,50,5] },      // 0 orb
+  { d:"M50 20 L79 73 L21 73 Z M35 56 L65 56" },                            // 1 spire
+  { d:"M50 18 L80 50 L50 82 L20 50 Z M50 31 L50 69" },                     // 2 rift
+  { d:"M26 45 L50 28 L74 45 M26 67 L50 50 L74 67" },                       // 3 cascade
+  { d:"M50 20 L50 80 M34 20 L66 20 M34 80 L66 80" },                       // 4 beam
+  { d:"M50 18 L78 34 L78 66 L50 82 L22 66 L22 34 Z" },                     // 5 ward
+  { d:"M50 20 L50 80 M27 33 L73 67 M73 33 L27 67" },                       // 6 burst
+  { d:"M68 27 A30 30 0 1 0 68 73", dot:[72,50,4.5] },                      // 7 crescent
+  { d:"M50 80 L50 20 M50 37 L34 22 M50 37 L66 22 M41 80 L59 80" },         // 8 trident
+  { d:"M40 60 L40 40 L60 40 L60 60 L34 60 L34 32 L72 32" },               // 9 coil
+];
+const GREEK = ['Σ','Δ','Λ','Φ','Ψ','Ω','Θ','Ξ','Π','Γ'];
+
+// Scenario: decoding SOLACE (n=6). glyph[slot] = which sigil that core wears.
+// order = required dash order (slots). progress = correct dashes so far.
+const WORD = 'SOLACE';
+const N = 6;
+const glyphs = [4, 7, 1, 9, 2, 5];          // sigil index per orbit slot
+const order  = [2, 0, 5, 1, 4, 3];          // dash order, as slot indices
+const progress = 2;                          // S, O keyed; next = L
+const revealed = [true,true,true,true,true,true]; // substitution = full key
+
+// derived per dash-step i: slot, sigil-index, plaintext letter, state
+const steps = order.map((slot, i) => ({
+  i, slot, gi: glyphs[slot], ltr: WORD[i],
+  state: i < progress ? 'done' : i === progress ? 'next' : 'up',
+  revealed: revealed[i],
+}));
+// per slot: find its step (so a core knows its state + letter)
+const slotStep = {};
+steps.forEach(s => slotStep[s.slot] = s);
+
+// ── SVG sigil for the DOM legend ──
+function sigilSVG(gi) {
+  const s = SIGILS[gi];
+  const dot = s.dot ? `<circle cx="${s.dot[0]}" cy="${s.dot[1]}" r="${s.dot[2]}"/>` : '';
+  return `<svg class="sig" viewBox="0 0 100 100" aria-hidden="true"><path d="${s.d}"/>${dot}</svg>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HUD: CURRENT (faithful) — message row + key row
+// ─────────────────────────────────────────────────────────────────────────────
+(function renderCurHud(){
+  const host = document.getElementById('hudCur');
+  const cls = i => i < progress ? ' done' : i === progress ? ' next' : '';
+  const msg = WORD.split('').map((l,i)=>`<span class="g${cls(i)}">${l}</span>`).join('');
+  const key = steps.map((s,i)=>`<span class="pair${cls(i)}"><span class="pl">${s.ltr}</span><span class="eq">→</span><span class="sy">${GREEK[s.gi]}</span></span>`).join('');
+  host.innerHTML = `<span class="lbl">READ THE KEY</span><div class="msg">${msg}</div><div class="key">${key}</div>`;
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HUD: REDESIGN — console strip + one row of step-chips
+// ─────────────────────────────────────────────────────────────────────────────
+(function renderNewHud(){
+  const host = document.getElementById('hudNew');
+  const chips = steps.map(s => {
+    const body = s.revealed
+      ? sigilSVG(s.gi)
+      : `<span class="lock">▢</span>`;
+    const tick = s.state==='done' ? `<span class="tick">✓</span>` : '';
+    const hid = s.revealed ? '' : ' hidden';
+    return `<div class="chip ${s.state}${hid}"><span class="ltr">${s.ltr}</span><span class="div"></span>${body}${tick}</div>`;
+  }).join('');
+  host.innerHTML = `<div class="ck" style="--ck-accent:#a855f7">
+      <div class="ck-head"><span class="dot"></span><span class="t">READ THE KEY</span></div>
+      <div class="ck-row">${chips}</div>
+    </div>`;
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CANVAS — a boss with an orbiting ring of cipher cores (current vs redesign)
+// ─────────────────────────────────────────────────────────────────────────────
+function setup(cv){
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  const r = cv.getBoundingClientRect();
+  cv.width = r.width*dpr; cv.height = r.height*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr);
+  return { ctx, w:r.width, h:r.height };
+}
+
+function drawBossBody(ctx, cx, cy, R, accent){
+  // simple stand-in boss silhouette (focus is the cipher, not the biomech art)
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.globalAlpha = .9;
+  ctx.fillStyle = '#0e1626';
+  ctx.strokeStyle = accent; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for(let k=0;k<6;k++){ const a=Math.PI/6 + k/6*Math.PI*2; const x=Math.cos(a)*R, y=Math.sin(a)*R; k?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = accent; ctx.globalAlpha=.5;
+  ctx.beginPath(); ctx.arc(0,0,R*0.34,0,7); ctx.fill();
+  ctx.restore();
+}
+
+// ── CURRENT core (faithful replica of drawSovereignCore) ──
+function drawCoreCurrent(ctx, x, y, cr, t, slot){
+  const st = slotStep[slot];
+  const keyed = st && st.state==='done';
+  const isNext = false; // assist off by default
+  ctx.save(); ctx.translate(x,y);
+  // glow
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  ctx.globalAlpha = .45 + .3*Math.sin(t*6+slot); ctx.fillStyle='#fff3a8';
+  ctx.beginPath(); ctx.arc(0,0,cr*1.3,0,7); ctx.fill(); ctx.restore();
+  // spinning diamond shell
+  ctx.save(); ctx.rotate(Math.PI/4 + t*2);
+  ctx.strokeStyle = '#fde047'; ctx.lineWidth=2.5;
+  const s=cr*1.1; ctx.strokeRect(-s,-s,s*2,s*2); ctx.restore();
+  // bright pip
+  ctx.fillStyle='#fff7c2'; ctx.beginPath(); ctx.arc(0,0,cr*0.4,0,7); ctx.fill();
+  // state ring
+  ctx.save(); ctx.lineWidth=2; ctx.globalAlpha=.9;
+  ctx.strokeStyle = keyed ? '#34d399' : 'rgba(253,224,71,.6)';
+  ctx.beginPath(); ctx.arc(0,0,cr*1.5,0,7); ctx.stroke(); ctx.restore();
+  // greek symbol
+  ctx.save();
+  ctx.font = `bold ${Math.round(cr*0.8)}px 'Space Grotesk', system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineJoin='round';
+  ctx.lineWidth=Math.max(2,cr*0.14); ctx.strokeStyle='rgba(4,6,12,.72)';
+  ctx.strokeText(GREEK[st?st.gi:0],0,0);
+  ctx.fillStyle = keyed ? '#34d399' : '#fde047';
+  ctx.fillText(GREEK[st?st.gi:0],0,0);
+  ctx.restore();
+  ctx.restore();
+}
+
+// ── REDESIGN core — designed sigil on a dark disc inside a key-ring ──
+const sigilPaths = SIGILS.map(s => ({ p:new Path2D(s.d), dot:s.dot }));
+function drawSigil(ctx, gi, R, color, glow){
+  // R = target radius footprint; sigil normalised box is 100 (centre 50)
+  ctx.save();
+  ctx.translate(-R, -R); ctx.scale(R/50, R/50);
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.strokeStyle = color; ctx.lineWidth = 9;
+  if(glow){ ctx.shadowColor=color; ctx.shadowBlur=14; }
+  ctx.stroke(sigilPaths[gi].p);
+  const d = sigilPaths[gi].dot;
+  if(d){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(d[0],d[1],d[2],0,7); ctx.fill(); }
+  ctx.restore();
+}
+// letterMark: pass a single character to render a Caesar core (Warden) instead of a sigil.
+// opts.accent: the boss accent for the to-key state (default Sovereign gold).
+const DECODED = '#5ce0b0', DECODED_RING = '#34d399';
+function drawCoreNew(ctx, x, y, cr, t, slot, opts){
+  opts = opts || {};
+  const st = slotStep[slot];
+  const keyed = opts.keyed!=null ? opts.keyed : (st && st.state==='done');
+  const isNext = !!opts.next; // assist-on highlight of the next core
+  const gi = opts.gi!=null ? opts.gi : (st?st.gi:0);
+  const letterMark = opts.letter || null;
+  const accent = opts.accent || '#fde047';
+  // palette: to-key = boss accent, decoded = green (recedes, universal), next = white-hot
+  const color   = isNext ? '#ffffff' : keyed ? DECODED      : accent;
+  const ringCol = isNext ? '#ffffff' : keyed ? DECODED_RING : accent;
+  const breathe = keyed ? 0 : 0.5 + 0.5*Math.sin(t*2.4 + slot); // to-key cores gently invite
+  ctx.save(); ctx.translate(x,y);
+  ctx.globalAlpha = keyed && !isNext ? 0.62 : 1; // decoded cores recede — eye goes to what's left
+  // soft outer glow (none on keyed — keeps the bright bloom on the live targets)
+  if(!keyed || isNext){
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=(isNext?.42:.18)+ breathe*0.12;
+    ctx.fillStyle = isNext ? '#fff7cf' : accent;
+    ctx.beginPath(); ctx.arc(0,0,cr*1.75,0,7); ctx.fill(); ctx.restore();
+  }
+  // slowly-rotating key-ring (notched) — the only moving part; the mark stays upright
+  ctx.save(); ctx.rotate(t*0.7); ctx.globalAlpha = keyed&&!isNext ? 0.6 : 0.9;
+  ctx.strokeStyle = ringCol; ctx.lineWidth = isNext?2.6:2;
+  ctx.beginPath(); ctx.arc(0,0,cr*1.42,0,7); ctx.stroke();
+  for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*cr*1.30, Math.sin(a)*cr*1.30);
+    ctx.lineTo(Math.cos(a)*cr*1.52, Math.sin(a)*cr*1.52); ctx.stroke(); }
+  ctx.restore();
+  // dark inner disc — guarantees the mark reads through any wash/bloom
+  ctx.beginPath(); ctx.arc(0,0,cr*1.12,0,7);
+  ctx.fillStyle = keyed ? 'rgba(8,24,19,.92)' : 'rgba(7,10,20,.93)'; ctx.fill();
+  ctx.save(); ctx.globalAlpha *= 0.55; ctx.strokeStyle = ringCol; ctx.lineWidth=1.4; ctx.stroke(); ctx.restore();
+  // a faint accent hearth behind a live (to-key) mark so it reads warm vs the cool green
+  if(!keyed){
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.12+breathe*0.06;
+    ctx.fillStyle = isNext ? '#ffffff' : accent;
+    ctx.beginPath(); ctx.arc(0,0,cr*0.8,0,7); ctx.fill(); ctx.restore();
+  }
+  // the mark — the hero, upright, glowing. Letter (Caesar) or designed sigil.
+  if(letterMark){
+    ctx.save();
+    ctx.font = `700 ${Math.round(cr*1.1)}px 'Orbitron', system-ui, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowColor=color; ctx.shadowBlur=12; ctx.fillStyle=color;
+    ctx.fillText(letterMark,0,1); ctx.restore();
+  } else {
+    drawSigil(ctx, gi, cr*0.92, color, true);
+  }
+  ctx.restore();
+}
+
+function paintStage(cv, coreFn, accent){
+  const { ctx, w, h } = setup(cv);
+  const cx=w/2, cy=h*0.40, R=Math.min(w,h)*0.13;
+  const ringR = Math.min(w,h)*0.30;
+  let t=0;
+  function frame(){
+    ctx.clearRect(0,0,w,h);
+    drawBossBody(ctx, cx, cy, R, accent || '#a855f7'); // Weaver stand-in
+    for(let s=0;s<N;s++){
+      const a = -Math.PI/2 + s/N*Math.PI*2;
+      const x = cx + Math.cos(a)*ringR, y = cy + Math.sin(a)*ringR;
+      coreFn(ctx, x, y, Math.min(w,h)*0.052, t, s, { accent });
+    }
+    t += 1/60;
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ── variants strip: 4 example cores (to-key / next-assist / decoded / Caesar letter) ──
+function paintVariants(cv){
+  const { ctx, w, h } = setup(cv);
+  const cr = Math.min(h*0.30, 30);
+  const xs = [0.16,0.39,0.62,0.85].map(f=>f*w), cy=h*0.5;
+  const specs = [
+    { gi:5, keyed:false, accent:'#38bdf8' },          // to-key (breathing) — Beacon sky
+    { gi:9, keyed:false, next:true, accent:'#38bdf8' },// next (assist white)
+    { gi:1, keyed:true,  accent:'#38bdf8' },          // decoded (green, recedes)
+    { letter:'K', keyed:false, accent:'#ff3b6b' },    // Caesar letter core — Warden crimson
+  ];
+  let t=0;
+  function frame(){
+    ctx.clearRect(0,0,w,h);
+    specs.forEach((s,i)=> drawCoreNew(ctx, xs[i], cy, cr, t, -1, s));
+    t+=1/60; requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ── per-boss tint palette: one to-key core in each cipher boss's accent ──
+const BOSS_TINTS = [
+  { name:'WARDEN',    accent:'#ff3b6b', gi:5, letter:'K' }, // Caesar → letter
+  { name:'WEAVER',    accent:'#a855f7', gi:2 },
+  { name:'BEACON',    accent:'#38bdf8', gi:3 },
+  { name:'SOVEREIGN', accent:'#fde047', gi:6 },
+];
+function paintPerBoss(cv){
+  const { ctx, w, h } = setup(cv);
+  const cr = Math.min(h*0.30, 30);
+  const n = BOSS_TINTS.length;
+  const cy = h*0.42;
+  let t=0;
+  function frame(){
+    ctx.clearRect(0,0,w,h);
+    BOSS_TINTS.forEach((b,i)=>{
+      const x = (i+0.5)/n*w;
+      drawCoreNew(ctx, x, cy, cr, t, -1, { accent:b.accent, gi:b.gi, letter:b.letter, keyed:false });
+      ctx.font = "600 12px 'Rajdhani',sans-serif"; ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillStyle = '#aeb9d6';
+      ctx.fillText(b.name, x, cy+cr*1.7+6);
+    });
+    t+=1/60; requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ── a hidden HUD chip (Caesar/partial) + the rotor line ──
+(function renderVariantHud(){
+  document.getElementById('hudHidden').innerHTML = `<div class="ck">
+    <div class="ck-head"><span class="dot"></span><span class="t">READ THE KEY</span></div>
+    <div class="ck-row">
+      <div class="chip done"><span class="ltr">D</span><span class="div"></span>${sigilSVG(3)}<span class="tick">✓</span></div>
+      <div class="chip next"><span class="ltr">A</span><span class="div"></span>${sigilSVG(6)}</div>
+      <div class="chip up hidden"><span class="ltr">W</span><span class="div"></span><span class="lock">▢</span></div>
+      <div class="chip up hidden"><span class="ltr">N</span><span class="div"></span><span class="lock">▢</span></div>
+    </div></div>`;
+  document.getElementById('hudRotor').innerHTML = `<div class="ck">
+    <div class="ck-head"><span class="dot"></span><span class="t">READ THE KEY</span><span class="rotor">ROTOR +2</span></div>
+    <div class="ck-row">
+      <div class="chip done"><span class="ltr">L</span><span class="div"></span>${sigilSVG(7)}<span class="tick">✓</span></div>
+      <div class="chip next"><span class="ltr">I</span><span class="div"></span>${sigilSVG(2)}</div>
+      <div class="chip up"><span class="ltr">G</span><span class="div"></span>${sigilSVG(8)}</div>
+    </div></div>`;
+})();
+
+window.addEventListener('load', ()=>{
+  // give fonts a beat to load so the Greek/Orbitron metrics are right
+  setTimeout(()=>{
+    paintStage(document.getElementById('cvCur'), drawCoreCurrent, '#a855f7');
+    paintStage(document.getElementById('cvNew'), drawCoreNew, '#a855f7');
+    paintVariants(document.getElementById('cvVariants'));
+    paintPerBoss(document.getElementById('cvPerBoss'));
+  }, 350);
+});
+</script>
+</body>
+</html>
