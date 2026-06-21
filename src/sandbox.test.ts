@@ -106,25 +106,22 @@ describe('deep sandbox — the curriculum', () => {
   });
 });
 
-describe('deep sandbox — no-fail safety', () => {
-  it('every step auto-advances on its cap when no trigger fires (no-stuck), completing the sandbox', () => {
+describe('deep sandbox — progresses ONLY on action (no time auto-advance)', () => {
+  it('stays on the first beat forever when no trigger fires (no cap auto-advance)', () => {
     let s = newSandbox();
-    // never fire a single trigger — only the per-step caps drive it to completion
-    let frames = 0;
-    for (; frames < 100000 && !s.done; frames++) s = stepSandbox(s, DT, NONE);
-    expect(s.done).toBe(true);
+    // run far past the old 90s backstop (~12000 frames ≈ 200s) — with no trigger it must NOT move
+    for (let i = 0; i < 12000; i++) s = stepSandbox(s, DT, NONE);
+    expect(currentStep(s).step).toBe('charge');
+    expect(sandboxComplete(s)).toBe(false);
+    expect(s.done).toBe(false);
   });
 
-  it('the closing beat advances by cap only (tick never satisfies a trigger)', () => {
-    // drive to the 'done' step, then confirm a no-trigger tick still finishes it via the cap
+  it('the closing beat finishes on the next tick once every beat is performed', () => {
     let s = newSandbox();
-    for (let i = 0; i < 9; i++) {
-      // fire whatever the current beat needs to step forward fast (one trigger per teaching beat)
-      const ev = { ...NONE, beganCharge: true, dashed: true, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true, bossBroke: true };
-      s = stepSandbox(s, DT, ev);
-    }
+    const ev = { ...NONE, beganCharge: true, dashed: true, reached: true, heavyDash: true, comboDash: true, grazed: true, parried: true, onBeatDash: true, bossBroke: true };
+    for (let i = 0; i < 9; i++) s = stepSandbox(s, DT, ev); // walk all 9 teaching beats → land on 'done'
     expect(currentStep(s).step).toBe('done');
-    for (let i = 0; i < 400 && !s.done; i++) s = stepSandbox(s, DT, NONE);
+    s = stepSandbox(s, DT, NONE); // one frame on the close-out ends it
     expect(s.done).toBe(true);
   });
 });

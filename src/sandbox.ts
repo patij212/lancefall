@@ -28,8 +28,8 @@
 import { isHeavyArmed } from './dash';
 
 /** The scripted teach steps, in order. Each step is gated by a TRIGGER the player
- *  must satisfy to advance; a per-step time cap auto-advances so the screen can
- *  never stall (no-fail also means no-stuck). */
+ *  must satisfy to advance. Advancement is strictly action-gated — SKIP (ESC/P or
+ *  the SKIP button) is the only non-action escape; there is no time auto-advance. */
 export type SandboxStep =
   | 'charge' | 'release' | 'reach' | 'heavy' | 'combo' | 'graze' | 'parry' | 'rhythm' | 'bossparry' | 'done';
 
@@ -37,7 +37,7 @@ export type SandboxStep =
  *  beganCharge (started charging) · dashed (committed a dash) · reached (skewered the FAR
  *  mark, only possible on a long charge) · heavyDash (a dash with the overcharge armed) ·
  *  comboDash (a single dash skewering ≥2) · grazed (a near-miss) · parried (a deflect) ·
- *  onBeatDash (a dash graded on-beat) · tick (the closing beat — cap-only). */
+ *  onBeatDash (a dash graded on-beat) · tick (the closing beat — no action needed, advances on the next frame). */
 export type SandboxTrigger =
   | 'beganCharge' | 'dashed' | 'reached' | 'heavyDash' | 'comboDash' | 'grazed' | 'parried' | 'onBeatDash' | 'bossBroke' | 'tick';
 
@@ -50,85 +50,68 @@ export interface SandboxStepDef {
   sub?: string;
   /** the trigger that advances PAST this step */
   advanceOn: SandboxTrigger;
-  /** seconds before this step auto-advances regardless (no-fail safety) */
-  cap: number;
 }
 
-// Generous per-step caps: each beat advances the instant its success fires (usually
-// far sooner), and a player who's stuck on one beat is never trapped — it caps out
-// and moves on. An engaged player walks the whole teach in ~25–40s; the caps only
-// matter when someone freezes (and SKIP is always available).
+// Each beat advances the instant its success fires. An engaged player walks the
+// whole teach in ~25–40s. SKIP (ESC/P or the SKIP button) is always available as
+// the non-action escape — there is no per-step time cap.
 export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
   {
     step: 'charge',
     text: 'HOLD to charge your spear — the longer you hold, the farther you fly.',
     sub: 'The dash is your whole game: it’s your only attack AND your dodge. You’re invulnerable mid-dash, so you strike and evade in one motion.',
     advanceOn: 'beganCharge',
-    cap: 6,
   },
   {
     step: 'release',
     text: 'RELEASE to dash forward and spear the mark.',
     sub: 'You launch toward where you’re aiming. Anything you pass through is skewered — there’s no separate “shoot” button; the dash itself is the kill.',
     advanceOn: 'dashed',
-    cap: 6,
   },
   {
     step: 'reach',
     text: 'Charge FULLY, then release — a long charge is a long dash. Reach the far mark.',
     sub: 'Read the gap before you commit: charge just enough to reach your target. Under-charge and you fall short; over-charge and you fly past into danger.',
     advanceOn: 'reached',
-    cap: 7,
   },
   {
     step: 'heavy',
     text: 'Hold PAST full to OVERCHARGE — a HEAVY thrust smashes through armour. Break the shielded one.',
     sub: 'A heavy dash hits harder and grants extra invulnerability, phasing safely THROUGH dense patterns and armour — the cost is the longer hold to arm it.',
     advanceOn: 'heavyDash',
-    cap: 8,
   },
   {
     step: 'combo',
     text: 'Line them up — spear SEVERAL in one dash to build a COMBO.',
     sub: 'Killing without pausing climbs your combo multiplier and charges OVERDRIVE. Keep the chain alive by always lining up the next target before the last falls.',
     advanceOn: 'comboDash',
-    cap: 7,
   },
   {
     step: 'graze',
     text: 'Skim a shot WITHOUT being hit to refill stamina — dance close, you cannot be hurt here.',
     sub: 'Grazing — passing a hair from a bullet — refills the stamina your dashes spend. Flirting with danger is exactly how you earn more dashes.',
     advanceOn: 'grazed',
-    cap: 8,
   },
   {
     step: 'parry',
     text: 'PARRY the incoming shot — right-click / K',
     sub: 'A parry sweeps your aim arc: it deflects shots AND counter-strikes anything in front of you. Whiff it and you’re briefly open, so read the shot — and on-beat parries chain a streak.',
     advanceOn: 'parried',
-    cap: 7,
   },
   {
     step: 'rhythm',
     text: 'DASH ON THE BEAT — release as the ring snaps shut',
     sub: 'On-beat dashes (and parries) build COHERENCE: the City of Lancefall lights from grey to neon, the music blooms, and your parry guard widens. Off-beat still works — landing on the beat is the reward.',
     advanceOn: 'onBeatDash',
-    cap: 9,
   },
   {
     step: 'bossparry',
     text: 'BREAK THE BOSS — PARRY its volley to crack the guard',
     sub: 'Against a boss the PARRY is your opener: deflect its fire and every shot you catch chips its GUARD bar, dragging it into the EXPOSED window sooner. Fling its big orb back for a bigger crack — and on the beat it all counts double.',
     advanceOn: 'bossBroke',
-    cap: 13,
   },
-  { step: 'done', text: 'You hold the lance. Descend.', advanceOn: 'tick', cap: 1.5 },
+  { step: 'done', text: 'You hold the lance. Descend.', advanceOn: 'tick' },
 ] as const;
-
-/** Absolute backstop (seconds) on the whole sandbox — pure defence-in-depth above the
- *  sum of the per-step caps, so the per-step caps are what drive normal completion and
- *  this only ever matters if the step machine were somehow wedged. */
-export const SANDBOX_MAX_TIME = 90;
 
 /** A spawn position (offset from the player) for a beat's dummy target, plus optional
  *  flags the Game reads when spawning (a SHIELDED blocker only a HEAVY dash breaks). */
@@ -171,10 +154,8 @@ export function sandboxBeatTargets(step: SandboxStep): SandboxTarget[] {
 export interface SandboxState {
   /** index into SANDBOX_STEPS */
   stepIndex: number;
-  /** seconds elapsed on the CURRENT step (drives the per-step cap) */
+  /** seconds elapsed on the CURRENT step (cosmetic use only — no cap drives advancement) */
   stepTime: number;
-  /** seconds elapsed over the whole sandbox (drives SANDBOX_MAX_TIME) */
-  totalTime: number;
   /** dummy skewers landed so far (cosmetic running tally) */
   skewers: number;
   /** latched once complete so the hand-off to start() fires exactly once */
@@ -182,7 +163,7 @@ export interface SandboxState {
 }
 
 export function newSandbox(): SandboxState {
-  return { stepIndex: 0, stepTime: 0, totalTime: 0, skewers: 0, done: false };
+  return { stepIndex: 0, stepTime: 0, skewers: 0, done: false };
 }
 
 /** The current step definition (clamped so an over-run index is safe). */
@@ -236,38 +217,35 @@ function triggerMet(def: SandboxStepDef, ev: SandboxEvents): boolean {
     case 'bossBroke':
       return ev.bossBroke;
     case 'tick':
-      return false; // 'done' advances only by its cap
+      return true; // the 'done' close-out has no action to perform — advance on the next frame
   }
 }
 
 /** Advance the sandbox by one sim step. Pure transition: returns the NEXT state.
- *  A step advances when its trigger fires OR its per-step cap elapses; the whole
- *  sandbox completes when it walks past the last step or hits SANDBOX_MAX_TIME.
+ *  A step advances ONLY when its trigger fires (action-gated); the whole sandbox
+ *  completes only by walking past the last step. SKIP (ESC/P or the SKIP button)
+ *  is the only non-action escape — there is no per-step time cap.
  *  Never touches rng/DOM — only arithmetic on the passed-in state + events. */
 export function stepSandbox(s: SandboxState, dt: number, ev: SandboxEvents): SandboxState {
   if (s.done) return s;
   const next: SandboxState = { ...s };
   next.stepTime += dt;
-  next.totalTime += dt;
   if (ev.skewer) next.skewers += 1;
 
   const def = currentStep(next);
-  const advance = triggerMet(def, ev) || next.stepTime >= def.cap;
-  if (advance) {
+  if (triggerMet(def, ev)) {
     next.stepIndex += 1;
     next.stepTime = 0;
   }
 
-  // Complete: walked past the final step, or hit the absolute time ceiling.
-  if (next.stepIndex >= SANDBOX_STEPS.length || next.totalTime >= SANDBOX_MAX_TIME) {
-    next.done = true;
-  }
+  // Complete only by walking past the final step (action-gated) — no time ceiling.
+  if (next.stepIndex >= SANDBOX_STEPS.length) next.done = true;
   return next;
 }
 
 /** Completion predicate (mirrors the latch stepSandbox sets). */
 export function sandboxComplete(s: SandboxState): boolean {
-  return s.done || s.stepIndex >= SANDBOX_STEPS.length || s.totalTime >= SANDBOX_MAX_TIME;
+  return s.done || s.stepIndex >= SANDBOX_STEPS.length;
 }
 
 // ── First-run gating + skip ──────────────────────────────────────────────────
