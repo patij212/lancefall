@@ -36,6 +36,7 @@ import { submitScore, submitAchievements } from './api';
 import { isMobile, applyMobileClass } from './mobile/detect';
 import { mountMobileControls, type MobileControls } from './mobile/controls';
 import { boardEligible } from './mobile/withhold';
+import { haptics, setHapticsEnabled } from './mobile/haptics';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT, verbTeachFor, enemyReadFor, bossReadFor } from './onboarding';
 import type { TeachHit } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
@@ -414,6 +415,7 @@ export class Game {
     // reduce-flashing only tames it. The strongest active reducer wins.
     this.shake.intensity = s.shake * (s.reduceMotion ? 0 : s.reduceFlashing ? 0.4 : 1);
     this.input.rumbleEnabled = s.rumble;
+    setHapticsEnabled(s.haptics); // mobile vibrate feedback (no-op on desktop, like rumble without a pad)
     this.input.setKeymap(s.keymap); // apply rebindable core-action keys (dash / overdrive / pause)
     this.baseDensity = particleDensityValue(s.particleDensity) * (s.reduceFlashing ? 0.6 : 1);
     this.world.particles.density = this.baseDensity * this.perfScale;
@@ -2026,6 +2028,7 @@ export class Game {
       this.audio.endCharge();
       this.audio.whoosh();
       this.shake.add(TUNE.juice.traumaDash);
+      haptics.dash();
       this.dashSlowmoTriggered = false;
       w.particles.streaks(p.x, p.y, p.dashDirX, p.dashDirY, trailParticleColor(this.trail, comboColor(w.combo)));
       this.cam.zoom = Math.max(this.cam.zoom, 1.03);
@@ -2257,6 +2260,7 @@ export class Game {
     const reflected = this.reflectOrbsInArc(arc);
     if ((swept.total === 0 && !staggered && reflected === 0) || p.parryRewarded) return;
     p.parryRewarded = true;
+    haptics.parry();
     const onBeat = gradeRelease(this.beat.beatError(), this.beat.synced, this.scheduler.timeScale) !== 'off';
     const perfect = parryGrade(p.parryElapsed, PARRY.perfectWindow + w.stats.parryPerfectWindow) === 'perfect';
     const hero = perfect && onBeat; // the apex: BOTH timing AND rhythm
@@ -3194,6 +3198,7 @@ export class Game {
     const src = srcKind || cause;
     w.damageByKind[src] = (w.damageByKind[src] ?? 0) + 1;
     this.deathKind = srcKind;
+    haptics.hit();
     // ARMOR (v6 §7) — a per-run shield absorbs a lethal hit BEFORE LAST BREATH. Each
     // absorb costs tempo + shoves nearby bullets aside (an escape lane, not a clear),
     // so the bullet-hell tension survives. Order: shields → LAST BREATH → revive → death.
