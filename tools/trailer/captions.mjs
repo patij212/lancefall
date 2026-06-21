@@ -26,40 +26,16 @@ const FONTS = `
 
 const CYAN = '#34d8f0', AMBER = '#f5b942', GOLD = '#ffd54a', VIOLET = '#b08cff', ROSE = '#ff5d7e';
 
+// PARED to the core story (6 lines, spread far apart so each has room to read; everything else is
+// uncaptioned, pure-visual showcase). The three beats: the city is in darkness + you bring the light →
+// decrypt the ciphers to defeat the bosses → unlock the mystery of the Fall to bring back the solstice.
 const CAPTIONS = [
-  // ACT 1 — the code=light premise + the verb (the hook, front-loaded)
-  { id: 'fall', label: 'THE FALL', line: 'Lancefall was a kingdom of living light — until the Six <b>enciphered</b> it, and its memory went dark.', accent: CYAN },
-  { id: 'verb', label: 'THE LAST KEY', line: 'You don’t shoot. Your only weapon is a charged <b>dash</b> — a spear of light through the dark.', accent: CYAN },
-  { id: 'dash', label: 'THE DASH', line: 'Phase through bullet walls, <b>invulnerable</b>. Skewer, land, recharge — pure momentum.', accent: CYAN },
-  { id: 'graze', label: 'GRAZE &amp; CHAIN', line: 'Skim a near-miss to refuel the dash — greed against survival, sixty frames a second.', accent: CYAN },
-  // ACT 2 — the cipher (the Turing core) + the light-returns payoff
-  { id: 'turing', label: 'AN ODE TO ALAN TURING', line: 'Your real weapon is cryptanalysis: <b>break a boss’s cipher to break the boss.</b>', accent: AMBER },
-  { id: 'readkey', label: 'READ THE KEY', line: 'The HUD gives a plaintext word and a glyph key — each letter, one symbol.', accent: AMBER },
-  { id: 'order', label: 'DECODE UNDER FIRE', line: 'Dash the boss’s glyph-cores in the order the key spells — <b>while it fires back</b>.', accent: AMBER },
-  { id: 'broken', label: 'CIPHER BROKEN', line: 'Code-breaking, actually <b>played</b>. Crack the lock and the armor falls.', accent: GOLD },
-  { id: 'memory', label: 'MEMORY IS LIGHT-CODE', line: 'Forgetting is encryption. Each code you break <b>decrypts</b> the city — grey back to gold.', accent: CYAN },
-  // ACT 3 — the threat + all six bosses
-  { id: 'enemies', label: 'TWELVE FOES', line: 'Orbiters, bombers, splitters, a homing seeker, a gap-wall herald — each a different read.', accent: ROSE },
-  { id: 'sixbosses', label: 'SIX BOSSES', line: 'THE WARDEN opens the gauntlet — rotating fans, closing spirals.', accent: ROSE },
-  { id: 'beacon', label: 'THE BEACON', line: 'Thread the rotating cross-beams — every boss, a different lock.', accent: ROSE },
-  { id: 'hollow', label: 'THE HOLLOW', line: 'It splits into echoes of itself. Read the real one.', accent: VIOLET },
-  { id: 'imitation', label: 'THE IMITATION GAME', line: 'The Mirrorblade learns you move-for-move — Turing’s test, made flesh. <b>Which is real?</b>', accent: VIOLET },
-  { id: 'sovereign', label: 'THE SOVEREIGN', line: 'The master cipher — a stepping rotor that <b>re-scrambles</b> the key with every core.', accent: AMBER },
-  { id: 'daybreak', label: 'DAYBREAK', line: 'Chain enough light to fire <b>DAYBREAK</b> — a screen-clearing burst that ends the dark.', accent: GOLD },
-  // ACT 4 — the roguelite depth (incl. the in-cockpit codebreaker)
-  { id: 'codebreaker', label: 'THE CODEBREAKER', line: 'In the cockpit: crack the day’s transmissions and rebuild the city’s lost meaning.', accent: AMBER },
-  { id: 'ships', label: 'SIX SHIPS', line: 'Each ship rewrites the dash — choose your spear.', accent: CYAN },
-  { id: 'skins', label: 'SHIP SKINS', line: 'Three sets per ship — grey, ignite, gold — earned as the city decrypts.', accent: VIOLET },
-  { id: 'build', label: 'DRAFT YOUR BUILD', line: 'A stacking perk draft, seven fusion evolutions, cursed relics — no two runs alike.', accent: CYAN },
-  { id: 'meta', label: 'META PROGRESSION', line: 'A permanent upgrade tree and an eight-level <b>HEAT</b> prestige ladder.', accent: ROSE },
-  { id: 'bestiary', label: 'BESTIARY &amp; LORE', line: 'Every foe and memory-fragment, catalogued and decrypted.', accent: VIOLET },
-  { id: 'dossier', label: 'YOUR DOSSIER', line: 'Every run logged — kills, combos, and the city’s coherence over time.', accent: CYAN },
-  { id: 'boards', label: 'ONE ALGORITHM', line: 'A single deterministic seed — the same world for everyone, every day.', accent: CYAN },
-  { id: 'solstice', label: 'SOLSTICE PROTOCOL', line: 'The flagship mode — where <b>every boss</b> is a cipher to break.', accent: AMBER },
-  { id: 'avatars', label: 'MAKE IT YOURS', line: 'Twenty-five procedural profile sigils to unlock — sign in for verified boards.', accent: VIOLET },
-  // ACT 5 — the climax (tease, don’t spoil)
-  { id: 'halting', label: 'THE HALTING PROBLEM', line: 'The last lock can’t be solved — only <b>chosen</b>. How it ends is yours alone.', accent: GOLD },
-  { id: 'firstlight', label: 'FIRST LIGHT', line: 'Break the last cipher, and grey floods to <b>gold</b> — the longest day, returned.', accent: GOLD },
+  { id: 'darkness', label: 'THE CITY IN DARKNESS', line: 'Lancefall — a kingdom of living light, now lost to the dark.', accent: CYAN },
+  { id: 'light', label: 'YOU ARE THE LIGHT', line: 'You alone can bring it back — a <b>spear of light</b> you dash through the dark.', accent: CYAN },
+  { id: 'decrypt', label: 'DECRYPT TO DEFEAT', line: 'Every boss is a <b>cipher</b>. Break its code to break the boss.', accent: AMBER },
+  { id: 'returns', label: 'THE LIGHT RETURNS', line: 'Each code you break <b>decrypts</b> the city — grey, back to gold.', accent: GOLD },
+  { id: 'unlock', label: 'UNLOCK THE FALL', line: 'Decrypt the lost transmissions — and uncover who let the light die.', accent: AMBER },
+  { id: 'solstice', label: 'BRING BACK THE SOLSTICE', line: 'Break the last cipher, and the <b>longest day</b> returns.', accent: GOLD },
 ];
 
 function lowerThird(c) {
