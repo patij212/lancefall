@@ -243,3 +243,21 @@ describe('bossRushCipherArmed', () => {
     expect(bossRushCipherArmed(modeById('endless'), true)).toBe(false);
   });
 });
+
+describe('Casual softening scalars', () => {
+  it('Casual carries the three softening scalars', () => {
+    const casual = modeById('casual');
+    expect(casual.enemySpeedScale).toBe(0.85);
+    expect(casual.bulletSpeedScale).toBe(0.85);
+    expect(casual.fireCadenceMul).toBe(1.35);
+  });
+
+  it('no OTHER mode sets them (absent ⇒ today behavior)', () => {
+    for (const m of MODES) {
+      if (m.id === 'casual') continue;
+      expect(m.enemySpeedScale).toBeUndefined();
+      expect(m.bulletSpeedScale).toBeUndefined();
+      expect(m.fireCadenceMul).toBeUndefined();
+    }
+  });
+});

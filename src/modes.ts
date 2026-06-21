@@ -54,6 +54,15 @@ export interface RunConfig {
    *  contain a single <br>. Absent fields fall back to the mode name + desc. */
   flavorHead?: string;
   flavor?: string;
+  /** §casual-softening — optional, default-1 difficulty scalars. ABSENT ⇒ ×1 ⇒ today's
+   *  behavior (only Casual sets them). `enemySpeedScale` scales chaff movement speed at the
+   *  spawn site; `bulletSpeedScale` scales EVERY bullet's velocity at World.spawnBullet
+   *  (chaff + boss); `fireCadenceMul` (>1 = fire less often) multiplies fire-cadence timers
+   *  (chaff + boss). Pure scalars — they never touch rng, so seeded modes (absent ⇒ ×1)
+   *  stay bit-identical. */
+  enemySpeedScale?: number;
+  bulletSpeedScale?: number;
+  fireCadenceMul?: number;
 }
 
 const ENDLESS: RunConfig = {
@@ -129,6 +138,9 @@ export const MODES: RunConfig[] = [
     // soft difficulty can't game the leaderboards.
     seedKind: 'random', intensityMul: 0.62, spawnMul: 1.4, bossInterval: 75, speedBonus: 0,
     shieldStart: 180, shieldMax: 0.2, shardMul: 1, perks: true, canFail: true, arena: false, bossrush: false,
+    // §casual-softening — gentler on three axes (Medium margin): ~15% slower enemies + bullets,
+    // ~26% fewer bullets (fire less often). Stacks on the low intensity / sparse spawns / 6 ARMOR.
+    enemySpeedScale: 0.85, bulletSpeedScale: 0.85, fireCadenceMul: 1.35,
     rules: { ranked: false, casualShields: 6 }, // off-board + 6 extra absorbs
     flavorHead: '◇ CASUAL', flavor: 'See it all — bosses, biomes, the story, the Sovereign.<br>Extra ARMOR, no pressure.',
   },
