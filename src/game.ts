@@ -925,6 +925,11 @@ export class Game {
     const runMul = ngPlusIntensityMul(effCfg.intensityMul, this.runNgPlus > 0, this.runNgPlus, cfg.seedKind, NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop);
     const runCfg = runMul === effCfg.intensityMul ? effCfg : { ...effCfg, intensityMul: runMul };
     this.world.reset(window.innerWidth, window.innerHeight);
+    // §casual-softening — push the mode's difficulty scalars onto the world (default 1 for
+    // every other mode). bulletSpeedScale is read in spawnBullet; fireCadenceMul at enemy/
+    // boss fire-cadence resets. enemySpeedScale is read at the chaff spawn site (spawnWave).
+    this.world.bulletSpeedScale = cfg.bulletSpeedScale ?? 1;
+    this.world.fireCadenceMul = cfg.fireCadenceMul ?? 1;
     // head-start perks (Head Start meta node) — use a SEPARATE rng so they don't
     // consume the seeded world.rng (keeps Daily runs identical regardless of meta)
     const startPerks = this.world.stats.startPerks;
@@ -3731,7 +3736,7 @@ export class Game {
     // cadence but at base speed). this.director.cfg == runCfg from start().
     const cfg = this.director.cfg;
     const I = intensity(w.time) * cfg.intensityMul;
-    const sMul = (enemySpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul;
+    const sMul = (enemySpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul * (cfg.enemySpeedScale ?? 1); // §casual-softening
     const bMul = (bulletSpeedMul(I) + cfg.speedBonus) * this.biomeSpeedMul;
     const baseShield = shieldChance(w.time, this.mode.shieldStart, this.mode.shieldMax);
     const shield = Math.min(0.7, baseShield + this.biomeShield);

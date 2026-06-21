@@ -134,6 +134,13 @@ export class World {
   width = 1280;
   height = 720;
 
+  /** §casual-softening — runtime difficulty scalars set from the mode RunConfig at run
+   *  start (game.ts). Default 1 ⇒ no change (every non-Casual mode + a bare test World).
+   *  `bulletSpeedScale` scales spawnBullet velocity; `fireCadenceMul` (>1 = fire less
+   *  often) multiplies enemy/boss fire-cadence timers. Pure scalars; no rng. */
+  bulletSpeedScale = 1;
+  fireCadenceMul = 1;
+
   score = 0;
   combo = 0;
   comboTimer = 0;
@@ -381,8 +388,8 @@ export class World {
     if (!b) return null;
     b.x = x;
     b.y = y;
-    b.vx = vx;
-    b.vy = vy;
+    b.vx = vx * this.bulletSpeedScale; // §casual-softening — slower bullets (×1 elsewhere)
+    b.vy = vy * this.bulletSpeedScale;
     b.radius = radius;
     b.color = color;
     b.life = 8;
