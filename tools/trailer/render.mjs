@@ -53,6 +53,14 @@ const COH_FORCE = () => {
   const r = window.__lf.renderer;
   if (r && r.setCoherence && !r.__cf) { const o = r.setCoherence.bind(r); r.setCoherence = (c, ...a) => o(Math.max(c, 0.97), ...a); r.__cf = true; }
 };
+// Trigger the WIN cinematic after `delay` polls → FIRST LIGHT daybreak ramps grey→gold (flT over
+// 0.8s) and HOLDS (we noop finishGameOver so it never cuts to the debrief). Captures the real wash.
+const TRIGGER_FIRSTLIGHT = (delay) => {
+  const g = window.__lf; const bp = g.input.poll; let n = 0;
+  if (!g.__heldFGO) { g.__heldFGO = g.finishGameOver; g.finishGameOver = () => {}; } // hold the daybreak
+  g.input.poll = () => { const s = bp(); n++; if (n === delay) { g.winning = true; g.winTimer = 2.4; } return s; };
+};
+
 // fire DAYBREAK once, after `delay` polls (so there's a lead-in)
 const FORCE_DAYBREAK = (delay) => {
   const g = window.__lf; const bp = g.input.poll; let n = 0, fired = 0;
@@ -289,6 +297,15 @@ const BEATS = {
     await page.evaluate(() => window.__lf.spawnWarden('hollow'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
   }, { pin: PIN, calm: true }),
+
+  // FIRST LIGHT — the real win daybreak: live play, then the WIN floods the frame grey→gold and holds.
+  // NO warmup: the warmup loop resets winning=false each frame, which would wipe the trigger. Wave-1
+  // play is trivial so the bot survives the ~2.5s lead-in to the win on its own.
+  firstlight: () => renderBeat('firstlight', Math.round(8 * FPS), async (page) => {
+    await startRun(page, 'arena', true);
+    await page.evaluate(`(${QUIET_ALL.toString()})()`);
+    await page.evaluate(`(${TRIGGER_FIRSTLIGHT.toString()})(150)`); // ~2.5s of play, then the daybreak ramps + holds
+  }, { calm: true }),
 };
 
 let browser, server;

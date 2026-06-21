@@ -58,6 +58,12 @@ const CAPTIONS = [
   // ACT 6 — the climax
   { id: 'halting', label: 'THE HALTING PROBLEM', line: 'The last lock has no key — no code can decide it. <b>Only you can choose.</b>', accent: GOLD },
   { id: 'firstlight', label: 'FIRST LIGHT', line: 'Break the last code and grey floods to <b>gold</b> — the longest day returns.', accent: GOLD },
+  // v4 additions — in-cockpit decryption, skins, dossier, profile sigils, the ending
+  { id: 'codebreaker', label: 'THE CODEBREAKER', line: 'In the cockpit: crack the day’s transmissions and rebuild the city’s lost meaning.', accent: AMBER },
+  { id: 'skins', label: 'SHIP SKINS', line: 'Three sets per ship — grey, ignite, gold — earned as the city decrypts.', accent: VIOLET },
+  { id: 'dossier', label: 'YOUR DOSSIER', line: 'Every run logged — kills, combos, and the city’s coherence over time.', accent: CYAN },
+  { id: 'avatars', label: 'MAKE IT YOURS', line: '25 procedural profile sigils to unlock — sign in for verified boards.', accent: VIOLET },
+  { id: 'resolved', label: 'THE CITY REMEMBERS', line: 'Break the last code and the people return — every fate, named.', accent: GOLD },
 ];
 
 function lowerThird(c) {

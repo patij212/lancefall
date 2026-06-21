@@ -34,9 +34,9 @@ const ENDART = path.join(PRESS, 'endart.png');
 const ENDCARD = path.join(SEGS, 'endcard.png');
 const useEndArt = fs.existsSync(ENDART);
 if (useEndArt) sh(`ffmpeg -y -loglevel error -i "${ENDART}" -i "${path.join(ASSETS, 'card_endinfo.png')}" -filter_complex "[0]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[bg];[bg][1]overlay" -frames:v 1 "${ENDCARD}"`);
-// v3 — the FULL professional showcase (~105s): cold-open verb → cipher teach → ALL SIX bosses →
-// roguelite depth (native-1080p panels) → the story → THE CHOICE → FIRST LIGHT. Native panel stills
-// from panels.mjs; the two new bosses (warden, hollow) complete the gauntlet.
+// v4 — the comprehensive showcase (~2:00): cold-open verb → cipher teach → ALL SIX bosses →
+// roguelite depth incl. the in-cockpit CODEBREAKER, ship skins, dossier → profile sigils → story →
+// THE CHOICE → THE CITY REMEMBERS → LIVE FIRST LIGHT daybreak → end art. Native-1080p panels.
 const ppng = (n) => path.join(__dirname, 'panels', n + '.png');
 const SHOTS = [
   // ACT 1 — the verb
@@ -57,20 +57,24 @@ const SHOTS = [
   { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 5.5,  cap: 'imitation' },
   { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 5.0,  cap: 'sovereign' },
   { id: 'daybreak',   kind: 'clip',  src: 'daybreak',  ss: 1.0,  t: 4.0,  cap: 'daybreak' },
-  // ACT 4 — roguelite depth (native panels)
-  { id: 'ships',      kind: 'still', src: ppng('ships'),     t: 2.7, zoom: 'in', cap: 'ships' },
-  { id: 'build',      kind: 'still', src: ppng('archetype'), t: 2.7, zoom: 'in', cap: 'build' },
-  { id: 'meta',       kind: 'still', src: ppng('upgrades'),  t: 2.7, zoom: 'in', cap: 'meta' },
+  // ACT 4 — roguelite depth (native panels) — incl. the IN-COCKPIT CODEBREAKER decryption console
+  { id: 'codebreaker',kind: 'still', src: ppng('codebreaker'), t: 3.5, zoom: 'in', cap: 'codebreaker' },
+  { id: 'ships',      kind: 'still', src: ppng('ships'),     t: 2.6, zoom: 'in', cap: 'ships' },
+  { id: 'skins',      kind: 'still', src: ppng('skins'),     t: 2.6, zoom: 'in', cap: 'skins' },
+  { id: 'build',      kind: 'still', src: ppng('archetype'), t: 2.6, zoom: 'in', cap: 'build' },
+  { id: 'meta',       kind: 'still', src: ppng('upgrades'),  t: 2.6, zoom: 'in', cap: 'meta' },
   { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0, t: 4.0, cap: 'memory' },      // a MOVING shot breaks the panel run
-  { id: 'cosmetics',  kind: 'still', src: ppng('cosmetics'), t: 2.7, zoom: 'in', cap: 'cosmetics' },
-  { id: 'bestiary',   kind: 'still', src: ppng('codex'),     t: 2.7, zoom: 'in', cap: 'bestiary' },
-  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.7, zoom: 'in', cap: 'boards' },
+  { id: 'bestiary',   kind: 'still', src: ppng('codex'),     t: 2.6, zoom: 'in', cap: 'bestiary' },
+  { id: 'dossier',    kind: 'still', src: ppng('stats'),     t: 2.6, zoom: 'in', cap: 'dossier' },
+  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.6, zoom: 'in', cap: 'boards' },
   { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 3.0, cap: 'solstice' },
-  // ACT 5 — the story
+  // ACT 5 — recent: profile sigils + the story
+  { id: 'avatars',    kind: 'still', src: ppng('avatar_gallery'), t: 3.5, zoom: 'in', cap: 'avatars' },
   { id: 'fall',       kind: 'still', src: ppng('fall'),      t: 4.0, zoom: 'in', cap: 'fall' },
-  // ACT 6 — the climax
-  { id: 'halting',    kind: 'panel', src: 'choice',    ss: 8.0, t: 5.0, cap: 'halting' },     // the near-silence beat (music dips)
-  { id: 'firstlight', kind: 'still', src: path.join(PRESS, 'firstlight-winframe.png'), t: 4.5, cap: 'firstlight', zoom: 'in' },
+  // ACT 6 — the climax (live FIRST LIGHT daybreak)
+  { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 5.0, zoom: 'in', cap: 'halting' },   // the near-silence beat (music dips)
+  { id: 'resolved',   kind: 'still', src: ppng('resolved'),  t: 4.0, zoom: 'in', cap: 'resolved' },
+  { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.0, cap: 'firstlight' },   // the LIVE grey→gold daybreak
   { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.0, zoom: 'in' },
 ];
 

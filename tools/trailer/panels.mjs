@@ -33,6 +33,8 @@ const SEED = async () => {
 
 // each: open the panel, wait, shoot. Driven by __lf.ui.* (private at TS, reachable at runtime).
 const PANELS = [
+  { key: 'codebreaker', open: (g) => g.ui.openBombe && g.ui.openBombe() }, // in-cockpit decryption console
+  { key: 'skins', open: (g) => g.ui.openSkins && g.ui.openSkins() },       // ship-skins + bestiary gallery
   { key: 'fall', open: (g) => g.ui.showFall && g.ui.showFall() },
   { key: 'codex', open: (g) => g.ui.showCodex && g.ui.showCodex() },
   { key: 'upgrades', open: (g) => g.ui.openUpgrades && g.ui.openUpgrades() },
