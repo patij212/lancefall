@@ -4218,11 +4218,11 @@ export class UI {
     const showMem = this.saveRef?.cityMemoryMeter !== false;
     this.cityMemWrap.style.display = showMem ? '' : 'none';
     this.cohCapEl.style.display = showMem ? '' : 'none';
+    this.cohCapEl.textContent = hudCoherenceLabel(coherence); // always current → no stale value on meter toggle
     if (showMem) {
       const { fill, neon } = cityMemoryFill(coherence, this.settings.reduceFlashing, this.settings.clarity);
       this.cityMemFill.style.transform = `scaleX(${fill})`;
       this.cityMemFill.style.opacity = String(neon);
-      this.cohCapEl.textContent = hudCoherenceLabel(coherence);
     }
     // score odometer
     this.displayScore += (world.score - this.displayScore) * 0.18;
