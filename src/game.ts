@@ -219,6 +219,7 @@ export class Game {
   private sandboxWorld: World | null = null;
   private sandboxMode: RunConfig = MODES[0];
   private sandboxDashKills = 0; // dummies skewered by the CURRENT dash (reset each dash; drives the combo beat)
+  private sandboxComboMissed = false;
   private sandboxSetupStep: SandboxStep | null = null; // the beat whose targets/bullets are currently staged
   private sandboxBeatEntryDashId = -1; // player.dashId when the active beat began — a dash counts only if NEWER
   //  (so one dash can't blow through several beats; each dash-success beat needs its OWN fresh dash)
@@ -506,6 +507,7 @@ export class Game {
     sw.player.y = sw.height * 0.5;
     sw.player.vx = 0; sw.player.vy = 0;
     sw.player.phase = 'idle'; sw.player.charge = 0; sw.player.overcharge = 0;
+    this.sandboxComboMissed = false; // combo move-teach: fresh each (re)stage
     const px = sw.player.x, py = sw.player.y;
     // a recentre "blink-in" so the snap to the anchor reads as a deliberate reset, not a glitch
     sw.particles.ring(px, py, 28, '#5beaff', 0.4);
@@ -523,8 +525,9 @@ export class Game {
         e.hp = 1; e.maxHp = 1;
       }
     }
-    // a one-shot directional cue toward the marks (bullet/rhythm beats are their own cue)
-    if (targets.length > 0) {
+    // a one-shot directional cue toward the marks (bullet/rhythm beats are their own cue;
+    // the combo move-teach uses its own pulsing MOVE cue + guide line instead)
+    if (targets.length > 0 && step !== 'combo') {
       const t = targets[0];
       const ang = Math.atan2(t.dy, t.dx);
       sw.particles.floatText(px + Math.cos(ang) * 56, py + Math.sin(ang) * 56 - 22, 'AIM →', '#9fd8ff', 1.1);
@@ -590,6 +593,26 @@ export class Game {
     if (cueTick) {
       const cueColor = step === 'reach' ? '#ffd166' : step === 'heavy' ? '#9fb4d8' : step === 'bossparry' ? '#ff8da3' : '#5beaff';
       sw.enemies.forEachActive((e) => sw.particles.ring(e.x, e.y, e.radius + 14, cueColor, 0.34));
+      // COMBO move-teach: a faint guide line through the row + a MOVE cue toward its nearest
+      // point, so "drift onto this line" is unmistakable. Cosmetic particles only (no rng).
+      if (step === 'combo') {
+        const row: { x: number; y: number }[] = [];
+        sw.enemies.forEachActive((e) => row.push({ x: e.x, y: e.y }));
+        if (row.length >= 2) {
+          const a = row[0], b = row[row.length - 1];
+          for (let i = 0; i <= 8; i++) {
+            const t = i / 8;
+            sw.particles.ring(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 3, '#5beaff', 0.3);
+          }
+          const px = sw.player.x, py = sw.player.y;
+          const abx = b.x - a.x, aby = b.y - a.y;
+          const len2 = abx * abx + aby * aby || 1;
+          let tt = ((px - a.x) * abx + (py - a.y) * aby) / len2;
+          tt = Math.max(0, Math.min(1, tt));
+          const nx = a.x + abx * tt, ny = a.y + aby * tt;
+          sw.particles.floatText(px + (nx - px) * 0.45, py + (ny - py) * 0.45 - 8, 'MOVE · W A S D', '#9fd8ff', 1.0);
+        }
+      }
     }
 
     // ── per-beat success detection (cosmetic; reads the throwaway world, no rng) ──
@@ -606,6 +629,11 @@ export class Game {
       if (cueTick && cue !== 'none') sw.particles.ring(sw.player.x, sw.player.y, sw.player.radius + 18, cue === 'armed' ? '#ffe08a' : '#ffd166', 0.3);
     } else if (step === 'done') {
       this.ui.setSandboxNote('Replay anytime in Settings ▸ Replay tutorial');
+    } else if (step === 'combo') {
+      // after a miss, swap the sub for the exact fix; otherwise the normal sub
+      this.ui.setSandboxNote(this.sandboxComboMissed
+        ? 'Almost — drift onto the row line, then dash across all of them.'
+        : (currentStep(sb).sub ?? ''));
     } else {
       // parry / rhythm carry a deeper sub-explanation; other beats have none → clears
       this.ui.setSandboxNote(currentStep(sb).sub ?? '');
@@ -639,6 +667,12 @@ export class Game {
       if (this.sandboxDashKills >= 2) ev.comboDash = true; // a single dash skewered the line
     }
     if (ev.skewer) sw.player.killsThisDash = this.sandboxDashKills; // mirror for any read-back
+    // COMBO move-teach: a dash that landed with <2 skewers means the player was not lined up —
+    // latch a nudge to drift onto the row. ev.landed fires the frame the dash completes; the
+    // kill tally still holds this dash's total (it resets only on the next dash fire).
+    if (step === 'combo' && this.ev.landed && freshDash && this.sandboxDashKills < 2) {
+      this.sandboxComboMissed = true;
+    }
 
     // GRAZE beat — feed slow drifting shots and reward a near-miss (the player is unfailable)
     if (step === 'graze') {
