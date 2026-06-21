@@ -6993,3 +6993,14 @@ html.lf-mobile .lf-tut-card {
 html.lf-mobile .lf-tut-title { color: #22d3ee; font-weight: 700; letter-spacing: 0.12em; font-size: 16px; margin-bottom: 12px; }
 html.lf-mobile .lf-tut-row { font-size: 13px; color: #cfe0f5; line-height: 1.7; }
 html.lf-mobile .lf-tut-hint { margin-top: 12px; font-size: 12px; color: #9fb0cc; letter-spacing: 0.08em; }
+
+/* mobile menus — notch safe-area on the cockpit (the title's main menu). The fluid <1040px
+   layout already scrolls; this only keeps content clear of notches and trims short-landscape
+   dead space. Desktop is unaffected (scoped to html.lf-mobile). */
+html.lf-mobile .screen-cockpit {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  html.lf-mobile .screen-cockpit { padding-top: max(8px, env(safe-area-inset-top)); padding-bottom: 16px; }
+}
