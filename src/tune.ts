@@ -330,7 +330,7 @@ export const SPLITTER = {
 // raw danger. The hatch-pulse tell + the edge-hugging position make that read clear.
 export const BROODER = {
   driftSpeed: 45,
-  spawnEvery: 2.6, // s between hatches
+  spawnEvery: 4.5, // s between hatches
   windup: 0.6, // telegraph (core pulse) before a hatch
   maxSpawns: 4, // total drones one brooder births, then it's just a slow target
   childSpeed: 140,
