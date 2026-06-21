@@ -9,7 +9,7 @@
 - **Jam:** June Solstice Game Jam (an ode to Alan Turing)
 - **Play (no download, ~60 fps, one browser tab):** https://lancefall.pages.dev
 - **Genre:** neon dash-combat bullet-hell roguelite
-- **Engine:** Vite + vanilla TypeScript · Canvas 2D · Web Audio · ~125 KB gzipped client · 800+ unit tests
+- **Engine:** Vite + vanilla TypeScript · Canvas 2D · Web Audio · ~125 KB gzipped client · 1,400+ unit tests
 - **Theme fit:** *solstice = the longest day*; the fall of the city was an **encryption** into grey
   noise, and you are the last **key** — break each boss's cipher-lock to decrypt the world back
   into light. The final choice is the one cipher no machine can solve, only choose.
@@ -62,7 +62,7 @@ mirror-boss is the imitation game).
   the grey City of Lancefall lights up neon and the score swells to a choir. Drop the chain and a
   street goes dark again. (All a11y-safe: the felt full-screen version dies under reduce-flashing,
   reduce-motion, and Clarity.)
-- 🎮 **7 modes + a weekly board** — **Casual** (suggested for run 1, off-board) · Endless · **Arena**
+- 🎮 **8 modes across 6 cards** — **Casual** (suggested for run 1, off-board) · Endless · **Arena**
   (a 15-wave / 6-boss gauntlet you can *win*) · **SOLSTICE PROTOCOL** (every boss is a cipher-lock —
   the code-breaking showcase) · **ECHO OF THE FALL** (the seeded daily + a rotating mutator) ·
   **Nightmare** (sudden-death, the walls close in) · **Boss Rush** — plus a **WEEKLY SIEGE** board.
@@ -71,7 +71,7 @@ mirror-boss is the imitation game).
   SEEKER… up to **THE SOVEREIGN**, the master cipher.
 - 🧬 **Roguelite depth** — an 11-card perk draft (they stack) with 7 **fusion evolutions**, build
   archetypes, cursed relics, shareable **Build DNA** codes, evolving biomes that twist the rules,
-  an 8-level **Heat** prestige ladder, a 12-node meta tree, and 6 ships that each play differently.
+  an 8-level **Heat** prestige ladder, a 17-node meta tree, and 6 ships that each play differently.
 - 🛡️ **ARMOR + LAST BREATH** — a shield cushion soaks a lethal hit and opens an escape lane; the
   next fatal hit triggers a bullet-time second wind. A death isn't always the end.
 - 🏅 **Optional online leaderboards** (per-mode + a shared Daily) — fully offline-first; the game is
@@ -96,9 +96,9 @@ mirror-boss is the imitation game).
 > assist highlights on. It's off the leaderboards so the boards stay honest.
 
 ### Made with (page body — footer)
-Vite + vanilla TypeScript, Canvas 2D, Web Audio — no engine, no framework, ~125 KB gzipped, 800+
+Vite + vanilla TypeScript, Canvas 2D, Web Audio — no engine, no framework, ~125 KB gzipped, 1,400+
 unit tests over the deterministic core. Built in a focused multi-agent session for the June
-Solstice Jam. CC0/CC-BY/Pixabay audio with a machine-checked license ledger. MIT-licensed source.
+Solstice Jam. CC0/CC-BY/Pixabay audio with a machine-checked license ledger. Source-available under the PolyForm Noncommercial License (commercial rights reserved by patij212).
 
 ---
 
@@ -155,13 +155,13 @@ identical for everyone. The final boss is the master cipher; the very last lock 
 the one cipher no machine can decide, only you (the halting problem), and the mirror-boss is the
 imitation game.
 
-It's a full roguelite under the hood: 7 modes (one you can actually *win*), 6 bosses, 12 enemies, a
+It's a full roguelite under the hood: 8 modes (one you can actually *win*), 6 bosses, 12 enemies, a
 stacking perk draft with fusion evolutions, build archetypes, cursed relics, shareable build codes,
 an 8-level Heat ladder, 6 ships, evolving biomes, optional leaderboards, and a 76-skin enemy
 gallery. Plus a no-fail tutorial, a Casual mode for run 1, and a deep accessibility menu
 (reduce-flashing/-motion, colorblind shapes, Clarity high-contrast, rebindable keys).
 
-No engine, no framework — Vite + vanilla TypeScript, Canvas 2D, Web Audio, ~125 KB gzipped, 800+
+No engine, no framework — Vite + vanilla TypeScript, Canvas 2D, Web Audio, ~125 KB gzipped, 1,400+
 unit tests over the deterministic core. Plays in a browser tab, no download.
 
 ▶️ **Play:** https://lancefall.pages.dev

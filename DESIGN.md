@@ -1,5 +1,11 @@
 # LANCEFALL — Design
 
+> **Scope of this record:** this is the original design log **through v2.0**. The game has since
+> grown to **v6 / THE LAST KEY** — the cipher/Turing/solstice re-narration, 6 bosses, 12 enemies,
+> 8 modes (6 title-rail cards), an 11-perk draft + 7 fusions, accounts + online leaderboards, and
+> the full story layer (THE CODEBREAKER, THE CITY REMEMBERS, THE CHOICE / THE LAST WORD). For the
+> **current** state see [`README.md`](README.md); this file is kept as a historical design record.
+
 > Design record for the build. The concept was chosen via a multi-agent design
 > tournament (6 concepts across distinct genre lenses → 3 judges → an 8-facet
 > implementation bible). LANCEFALL won on *marvel × fun × one-session

@@ -1,13 +1,11 @@
 # LANCEFALL — game modes reference
 
-> **DIRECTION (agreed, not yet implemented) — see [`SOVEREIGN_VICTORY_SPEC.md`](SOVEREIGN_VICTORY_SPEC.md).**
-> The roster consolidates **8 → 6**: **ENDLESS** and **ECHO OF THE FALL (daily)** retire (they
-> overlap Endless/Weekly in core loop). **WEEKLY SIEGE** becomes the one *living, truly-endless*
-> mode — it absorbs the Daily's retention loop + story as a **daily sub-goal** and a daily **Echo
-> of the Fall** vignette on top of its week seed. And **downing the Sovereign becomes a rewarded
-> climax in every mode** — a DAYBREAK victory beat + THE CHOICE + a first-clear unlock — which
-> banks a real victory and then **offers KEEP GOING (ASCEND)** in every survival mode for the score
-> chase. Sections below marked _(retiring)_ document current code until the change lands.
+> **STATUS (2026-06-21).** The Sovereign-victory climax shipped: downing the Sovereign now fires a
+> **DAYBREAK** victory beat + the **FIRST LIGHT** day-wash and, in survival modes, an event offering
+> **GREET THE DAWN** (end on the win) or **KEEP GOING (ASCEND ×N)** for the score chase. The
+> proposed 8→6 roster consolidation (retiring ENDLESS + ECHO OF THE FALL into WEEKLY) was **not
+> adopted** — all 8 modes remain, surfaced as 6 title-rail cards. See
+> [`SOVEREIGN_VICTORY_SPEC.md`](SOVEREIGN_VICTORY_SPEC.md) for the original design intent.
 
 There are currently **8 modes**, each a data-only `RunConfig` in [`src/modes.ts`](../src/modes.ts)
 that the director + game read off (no per-mode `if` soup). They split into two families:
@@ -24,18 +22,20 @@ that the director + game read off (no per-mode `if` soup). They split into two f
 
 | Mode | id | Family | Seed | Difficulty\* | Shards | Ranked | Signature |
 |------|-----|--------|------|------------|--------|--------|-----------|
-| ENDLESS _(retiring)_ | `endless` | survival | random | STANDARD (1.00) | ×1.0 | ✅ | the baseline survival run |
+| ENDLESS | `endless` | survival | random | STANDARD (1.00) | ×1.0 | ✅ | the baseline survival run |
 | ARENA | `arena` | **winnable** | random | STANDARD | ×1.1 | ✅ | 15 scripted waves + 6 bosses, clear-to-advance |
-| ECHO OF THE FALL _(retiring)_ | `daily` | survival | **date** | STANDARD (1.00) | ×1.0 | ✅ daily board | one seed for everyone today, best-of-3 |
+| ECHO OF THE FALL | `daily` | survival | **date** | HARD (1.00) | ×1.0 | ✅ daily board | one seed for everyone today, best-of-3 |
 | WEEKLY SIEGE | `weekly` | survival | **week** | HARD (1.15) | ×1.3 | ✅ weekly board | one seed all week, spicier mutators |
 | NIGHTMARE | `nightmare` | survival | random | **BRUTAL (1.89)** | ×1.75 | ✅ | sudden-death shrinking walls, **no ARMOR** |
 | BOSS RUSH | `bossrush` | **winnable** | random | STANDARD | ×1.3 | ✅ | all 6 bosses back-to-back, **no chaff** |
-| SOLSTICE PROTOCOL | `longestday` | survival | random | STANDARD (1.05) | ×1.25 | ✅ | **every boss is a cipher** (the Turing ode) |
-| CASUAL | `casual` | survival | random | **easiest (0.74)** | ×1.0 | ❌ off-board | gentle, **+4 ARMOR**, see the whole game |
+| SOLSTICE PROTOCOL | `longestday` | survival | random | HARD (1.05) | ×1.25 | ✅ | **every boss is a cipher** (the Turing ode) |
+| CASUAL | `casual` | survival | random | **easiest (0.44)** | ×1.0 | ❌ off-board | gentle, **+6 ARMOR**, see the whole game |
 
 \*Difficulty = the `modeBrief` heuristic `intensityMul × (1/spawnMul) × (1+speedBonus)` — the
 relative pressure of the survival spawn curve. Tiers: ≥1.3 BRUTAL · ≥1.1 HARD · else STANDARD.
 The two winnable modes are scripted, so the number is nominal — their difficulty is the script.
+SOLSTICE PROTOCOL and ECHO OF THE FALL carry a `briefTier:'HARD'` display override (their cipher /
+seeded pressure reads harder than the raw heuristic), so the rail shows **HARD** for both.
 
 ## The config knobs (what actually differs)
 
@@ -108,9 +108,9 @@ break the code, bring back the longest day. Survival.
 
 ### CASUAL — *"See it all — bosses, biomes, the story. Extra ARMOR, no pressure."*
 The **easiest** mode and the only **off-board** one (`rules.ranked: false` → scores never submit,
-so the fat cushion can't game the leaderboards). Gentler curve (intensity **0.85**, sparser
-`spawnMul` 1.15, slow boss cadence 75s, fewer/late shields). **+4 ARMOR** on top of the default 2
-(**6 absorbs**). Meant for seeing the content — bosses, biomes, the re-narration — without the
+so the fat cushion can't game the leaderboards). Gentler curve (intensity **0.62**, sparser
+`spawnMul` 1.4, slow boss cadence 75s, fewer/late shields). **+6 ARMOR** on top of the default 2
+(**8 absorbs**). Meant for seeing the content — bosses, biomes, the re-narration — without the
 pressure. Survival.
 
 ## Cross-cutting systems that vary by mode
@@ -119,7 +119,7 @@ pressure. Survival.
   survival; `won` is structurally never true there.
 - **Seeding & fairness** — `random` vs `date`/`week`. Seeded modes (Daily, Weekly) are identical
   for every player and disable NG+ so a known-good seed can't be farmed for records.
-- **ARMOR shields** — default **2**; Casual **+4** (=6); Nightmare **0** (stripped); Heat ascension
+- **ARMOR shields** — default **2**; Casual **+6** (=8); Nightmare **0** (stripped); Heat ascension
   also strips shields (SEARING −1 … MELTDOWN −all).
 - **Mid-run events** — `normal` (Endless), `none` (Arena, Boss Rush — scripted), `curated`
   high-risk pool (Daily, Weekly, Nightmare).
@@ -133,10 +133,11 @@ pressure. Survival.
 - **Arena / Boss Rush** — the Sovereign is the last script entry, so killing it triggers the win:
   a victory cinematic ("REMEMBERED"), cleartime score bonus, **THE CHOICE** (catch/fall, first time
   only), NG+ increments, score submitted.
-- **Survival modes** — killing the Sovereign sets `sovereignDown`, grants +1 ARMOR / a power-up / a
-  perk / a "SOVEREIGN DOWN" float — then **the run just continues** (the boss cycle wraps to a
-  tougher Warden). No victory, no ending, no THE CHOICE. *This anticlimax is what the Sovereign
-  Victory spec fixes.*
+- **Survival modes** — killing the Sovereign sets `sovereignDown`, fires the **DAYBREAK** victory
+  beat + the **FIRST LIGHT** day-wash + a "THE LONGEST DAY IS WON" callout, then pops an event:
+  **GREET THE DAWN** (end the run on the victory) or **KEEP GOING (ASCEND ×N)** to press on into a
+  tougher loop for the score. (The full catch/fall **THE CHOICE** stillpoint ending resolves on the
+  *winnable* modes; survival's climax is the DAYBREAK / GREET-THE-DAWN beat.)
 
 ## How this bears on "win every mode ≥5%"
 

@@ -26,3 +26,15 @@ audio-src/flagship/**/*.mp3
 audio-src/flagship/**/*.ogg
 audio-src/flagship/**/*.aiff
 audio-src/flagship/**/*.aif
+
+# Local dev scratch — glyph/cipher/UI prototyping & one-off renders (not for the repo)
+.superpowers/
+/cards-compare.html
+/cards-final.html
+/glyph-set.html
+/icons-compare.html
+/icons-preview.html
+/build-glyph-preview.cjs
+/build-glyphart-module.cjs
+/v6-nightmare-suddendeath.jpeg
+tools/trailer/ztest.mp4

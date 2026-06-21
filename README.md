@@ -1,9 +1,9 @@
 # ⚔️ LANCEFALL
 
-> 🎮 **Play the open alpha: https://lancefall.pages.dev** &nbsp;·&nbsp; community leaderboards live — scores are client-reported & unverified (set a handle on the RANKS screen).
+> 🎮 **Play the open alpha: https://lancefall.pages.dev** &nbsp;·&nbsp; community leaderboards live — play offline, or sign in with **Discord / Google** for a verified handle + cloud save (scores are client-reported; set a handle on the RANKS screen).
 > Hosted on Cloudflare Pages; leaderboard backend on a Cloudflare Worker + D1 (`worker/`). Redeploy the client with `npm run deploy`.
 
-> **🗝️ THE LAST KEY edition** (June Solstice Game Jam — an ode to Alan Turing). The fall of Lancefall was an *encryption*: the Six scrambled the city's light into grey noise. You are the last **key**. Break each boss's **cipher-lock** — read the code and dash its glyph-cores in the decoded order — to decrypt the city back to its **longest day**. THE CHOICE on the final kill is the one cipher no machine can solve, only choose (the halting problem); the Mirrorblade is the imitation game. New this edition: the **cipher-lock** mechanic, **THE LONGEST DAY** mode (every boss is a cipher), **DAYBREAK** ultimate, and a full Turing×solstice re-narration. *memory = light-code · forgetting = encryption · remembering = decryption.*
+> **🗝️ THE LAST KEY edition** (June Solstice Game Jam — an ode to Alan Turing). The fall of Lancefall was an *encryption*: the Six scrambled the city's light into grey noise. You are the last **key**. Break each boss's **cipher-lock** — read the code and dash its glyph-cores in the decoded order — to decrypt the city back to its **longest day**. THE CHOICE on the final kill is the one cipher no machine can solve, only choose (the halting problem); the Mirrorblade is the imitation game. New this edition: the **READ THE KEY** cipher-lock mechanic, **SOLSTICE PROTOCOL** mode (every boss is a cipher), the **DAYBREAK** ultimate, **THE CODEBREAKER** decryption console, and a full Turing×solstice re-narration. *memory = light-code · forgetting = encryption · remembering = decryption.*
 
 > **A neon dash-combat bullet-hell.** Your only weapon is a *momentum dash* — charge it, release, and rocket through the swarm leaving a glowing trail that shreds everything in its path. Phase through a wall of bullets, skewer four enemies in one line, land, drift, recharge, repeat. Chain kills before the combo decays. Survive.
 
@@ -45,23 +45,25 @@ You don't shoot. You **dash**.
 - Dashing costs a segment of a **3-segment stamina bar** that auto-refills, so you can't spam it…
 - …unless you **graze** — skimming bullets *without* dying tops your stamina back up and rewards staying dangerous.
 - Killing several enemies in **one dash** builds a **combo** that decays fast. Greed vs. survival.
-- Every 45s a **Warden** mini-boss forces you to read a bullet pattern and find the opening.
-- Every few waves you **draft a perk** (3 of 10, they stack) — chain explosions, longer lance, graze-burn, nova dash, siphon, time-thief… — and watch your build snowball into a perpetual-motion massacre.
+- Every ~70s a **boss** rises and forces you to read a bullet pattern and find the opening.
+- Every few waves you **draft a perk** (3 of 11, they stack) — chain explosions, longer lance, graze-burn, nova dash, siphon, time-thief… — and watch your build snowball into a perpetual-motion massacre.
 
 ## Features
 
 - ⚔️ **Charge-dash combat** — swept-capsule spear collision, i-frames, momentum carry, commit-on-release routing.
-- 🎮 **7 game modes + a weekly board** — **Casual** (the no-pressure on-ramp, off the leaderboards), **Endless**, **Arena** (a hand-built **15-wave / 6-boss** gauntlet you can actually **win**), **SOLSTICE PROTOCOL** (a solstice mode where *every boss is a cipher-lock* — the code-breaking showcase), **Daily Challenge** (seeded + a rotating mutator, same for everyone), **Nightmare** (cranked + ×1.75 shards), and **Boss Rush** (all six bosses back-to-back).
+- 🎮 **8 modes across 6 title cards** — **SOLSTICE PROTOCOL** (the campaign — *every boss is a cipher-lock* you READ THE KEY to break), **Casual** (the no-pressure on-ramp that lets anyone reach the ending, off the leaderboards), **Endless**, **Arena** (a hand-built **15-wave / 6-boss** gauntlet you can actually **win**), **ECHO OF THE FALL** (the seeded daily — same seed for everyone, best-of-3), **WEEKLY SIEGE** (one seed for the whole world all week, its own board), **Nightmare** (sudden-death, the walls close in, no ARMOR, +75% shards), and **Boss Rush** (all six bosses back-to-back).
 - 💀 **12 enemy archetypes + elite Champions + 6 bosses**, all shape-coded (colorblind-friendly): darters, orbiters, splitters, turret-bloomers, **lancers** (snipers), **bombers**, **wisp** swarms, **drifters** (arc-fan zoners), **shades** (teleporting ambushers), **brooders** (spawners), the gap-wall **HERALD** and homing **SEEKER**, gold-aura **Champions** — and a boss cast of cipher-keepers: **Warden**, **Weaver**, **Beacon**, **Mirrorblade** (the imitation game), **THE HOLLOW** (the one-time key — damage it only through its Clone-Sync flash), and **THE SOVEREIGN** (the master cipher: dash its orbiting cores in the decoded order to crack the crown).
+- 🗝️ **READ THE KEY — cipher-locked bosses** — in the campaign, every boss is armored until you read its substitution legend off the HUD and dash its glyph-cores in the *decoded* order (the Sovereign is always the master cipher). Between runs, **THE CODEBREAKER** console decrypts the transmissions of the fall word-by-word — spend Memory Fragments, and a cracked word resolves everywhere — with recovered lore read back in the **CODEX** archive.
+- 🏙️ **THE CITY REMEMBERS — the fall, re-narrated** — 16 authored citizens wake as you decrypt and fight, and the six biomes are the city's districts. The final kill is **THE CHOICE** — the one cipher no machine can solve, only choose (the halting problem) — and **THE LAST WORD** ending names every fate. Win and the screen breaks into **FIRST LIGHT**: the longest day.
 - 🔥 **Heat ascension** — an 8-level prestige ladder (COLD→MELTDOWN) that stacks difficulty for up to ×3.2 score. The veteran score-chase.
 - 🎲 **Run mutators + mid-run events** — the Daily rolls 1-2 mutators (Glass Cannon, Bullet Storm, Fog of War, Berserk…) for a distinct identity; mid-run shrines/gambles/treasures/cursed pacts offer pause-and-choose risk/reward.
 - ◈ **Build archetypes + ☠ cursed relics + ⧬ build DNA** — pick a build path that biases your draft; grab double-edged relics for high-risk power; copy your whole build as a shareable code.
 - 🌍 **Evolving biomes** — a run cycles through THE COURT → THE EMBERWALL → THE VAULTS → THE BLOOMGARDENS → THE WARRENS → THE NULL, each retinting the world, shifting the enemy mix, and twisting the rules.
-- ⬆️ **Permanent meta-progression** — a 12-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**) bought with banked shards. The "one more run" engine.
+- ⬆️ **Permanent meta-progression** — a 17-node UPGRADES tree (regen, reach, graze, score/shard gains, an extra perk card, head-start perks, a per-run **revive**, plus a 5-node **PARRY mastery** branch) bought with banked shards. The "one more run" engine.
 - 🚀 **6-ship roster** — Lance (balanced), Tempest (nimble), Glaive (glass cannon), Bastion (tank), Phantom (knife-edge), and **Reaver** (bloodthirsty — dash-kills refund stamina, weak graze: live by the chain). Each a genuinely different playstyle; all but Lance are shard-unlocks.
 - 🃏 **In-run perk draft + fusion evolutions** — 3-of-**11** stacking upgrades that compound into wild builds (offensive *and* defensive — Riposte shatters bullets on the dash), plus **7 evolutions** (IMPALER, SUPERNOVA, PERPETUAL, WRAITH, INFERNO, JUGGERNAUT, AEGIS): stack the right recipe and a build-defining fusion capstone unlocks as a guaranteed glowing draft slot.
-- 🏅 **Optional online leaderboards** — per-mode global boards + a shared daily, served by a tiny deploy-ready Cloudflare Worker (`worker/`). Offline-first: the game is identical without it; set `VITE_LEADERBOARD_URL` to light up the RANKS screen.
-- 🎨 **Cosmetic palette themes** (5 shard-unlockable reskins) · 🏆 **achievements + a lifetime-stats screen** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
+- 🏅 **Optional online leaderboards + accounts** — per-mode global boards + a shared daily, served by a deploy-ready Cloudflare Worker + D1 (`worker/`). Link a **Discord or Google** account for a verified, impostor-proof handle and **cross-device cloud save**. Offline-first: the game is identical without it; set `VITE_LEADERBOARD_URL` to light up the RANKS screen.
+- 🎨 **Cosmetics** — **6 palette themes**, **8 dash-trail unlocks**, per-ship **Solstice ship-skins**, and a **biomech enemy-skin gallery** (per-enemy/per-rarity, achievement-unlocked), plus an animated profile avatar · 🏆 **achievements + a lifetime-stats DOSSIER** · a rich **run-summary debrief** (death cause, PB delta, achievement chips).
 - 🌀 **The juice stack** — parallax starfield + nebula, trauma shake, hitstop, slow-mo, bloom, chromatic aberration, dash-trail ribbons, `+score` popups, combo-tier callouts (RAMPAGE→LEGENDARY), velocity-lean camera, punch-zoom, screen flashes.
 - 🔊 **Hybrid audio** (Web Audio) — free-licensed **authored beds** (an AURORA arena suite + a WARDEN boss gear-change) play under a **procedural reactive layer** that carries the recurring LANCE THEME motif, the dash-on-beat snare, and the COHERENCE shimmer; vertical intensity opens the bed's filter with flow. Sampled combat SFX layer over the synth transients. Every shipped asset is CC0/CC-BY/Pixabay with a machine-checked provenance ledger; the procedural engine is also the resilient fallback when assets are missing (a run is never broken). Combo-pitched *thunks*, per-boss music themes, victory stinger.
 - 🎮 **Keyboard + mouse, gamepad, and touch** (twin virtual sticks on phones).
@@ -74,6 +76,8 @@ You don't shoot. You **dash**.
 | Move | `WASD` / arrows | left stick | left thumb-zone |
 | Aim | mouse | right stick | drag right thumb |
 | Charge-dash | hold `Space` / `J` / left mouse, release | hold `A` / `RT`, release | hold + release right thumb |
+| Parry (aim-arc deflect) | `K` / right mouse | `B` | — |
+| DAYBREAK (ultimate) | `F` / `Shift` | `LB` | — |
 | Pause | `Esc` / `P` | Start | pause button |
 | Pick perk | `1` `2` `3` / click | A | tap |
 | Restart (game over) | `R` / `Space` | A | tap AGAIN |
@@ -131,7 +135,7 @@ npm run preview
 ## Test
 
 ```bash
-npm test         # 700+ unit tests — the pure simulation + the authored-audio engine/pipeline
+npm test         # 1,400+ unit tests — the pure simulation + the authored-audio engine/pipeline
 ```
 
 Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 11-perk draft (stacking + max-stack exclusion), the 7 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 6 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
@@ -148,7 +152,9 @@ Client-only, zero servers, layered:
 
 ## License
 
-MIT © patij212
+**Source-available, non-commercial.** Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md) — free to play, read, fork, and learn from for any **non-commercial** purpose; **all commercial rights are reserved by patij212.** Bundled third-party assets (the CC-BY / CC0 / Pixabay audio) keep their own licenses — see [`docs/audio/CREDITS.md`](docs/audio/CREDITS.md).
+
+Copyright © 2026 patij212
 
 ---
 
