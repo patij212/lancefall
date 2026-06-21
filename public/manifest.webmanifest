@@ -1,0 +1,14 @@
+{
+  "name": "THE LAST LANCE",
+  "short_name": "LANCEFALL",
+  "description": "A neon dash-combat bullet-hell roguelite. Charge, release, and spear everything in your path.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0b0f",
+  "theme_color": "#0e0f13",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

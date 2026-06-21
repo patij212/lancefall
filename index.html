@@ -20,6 +20,13 @@
   <meta name="description" content="Your only weapon is a momentum dash. Charge, release, and spear everything in your path. Chain kills, graze bullets, survive the swarm." />
   <meta name="theme-color" content="#0e0f13" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!-- PWA — installable on phones (manifest + service worker registered only on mobile, see src/mobile/pwa.ts) -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LANCEFALL" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
 </head>
 <body>
   <canvas id="game" role="application" aria-label="LANCEFALL — a neon dash-combat game. Charge and release to dash; played with keyboard and mouse, gamepad, or touch."></canvas>

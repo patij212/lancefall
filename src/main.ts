@@ -5,6 +5,7 @@ import { startCockpitCipher } from './cockpitCipher';
 import * as account from './account';
 import { onSaveWrite, loadSettings } from './save';
 import { isMobile } from './mobile/detect';
+import { initPwa } from './mobile/pwa';
 
 /** Last-resort overlay shown if boot throws or an uncaught error/rejection escapes the
  *  game loop, so a player (or a jam judge) never meets a blank/frozen black page. Inline-
@@ -58,7 +59,10 @@ try {
 
   // Touch UI — mounted ONLY on a touch device. Desktop never enters this branch, so no
   // mobile element, listener, or class can exist there (see mobile/detect.ts).
-  if (isMobile(loadSettings().inputMode)) game.mountMobile(uiRoot);
+  if (isMobile(loadSettings().inputMode)) {
+    game.mountMobile(uiRoot);
+    initPwa(); // offline PWA install + tap-to-fullscreen + landscape lock (best-effort, mobile-only)
+  }
 
   // CIPHER STORM — animated Turing-decode backdrop on the cockpit title (self-mounting,
   // title-only, reduce-motion-safe). Defensive internally so it can never break boot.
