@@ -164,11 +164,12 @@ export const TUNE = {
   // ── Difficulty: a single intensity scalar I(t) drives everything ──
   director: {
     rampSeconds: 240, // I goes 0->1 over the first 4 minutes
-    spawnIntervalStart: 2.6, // gentle opening so a new player learns the dash
+    spawnIntervalStart: 1.9, // gentle opening so a new player learns the dash
     spawnIntervalEnd: 0.45,
     spawnIntervalFloor: 0.3,
     enemiesPerSpawnMax: 3,
-    maxConcurrentStart: 4,
+    openingBurstSec: 22, // for the first this-many seconds spawns release +1 enemy (a pure, rng-free opening pop so a run doesn't crawl out one-at-a-time)
+    maxConcurrentStart: 6,
     maxConcurrentEnd: 22, // peak concurrent at I=1 (eased 26→22 so the survival mid-game is reachable toward the Sovereign)
     maxConcurrentCap: 32, // hard ceiling on the post-ramp crowd (eased 40→32 — the late game stays a survivable wall, not a drown)
     intensityGrowthSec: 260, // post-ramp: I grows +1 every this-many seconds (eased 180→260 — a gentler late climb)

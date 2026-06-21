@@ -82,6 +82,12 @@ describe('spawn cadence', () => {
     expect(enemySpeedMul(1)).toBeGreaterThan(enemySpeedMul(0));
     expect(bulletSpeedMul(1)).toBeGreaterThan(bulletSpeedMul(0));
   });
+
+  it('opens with a small burst that decays, then returns to base cadence (no rng)', () => {
+    expect(enemiesPerSpawn(0, 0)).toBe(2); // opening: base 1 + burst 1
+    expect(enemiesPerSpawn(0, TUNE.director.openingBurstSec)).toBe(1); // burst gone exactly at the cutoff
+    expect(enemiesPerSpawn(0)).toBe(1); // no-t call unchanged (back-compat)
+  });
 });
 
 describe('unlock pacing', () => {

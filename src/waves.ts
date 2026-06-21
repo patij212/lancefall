@@ -23,8 +23,13 @@ export function spawnInterval(I: number): number {
   return Math.max(d.spawnIntervalFloor, base - Math.max(0, I - 1) * 0.1);
 }
 
-export function enemiesPerSpawn(I: number): number {
-  return 1 + Math.floor(clamp(I, 0, 1.4) * TUNE.director.enemiesPerSpawnMax);
+export function enemiesPerSpawn(I: number, t = Infinity): number {
+  const d = TUNE.director;
+  const base = 1 + Math.floor(clamp(I, 0, 1.4) * d.enemiesPerSpawnMax);
+  // opening pop: +1 enemy per spawn for the first openingBurstSec, then it decays back to base.
+  // Pure fn of elapsed time — no rng — so two players on the same seed spawn identically (Daily safe).
+  const burst = t < d.openingBurstSec ? 1 : 0;
+  return base + burst;
 }
 
 export function maxConcurrent(I: number): number {
@@ -296,7 +301,7 @@ export class Director {
         // ceiling — keeps the cap honest + consistent with the wisp-pack clamp.
         const room = Math.min(TUNE.director.maxConcurrentCap, Math.round(maxConcurrent(I) * sw)) - concurrent;
         if (room > 0) {
-          const n = Math.min(room, Math.round(enemiesPerSpawn(I) * sw));
+          const n = Math.min(room, Math.round(enemiesPerSpawn(I, this.t) * sw));
           const weights = enemyWeights(this.t, I).map((w) => ({ v: w.v, w: w.w * (this.biomeBias[w.v] ?? 1) }));
           for (let i = 0; i < n; i++) d.spawn.push(rng.weighted(weights));
         }
