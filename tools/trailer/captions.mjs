@@ -42,6 +42,7 @@ const CAPTIONS = [
   { id: 'sovereign', label: 'THE SOVEREIGN', line: 'The master cipher — a rotor that <b>re-scrambles</b> with every core.', accent: AMBER },
   { id: 'unlock', label: 'UNLOCK THE FALL', line: 'Decrypt the lost transmissions — uncover who let the light die.', accent: AMBER },
   { id: 'roguelite', label: 'A DEEP ROGUELITE', line: 'Six ships, a stacking perk draft, meta-progression — no two runs alike.', accent: VIOLET },
+  { id: 'sigils', label: 'PROFILE SIGILS', line: 'Two dozen animated avatars to unlock and fly under.', accent: VIOLET },
   { id: 'solstice', label: 'BRING BACK THE SOLSTICE', line: 'Break the last cipher, and the <b>longest day</b> returns.', accent: GOLD },
 ];
 

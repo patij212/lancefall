@@ -50,7 +50,7 @@ const SHOTS = [
   { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 3.5 },
   { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.0,  cap: 'readkey' },
   { id: 'order',      kind: 'clip',  src: 'cipher',    ss: 13.0, t: 4.0 },
-  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 4.5,  cap: 'defeat' },
+  { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 21.0, t: 4.5,  cap: 'defeat' },  // ss+t<=26 (the clip length) — avoids a frozen last frame
   { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0,  t: 5.0,  cap: 'returns' },
   // ACT 3 — the threat + the six bosses (incl. the Turing pillars)
   { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 3.0 },
@@ -70,7 +70,7 @@ const SHOTS = [
   { id: 'dossier',    kind: 'still', src: ppng('stats'),     t: 2.4, zoom: 'in' },
   { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.4, zoom: 'in' },
   { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 2.4 },
-  { id: 'avatars',    kind: 'still', src: ppng('avatar_gallery'), t: 2.8, zoom: 'in' },
+  { id: 'avatars',    kind: 'clip',  src: 'avatars', ss: 6.0, t: 4.5, cap: 'sigils' },    // 24 sigils, fully animated (recorded SMIL); ss within the ~12s capture, grid already up
   // ACT 5 — the climax: the choice (visual tease) → live FIRST LIGHT → bring back the solstice
   { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 3.5, zoom: 'in' },
   { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.5, cap: 'solstice' },

@@ -153,6 +153,7 @@ async function renderBeat(name, frameCount, setup, opts = {}) {
   const page = await boot(ctx);
   await setup(page);
   await page.evaluate(`(${STEADY.toString()})()`); // uniform speed: pin timeScale=1 (no hitstop/slow-mo)
+  if (opts.neon) await page.evaluate(`(${COH_FORCE.toString()})()`); // light the city up (full COHERENCE wash) — for the later battles
   // bulletproof god: the run must NEVER end mid-capture. Per-frame iframe/alive isn't enough when a
   // boss beam + game-over resolve inside one step, so also neuter finishGameOver (blocks both death
   // AND the Sovereign-kill win screen → continuous gameplay only).
@@ -261,42 +262,42 @@ const BEATS = {
     await startRun(page, 'longestday', true);
     await page.evaluate(() => window.__lf.spawnWarden('sovereign'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { pin: PIN, calm: true }),
+  }, { pin: PIN, calm: true, neon: true }),
 
   // BULLET-HELL boss — THE BEACON's rotating cross-beams, the survival bot threading them for real.
   bossfight: () => renderBeat('bossfight', Math.round(12 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(() => window.__lf.spawnWarden('beacon'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { pin: PIN, calm: true }),
+  }, { pin: PIN, calm: true, neon: true }),
 
   // the Mirrorblade — the imitation game (real duel)
   mirror: () => renderBeat('mirror', Math.round(10 * FPS), async (page) => {
     await startRun(page, 'endless', true);
     await page.evaluate(() => window.__lf.spawnWarden('mirrorblade'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { calm: true, warmup: 6 }),
+  }, { calm: true, warmup: 6, neon: true }),
 
   // DAYBREAK ultimate — the real screen-clearing burst (the bot earns the meter + fires it)
   daybreak: () => renderBeat('daybreak', Math.round(9 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(() => { const w = window.__lf.world; if (w.overdrive) { w.overdrive.meter = 1; w.overdrive.cooldown = 0; } });
     await page.evaluate(`(${FORCE_DAYBREAK.toString()})(90)`);
-  }, { calm: true, warmup: 8 }),
+  }, { calm: true, warmup: 8, neon: true }),
 
   // THE WARDEN — the first boss: rotating fans + spiral volleys (a different lock than the beams/cipher)
   warden: () => renderBeat('warden', Math.round(11 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(() => window.__lf.spawnWarden('warden'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { pin: PIN, calm: true }),
+  }, { pin: PIN, calm: true, neon: true }),
 
   // THE HOLLOW — echo-hunt boss (spawns mirror echoes you must read); rounds out all 6 bosses shown
   hollow: () => renderBeat('hollow', Math.round(11 * FPS), async (page) => {
     await startRun(page, 'arena', true);
     await page.evaluate(() => window.__lf.spawnWarden('hollow'));
     await page.evaluate(`(${QUIET_ALL.toString()})()`);
-  }, { pin: PIN, calm: true }),
+  }, { pin: PIN, calm: true, neon: true }),
 
   // FIRST LIGHT — the real win daybreak: live play, then the WIN floods the frame grey→gold and holds.
   // NO warmup: the warmup loop resets winning=false each frame, which would wipe the trigger. Wave-1
