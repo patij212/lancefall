@@ -2917,6 +2917,10 @@ body {
 .ck-logo.is-avatar {
   width: 100px;
   height: 100px;
+  /* let the 100px medallion overhang its row by 5px top/bottom so it tightens the header
+     height without shrinking the avatar — its glow already overflows the box, and the slack
+     bleeds into the header's own padding, so nothing clips. */
+  margin: -5px 0;
   cursor: pointer;
   border-radius: 50%;
   transition: transform 0.18s ease, filter 0.18s ease;
