@@ -112,7 +112,7 @@ export const MODES: RunConfig[] = [
     // front door, not a gated side-mode.
     id: 'longestday', name: 'SOLSTICE PROTOCOL',
     desc: 'The campaign. Every boss is a cipher — read the key, deduce the code, and bring back the longest day.',
-    seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 38, speedBonus: 0,
+    seedKind: 'random', intensityMul: 1.05, spawnMul: 1, bossInterval: 30, speedBonus: 0,
     shieldStart: 110, shieldMax: 0.35, shardMul: 1.25, perks: true, canFail: true, arena: false, bossrush: false,
     cipherLock: true,
     briefTier: 'HARD', // the campaign's cipher bosses read harder than the raw spawn/speed heuristic (display-only)

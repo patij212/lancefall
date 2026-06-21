@@ -224,4 +224,8 @@ describe('SOLSTICE PROTOCOL is the main mode', () => {
       expect(RAIL_VARIANT_IDS).toContain(id);
     }
   });
+
+  it('SOLSTICE first boss lands early for the 2-minute showcase', () => {
+    expect(modeById('longestday').bossInterval).toBe(30);
+  });
 });
