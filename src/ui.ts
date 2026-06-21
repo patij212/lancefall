@@ -77,7 +77,7 @@ import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
 import { choiceEnding } from './stillpoint';
 import { sixthReveal, SOVEREIGN_HANDOFF, completionEpilogue, vigilBeat, canRelease } from './ending';
-import { vigilHeatFloor } from './cityVoice';
+import { vigilHeatFloor, hudCoherenceLabel } from './cityVoice';
 
 export interface UICallbacks {
   onStart: (cfg: RunConfig) => void;
@@ -564,6 +564,7 @@ export class UI {
   private beatPip!: HTMLElement;
   private cityMemWrap!: HTMLElement;
   private cityMemFill!: HTMLElement;
+  private cohCapEl!: HTMLElement;
   private staminaWrap!: HTMLElement;
   private staminaSegs: HTMLElement[] = [];
   private shieldsWrap!: HTMLElement;
@@ -951,8 +952,9 @@ export class UI {
     // ── TOP-RIGHT: coherence meter + best (mock .hud-tr) ──
     this.cityMemFill = el('div', { class: 'hud-citymem-fill' });
     this.cityMemWrap = el('div', { class: 'hud-citymem', title: 'COHERENCE — the City of Lancefall lights up as you chain kills and dash on the beat. Higher coherence = brighter world and fuller sound.' }, this.cityMemFill);
+    this.cohCapEl = el('div', { class: 'hud-coh-cap' }, 'THE CIPHER HOLDS');
     this.bestComboEl = el('div', { class: 'hud-bestcombo' }, '');
-    const topRight = el('div', { class: 'hud-topright' }, el('div', { class: 'hud-lbl' }, 'COHERENCE'), this.cityMemWrap, this.bestComboEl);
+    const topRight = el('div', { class: 'hud-topright' }, el('div', { class: 'hud-lbl' }, 'COHERENCE'), this.cityMemWrap, this.cohCapEl, this.bestComboEl);
 
     // ── BOTTOM-LEFT: dash / stamina (mock .hud-bl) ──
     this.staminaWrap = el('div', { class: 'hud-stamina', title: 'STAMINA — each dash spends a segment. It refills over time and faster when you graze bullets.' });
@@ -4215,10 +4217,12 @@ export class UI {
     // C4 — CITY MEMORY meter: fill = coherence value, gray→neon tint; hidden when toggled off
     const showMem = this.saveRef?.cityMemoryMeter !== false;
     this.cityMemWrap.style.display = showMem ? '' : 'none';
+    this.cohCapEl.style.display = showMem ? '' : 'none';
     if (showMem) {
       const { fill, neon } = cityMemoryFill(coherence, this.settings.reduceFlashing, this.settings.clarity);
       this.cityMemFill.style.transform = `scaleX(${fill})`;
       this.cityMemFill.style.opacity = String(neon);
+      this.cohCapEl.textContent = hudCoherenceLabel(coherence);
     }
     // score odometer
     this.displayScore += (world.score - this.displayScore) * 0.18;

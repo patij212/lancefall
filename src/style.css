@@ -2257,6 +2257,14 @@ body {
   transition: transform 0.12s linear;
 }
 .reduce-motion .hud-citymem-fill { transition: none; }
+.hud-coh-cap {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 600;
+  font-size: calc(9px * var(--hud-scale));
+  letter-spacing: 0.14em;
+  color: rgba(203, 213, 225, 0.45);
+  text-transform: uppercase;
+}
 .hud-bestcombo {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 600;
