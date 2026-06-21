@@ -68,7 +68,7 @@ function avatarPicker(save: SaveData, onSelect: (id: string) => void, animated: 
     const on = unlocked.has(v.id);
     heroGlyph.style.setProperty('--accent', v.accent);
     heroGlyph.classList.toggle('locked', !on);
-    heroGlyph.innerHTML = renderAvatar(v.id, { size: 132, variant: 'full', animated });
+    heroGlyph.innerHTML = renderAvatar(v.id, { size: 176, variant: 'full', animated });
     heroName.textContent = v.name;
     heroName.style.color = on ? v.accent : '#6c8a96';
     heroSub.textContent = on
@@ -89,7 +89,7 @@ function avatarPicker(save: SaveData, onSelect: (id: string) => void, animated: 
       title: on ? v.name : `${v.name} — ${v.unlockHint}`,
       'aria-label': on ? `Select ${v.name}` : `${v.name}, locked — ${v.unlockHint}`,
     }) as HTMLButtonElement;
-    tile.innerHTML = renderAvatar(v.id, { size: 78, variant: 'full', animated: false });
+    tile.innerHTML = renderAvatar(v.id, { size: 96, variant: 'full', animated: false });
     tile.addEventListener('mouseenter', () => showHero(v.id));
     tile.addEventListener('focus', () => showHero(v.id));
     if (on) tile.addEventListener('click', () => onSelect(v.id));
@@ -116,7 +116,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
   close.addEventListener('click', () => deps.onClose());
 
   const root = el('div', { class: 'screen screen-dim screen-settings screen-modal hidden' },
-    el('div', { class: 'panel' }, head, body, close),
+    el('div', { class: 'panel panel-wide' }, head, body, close),
   );
 
   const open = (save: SaveData): void => {
