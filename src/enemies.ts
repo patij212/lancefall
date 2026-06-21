@@ -105,8 +105,9 @@ export function updateEnemy(e: Enemy, world: World, dt: number): void {
     e.shieldAngle = rotateToward(e.shieldAngle, target, SHIELD.trackRate * dt);
   }
 
-  // keep standoff zoners off the walls (playtest: edge-hugging sniper); phase 0 = mobile state
-  if (e.phase === 0 && STANDOFF_KINDS.has(e.kind)) applyEdgePull(e, world);
+  // keep standoff zoners off the walls in EVERY phase (was phase-0 only, which let a
+  // telegraphing/firing zoner rest at the edge for ~1s with nothing pulling it back)
+  if (STANDOFF_KINDS.has(e.kind)) applyEdgePull(e, world);
 
   // integrate
   e.x += e.vx * dt;
@@ -117,6 +118,15 @@ function steerToward(e: Enemy, tx: number, ty: number, speed: number): void {
   const [nx, ny] = norm(tx - e.x, ty - e.y);
   e.vx = nx * speed;
   e.vy = ny * speed;
+}
+
+/** A retreating zoner should fall back INTO the arena, not into a wall: clamp the retreat
+ *  target to the inner edge margin. PURE — positions + arena size only, no rng. Exported for tests. */
+export function steerRetreat(e: Enemy, world: World, dx: number, dy: number, speed: number): void {
+  const m = ZONER.edgeMargin;
+  const tx = clamp(e.x - dx, m, world.width - m);
+  const ty = clamp(e.y - dy, m, world.height - m);
+  steerToward(e, tx, ty, speed);
 }
 
 function chaser(e: Enemy, px: number, py: number, dt: number): void {
@@ -250,7 +260,7 @@ function herald(e: Enemy, world: World, dt: number): void {
   const sp = HERALD.strafeSpeed * e.speedMul;
   if (e.phase === 0) {
     // hold a standoff, strafing
-    if (dist < HERALD.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    if (dist < HERALD.range * 0.85) steerRetreat(e, world, dx, dy, sp);
     else if (dist > HERALD.range * 1.25) steerToward(e, p.x, p.y, sp);
     else {
       e.vx = (-dy / dist) * sp * 0.7;
@@ -323,7 +333,7 @@ function seeker(e: Enemy, world: World, dt: number): void {
   const sp = SEEKER_TUNE.strafeSpeed * e.speedMul;
   if (e.phase === 0) {
     // hold a standoff, strafing
-    if (dist < SEEKER_TUNE.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    if (dist < SEEKER_TUNE.range * 0.85) steerRetreat(e, world, dx, dy, sp);
     else if (dist > SEEKER_TUNE.range * 1.25) steerToward(e, p.x, p.y, sp);
     else {
       e.vx = (-dy / dist) * sp * 0.7;
@@ -365,7 +375,7 @@ function lancer(e: Enemy, world: World, dt: number): void {
   const sp = 90 * e.speedMul;
   if (e.phase === 0) {
     // hold a standoff, strafing
-    if (dist < LANCER.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    if (dist < LANCER.range * 0.85) steerRetreat(e, world, dx, dy, sp);
     else if (dist > LANCER.range * 1.3) steerToward(e, p.x, p.y, sp);
     else {
       e.vx = (-dy / dist) * sp * 0.8;
@@ -459,7 +469,7 @@ function drifter(e: Enemy, world: World, dt: number): void {
   const sp = DRIFTER_TUNE.strafeSpeed * e.speedMul;
   if (e.phase === 0) {
     // hold a comfortable standoff, strafing
-    if (dist < DRIFTER_TUNE.range * 0.85) steerToward(e, e.x - dx, e.y - dy, sp);
+    if (dist < DRIFTER_TUNE.range * 0.85) steerRetreat(e, world, dx, dy, sp);
     else if (dist > DRIFTER_TUNE.range * 1.25) steerToward(e, p.x, p.y, sp);
     else {
       e.vx = (-dy / dist) * sp * 0.7;

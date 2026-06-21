@@ -1853,8 +1853,9 @@ export class Game {
           this.teach(enemyReadFor(e.kind, this.save.taught));
         }
       }
-      // soft-clamp so nobody flies off forever
-      const m = 60;
+      // soft-clamp so nobody flies off forever (24px: a hair of spawn overshoot, but inside the
+      // on-screen player's reach so an enemy can never rest somewhere unhittable)
+      const m = 24;
       e.x = Math.max(-m, Math.min(w.width + m, e.x));
       e.y = Math.max(-m, Math.min(w.height + m, e.y));
     });

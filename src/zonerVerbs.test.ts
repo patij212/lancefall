@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { createRng } from './rng';
-import { updateEnemy, applyEdgePull, heraldWall } from './enemies';
+import { updateEnemy, applyEdgePull, heraldWall, steerRetreat } from './enemies';
 import { ORBITER, LANCER, ZONER, DRIFTER_TUNE, SEEKER_TUNE, BLOOMER, HERALD } from './tune';
 import type { Enemy } from './types';
 
@@ -253,6 +253,25 @@ describe('BLOOMER rotating wedge — every bloom leaves a safe wedge that walks 
     const steps = Math.round((BLOOMER.ringCadence * 5) / DT);
     for (let i = 0; i < steps; i++) updateEnemy(e, w, DT); // several blooms
     expect(w.rng.next()).toBe(ref.next()); // bloomer advanced world.rng zero times
+  });
+});
+
+describe('zoner edge-camp prevention (pure, rng-free)', () => {
+  it('steerRetreat falls back INTO the arena, never past the wall', () => {
+    const world = { width: 1000, height: 600 } as World;
+    const e = { x: 980, y: 300, vx: 0, vy: 0 } as Enemy; // hugging the right wall
+    // player is to the LEFT, so a naive retreat target (e.x - dx) lands at 1380 — past the wall
+    steerRetreat(e, world, -400, 0, 90);
+    expect(e.vx).toBeLessThan(0); // velocity points INWARD (toward the clamped target inside the margin)
+  });
+
+  it('edge-pull nudges a telegraphing (phase 1) lancer inward — not just in phase 0', () => {
+    const w = freshWorld(); // player parked far left at (200, 360)
+    const e = w.spawnEnemy('lancer', w.width - 5, 360, 1, 1, false, false, 0)!; // explicit angle → no rng
+    e.phase = 1; e.timer = LANCER.lockTime; e.vx = 0; e.vy = 0; // mid-telegraph at the wall
+    const x0 = e.x;
+    updateEnemy(e, w, DT);
+    expect(e.x).toBeLessThan(x0); // WITHOUT the fix, phase-1 edge-pull is skipped and x stays put
   });
 });
 
