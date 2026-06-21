@@ -70,7 +70,7 @@ const SHOTS = [
   { id: 'dossier',    kind: 'still', src: ppng('stats'),     t: 2.4, zoom: 'in' },
   { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.4, zoom: 'in' },
   { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 2.4 },
-  { id: 'avatars',    kind: 'clip',  src: 'avatars', ss: 6.0, t: 4.5, cap: 'sigils' },    // 24 sigils, fully animated (recorded SMIL); ss within the ~12s capture, grid already up
+  { id: 'avatars',    kind: 'clip',  src: 'avatars', ss: 14.0, t: 4.5, cap: 'sigils' },   // 24 sigils, fully animated; the grid is up from ~13s in the 21.7s capture (earlier frames are boot)
   // ACT 5 — the climax: the choice (visual tease) → live FIRST LIGHT → bring back the solstice
   { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 3.5, zoom: 'in' },
   { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.5, cap: 'solstice' },
