@@ -219,6 +219,7 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
     { id: 'gameplay', name: 'GAMEPLAY', el: sect('gameplay',
       toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) => deps.patch({ dashStyle: v ? 'slingshot' : 'lance' })),
       toggle('Tutorial hints', s.tutorialHints, (v) => deps.patch({ tutorialHints: v })),
+      toggle('Boss Rush ciphers', s.bossRushCiphers, (v) => deps.patch({ bossRushCiphers: v })),
       replayRow,
       cityMemRow,
       ...(cloudSaveRow ? [cloudSaveRow] : []),

@@ -55,7 +55,7 @@ import { metaApplyFor, metaNode, nodeCost } from './meta';
 import { maxStamina, effectiveDashCost, cappedRefund, tickInterruptGate, type InterruptGate } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements, metaAchContext } from './achievements';
-import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
+import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked, bossRushCipherArmed } from './modes';
 import type { RunConfig } from './modes';
 import { milestoneAt, milestoneShardReward } from './milestones';
 import { MUTATORS, pickDailyMutators, pickWeeklyMutators, buildMutatorApply, applyMutatorConfig, mutatorElite } from './mutators';
@@ -3375,7 +3375,10 @@ export class Game {
     // fire-and-forget online leaderboard submission (no-op if not configured).
     // A duel is a private 1v1 on a fixed seed — never submit it to the public boards.
     // §7 — an UNRANKED mode (Casual/Story) is OFF the boards: it never submits, by design.
-    if (!this.inChallenge && modeRanked(this.mode)) {
+    // Boss Rush is ranked by cleartime; a cipher-OFF run is faster, so it stays OFF the board
+    // (only the default cipher-armed experience is comparable). Pure read of mode + setting.
+    const cipherOffBossRush = this.mode.bossrush && !this.settings.bossRushCiphers;
+    if (!this.inChallenge && modeRanked(this.mode) && !cipherOffBossRush) {
       void submitScore({
         mode: this.mode.id,
         name: this.save.handle,
@@ -3739,7 +3742,9 @@ export class Game {
     const boss = spawnBoss(w, this.director.bossCount, force);
     // SOLSTICE PROTOCOL: wrap ring-cipher bosses in a code-lock (the Sovereign arms
     // its own in spawnBoss; the Hollow/Mirrorblade are already their own puzzles)
-    if (boss && this.mode.cipherLock && bossUsesRingCipher(boss.kind)) spawnCipherRing(w, boss, CIPHER.ringCount);
+    if (boss && bossRushCipherArmed(this.mode, this.settings.bossRushCiphers) && bossUsesRingCipher(boss.kind)) {
+      spawnCipherRing(w, boss, CIPHER.ringCount);
+    }
     this.audio.bossWarn();
     this.audio.bossMusic(true, boss?.kind); // per-boss tension theme
     this.shake.add(TUNE.juice.traumaBossSpawn);

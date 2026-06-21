@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODES, modeById, modeBrief, modeFlavor, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_CARDS, RAIL_CARD_IDS, RAIL_VARIANT_IDS, cardForMode } from './modes';
+import { MODES, modeById, modeBrief, modeFlavor, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, nextModeId, modeUnlocked, nextRailMode, RAIL_CARDS, RAIL_CARD_IDS, RAIL_VARIANT_IDS, cardForMode, bossRushCipherArmed } from './modes';
 
 describe('modes', () => {
   it('modeById returns the match, or ENDLESS as a safe fallback', () => {
@@ -227,5 +227,19 @@ describe('SOLSTICE PROTOCOL is the main mode', () => {
 
   it('SOLSTICE first boss lands early for the 2-minute showcase', () => {
     expect(modeById('longestday').bossInterval).toBe(30);
+  });
+});
+
+describe('bossRushCipherArmed', () => {
+  it('SOLSTICE always armed (cipherLock), regardless of the Boss Rush setting', () => {
+    expect(bossRushCipherArmed(modeById('longestday'), true)).toBe(true);
+    expect(bossRushCipherArmed(modeById('longestday'), false)).toBe(true);
+  });
+  it('BOSS RUSH follows the setting', () => {
+    expect(bossRushCipherArmed(modeById('bossrush'), true)).toBe(true);
+    expect(bossRushCipherArmed(modeById('bossrush'), false)).toBe(false);
+  });
+  it('other modes never arm ring ciphers', () => {
+    expect(bossRushCipherArmed(modeById('endless'), true)).toBe(false);
   });
 });

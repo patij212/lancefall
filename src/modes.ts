@@ -162,6 +162,13 @@ export function modeSeeded(cfg: RunConfig): boolean {
   return cfg.seedKind === 'date' || cfg.seedKind === 'week';
 }
 
+/** Should a spawning boss be wrapped in a ring-cipher (armored-until-decoded)? True for
+ *  SOLSTICE (always, via cipherLock) and for BOSS RUSH when the player's bossRushCiphers
+ *  setting is on. Pure — the caller still AND-gates on bossUsesRingCipher(kind). */
+export function bossRushCipherArmed(cfg: RunConfig, bossRushCiphers: boolean): boolean {
+  return cfg.cipherLock === true || (cfg.bossrush === true && bossRushCiphers);
+}
+
 /** v6 §5 — a short difficulty/reward brief derived purely from a RunConfig, for the
  *  title mode-cards. A display heuristic ONLY — keep OUT of tune.ts and any sim path. */
 export function modeBrief(cfg: RunConfig): { tier: string; reward: string; note: string } {

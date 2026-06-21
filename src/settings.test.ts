@@ -96,4 +96,11 @@ describe('sanitizeSettings', () => {
     const d = defaultSettings();
     expect(sanitizeSettings({ master: 0.5 }).keymap).toEqual(d.keymap);
   });
+
+  it('defaults Boss Rush ciphers ON, and tolerates a missing/garbage flag', () => {
+    expect(defaultSettings().bossRushCiphers).toBe(true);
+    expect(sanitizeSettings({}).bossRushCiphers).toBe(true); // missing → default true
+    expect(sanitizeSettings({ bossRushCiphers: 'yes' }).bossRushCiphers).toBe(true); // wrong type → default
+    expect(sanitizeSettings({ bossRushCiphers: false }).bossRushCiphers).toBe(false); // explicit false round-trips
+  });
 });
