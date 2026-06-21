@@ -6968,3 +6968,28 @@ html.lf-mobile .lf-rotate-title { font-size: 20px; font-weight: 700; letter-spac
 html.lf-mobile .lf-rotate-sub { font-size: 13px; color: #9fb0cc; letter-spacing: 0.04em; }
 @keyframes lf-rotate-spin { 0%, 55% { transform: rotate(0deg); } 80%, 100% { transform: rotate(-90deg); } }
 html.reduce-motion .lf-rotate-icon { animation: none; }
+
+/* one-time touch-controls legend (first mobile run) — pointer-events:none so it never blocks play */
+html.lf-mobile .lf-tut {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding: 24px;
+}
+html.lf-mobile .lf-tut-card {
+  background: rgba(10, 11, 15, 0.86);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  border-radius: 14px;
+  padding: 20px 24px;
+  max-width: 92vw;
+  text-align: center;
+  color: #e8eefc;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+html.lf-mobile .lf-tut-title { color: #22d3ee; font-weight: 700; letter-spacing: 0.12em; font-size: 16px; margin-bottom: 12px; }
+html.lf-mobile .lf-tut-row { font-size: 13px; color: #cfe0f5; line-height: 1.7; }
+html.lf-mobile .lf-tut-hint { margin-top: 12px; font-size: 12px; color: #9fb0cc; letter-spacing: 0.08em; }

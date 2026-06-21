@@ -43,6 +43,8 @@ export interface MobileControls {
   setOptions(o: MobileOptions): void;
   /** Fold the live touch state onto the shared InputState. Returns usedStrong for this frame. */
   applyTo(state: InputState, px: number, py: number, enemies: AssistEnemies): boolean;
+  /** Show the one-time touch-controls legend (host gates once-ever via save.taught). */
+  showTutorial(): void;
   destroy(): void;
 }
 
@@ -85,6 +87,28 @@ export function mountMobileControls(
   );
   root.appendChild(rotate);
 
+  // One-time touch-controls legend (shown on the first mobile run via showTutorial(); the host
+  // owns the once-ever gate via save.taught). pointer-events:none so it never blocks play — the
+  // first canvas touch (or a timeout) dismisses it.
+  const tut = el(
+    'div',
+    { class: 'lf-tut' },
+    el(
+      'div',
+      { class: 'lf-tut-card' },
+      el('div', { class: 'lf-tut-title' }, 'TOUCH CONTROLS'),
+      el('div', { class: 'lf-tut-row' }, 'LEFT THUMB — move'),
+      el('div', { class: 'lf-tut-row' }, 'RIGHT THUMB — hold to charge · release to lance · tap to dash'),
+      el('div', { class: 'lf-tut-row' }, 'PARRY · OVERDRIVE · PAUSE — right-edge buttons'),
+      el('div', { class: 'lf-tut-hint' }, 'touch anywhere to begin'),
+    ),
+  );
+  tut.style.display = 'none';
+  root.appendChild(tut);
+  function dismissTutorial(): void {
+    tut.style.display = 'none';
+  }
+
   // ── live touch state ───────────────────────────────────────────────────────
   let moveId = -1,
     moveSX = 0,
@@ -121,6 +145,7 @@ export function mountMobileControls(
   function onStart(e: TouchEvent): void {
     if (!active) return;
     e.preventDefault();
+    dismissTutorial(); // the player's first touch clears the legend
     const w = canvas.getBoundingClientRect().width;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
@@ -297,6 +322,14 @@ export function mountMobileControls(
       }
       return usedStrong;
     },
+    showTutorial(): void {
+      tut.style.display = 'flex';
+      try {
+        setTimeout(dismissTutorial, 6500); // auto-clear if they read but don't touch
+      } catch {
+        /* no timers (tests) */
+      }
+    },
     destroy(): void {
       canvas.removeEventListener('touchstart', onStart);
       canvas.removeEventListener('touchmove', onMove);
@@ -304,6 +337,7 @@ export function mountMobileControls(
       canvas.removeEventListener('touchcancel', onEnd);
       overlay.remove();
       rotate.remove();
+      tut.remove();
     },
   };
 }

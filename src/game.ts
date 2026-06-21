@@ -1583,6 +1583,12 @@ export class Game {
       const controlling = this.state === 'playing' && !this.pendingDraft && this.pendingEvent === null;
       this.mobile.setActive(controlling);
       if (controlling) {
+        // first frame the player can actually use touch controls → one-time legend (taught-gated)
+        if (!this.save.taught.includes('touch:intro')) {
+          this.save.taught.push('touch:intro');
+          saveSave(this.save);
+          if (this.settings.tutorialHints) this.mobile.showTutorial();
+        }
         const strong = this.mobile.applyTo(this.input.state, this.world.player.x, this.world.player.y, this.world.enemies);
         if (strong) this.runUsedStrongAssist = true;
       }
