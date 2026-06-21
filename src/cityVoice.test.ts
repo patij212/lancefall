@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deedsMet, type RunDeedCtx, wakeIsCeremony, vigilHeatFloor, vigilCitizenName, agedEcho } from './cityVoice';
+import { deedsMet, type RunDeedCtx, wakeIsCeremony, vigilHeatFloor, vigilCitizenName, agedEcho, comboTierCityLine, hudCoherenceLabel } from './cityVoice';
 import { defaultSave } from './save';
 import { vocabulary } from './intercepts';
 
@@ -77,5 +77,47 @@ describe('personified long game', () => {
     // the same daySeed → the same underlying memory clause in all three
     const clause = agedEcho(1234, 0);
     expect(mid).toContain(clause.replace(/^[A-Z]/, (m) => m.toLowerCase()).split(' ').slice(-3).join(' '));
+  });
+});
+
+describe('§D.2 comboTierCityLine — names a woken citizen in combo-tier lines', () => {
+  it('returns null for every tier when no citizen is woken', () => {
+    const s = defaultSave();
+    for (const t of [10, 20, 35, 50, 75, 100]) expect(comboTierCityLine(t, s)).toBeNull();
+  });
+  it('returns null for an unknown tier even when citizens are woken', () => {
+    const s = defaultSave(); s.decryptedWords = vocabulary();
+    expect(comboTierCityLine(999, s)).toBeNull();
+    expect(comboTierCityLine(0, s)).toBeNull();
+  });
+  it('returns a non-null string containing the citizen name for every known tier', () => {
+    const s = defaultSave(); s.decryptedWords = vocabulary();
+    for (const t of [10, 20, 35, 50, 75, 100]) {
+      const line = comboTierCityLine(t, s);
+      expect(line).not.toBeNull();
+      expect(typeof line).toBe('string');
+      expect((line as string).length).toBeGreaterThan(0);
+    }
+  });
+  it('different tiers pick different citizen slots (deterministic, no rng)', () => {
+    const s = defaultSave(); s.decryptedWords = vocabulary();
+    // calling twice with same args gives same result
+    expect(comboTierCityLine(10, s)).toBe(comboTierCityLine(10, s));
+    expect(comboTierCityLine(20, s)).toBe(comboTierCityLine(20, s));
+  });
+});
+
+describe('§B.2 hudCoherenceLabel — terse in-run HUD caption', () => {
+  it('returns THE CIPHER HOLDS at low coherence', () => {
+    expect(hudCoherenceLabel(0)).toBe('THE CIPHER HOLDS');
+    expect(hudCoherenceLabel(0.33)).toBe('THE CIPHER HOLDS');
+  });
+  it('returns THE CODE BREAKS in mid range', () => {
+    expect(hudCoherenceLabel(0.34)).toBe('THE CODE BREAKS');
+    expect(hudCoherenceLabel(0.79)).toBe('THE CODE BREAKS');
+  });
+  it('returns DAYBREAK at high coherence', () => {
+    expect(hudCoherenceLabel(0.8)).toBe('DAYBREAK');
+    expect(hudCoherenceLabel(1)).toBe('DAYBREAK');
   });
 });

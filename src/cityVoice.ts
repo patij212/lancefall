@@ -72,6 +72,34 @@ export function vigilCitizenName(save: SaveData): string | null {
   return woken[daysHeld(save) % woken.length].name;
 }
 
+/** A combo-tier line that names a woken citizen (the city lighting tier by tier). Returns null when
+ *  no citizen is woken OR tierAt isn't a known tier → caller falls back to the static NARRATOR line.
+ *  Deterministic pick by tier index (different tiers name different woken citizens). No rng. */
+export function comboTierCityLine(tierAt: number, save: SaveData): string | null {
+  const TIERS = [10, 20, 35, 50, 75, 100];
+  const i = TIERS.indexOf(tierAt);
+  if (i < 0) return null;
+  const woken = wokenCitizens(save);
+  if (!woken.length) return null;
+  const n = woken[i % woken.length].name;
+  const T: Record<number, string> = {
+    10: `${n} lights a window. Then another.`,
+    20: `The street comes back, lamp by lamp — ${n} among them.`,
+    35: `A whole quarter resolves to light. ${n} is there.`,
+    50: `The skyline catches — ${n} remembers, and the grey gives ground.`,
+    75: `Lancefall blazes. ${n} stands in the light.`,
+    100: `The city stands whole, decrypted — ${n}, and every soul remembered.`,
+  };
+  return T[tierAt];
+}
+
+/** A terse in-run HUD label for the LIVE coherence [0..1] — the cipher breaking, in-run. No rng. */
+export function hudCoherenceLabel(coh: number): string {
+  if (coh >= 0.8) return 'DAYBREAK';
+  if (coh >= 0.34) return 'THE CODE BREAKS';
+  return 'THE CIPHER HOLDS';
+}
+
 /** The Daily Echo, AGED by the player's run count. The shared citizen/memory (keyed by daySeed) is
  *  preserved — only the framing deepens, so everyone still sees the same memory; veterans see it
  *  held more closely. Pure; echoVignette uses its own rng (never the sim stream). */
