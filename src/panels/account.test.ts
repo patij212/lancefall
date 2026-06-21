@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { buildAccountPanel, type AccountPanelDeps } from './account';
 import * as account from '../account';
 import { defaultSave } from '../save';
+import { AVATAR_VISUALS } from '../render/avatars';
 
 // Hoist the api mock so vi.mock can reference it.
 const { leaderboardEnabled } = vi.hoisted(() => ({
@@ -169,7 +170,7 @@ describe('buildAccountPanel', () => {
     const grid = panel.root.querySelector('.account-avatar-grid');
     expect(grid).toBeTruthy();
     const tiles = [...grid!.querySelectorAll('.account-avatar-tile')];
-    expect(tiles.length).toBe(24); // the whole registry is shown
+    expect(tiles.length).toBe(AVATAR_VISUALS.length); // the whole registry is shown
     const locked = tiles.filter((t) => t.classList.contains('locked'));
     expect(locked.length).toBeGreaterThan(0); // earned sigils are locked on a fresh save
     expect((locked[0] as HTMLButtonElement).disabled).toBe(true);

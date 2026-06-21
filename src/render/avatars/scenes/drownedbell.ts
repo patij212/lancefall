@@ -1,7 +1,8 @@
 // THE DROWNED BELL — toll. A great bronze bell sunk on the seabed, still tolling:
 // sound-rings ripple outward from its mouth, god-ray light-shafts filter down
 // through the water, bubbles drift up, kelp sways and a drowned-city skyline sits
-// behind. (Validation sample for the lancefall-avatars skill — not in the roster.)
+// behind. A recovered "FROM THE DEEP" secret (born as the lancefall-avatars
+// skill's validation sample, promoted into the roster).
 
 import type { SceneCtx } from '../registry';
 import { paletteFor, tone } from '../primitives';

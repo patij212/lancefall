@@ -29,9 +29,10 @@ import { scene as daybreak } from './scenes/daybreak';
 import { scene as lastbreath } from './scenes/lastbreath';
 import { scene as solstice } from './scenes/solstice';
 import { scene as eternal } from './scenes/eternal';
+import { scene as drownedbell } from './scenes/drownedbell';
 
 export type { AvatarTier };
-export type AvatarGroup = 'free' | 'boss' | 'cipher' | 'pilot';
+export type AvatarGroup = 'free' | 'boss' | 'cipher' | 'pilot' | 'special';
 
 /** Inputs threaded to every scene builder. Pure & deterministic. */
 export interface SceneCtx {
@@ -87,6 +88,9 @@ export const AVATAR_VISUALS: AvatarVisual[] = [
   { id: 'lastbreath', name: 'LAST BREATH', tier: 2, accent: '#7df9ff', group: 'pilot', motion: 'clutch', unlockHint: 'Survive 25 Last Breaths', scene: lastbreath },
   { id: 'solstice', name: 'SOLSTICE', tier: 2, accent: '#fde047', group: 'pilot', motion: 'shine', unlockHint: 'Win THE LONGEST DAY', scene: solstice },
   { id: 'eternal', name: 'ETERNAL', tier: 3, accent: '#fff3c0', group: 'pilot', motion: 'eternal', unlockHint: 'Begin again — or fell all six', scene: eternal },
+
+  // ── FROM THE DEEP — a recovered secret ──
+  { id: 'drownedbell', name: 'THE DROWNED BELL', tier: 2, accent: '#2dd4bf', group: 'special', motion: 'toll', unlockHint: 'Remember the whole city — and keep the Vigil', scene: drownedbell },
 ];
 
 export const AVATAR_IDS: readonly string[] = AVATAR_VISUALS.map((a) => a.id);

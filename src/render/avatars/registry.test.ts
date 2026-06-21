@@ -18,9 +18,9 @@ const refs = (svg: string): string[] => {
 const animCount = (svg: string): number => (svg.match(/<animate(Transform|Motion)?[\s>]/g) || []).length;
 
 describe('roster shape', () => {
-  it('has exactly 24 avatars with unique ids', () => {
-    expect(AVATAR_VISUALS.length).toBe(24);
-    expect(new Set(AVATAR_IDS).size).toBe(24);
+  it('has exactly 25 avatars with unique ids', () => {
+    expect(AVATAR_VISUALS.length).toBe(25);
+    expect(new Set(AVATAR_IDS).size).toBe(25);
   });
 
   it('has 8 free avatars, all tier I', () => {
@@ -29,9 +29,9 @@ describe('roster shape', () => {
     expect(free.every((a) => a.tier === 1)).toBe(true);
   });
 
-  it('tier distribution is 8 / 14 / 2', () => {
+  it('tier distribution is 8 / 15 / 2', () => {
     const byTier = (t: number) => AVATAR_VISUALS.filter((a) => a.tier === t).length;
-    expect([byTier(1), byTier(2), byTier(3)]).toEqual([8, 14, 2]);
+    expect([byTier(1), byTier(2), byTier(3)]).toEqual([8, 15, 2]);
   });
 
   it('every avatar has a non-empty name, accent, motion, unlockHint', () => {

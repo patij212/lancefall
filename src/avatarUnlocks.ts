@@ -44,6 +44,9 @@ export function unlockedAvatarIds(save: SaveData): Set<string> {
   const allSix = ['warden', 'weaver', 'beacon', 'mirrorblade', 'hollow', 'sovereign'].every((k) => out.has(k));
   if (save.ngPlusLevel > 0 || allSix) out.add('eternal'); // "Begin again — or fell all six"
 
+  // ── from the deep — a recovered secret: the whole city remembered, the Vigil kept ──
+  if (decrypted >= total && (save.vigilSince ?? -1) >= 0) out.add('drownedbell');
+
   // safety: never surface an id the registry doesn't know
   const valid = new Set(AVATAR_IDS);
   for (const id of [...out]) if (!valid.has(id)) out.delete(id);

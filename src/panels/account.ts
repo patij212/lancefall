@@ -41,14 +41,44 @@ function privacyNote(): HTMLElement {
   );
 }
 
-/** Profile avatar picker — choose the sigil shown on the cockpit logo when signed in. The 8 free
- *  sigils plus any you've earned are selectable; locked ones are dimmed and carry their unlock
- *  hint. Selecting calls onSelect (the host persists + repaints the logo + this panel). */
+const GROUP_TAG: Record<string, string> = {
+  free: 'THE SIGIL SET', boss: 'THE SIX', cipher: 'THE CITY', pilot: 'THE PILOT', special: 'FROM THE DEEP',
+};
+
+/** Profile avatar picker — choose the sigil shown on the cockpit logo when signed in. A big
+ *  animated HERO showcases whichever sigil is selected or hovered; a scrollable grid of larger
+ *  static tiles lets you browse all of them. The 8 free sigils plus any you've earned are
+ *  selectable; locked ones are dimmed and carry their unlock hint. Selecting calls onSelect (the
+ *  host persists + repaints the logo + this panel). `animated` (false under reduce-motion) only
+ *  drives the hero — tiles are always static for crispness + perf. */
 function avatarPicker(save: SaveData, onSelect: (id: string) => void, animated: boolean): HTMLElement {
   const unlocked = unlockedAvatarIds(save);
   const current = unlocked.has(save.selectedAvatar) ? save.selectedAvatar : 'lance';
   const wrap = el('div', { class: 'account-avatars' });
   wrap.append(el('div', { class: 'account-avatars-lbl' }, 'YOUR SIGIL — shown on your cockpit logo'));
+
+  // ── the hero showcase (selected or hovered) ──
+  const heroGlyph = el('div', { class: 'av-hero-glyph', 'aria-hidden': 'true' });
+  const heroName = el('div', { class: 'av-hero-name' });
+  const heroSub = el('div', { class: 'av-hero-sub' });
+  const hero = el('div', { class: 'av-hero' }, heroGlyph, el('div', { class: 'av-hero-meta' }, heroName, heroSub));
+  const showHero = (id: string): void => {
+    const v = AVATAR_VISUALS.find((a) => a.id === id);
+    if (!v) return;
+    const on = unlocked.has(v.id);
+    heroGlyph.style.setProperty('--accent', v.accent);
+    heroGlyph.classList.toggle('locked', !on);
+    heroGlyph.innerHTML = renderAvatar(v.id, { size: 132, variant: 'full', animated });
+    heroName.textContent = v.name;
+    heroName.style.color = on ? v.accent : '#6c8a96';
+    heroSub.textContent = on
+      ? `TIER ${'I'.repeat(v.tier)} · ${GROUP_TAG[v.group] ?? v.group} · ${v.motion}`
+      : `LOCKED — ${v.unlockHint}`;
+  };
+  showHero(current);
+  wrap.append(hero);
+
+  // ── the scrollable grid of larger static tiles ──
   const grid = el('div', { class: 'account-avatar-grid' });
   for (const v of AVATAR_VISUALS) {
     const on = unlocked.has(v.id);
@@ -59,11 +89,14 @@ function avatarPicker(save: SaveData, onSelect: (id: string) => void, animated: 
       title: on ? v.name : `${v.name} — ${v.unlockHint}`,
       'aria-label': on ? `Select ${v.name}` : `${v.name}, locked — ${v.unlockHint}`,
     }) as HTMLButtonElement;
-    tile.innerHTML = renderAvatar(v.id, { size: 52, variant: 'full', animated });
+    tile.innerHTML = renderAvatar(v.id, { size: 78, variant: 'full', animated: false });
+    tile.addEventListener('mouseenter', () => showHero(v.id));
+    tile.addEventListener('focus', () => showHero(v.id));
     if (on) tile.addEventListener('click', () => onSelect(v.id));
     else tile.disabled = true;
     grid.append(tile);
   }
+  grid.addEventListener('mouseleave', () => showHero(current));
   wrap.append(grid);
   return wrap;
 }
