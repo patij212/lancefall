@@ -719,6 +719,7 @@ export class UI {
     this.cb = cb;
     this.build();
     this.applyHudScale();
+    this.applyHudLayout();
   }
 
   // ── construction ──
@@ -2090,11 +2091,16 @@ export class UI {
   private patch(p: Partial<Settings>): void {
     Object.assign(this.settings, p);
     if (p.hudScale !== undefined) this.applyHudScale();
+    if (p.hudLayout !== undefined) this.applyHudLayout();
     this.cb.onSettingsChange(this.settings);
   }
 
   private applyHudScale(): void {
     this.root.style.setProperty('--hud-scale', String(this.settings.hudScale));
+  }
+
+  private applyHudLayout(): void {
+    this.root.classList.toggle('hud-central', this.settings.hudLayout === 'central');
   }
 
   private openSettings(): void {

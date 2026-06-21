@@ -38,7 +38,7 @@ describe('sanitizeSettings', () => {
     const s = sanitizeSettings({ master: 9, sfx: -3, hudScale: 99, chromAberration: 2, shake: 100 });
     expect(s.master).toBe(1);
     expect(s.sfx).toBe(0);
-    expect(s.hudScale).toBe(1.4);
+    expect(s.hudScale).toBe(1.8);
     expect(s.chromAberration).toBe(1);
     expect(s.shake).toBe(1.5);
   });
@@ -54,10 +54,15 @@ describe('sanitizeSettings', () => {
 
   it('rejects invalid enum members', () => {
     const d = defaultSettings();
-    const s = sanitizeSettings({ particleDensity: 'ultra', dashStyle: 'rocket', soundtrack: 'metal' });
+    const s = sanitizeSettings({ particleDensity: 'ultra', dashStyle: 'rocket', soundtrack: 'metal', hudLayout: 'floating' });
     expect(s.particleDensity).toBe(d.particleDensity);
     expect(s.dashStyle).toBe(d.dashStyle);
     expect(s.soundtrack).toBe(d.soundtrack);
+    expect(s.hudLayout).toBe(d.hudLayout); // 'floating' → default 'edges'
+  });
+
+  it('defaults the HUD layout to edges', () => {
+    expect(defaultSettings().hudLayout).toBe('edges');
   });
 
   it('preserves valid values', () => {

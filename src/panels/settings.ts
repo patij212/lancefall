@@ -136,6 +136,18 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
     trackWrap.append(b);
   }
 
+  // HUD layout — EDGES (spread to the corners) vs CENTRAL (a compact inward cluster)
+  const hudLayoutWrap = el('div', { class: 'setting' }, el('span', {}, 'HUD layout'));
+  for (const id of ['edges', 'central'] as const) {
+    const b = el('button', { class: 'btn btn-ghost btn-sm' + (s.hudLayout === id ? ' active' : '') }, id.toUpperCase());
+    b.addEventListener('click', () => {
+      deps.patch({ hudLayout: id });
+      hudLayoutWrap.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+    hudLayoutWrap.append(b);
+  }
+
   // City-memory is backed by SaveData (not Settings); re-synced on open via syncCityMemory().
   const cityMemRow = toggle('City memory meter', deps.cityMemory(), (v) => deps.onToggleCityMemory(v));
   const cityMemInput = cityMemRow.querySelector('input') as HTMLInputElement;
@@ -214,7 +226,8 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       trackWrap) },
     { id: 'visuals', name: 'VISUALS', el: sect('visuals',
       shakeS.row,
-      slider('HUD scale', 0.8, 1.4, 0.05, s.hudScale, (v) => deps.patch({ hudScale: v })).row,
+      slider('HUD scale', 0.8, 1.8, 0.05, s.hudScale, (v) => deps.patch({ hudScale: v })).row,
+      hudLayoutWrap,
       chromaS.row, densityWrap) },
     { id: 'gameplay', name: 'GAMEPLAY', el: sect('gameplay',
       toggle('Slingshot dash (alt style)', s.dashStyle === 'slingshot', (v) => deps.patch({ dashStyle: v ? 'slingshot' : 'lance' })),

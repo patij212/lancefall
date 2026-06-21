@@ -246,7 +246,8 @@ export interface Settings {
   tutorialHints: boolean; // ACT TWO onboarding — surface just-in-time teaches (sandbox, verb/enemy/boss reads); off for veterans
   dashStyle: 'lance' | 'slingshot'; // dash style — Lance (default) or the Slingshot Tether
   soundtrack: SoundtrackId; // selectable soundtrack: AURORA (dreamy) or SURGE (aggressive)
-  hudScale: number; // 0.8..1.4
+  hudScale: number; // 0.8..1.8
+  hudLayout: 'edges' | 'central'; // HUD anchoring — spread to corners (default) or a compact inward cluster
   bossRushCiphers: boolean; // arm Warden/Weaver/Beacon ring-ciphers in BOSS RUSH (off-board when disabled)
   chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
   rumble: boolean; // gamepad rumble on/off
@@ -373,7 +374,8 @@ export function defaultSettings(): Settings {
     tutorialHints: true,
     dashStyle: 'lance',
     soundtrack: 'aurora',
-    hudScale: 1,
+    hudScale: 1.1,
+    hudLayout: 'edges',
     bossRushCiphers: true,
     chromAberration: 1,
     rumble: true,
@@ -443,7 +445,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     tutorialHints: bool(r.tutorialHints, d.tutorialHints),
     dashStyle: oneOf(r.dashStyle, ['lance', 'slingshot'] as const, d.dashStyle),
     soundtrack: oneOf(r.soundtrack, ['aurora', 'surge'] as const, d.soundtrack),
-    hudScale: num(r.hudScale, 0.8, 1.4, d.hudScale),
+    hudScale: num(r.hudScale, 0.8, 1.8, d.hudScale),
+    hudLayout: oneOf(r.hudLayout, ['edges', 'central'] as const, d.hudLayout),
     bossRushCiphers: bool(r.bossRushCiphers, d.bossRushCiphers),
     chromAberration: num(r.chromAberration, 0, 1, d.chromAberration),
     rumble: bool(r.rumble, d.rumble),

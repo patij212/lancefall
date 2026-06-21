@@ -2374,6 +2374,15 @@ body {
 }
 .reduce-motion .shield-pip.filled { box-shadow: none; }
 
+/* ════════ CENTRAL HUD — pull the four corners into a compact inward cluster ════════
+   Settings → VISUALS → HUD layout. Offsets scale with --hud-scale; max() self-clamps to the
+   edge margin on narrow viewports so content can never push off-screen. Bottom anchors stay put,
+   so DASH | DAYBREAK gauge | ARMOR read as one bottom band. Render-only — never touches the sim. */
+.hud-central .hud-topleft  { left:  max(calc(22px * var(--hud-scale)), calc(50% - 300px * var(--hud-scale))); }
+.hud-central .hud-topright { right: max(calc(22px * var(--hud-scale)), calc(50% - 300px * var(--hud-scale))); }
+.hud-central .hud-botleft  { left:  max(calc(22px * var(--hud-scale)), calc(50% - 300px * var(--hud-scale))); }
+.hud-central .hud-botright { right: max(calc(22px * var(--hud-scale)), calc(50% - 300px * var(--hud-scale))); }
+
 /* C1 (v6 §1) — beat-grade pip: a tiny dot that fades cyan (Good) / gold (Perfect) on a
    graded dash. Color-only (no transform); the caller no-ops it under reduceFlashing. */
 .hud-beatpip {
