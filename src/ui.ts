@@ -2930,7 +2930,7 @@ export class UI {
     if (!this.logoSlot) return;
     const linked = leaderboardEnabled() && accountLib.accountState().kind === 'linked';
     if (linked) {
-      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 54, animated: false });
+      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 72, animated: false });
       this.logoSlot.classList.add('is-avatar');
     } else {
       this.logoSlot.innerHTML = LOGO_SVG;
