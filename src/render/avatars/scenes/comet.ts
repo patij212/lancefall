@@ -1,47 +1,53 @@
-// DASH — dash. A comet head with a segmented, tapering trail streaks diagonally
-// across the field through motion-blur streaks, then loops. The momentum-dash
-// that defines the game's movement, as a sigil.
+// DASH — dash. The player dart blinks across the field leaving a chain of fading
+// after-images — the i-frame echo of a committed dash — over speed-lines, with a
+// burst at launch and a flash on arrival. The core movement verb made a sigil.
 
 import type { SceneCtx } from '../registry';
-import { paletteFor, tone } from '../primitives';
-import { spin, drift, tweenT } from '../motion';
+import { paletteFor } from '../primitives';
+import { drift, tween } from '../motion';
 import { coreGlow, starfield, u } from './_common';
 
 export function scene(ctx: SceneCtx): string {
   const { uid, accent, animated: a } = ctx;
   const p = paletteFor(accent);
-  const dur = 2.6;
+  const dur = 2.4;
 
-  // background motion-blur streaks along the dash axis
-  const streak = (off: number, sw: number, dash: string, d: number) =>
-    `<line x1="-66" y1="${off}" x2="62" y2="${off - 22}" stroke="${accent}" stroke-width="${sw}" stroke-dasharray="${dash}" opacity="0.14" stroke-linecap="round">${drift(a, -80, d)}</line>`;
-  const field = `<g transform="rotate(8)">${streak(-30, 0.8, '4 14', 3)}${streak(0, 0.7, '3 16', 3.6)}${streak(30, 0.8, '4 12', 2.8)}</g>`;
+  // a dart (triangle) pointing +x
+  const dart = (fill: string, op: number) =>
+    `<g opacity="${op}"><polygon points="9,0 -7,6 -3,0 -7,-6" fill="${fill}"/><circle cx="2" cy="0" r="1.4" fill="${p.core[0]}"/></g>`;
 
-  // a faint dashed orbit ring for atmosphere
-  const orbit = `<circle r="52" fill="none" stroke="${p.deep}" stroke-width="0.7" stroke-dasharray="2 10" opacity="0.4">${spin(a, 30)}</circle>`;
+  // the dash formation: a bright lead dart + 4 fading after-images trailing it,
+  // joined by a dash-line. Translates across when animated; centred when static.
+  const afterImages =
+    dart(p.core[0], 1) +
+    `<g transform="translate(-12,0)">${dart(accent, 0.6)}</g>` +
+    `<g transform="translate(-23,0)">${dart(accent, 0.4)}</g>` +
+    `<g transform="translate(-34,0)">${dart(accent, 0.25)}</g>` +
+    `<g transform="translate(-45,0)">${dart(accent, 0.13)}</g>` +
+    `<line x1="-46" y1="0" x2="8" y2="0" stroke="${accent}" stroke-width="2.4" stroke-linecap="round" opacity="0.3" filter="${u('blS', uid)}"/>`;
+  // charge at the left, dash across, hold at the right — visible ~85% of the loop
+  const formation = a
+    ? `<g transform="translate(-40,0)"><animateTransform attributeName="transform" type="translate" values="-40 0;-40 0;40 0;40 0" keyTimes="0;0.32;0.48;1" dur="${dur}s" repeatCount="indefinite"/>` +
+      `<g opacity="0"><animate attributeName="opacity" values="0;1;1;1;0" keyTimes="0;0.05;0.48;0.9;1" dur="${dur}s" repeatCount="indefinite"/>${afterImages}</g></g>`
+    : `<g transform="translate(6,0)">${afterImages}</g>`;
 
-  // the comet — head + 6 tapering trail blobs, built along -x so it points +x
-  const trail = [
-    [-9, 3.0, 0.9], [-17, 2.5, 0.7], [-25, 2.0, 0.55], [-33, 1.5, 0.4], [-41, 1.1, 0.28], [-49, 0.7, 0.16],
-  ]
-    .map(([x, r, o]) => `<circle cx="${x}" cy="0" r="${r}" fill="${accent}" opacity="${o}"/>`)
-    .join('');
-  const cometGlyph =
-    `<g>` +
-    `<path d="M 0 0 L -52 4 L -52 -4 Z" fill="${tone(accent, 0.8, 0.5)}" opacity="0.3"/>` +
-    trail +
-    `<circle r="5" fill="${accent}" opacity="0.4" filter="${u('bl', uid)}"/>` +
-    `<circle r="3.4" fill="${p.core[0]}"/>` +
-    `<circle r="1.4" fill="#ffffff"/></g>`;
-  // dash diagonally bottom-left → top-right, looping; angled to the path
-  const comet = a
-    ? `<g transform="rotate(-10)"><g transform="translate(-46,0)">${tweenT(a, 'translate', '-46 0;48 0;48 0', dur, { keyTimes: '0;0.6;1' })}` +
-      `<g opacity="1"><animate attributeName="opacity" values="0;1;1;0;0" keyTimes="0;0.08;0.55;0.66;1" dur="${dur}s" repeatCount="indefinite"/>${cometGlyph}</g></g></g>`
-    : `<g transform="rotate(-10)"><g transform="translate(6,0)">${cometGlyph}</g></g>`;
+  // launch burst (left, as the dash fires) + arrival flash (right)
+  const launch = a
+    ? `<g transform="translate(-40,0)" opacity="0">${tween(a, 'opacity', '0;0;0.9;0;0', dur, { keyTimes: '0;0.3;0.36;0.5;1' })}` +
+      Array.from({ length: 5 }, (_, i) => { const ang = (-130 + i * 25) * Math.PI / 180; return `<line x1="0" y1="0" x2="${(Math.cos(ang) * 12).toFixed(1)}" y2="${(Math.sin(ang) * 12).toFixed(1)}" stroke="${p.hilite}" stroke-width="1" stroke-linecap="round"/>`; }).join('') + `</g>`
+    : '';
+  const arrival = a
+    ? `<circle cx="40" cy="0" r="12" fill="${u('flash', uid)}" opacity="0">${tween(a, 'opacity', '0;0;0.8;0;0', dur, { keyTimes: '0;0.46;0.54;0.7;1' })}</circle>`
+    : `<circle cx="44" cy="0" r="10" fill="${u('flash', uid)}" opacity="0.25"/>`;
+
+  // background speed-lines
+  const speed = (off: number, sw: number, dash: string, d: number) =>
+    `<line x1="-64" y1="${off}" x2="62" y2="${off}" stroke="${accent}" stroke-width="${sw}" stroke-dasharray="${dash}" opacity="0.13" stroke-linecap="round">${drift(a, -90, d)}</line>`;
+  const field = `<g>${speed(-26, 0.8, '5 16', 2.6)}${speed(0, 0.7, '4 20', 3.2)}${speed(26, 0.8, '5 14', 2.9)}</g>`;
 
   return (
     coreGlow(ctx, { op: 0.13, lo: 0.09, hi: 0.2, dur: 4.2 }) +
-    starfield(ctx, [[-44, -30, 0.9, 2.6, 0.3], [42, -38, 0.8, 3.1, 0.5], [48, 26, 0.9, 2.2, 0.3], [-38, 42, 0.8, 3.6, 0.5], [10, -50, 0.7, 2.9, 0.4]]) +
-    field + orbit + comet
+    starfield(ctx, [[-44, -34, 0.9, 2.6, 0.3], [42, -40, 0.8, 3.1, 0.5], [48, 30, 0.9, 2.2, 0.3], [-40, 40, 0.8, 3.6, 0.5]]) +
+    field + arrival + launch + formation
   );
 }

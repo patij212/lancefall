@@ -49,7 +49,7 @@ export function scene(ctx: SceneCtx): string {
     [-64, -28, 60, -28, 0.7, '3 14', 2.6], [-64, 28, 60, 28, 0.7, '3 14', 3.8],
   ];
   const momentum =
-    `<g transform="rotate(-48)" stroke="${accent}" stroke-linecap="round">` +
+    `<g transform="rotate(-90)" stroke="${accent}" stroke-linecap="round">` +
     `<g opacity="0.13">` +
     streakLines.map(([x1, y1, x2, y2, sw, dash, dur]) =>
       `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${sw}" stroke-dasharray="${dash}">${drift(a, -72, dur as number)}</line>`).join('') +
@@ -69,7 +69,7 @@ export function scene(ctx: SceneCtx): string {
   // target reticle
   const bracket = `<g stroke="${p.hilite}" stroke-width="1.1" stroke-linecap="round" opacity="0.8"><path d="M -15 -15 L -15 -8 M -15 -15 L -8 -15"/><path d="M 15 -15 L 15 -8 M 15 -15 L 8 -15"/><path d="M -15 15 L -15 8 M -15 15 L -8 15"/><path d="M 15 15 L 15 8 M 15 15 L 8 15"/></g>`;
   const reticle =
-    `<g transform="translate(43,-48)">` +
+    `<g transform="translate(0,-54)">` +
     `<g>${spin(a, 18)}<circle r="15" fill="none" stroke="${accent}" stroke-width="0.8" stroke-dasharray="3 4" opacity="0.55"/>${bracket}</g>` +
     `<circle r="9" fill="none" stroke="${p.deep}" stroke-width="0.7" opacity="0.6"/>` +
     `<g stroke="${p.light}" stroke-width="0.7" opacity="0.7"><line x1="-6" y1="0" x2="6" y2="0"/><line x1="0" y1="-6" x2="0" y2="6"/></g>` +
@@ -81,8 +81,8 @@ export function scene(ctx: SceneCtx): string {
   // full-field impact flash
   const flash =
     a
-      ? `<circle cx="43" cy="-48" r="40" fill="${u('flash')}" opacity="0"><animate attributeName="opacity" values="0;0;0.7;0;0" keyTimes="0;0.12;0.16;0.36;1" dur="2.8s" repeatCount="indefinite"/></circle>`
-      : `<circle cx="43" cy="-48" r="40" fill="${u('flash')}" opacity="0.16"/>`;
+      ? `<circle cx="0" cy="-54" r="34" fill="${u('flash')}" opacity="0"><animate attributeName="opacity" values="0;0;0.7;0;0" keyTimes="0;0.12;0.16;0.36;1" dur="2.8s" repeatCount="indefinite"/></circle>`
+      : `<circle cx="0" cy="-54" r="34" fill="${u('flash')}" opacity="0.16"/>`;
 
   // the lance body (identical static/animated; gets the lunge translate when animated)
   const pennon =
@@ -107,9 +107,9 @@ export function scene(ctx: SceneCtx): string {
     `<g stroke="${accent}" stroke-linecap="round" opacity="${a ? 0 : 0.14}">${tween(a, 'opacity', '0;0.5;0;0', 2.8, { keyTimes: '0;0.1;0.4;1' })}` +
     `<line x1="-44" y1="0" x2="48" y2="0" stroke-width="4"/><line x1="-34" y1="0" x2="42" y2="0" stroke-width="1.8" opacity="0.7"/></g>`;
   const lance =
-    `<g transform="rotate(-48)">` +
+    `<g transform="translate(0,10) rotate(-90) scale(0.72)">` +
     strikeStreak +
-    `<g>${tweenT(a, 'translate', '0 0;32 0;0 0;0 0', 2.8, { keyTimes: '0;0.12;0.52;1' })}${lanceBody}</g>` +
+    `<g>${tweenT(a, 'translate', '0 0;24 0;0 0;0 0', 2.8, { keyTimes: '0;0.12;0.52;1' })}${lanceBody}</g>` +
     `</g>`;
 
   return (
