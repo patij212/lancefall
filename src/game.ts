@@ -1456,14 +1456,21 @@ export class Game {
     }
   }
 
-  /** Encode the buffered replay into a BRANDED, watermarked GIF and open the
-   *  in-page share/copy/download preview. Cosmetic/IO only — no world.rng. */
-  private shareReplay(): void {
-    const meta: ShareMeta = {
+  /** The shareable run's metadata (score + seed + daily) — burned into the GIF watermark +
+   *  used as the caption. Shared by the auto-preview encode and the SEND THE ECHO button so
+   *  both hit the SAME deduped encode. Cosmetic/IO only — no world.rng. */
+  private shareMeta(): ShareMeta {
+    return {
       score: this.world.score,
       seed: this.seed,
       daily: this.mode.id === 'daily' || this.mode.seedKind === 'date',
     };
+  }
+
+  /** Encode the buffered replay into a BRANDED, watermarked GIF and open the
+   *  in-page share/copy/download preview. Cosmetic/IO only — no world.rng. */
+  private shareReplay(): void {
+    const meta: ShareMeta = this.shareMeta();
     this.ui.beginShareReplay();
     void this.replay
       .encodeShare(meta)
@@ -3409,6 +3416,8 @@ export class Game {
       mutators: this.activeMutators.map((id) => ({ name: MUTATORS[id].name, accent: MUTATORS[id].accent })),
       choicePending: !this.inChallenge && won && w.sovereignDown && this.save.stillpointChoice === 'none',
       canReplay: this.replay.hasClip(),
+      previewFrame: this.replay.lastFrameImage() ?? undefined, // the run's final frame → preview card
+      seed: this.seed,
       clearTime: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.clearTime : undefined,
       hitsTaken: won && this.mode.rules?.scoreFrame === 'cleartime' ? w.hitsTaken : undefined,
       dailyAttempt: this.mode.id === 'daily' && !this.inChallenge ? this.save.dailyAttempts : undefined,
@@ -3417,6 +3426,15 @@ export class Game {
     };
     this.state = 'gameover';
     this.ui.showGameOver(info);
+    // Auto-encode the shareable clip off-thread so the LAST TRANSMISSION frame ANIMATES (the
+    // looping run), not a static still — the static frame shows instantly, the clip swaps in
+    // when ready. Deduped, so the SEND THE ECHO button reuses it (instant, no re-encode).
+    // reduce-motion players keep the still (GIFs ignore the OS pref, so we honor it here).
+    if (info.canReplay && !this.settings.reduceMotion) {
+      void this.replay.encodeShare(this.shareMeta()).then((gif) => {
+        if (gif && this.state === 'gameover') this.ui.setGameOverClip(gif.blob);
+      });
+    }
     // playtest (Nick): "work on the anon player name" — surface name entry after a scoring run
     // with no handle (once per session). The handle also labels ghost replays, so prompt even
     // when online boards are off; skip while THE CHOICE is pending (that screen takes priority).

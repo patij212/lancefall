@@ -61,13 +61,26 @@ export class ReplayRecorder {
   private w = 0;
   private h = 0;
   private active = false;
-  private encoding = false;
+  // One encode per run, shared by the auto-preview (game-over) AND the SEND THE ECHO button:
+  // the first caller kicks it off, later callers reuse the in-flight promise / cached result.
+  // runToken tags the run so an encode that finishes after a restart can't leak across runs.
+  private cached: ShareGif | null = null;
+  private inflight: Promise<ShareGif | null> | null = null;
+  private runToken = 0;
+  private encodeWorker: Worker | null = null;
 
   /** Begin capturing the canvas into the rolling frame buffer. */
   start(canvas: HTMLCanvasElement): void {
     if (this.active) return;
     this.canvas = canvas;
     this.frames = [];
+    // a new run invalidates the prior run's clip: drop the cache, bump the token so any
+    // still-running encode discards its result, and kill its worker so it can't linger.
+    this.cached = null;
+    this.inflight = null;
+    this.runToken++;
+    this.encodeWorker?.terminate();
+    this.encodeWorker = null;
     const aspect = canvas.height > 0 && canvas.width > 0 ? canvas.height / canvas.width : 0.4;
     this.w = TARGET_W;
     this.h = Math.max(1, Math.round(TARGET_W * aspect));
@@ -107,14 +120,52 @@ export class ReplayRecorder {
     return this.frames.length >= MIN_FRAMES;
   }
 
+  /** The last captured frame — "the first-light frame, the instant the run resolved" — as a
+   *  PNG data URL for the game-over preview card, or null if nothing was captured. Cosmetic /
+   *  IO only: draws to an offscreen canvas, never reads world.rng. */
+  lastFrameImage(): string | null {
+    const f = this.frames[this.frames.length - 1];
+    if (!f || this.w < 1 || this.h < 1) return null;
+    try {
+      const c = document.createElement('canvas');
+      c.width = this.w;
+      c.height = this.h;
+      const ctx = c.getContext('2d');
+      if (!ctx) return null;
+      ctx.putImageData(new ImageData(new Uint8ClampedArray(f), this.w, this.h), 0, 0);
+      return c.toDataURL('image/png');
+    } catch {
+      return null; // canvas/ImageData unavailable (older browsers / headless) — fall back to the chrome
+    }
+  }
+
   /**
-   * Encode the buffered frames into a BRANDED GIF (off-thread) and resolve with
-   * the blob + caption. The watermark (score + seed + site) is burned into every
-   * frame. Resolves null when there's nothing to encode or an encode is in flight.
+   * Encode the buffered frames into a BRANDED, animated GIF (off-thread) and resolve with
+   * the blob + caption — the watermark (score + seed + site) is burned into every frame.
+   * DEDUPED per run: the first call kicks off the encode, concurrent/later calls share the
+   * same in-flight promise, and a finished encode is cached so a second caller (the share
+   * button after the auto-preview) gets it instantly. Resolves null when there's nothing to
+   * encode. The cache + token are reset by start(), so a fresh run never reuses a stale clip.
    */
   encodeShare(meta: ShareMeta): Promise<ShareGif | null> {
-    if (this.encoding || this.frames.length < MIN_FRAMES) return Promise.resolve(null);
-    this.encoding = true;
+    if (this.cached) return Promise.resolve(this.cached);
+    if (this.inflight) return this.inflight;
+    if (this.frames.length < MIN_FRAMES) return Promise.resolve(null);
+    const token = this.runToken;
+    this.inflight = this.doEncode(meta)
+      .then((gif) => {
+        if (token !== this.runToken) return null; // a new run started mid-encode — discard
+        if (gif) this.cached = gif;
+        return gif;
+      })
+      .finally(() => {
+        this.inflight = null;
+      });
+    return this.inflight;
+  }
+
+  /** Run one encode (off-thread, with a main-thread fallback). Pure IO — no cache logic. */
+  private doEncode(meta: ShareMeta): Promise<ShareGif | null> {
     const mark = buildWatermark(meta);
     const caption = buildShareCaption(meta);
     const buffers = this.frames.map((f) => f.buffer.slice(0)); // copies to transfer
@@ -125,13 +176,13 @@ export class ReplayRecorder {
 
     return new Promise<ShareGif | null>((resolve) => {
       let worker: Worker | null = null;
+      const clearWorker = (): void => {
+        if (this.encodeWorker === worker) this.encodeWorker = null;
+      };
       const fallback = (): void => {
         void this.encodeOnMainThread(mark)
           .then((gif) => resolve(gif ? wrap(gif) : null))
-          .catch(() => resolve(null))
-          .finally(() => {
-            this.encoding = false;
-          });
+          .catch(() => resolve(null));
       };
       try {
         worker = new Worker(new URL('./gifWorker.ts', import.meta.url), { type: 'module' });
@@ -139,19 +190,22 @@ export class ReplayRecorder {
         worker = null;
       }
       if (worker) {
+        this.encodeWorker = worker;
         worker.onmessage = (e: MessageEvent<{ gif: ArrayBuffer }>) => {
-          this.encoding = false;
           resolve(wrap(e.data.gif));
           worker?.terminate();
+          clearWorker();
         };
         worker.onerror = () => {
           worker?.terminate();
+          clearWorker();
           fallback();
         };
         try {
           worker.postMessage({ frames: buffers, w: this.w, h: this.h, delayCs: DELAY_CS, mark }, buffers);
         } catch {
           worker.terminate();
+          clearWorker();
           fallback(); // transfer failed — fall back instead of latching
         }
       } else {

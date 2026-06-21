@@ -73,6 +73,7 @@ import { LORE, loreUnlocked } from './lore';
 import { decodeView } from './cipherDecode';
 import { type ShareGif } from './replay';
 import { buildSharePanel, type SharePanel } from './panels/share';
+import { shareBlockView } from './shareBlock';
 import type { RunConfig } from './modes';
 import { dateString, seedFromDate, seedFromWeek } from './rng';
 import { TUNE } from './tune';
@@ -145,6 +146,10 @@ export interface GameOverInfo {
   choicePending?: boolean;
   /** a shareable replay clip exists → show the SAVE REPLAY button */
   canReplay?: boolean;
+  /** the last captured frame (data URL) — shown in the SHARE THE DAWN preview card */
+  previewFrame?: string;
+  /** the run's seed — shown in the LAST TRANSMISSION badge (matches the GIF watermark) */
+  seed: number;
   combo: number;
   wave: number;
   time: number;
@@ -360,8 +365,12 @@ const GO_FALL_GLYPH = `<svg viewBox="0 0 52 52" fill="none" aria-hidden="true">
 </svg>`;
 
 // The SHARE THE DAWN preview card chrome (a static dawn frame — no canvas dependency).
-const GO_GIF_HTML = `<span class="go-gif-sky"></span><span class="go-gif-glow"></span><span class="go-gif-shimmer"></span>
-<span class="go-gif-badge"><span class="go-gif-dot"></span> GIF · 6s</span>`;
+const GO_GIF_HTML = `<span class="go-gif-sky"></span><span class="go-gif-glow"></span><span class="go-gif-shimmer"></span>`;
+
+// Broadcast/transmit glyph for the SEND THE ECHO / SEND THE DAWN button (matches the game's
+// MODE_ICONS/NAV_ICONS idiom — viewBox, fill=none, stroke=currentColor). A center emitter dot
+// with two concentric arcs radiating each way — a signal going out. currentColor.
+const TX_GLYPH = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="1.7" fill="currentColor"/><path d="M5 11a4.2 4.2 0 010-6M2.9 13.1a7.2 7.2 0 010-10.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M11 5a4.2 4.2 0 010 6M13.1 2.9a7.2 7.2 0 010 10.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 
 // Rail-mode icons, keyed by RunConfig id. currentColor → inherits the card accent.
 const MODE_ICONS: Record<string, string> = {
@@ -527,6 +536,13 @@ export class UI {
   private vigilLine!: HTMLElement; // THE VIGIL — the held-light beat shown on the title
   private releaseBtn!: HTMLButtonElement; // LET THE DAY TURN — gated by canRelease
   private saveReplayBtn!: HTMLButtonElement;
+  private goGifImg!: HTMLImageElement; // the run's final frame, shown in the LAST TRANSMISSION frame
+  private goTxLbl!: HTMLElement; // themed console label ("LAST TRANSMISSION" / "SIGNAL RESTORED")
+  private goTxBadge!: HTMLElement; // signal badge over the frame ("● SIGNAL LOST · SEED ####")
+  private goTxStrip!: HTMLElement; // the 3-cell stat strip
+  private goTxCtaTxt!: HTMLElement; // the primary CTA's text node ("SEND THE ECHO" / "SEND THE DAWN")
+  private goTxRally!: HTMLElement; // rally subline
+  private goGifClipUrl = ''; // object URL of the animated clip swapped into the frame (revoked per run)
   private sharePanel!: HTMLElement;
   private announceTimer = 0;
   private saveRef: SaveData | null = null;
@@ -1849,25 +1865,47 @@ export class UI {
       this.goBuild,
     );
 
-    // SHARE THE DAWN card — opens the existing SHARE modal via onSaveReplay.
-    this.saveReplayBtn = el('button', { class: 'go-sbtn primary' }, '⧉ SHARE THE DAWN') as HTMLButtonElement;
-    this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
-    const copy = el('button', { class: 'go-sbtn ghost' }, '⧉ COPY SCORE');
-    copy.addEventListener('click', () => this.cb.onCopyScore());
-    const dna = el('button', { class: 'go-sbtn ghost' }, '⧬ COPY BUILD');
-    dna.addEventListener('click', () => this.cb.onCopyBuildDna());
-    const duel = el('button', { class: 'go-sbtn ghost' }, '⚔ DUEL A FRIEND');
-    duel.addEventListener('click', () => this.cb.onCreateChallenge());
-    const sharePreview = el('span', { class: 'go-gif', 'aria-hidden': 'true' });
+    // ── LAST TRANSMISSION console — theme-aware share/invite block (replaces SHARE THE DAWN).
+    // The cold→warm gradient + pip/badge/CTA colors are CSS, driven by the .go-won/.go-lost
+    // class on the game-over root; this builds the structure, showGameOver fills the strings.
+    this.goTxLbl = el('span', {}, 'LAST TRANSMISSION');
+    const txLabel = el('div', { class: 'go-tx-lbl' }, el('span', { class: 'go-tx-pip' }), this.goTxLbl);
+
+    // signal-feed frame: the real captured frame (go-gif-img, set per run) under a scanline
+    // overlay + the themed signal badge + an idle waveform.
+    const sharePreview = el('span', { class: 'go-gif go-tx-frame', 'aria-hidden': 'true' });
     sharePreview.innerHTML = GO_GIF_HTML;
+    this.goGifImg = el('img', { class: 'go-gif-img', alt: '' }) as HTMLImageElement;
+    sharePreview.querySelector('.go-gif-glow')?.after(this.goGifImg);
+    this.goTxBadge = el('span', { class: 'go-tx-badge' }, '● SIGNAL LOST');
+    const txWave = el('span', { class: 'go-tx-wave' }, ...Array.from({ length: 5 }, () => el('i')));
+    sharePreview.append(el('span', { class: 'go-tx-scan' }), this.goTxBadge, txWave);
+
+    this.goTxStrip = el('div', { class: 'go-tx-strip' });
+
+    // primary CTA → opens the existing SHARE modal (unchanged share flow).
+    this.saveReplayBtn = el('button', { class: 'go-tx-cta' }) as HTMLButtonElement;
+    this.goTxCtaTxt = el('span', {}, 'SEND THE ECHO');
+    this.saveReplayBtn.innerHTML = TX_GLYPH;
+    this.saveReplayBtn.append(this.goTxCtaTxt);
+    this.saveReplayBtn.addEventListener('click', () => this.cb.onSaveReplay());
+
+    this.goTxRally = el('div', { class: 'go-tx-rally' }, 'show them it can be held →');
+
+    const copy = el('button', { class: 'go-tx-chip' }, '⧉ COPY SCORE');
+    copy.addEventListener('click', () => this.cb.onCopyScore());
+    const dna = el('button', { class: 'go-tx-chip' }, '⧬ COPY BUILD');
+    dna.addEventListener('click', () => this.cb.onCopyBuildDna());
+
     const sharePanel = el(
       'div',
       { class: 'go-share-panel' },
-      el('div', { class: 'go-panel-lbl' }, 'SHARE THE DAWN'),
+      txLabel,
       sharePreview,
-      el('div', { class: 'go-share-btns' }, this.saveReplayBtn, copy),
-      el('div', { class: 'go-share-btns' }, dna, duel),
-      el('div', { class: 'go-share-note' }, 'the first-light frame, captured the instant the run resolved'),
+      this.goTxStrip,
+      this.saveReplayBtn,
+      this.goTxRally,
+      el('div', { class: 'go-tx-chips' }, copy, dna),
     );
     const lower = el('div', { class: 'go-lower' }, statPanel, sharePanel);
 
@@ -4036,6 +4074,21 @@ export class UI {
 
     // ── SHARE / ASCEND visibility ──
     this.saveReplayBtn.classList.toggle('hidden', !info.canReplay);
+    // Show this run's final frame instantly (the still). game.ts then auto-encodes the looping
+    // clip off-thread and calls setGameOverClip to swap in the ANIMATED GIF. Revoke the prior
+    // run's clip URL first so blob URLs don't pile up; fall back to the chrome placeholder
+    // when no frame was captured.
+    if (this.goGifClipUrl) {
+      URL.revokeObjectURL(this.goGifClipUrl);
+      this.goGifClipUrl = '';
+    }
+    if (info.previewFrame) {
+      this.goGifImg.src = info.previewFrame;
+      this.goGifImg.classList.add('shown');
+    } else {
+      this.goGifImg.classList.remove('shown');
+      this.goGifImg.removeAttribute('src');
+    }
     // ASCEND (NG+ / KEEP GOING) — only relevant on a win once the loop is unlocked
     const ngUnlocked = (this.saveRef?.ngPlusLevel ?? 0) >= 1;
     const ngActive = this.saveRef?.ngPlusActive ?? false;
@@ -4097,6 +4150,21 @@ export class UI {
     const flawless = info.won && info.hitsTaken === 0;
     const grade = !info.won ? '—' : flawless ? 'S' : info.newBest ? 'A' : 'B';
     this.goGrade.textContent = grade;
+
+    // LAST TRANSMISSION console — themed strings + stat strip from the pure view-model.
+    const sv = shareBlockView({
+      won: info.won, seed: info.seed, daily: info.daily, time: info.time,
+      wave: info.wave, score: info.score, clearTime: info.clearTime, grade,
+    });
+    this.goTxLbl.textContent = sv.label;
+    this.goTxBadge.textContent = sv.badge;
+    this.goTxCtaTxt.textContent = sv.cta;
+    this.goTxRally.textContent = sv.rally;
+    this.goTxStrip.replaceChildren(
+      ...sv.stats.map((c) =>
+        el('div', { class: 'go-tx-cell' }, el('div', { class: 'go-tx-k' }, c.k), el('div', { class: 'go-tx-v' }, c.v)),
+      ),
+    );
     if (info.won) {
       const bits = ['SOVEREIGN'];
       if (flawless) bits.push('NO-HIT');
@@ -4169,6 +4237,16 @@ export class UI {
   /** The encode finished — show the watermarked preview + share/copy/download. */
   showSharePreview(gif: ShareGif): void {
     this.share.showPreview(gif);
+  }
+
+  /** Swap the looping run clip into the LAST TRANSMISSION frame so it ANIMATES (replacing the
+   *  static still). Called by game.ts once the off-thread encode finishes. The blob URL is
+   *  revoked on the next game-over (showGameOver) so they never pile up. */
+  setGameOverClip(blob: Blob): void {
+    if (this.goGifClipUrl) URL.revokeObjectURL(this.goGifClipUrl);
+    this.goGifClipUrl = URL.createObjectURL(blob);
+    this.goGifImg.src = this.goGifClipUrl;
+    this.goGifImg.classList.add('shown');
   }
 
   /** Encode failed / nothing to share — tell the player, keep the modal closed. */
