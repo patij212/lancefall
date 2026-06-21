@@ -143,36 +143,44 @@ console.log('[edit] ✓ concatenated');
 // delivers the dynamics): a smooth BUILD from the cold open, a hard near-silence DIP on THE CHOICE,
 // and a SWELL as FIRST LIGHT floods gold. Timings derive from the shot offsets.
 let _acc = 0, choiceStart = 0, firstlightStart = 0;
-for (const s of SHOTS) { if (s.id === 'halting') choiceStart = _acc; if (s.id === 'firstlight') firstlightStart = _acc; _acc += s.t; }
+const starts = {};
+for (const s of SHOTS) { starts[s.id] = _acc; if (s.id === 'halting') choiceStart = _acc; if (s.id === 'firstlight') firstlightStart = _acc; _acc += s.t; }
 const cm = (choiceStart + 2.5).toFixed(2);       // dip centered mid-CHOICE
 const sm = (firstlightStart + 0.8).toFixed(2);   // swell as the gold floods
+
+// VO lines (REMOVABLE: set VO=1). Probe each WAV's duration so the music can DIP DETERMINISTICALLY
+// during each line — far more reliable than sidechaincompress (which didn't duck in this ffmpeg build).
+const VO_IDS = ['fall', 'verb', 'turing', 'readkey', 'memory', 'imitation', 'halting', 'firstlight'];
+let voLines = [];
+if (process.env.VO) {
+  voLines = VO_IDS.map((id) => ({ id, file: path.join(__dirname, 'vo', `vo_${id}.wav`), at: starts[id] }))
+    .filter((v) => v.at != null && fs.existsSync(v.file))
+    .map((v) => { const d = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${v.file}"`).toString().trim()) || 3; return { ...v, dur: d }; });
+}
+// per-line music dip to ~26% across each line's window (gaussian), folded into the volume envelope.
+const voDips = voLines.map((v) => { const mid = (v.at + 0.3 + v.dur / 2).toFixed(2); const sig = (v.dur / 2 + 0.35).toFixed(2); return `*(1-0.74*exp(-(t-${mid})*(t-${mid})/(2*${sig}*${sig})))`; }).join('');
+
 const volExpr =
   `(0.72+0.28*(1-exp(-t/12)))` +                 // build: 0.72 → ~1.0 over the open
   `*(1-0.85*exp(-(t-${cm})*(t-${cm})/9.7))` +    // CHOICE dip → ~0.15 (near-silence)
-  `*(1+0.12*exp(-(t-${sm})*(t-${sm})/16))`;      // FIRST LIGHT swell
+  `*(1+0.12*exp(-(t-${sm})*(t-${sm})/16))` +     // FIRST LIGHT swell
+  voDips;                                        // duck under each VO line (VO mode only)
 const bed = path.join(SEGS, 'bed.m4a');
 sh(`ffmpeg -y -loglevel error -stream_loop -1 -i "${MUSIC}" -t ${TOTAL.toFixed(2)} -af "loudnorm=I=-15:TP=-1.5,volume=eval=frame:volume='${volExpr}',afade=in:st=0:d=0.8,afade=out:st=${(TOTAL - 3).toFixed(2)}:d=3,alimiter=limit=0.97" -c:a aac -b:a 192k "${bed}"`);
 
-// VO layer — REMOVABLE: default is music-only; set VO=1 to mix in the SAPI narration (per-line WAVs
-// placed at their beats, music DUCKED under speech via sidechaincompress). Music-only stays the fallback.
 let finalAudio = bed;
-if (process.env.VO) {
-  const starts = {}; let a2 = 0;
-  for (const s of SHOTS) { starts[s.id] = a2; a2 += s.t; }
-  const VO_IDS = ['fall', 'verb', 'turing', 'readkey', 'memory', 'imitation', 'halting', 'firstlight'];
-  const vo = VO_IDS.map((id) => ({ file: path.join(__dirname, 'vo', `vo_${id}.wav`), at: starts[id] }))
-    .filter((v) => v.at != null && fs.existsSync(v.file));
-  if (vo.length) {
-    const ins = vo.map((v) => `-i "${v.file}"`).join(' ');
-    const delayed = vo.map((v, i) => { const ms = Math.round((v.at + 0.35) * 1000); return `[${i + 1}:a]adelay=${ms}|${ms},volume=2.4[v${i}]`; });
-    const voMix = `${vo.map((_, i) => `[v${i}]`).join('')}amix=inputs=${vo.length}:normalize=0[vo]`;
-    const duck = `[0:a][vo]sidechaincompress=threshold=0.045:ratio=8:attack=6:release=320[duck]`;
-    const mix = `[duck][vo]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.97[aout]`;
-    const voOut = path.join(SEGS, 'bed_vo.m4a');
-    sh(`ffmpeg -y -loglevel error -i "${bed}" ${ins} -filter_complex "${[...delayed, voMix, duck, mix].join(';')}" -map "[aout]" -c:a aac -b:a 192k "${voOut}"`);
-    finalAudio = voOut;
-    console.log(`[edit] ✓ VO layer mixed (${vo.length} lines)`);
-  }
+if (process.env.VO && voLines.length) {
+  const ins = voLines.map((v) => `-i "${v.file}"`).join(' ');
+  const ms = (at) => Math.round((at + 0.3) * 1000);
+  // each line LOUD: 48kHz stereo, compressed + lifted, delayed to its beat. The music already dips
+  // under it (voDips), so a plain amix puts the narration clearly on top — no sidechain needed.
+  const delayed = voLines.map((v, i) => `[${i + 1}:a]aresample=48000,aformat=channel_layouts=stereo,acompressor=threshold=-24dB:ratio=4:makeup=12,alimiter=limit=0.95,adelay=${ms(v.at)}|${ms(v.at)}[v${i}]`);
+  const voMix = `${voLines.map((_, i) => `[v${i}]`).join('')}amix=inputs=${voLines.length}:normalize=0[vo]`;
+  const mix = `[0:a][vo]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.97[aout]`;
+  const voOut = path.join(SEGS, 'bed_vo.m4a');
+  sh(`ffmpeg -y -loglevel error -i "${bed}" ${ins} -filter_complex "${[...delayed, voMix, mix].join(';')}" -map "[aout]" -c:a aac -b:a 192k "${voOut}"`);
+  finalAudio = voOut;
+  console.log(`[edit] ✓ VO layer mixed (${voLines.length} lines, music ducked deterministically)`);
 }
 sh(`ffmpeg -y -loglevel error -i "${silent}" -i "${finalAudio}" -map 0:v -map 1:a -c:v copy -c:a copy -movflags +faststart -shortest "${OUT}"`);
 sh(`ffmpeg -y -loglevel error -i "${path.join(PRESS, 'firstlight-winframe.png')}" -vf "scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}" -frames:v 1 "${POSTER}"`);
