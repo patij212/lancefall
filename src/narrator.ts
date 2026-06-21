@@ -71,11 +71,11 @@ export const NARRATOR = {
       hollow: 'Its key shows for one instant. Strike then.',
       sovereign: 'The master cipher. It could have unlocked everything.',
     },
-    { warden: 'He held the throne, then turned the first key against us.' }, // 1 EMBERWALL: Warden located
-    {}, // 2 VAULTS
-    {}, // 3 BLOOMGARDENS
-    {}, // 4 WARRENS
-    {}, // 5 NULL
+    { warden: 'He held the throne, then turned the first key against us.', beacon: 'The beacon should have warned the breach. It stayed dark.' }, // 1 EMBERWALL: Warden + Beacon located
+    { weaver: 'She enciphered the vaults shut — every key sealed in her threads.' }, // 2 VAULTS
+    { mirrorblade: 'It moves among the bloom-patterns, wearing your colour. The garden learned you too.' }, // 3 BLOOMGARDENS
+    { hollow: 'The one who stayed is here, in the dark it could not leave.' }, // 4 WARRENS
+    { sovereign: 'The master cipher, at the edge of erasure. It warps the ground to keep the last word from you.' }, // 5 NULL
   ] as Partial<Record<EnemyKind, string>>[],
   bossKill: {
     warden: '"I bolted it from the inside. Forgive me."',
