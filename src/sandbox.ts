@@ -141,10 +141,11 @@ export function sandboxBeatTargets(step: SandboxStep): SandboxTarget[] {
     case 'combo':
       // a DIAGONAL row, OFF the player's start axis: from the (re-centred) anchor a straight
       // dash clips at most one, so the player must DRIFT (W/A/S/D) diagonally onto the row's
-      // line, then dash along it to spear >=2. Teaches movement + the combo together. The
-      // perpendicular distance from the anchor to this line clears the dash hit-tolerance
-      // (asserted in sandbox.test.ts), which is what makes moving mandatory.
-      return [{ dx: 120, dy: -160 }, { dx: 250, dy: -235 }, { dx: 380, dy: -310 }];
+      // line, then dash along it to spear >=2. Teaches movement + the combo together. A
+      // DESCENDING diagonal kept within ~150px of the anchor so the row fits short play windows
+      // (the anchor sits at 50% height); its perpendicular distance from the anchor still clears
+      // the dash hit-tolerance (both asserted in sandbox.test.ts), which makes moving mandatory.
+      return [{ dx: 90, dy: -150 }, { dx: 230, dy: -100 }, { dx: 370, dy: -50 }];
     case 'bossparry':
       return [{ dx: 380, dy: 0, boss: true }]; // a stationary dummy boss whose GUARD you parry down
     default:

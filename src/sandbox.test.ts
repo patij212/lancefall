@@ -192,6 +192,9 @@ describe('deep sandbox — per-beat target layouts (pure, deterministic, no rng)
     // ...and it is a DIAGONAL (both axes change meaningfully — not a flat row, not a column)
     expect(Math.abs(abx)).toBeGreaterThan(40);
     expect(Math.abs(aby)).toBeGreaterThan(40);
+    // ...and it stays within ~150px of the anchor vertically (the anchor sits at 50% height), so
+    // the whole row fits on short play windows instead of clipping off the top of the screen.
+    for (const m of t) expect(Math.abs(m.dy)).toBeLessThan(160);
   });
   it('graze/parry/rhythm/done spawn no dummies (they use bullets / the beat)', () => {
     for (const step of ['graze', 'parry', 'rhythm', 'done'] as SandboxStep[]) {
