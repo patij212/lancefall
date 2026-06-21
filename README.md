@@ -140,16 +140,6 @@ npm test         # 1,400+ unit tests — the pure simulation + the authored-audi
 
 Tests cover the deterministic core: RNG determinism + daily seeds, vector math, spatial-hash + segment/circle collision, charge-dash kinematics + stamina, combo/score/graze economy, the 11-perk draft (stacking + max-stack exclusion), the 7 fusion evolutions (recipe gating + stat application + draft injection), elite-Champion spawn chance + eligibility, the 6 ship stat profiles, achievement unlock logic, and the wave-director intensity curve.
 
-## Monetization
-
-Client-only, zero servers, layered:
-
-1. **Free core game** as a portfolio centerpiece and shareable lead magnet (the "made in a tab" GIF).
-2. **Lancefall Pro** one-time unlock (Gumroad / Lemon Squeezy license key, validated client-side): extra ships, bonus perk pool, palette/skin packs, a Zen/endless mode.
-3. **Cosmetic palette + ship-skin packs** as micro-purchases.
-4. **Sell the engine** — the juice/audio/particle framework as a polished "juicy Canvas2D arcade starter kit" template.
-5. **itch.io** pay-what-you-want release.
-
 ## License
 
 **Source-available, non-commercial.** Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md) — free to play, read, fork, and learn from for any **non-commercial** purpose; **all commercial rights are reserved by patij212.** Bundled third-party assets (the CC-BY / CC0 / Pixabay audio) keep their own licenses — see [`docs/audio/CREDITS.md`](docs/audio/CREDITS.md).
