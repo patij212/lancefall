@@ -19,6 +19,7 @@ const makeDeps = (over: Partial<AccountPanelDeps> = {}): AccountPanelDeps => ({
   onDelete: vi.fn().mockResolvedValue(undefined),
   onSignOut: vi.fn(),
   onSelectAvatar: vi.fn(),
+  motionOff: vi.fn(() => false),
   ...over,
 });
 

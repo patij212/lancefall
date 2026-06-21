@@ -24,6 +24,8 @@ export interface AccountPanelDeps {
   onSignOut: () => void;
   /** profile: the player picked an avatar id (persist + repaint the cockpit logo + this panel). */
   onSelectAvatar: (id: string) => void;
+  /** true when decorative motion is suppressed (reduce-motion) — picker avatars render static. */
+  motionOff: () => boolean;
 }
 
 export interface AccountPanel extends Panel {
@@ -42,7 +44,7 @@ function privacyNote(): HTMLElement {
 /** Profile avatar picker — choose the sigil shown on the cockpit logo when signed in. The 8 free
  *  sigils plus any you've earned are selectable; locked ones are dimmed and carry their unlock
  *  hint. Selecting calls onSelect (the host persists + repaints the logo + this panel). */
-function avatarPicker(save: SaveData, onSelect: (id: string) => void): HTMLElement {
+function avatarPicker(save: SaveData, onSelect: (id: string) => void, animated: boolean): HTMLElement {
   const unlocked = unlockedAvatarIds(save);
   const current = unlocked.has(save.selectedAvatar) ? save.selectedAvatar : 'lance';
   const wrap = el('div', { class: 'account-avatars' });
@@ -57,7 +59,7 @@ function avatarPicker(save: SaveData, onSelect: (id: string) => void): HTMLEleme
       title: on ? v.name : `${v.name} — ${v.unlockHint}`,
       'aria-label': on ? `Select ${v.name}` : `${v.name}, locked — ${v.unlockHint}`,
     }) as HTMLButtonElement;
-    tile.innerHTML = renderAvatar(v.id, { size: 48, variant: 'tile', animated: false });
+    tile.innerHTML = renderAvatar(v.id, { size: 52, variant: 'full', animated });
     if (on) tile.addEventListener('click', () => onSelect(v.id));
     else tile.disabled = true;
     grid.append(tile);
@@ -136,7 +138,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
         el('div', { class: 'account-status' },
           `Signed in as ${displayName} ✓ — your progress syncs across devices.`,
         ),
-        avatarPicker(save, deps.onSelectAvatar),
+        avatarPicker(save, deps.onSelectAvatar, !deps.motionOff()),
         el('div', { class: 'event-flavor account-note' },
           'Your save is backed up to the cloud. Sign in from another device to continue your run.',
         ),

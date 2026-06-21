@@ -2927,6 +2927,7 @@ export class UI {
       onDelete: () => accountLib.deleteAccount().then(() => this.openAccount()),
       onSignOut: () => { accountLib.signOut(); if (this.saveRef) this.account.open(this.saveRef); },
       onSelectAvatar: (id) => { this.cb.onSelectAvatar(id); if (this.saveRef) this.account.open(this.saveRef); },
+      motionOff: () => this.motionOff(),
     });
     this.accountPanel = this.account.root;
     // Keep the title SIGN IN button + cockpit logo in sync the moment account state changes — e.g.
@@ -2968,7 +2969,7 @@ export class UI {
     if (!this.logoSlot) return;
     const linked = leaderboardEnabled() && accountLib.accountState().kind === 'linked';
     if (linked) {
-      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 72, animated: false });
+      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 88, animated: !this.motionOff() });
       this.logoSlot.classList.add('is-avatar');
     } else {
       this.logoSlot.innerHTML = LOGO_SVG;
