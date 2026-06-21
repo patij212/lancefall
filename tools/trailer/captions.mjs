@@ -27,43 +27,39 @@ const FONTS = `
 const CYAN = '#34d8f0', AMBER = '#f5b942', GOLD = '#ffd54a', VIOLET = '#b08cff', ROSE = '#ff5d7e';
 
 const CAPTIONS = [
-  // ACT 1 — the verb
-  { id: 'verb', label: 'NO GUNS', line: 'You never fire a shot. Your only weapon is a charged <b>dash</b> — a spear of light.', accent: CYAN },
-  { id: 'dash', label: 'THE DASH', line: 'Thrust through bullet walls, <b>invulnerable</b>. Skewer, land, recharge, repeat.', accent: CYAN },
-  { id: 'graze', label: 'GRAZE &amp; CHAIN', line: 'Skim a near-miss to refuel the dash — greed versus survival, sixty frames a second.', accent: CYAN },
-  { id: 'enemies', label: '12 ENEMY TYPES', line: 'Snipers, bombers, splitters, a homing seeker, a gap-wall herald — each a different read.', accent: ROSE },
-  // ACT 2 — the cipher (the Turing hook)
-  { id: 'turing', label: 'AN ODE TO ALAN TURING', line: 'Your real weapon is cryptanalysis. Every boss is <b>cipher-locked</b>.', accent: AMBER },
-  { id: 'readkey', label: 'READ THE KEY', line: 'The HUD gives a plaintext word and a glyph key — each letter maps to one symbol.', accent: AMBER },
-  { id: 'order', label: 'DASH THE DECODED ORDER', line: 'Dash the boss’s glyph-cores in the order the key spells — <b>under fire</b>.', accent: AMBER },
+  // ACT 1 — the code=light premise + the verb (the hook, front-loaded)
+  { id: 'fall', label: 'THE FALL', line: 'Lancefall was a kingdom of living light — until the Six <b>enciphered</b> it, and its memory went dark.', accent: CYAN },
+  { id: 'verb', label: 'THE LAST KEY', line: 'You don’t shoot. Your only weapon is a charged <b>dash</b> — a spear of light through the dark.', accent: CYAN },
+  { id: 'dash', label: 'THE DASH', line: 'Phase through bullet walls, <b>invulnerable</b>. Skewer, land, recharge — pure momentum.', accent: CYAN },
+  { id: 'graze', label: 'GRAZE &amp; CHAIN', line: 'Skim a near-miss to refuel the dash — greed against survival, sixty frames a second.', accent: CYAN },
+  // ACT 2 — the cipher (the Turing core) + the light-returns payoff
+  { id: 'turing', label: 'AN ODE TO ALAN TURING', line: 'Your real weapon is cryptanalysis: <b>break a boss’s cipher to break the boss.</b>', accent: AMBER },
+  { id: 'readkey', label: 'READ THE KEY', line: 'The HUD gives a plaintext word and a glyph key — each letter, one symbol.', accent: AMBER },
+  { id: 'order', label: 'DECODE UNDER FIRE', line: 'Dash the boss’s glyph-cores in the order the key spells — <b>while it fires back</b>.', accent: AMBER },
   { id: 'broken', label: 'CIPHER BROKEN', line: 'Code-breaking, actually <b>played</b>. Crack the lock and the armor falls.', accent: GOLD },
-  // ACT 3 — all six bosses
+  { id: 'memory', label: 'MEMORY IS LIGHT-CODE', line: 'Forgetting is encryption. Each code you break <b>decrypts</b> the city — grey back to gold.', accent: CYAN },
+  // ACT 3 — the threat + all six bosses
+  { id: 'enemies', label: 'TWELVE FOES', line: 'Orbiters, bombers, splitters, a homing seeker, a gap-wall herald — each a different read.', accent: ROSE },
   { id: 'sixbosses', label: 'SIX BOSSES', line: 'THE WARDEN opens the gauntlet — rotating fans, closing spirals.', accent: ROSE },
-  { id: 'beacon', label: 'THE BEACON', line: 'Thread the rotating cross-beams — every boss is a different lock.', accent: ROSE },
+  { id: 'beacon', label: 'THE BEACON', line: 'Thread the rotating cross-beams — every boss, a different lock.', accent: ROSE },
   { id: 'hollow', label: 'THE HOLLOW', line: 'It splits into echoes of itself. Read the real one.', accent: VIOLET },
-  { id: 'imitation', label: 'THE IMITATION GAME', line: 'THE MIRRORBLADE wears your ship and mirrors your every move. <b>Which of you is real?</b>', accent: VIOLET },
-  { id: 'sovereign', label: 'THE SOVEREIGN · ROTOR CIPHER', line: 'The final boss spins a stepping rotor that <b>re-scrambles</b> the key with every core.', accent: AMBER },
+  { id: 'imitation', label: 'THE IMITATION GAME', line: 'The Mirrorblade learns you move-for-move — Turing’s test, made flesh. <b>Which is real?</b>', accent: VIOLET },
+  { id: 'sovereign', label: 'THE SOVEREIGN', line: 'The master cipher — a stepping rotor that <b>re-scrambles</b> the key with every core.', accent: AMBER },
   { id: 'daybreak', label: 'DAYBREAK', line: 'Chain enough light to fire <b>DAYBREAK</b> — a screen-clearing burst that ends the dark.', accent: GOLD },
-  // ACT 4 — the roguelite depth
-  { id: 'ships', label: 'SIX SHIPS', line: 'Each ship rewrites the dash — pick your spear.', accent: CYAN },
-  { id: 'build', label: 'DRAFT YOUR BUILD', line: '11 perks, 7 fusion evolutions, cursed relics — no two runs decode the same.', accent: CYAN },
-  { id: 'meta', label: 'META PROGRESSION', line: 'A permanent upgrade tree and an eight-level <b>HEAT</b> prestige ladder.', accent: ROSE },
-  { id: 'cosmetics', label: 'UNLOCK &amp; CUSTOMIZE', line: 'Dash-trails, ship skins, palettes, a 76-skin enemy gallery.', accent: VIOLET },
-  { id: 'bestiary', label: 'BESTIARY &amp; LORE', line: 'Every foe and memory-fragment, catalogued and decrypted.', accent: VIOLET },
-  { id: 'boards', label: 'DAILY &amp; WEEKLY BOARDS', line: 'One deterministic seed — the same world for everyone, every day.', accent: CYAN },
-  { id: 'solstice', label: 'SOLSTICE PROTOCOL', line: 'The flagship mode: not just bosses — <b>every wave</b> is a cipher.', accent: AMBER },
-  // ACT 5 — the story
-  { id: 'fall', label: 'THE FALL', line: 'The Six who let the city fall <b>enciphered</b> it — its light scrambled to grey.', accent: CYAN },
-  { id: 'memory', label: 'MEMORY IS LIGHT-CODE', line: 'Forgetting is encryption. Each lock you break <b>decrypts</b> the city back to color.', accent: CYAN },
-  // ACT 6 — the climax
-  { id: 'halting', label: 'THE HALTING PROBLEM', line: 'The last lock has no key — no code can decide it. <b>Only you can choose.</b>', accent: GOLD },
-  { id: 'firstlight', label: 'FIRST LIGHT', line: 'Break the last code and grey floods to <b>gold</b> — the longest day returns.', accent: GOLD },
-  // v4 additions — in-cockpit decryption, skins, dossier, profile sigils, the ending
+  // ACT 4 — the roguelite depth (incl. the in-cockpit codebreaker)
   { id: 'codebreaker', label: 'THE CODEBREAKER', line: 'In the cockpit: crack the day’s transmissions and rebuild the city’s lost meaning.', accent: AMBER },
+  { id: 'ships', label: 'SIX SHIPS', line: 'Each ship rewrites the dash — choose your spear.', accent: CYAN },
   { id: 'skins', label: 'SHIP SKINS', line: 'Three sets per ship — grey, ignite, gold — earned as the city decrypts.', accent: VIOLET },
+  { id: 'build', label: 'DRAFT YOUR BUILD', line: 'A stacking perk draft, seven fusion evolutions, cursed relics — no two runs alike.', accent: CYAN },
+  { id: 'meta', label: 'META PROGRESSION', line: 'A permanent upgrade tree and an eight-level <b>HEAT</b> prestige ladder.', accent: ROSE },
+  { id: 'bestiary', label: 'BESTIARY &amp; LORE', line: 'Every foe and memory-fragment, catalogued and decrypted.', accent: VIOLET },
   { id: 'dossier', label: 'YOUR DOSSIER', line: 'Every run logged — kills, combos, and the city’s coherence over time.', accent: CYAN },
-  { id: 'avatars', label: 'MAKE IT YOURS', line: '25 procedural profile sigils to unlock — sign in for verified boards.', accent: VIOLET },
-  { id: 'resolved', label: 'THE CITY REMEMBERS', line: 'Break the last code and the people return — every fate, named.', accent: GOLD },
+  { id: 'boards', label: 'ONE ALGORITHM', line: 'A single deterministic seed — the same world for everyone, every day.', accent: CYAN },
+  { id: 'solstice', label: 'SOLSTICE PROTOCOL', line: 'The flagship mode — where <b>every boss</b> is a cipher to break.', accent: AMBER },
+  { id: 'avatars', label: 'MAKE IT YOURS', line: 'Twenty-five procedural profile sigils to unlock — sign in for verified boards.', accent: VIOLET },
+  // ACT 5 — the climax (tease, don’t spoil)
+  { id: 'halting', label: 'THE HALTING PROBLEM', line: 'The last lock can’t be solved — only <b>chosen</b>. How it ends is yours alone.', accent: GOLD },
+  { id: 'firstlight', label: 'FIRST LIGHT', line: 'Break the last cipher, and grey floods to <b>gold</b> — the longest day, returned.', accent: GOLD },
 ];
 
 function lowerThird(c) {

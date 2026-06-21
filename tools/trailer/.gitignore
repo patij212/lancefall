@@ -9,4 +9,6 @@ review/
 assets/
 rtest/
 _safe/
+vo/
 *.webm
+*.wav

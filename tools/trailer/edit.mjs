@@ -14,7 +14,7 @@ const MP4 = path.join(__dirname, 'mp4');
 const ASSETS = path.join(__dirname, 'assets');
 const SEGS = path.join(__dirname, 'segs');
 const PRESS = path.join(ROOT, 'press');
-const OUT = path.join(PRESS, 'lancefall-trailer.mp4');
+const OUT = path.join(PRESS, process.env.VO ? 'lancefall-trailer-vo.mp4' : 'lancefall-trailer.mp4');
 const POSTER = path.join(PRESS, 'lancefall-trailer-poster.png');
 const MUSIC = path.join(ROOT, 'audio-src', 'flagship', 'masters', 'cyberpunk-renaissance.mp3');
 // key art for the opening (owner-provided); falls back to the generated end card if absent.
@@ -34,47 +34,46 @@ const ENDART = path.join(PRESS, 'endart.png');
 const ENDCARD = path.join(SEGS, 'endcard.png');
 const useEndArt = fs.existsSync(ENDART);
 if (useEndArt) sh(`ffmpeg -y -loglevel error -i "${ENDART}" -i "${path.join(ASSETS, 'card_endinfo.png')}" -filter_complex "[0]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[bg];[bg][1]overlay" -frames:v 1 "${ENDCARD}"`);
-// v4 — the comprehensive showcase (~2:00): cold-open verb → cipher teach → ALL SIX bosses →
-// roguelite depth incl. the in-cockpit CODEBREAKER, ship skins, dossier → profile sigils → story →
-// THE CHOICE → THE CITY REMEMBERS → LIVE FIRST LIGHT daybreak → end art. Native-1080p panels.
+// v5 — code=light + Turing-forward (~1:54). Front-loads the premise (encrypted→grey), the verb (the
+// KEY), then the cipher core + the grey→gold DECRYPT payoff; names the Turing trifecta (cryptanalysis,
+// the imitation game, the halting problem, the deterministic algorithm); shows all six bosses + the
+// full depth; and TEASES the ending (halting problem) → live FIRST LIGHT — the resolution is NOT spoiled.
 const ppng = (n) => path.join(__dirname, 'panels', n + '.png');
 const SHOTS = [
-  // ACT 1 — the verb
-  { id: 'title',      kind: 'still', src: KEYART, t: 2.5, zoom: 'in' },     // brief brand stamp (smooth push); the hook is the cold-open dash next
+  // ACT 1 — the code=light premise + the verb (the hook, front-loaded)
+  { id: 'title',      kind: 'still', src: KEYART, t: 2.5, zoom: 'in' },
+  { id: 'fall',       kind: 'still', src: ppng('fall'),      t: 4.0, zoom: 'in', cap: 'fall' },      // PREMISE: enciphered into grey
   { id: 'verb',       kind: 'clip',  src: 'combat',    ss: 2.0,  t: 4.0,  cap: 'verb' },
   { id: 'dash',       kind: 'clip',  src: 'combat',    ss: 7.0,  t: 4.0,  cap: 'dash' },
-  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 4.5,  cap: 'graze' },
-  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 4.0,  cap: 'enemies' },
-  // ACT 2 — the cipher (the Turing hook)
+  { id: 'graze',      kind: 'clip',  src: 'flow',      ss: 4.0,  t: 4.0,  cap: 'graze' },
+  // ACT 2 — the cipher (the Turing core) → the grey→gold DECRYPT payoff
   { id: 'turing',     kind: 'clip',  src: 'cipher',    ss: 1.0,  t: 4.0,  cap: 'turing' },
   { id: 'readkey',    kind: 'clip',  src: 'cipher',    ss: 6.0,  t: 5.0,  cap: 'readkey' },
   { id: 'order',      kind: 'clip',  src: 'cipher',    ss: 13.0, t: 5.0,  cap: 'order' },
   { id: 'broken',     kind: 'clip',  src: 'cipher',    ss: 23.0, t: 3.0,  cap: 'broken' },
-  // ACT 3 — all six bosses
+  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0,  t: 4.0,  cap: 'memory' },           // the world decrypts grey→gold
+  // ACT 3 — the threat + all six bosses
+  { id: 'enemies',    kind: 'clip',  src: 'combat',    ss: 11.0, t: 4.0,  cap: 'enemies' },
   { id: 'sixbosses',  kind: 'clip',  src: 'warden',    ss: 2.0,  t: 4.0,  cap: 'sixbosses' },
   { id: 'beacon',     kind: 'clip',  src: 'bossfight', ss: 1.0,  t: 4.0,  cap: 'beacon' },
   { id: 'hollow',     kind: 'clip',  src: 'hollow',    ss: 2.0,  t: 4.0,  cap: 'hollow' },
-  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 5.5,  cap: 'imitation' },
+  { id: 'imitation',  kind: 'clip',  src: 'mirror',    ss: 1.0,  t: 5.5,  cap: 'imitation' },        // the imitation game (AI)
   { id: 'sovereign',  kind: 'clip',  src: 'sovereign', ss: 1.0,  t: 5.0,  cap: 'sovereign' },
   { id: 'daybreak',   kind: 'clip',  src: 'daybreak',  ss: 1.0,  t: 4.0,  cap: 'daybreak' },
-  // ACT 4 — roguelite depth (native panels) — incl. the IN-COCKPIT CODEBREAKER decryption console
+  // ACT 4 — roguelite depth (native panels) — incl. the IN-COCKPIT CODEBREAKER + the deterministic seed
   { id: 'codebreaker',kind: 'still', src: ppng('codebreaker'), t: 3.5, zoom: 'in', cap: 'codebreaker' },
   { id: 'ships',      kind: 'still', src: ppng('ships'),     t: 2.6, zoom: 'in', cap: 'ships' },
   { id: 'skins',      kind: 'still', src: ppng('skins'),     t: 2.6, zoom: 'in', cap: 'skins' },
   { id: 'build',      kind: 'still', src: ppng('archetype'), t: 2.6, zoom: 'in', cap: 'build' },
   { id: 'meta',       kind: 'still', src: ppng('upgrades'),  t: 2.6, zoom: 'in', cap: 'meta' },
-  { id: 'memory',     kind: 'clip',  src: 'coherence', ss: 2.0, t: 4.0, cap: 'memory' },      // a MOVING shot breaks the panel run
   { id: 'bestiary',   kind: 'still', src: ppng('codex'),     t: 2.6, zoom: 'in', cap: 'bestiary' },
   { id: 'dossier',    kind: 'still', src: ppng('stats'),     t: 2.6, zoom: 'in', cap: 'dossier' },
-  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.6, zoom: 'in', cap: 'boards' },
+  { id: 'boards',     kind: 'still', src: ppng('ranks'),     t: 2.6, zoom: 'in', cap: 'boards' },     // ONE ALGORITHM (determinism)
   { id: 'solstice',   kind: 'panel', src: 'modes',     ss: 9.0, t: 3.0, cap: 'solstice' },
-  // ACT 5 — recent: profile sigils + the story
   { id: 'avatars',    kind: 'still', src: ppng('avatar_gallery'), t: 3.5, zoom: 'in', cap: 'avatars' },
-  { id: 'fall',       kind: 'still', src: ppng('fall'),      t: 4.0, zoom: 'in', cap: 'fall' },
-  // ACT 6 — the climax (live FIRST LIGHT daybreak)
-  { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 5.0, zoom: 'in', cap: 'halting' },   // the near-silence beat (music dips)
-  { id: 'resolved',   kind: 'still', src: ppng('resolved'),  t: 4.0, zoom: 'in', cap: 'resolved' },
-  { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.0, cap: 'firstlight' },   // the LIVE grey→gold daybreak
+  // ACT 5 — the climax: TEASE the choice (no spoiler) → live FIRST LIGHT daybreak
+  { id: 'halting',    kind: 'still', src: ppng('choice2'),   t: 5.0, zoom: 'in', cap: 'halting' },    // the near-silence beat (music dips)
+  { id: 'firstlight', kind: 'clip',  src: 'firstlight', ss: 2.0, t: 5.0, cap: 'firstlight' },         // the LIVE grey→gold daybreak
   { id: 'endcard',    kind: 'still', src: useEndArt ? ENDCARD : path.join(ASSETS, 'card_end.png'), t: 6.0, zoom: 'in' },
 ];
 
@@ -153,7 +152,29 @@ const volExpr =
   `*(1+0.12*exp(-(t-${sm})*(t-${sm})/16))`;      // FIRST LIGHT swell
 const bed = path.join(SEGS, 'bed.m4a');
 sh(`ffmpeg -y -loglevel error -stream_loop -1 -i "${MUSIC}" -t ${TOTAL.toFixed(2)} -af "loudnorm=I=-15:TP=-1.5,volume=eval=frame:volume='${volExpr}',afade=in:st=0:d=0.8,afade=out:st=${(TOTAL - 3).toFixed(2)}:d=3,alimiter=limit=0.97" -c:a aac -b:a 192k "${bed}"`);
-sh(`ffmpeg -y -loglevel error -i "${silent}" -i "${bed}" -map 0:v -map 1:a -c:v copy -c:a copy -movflags +faststart -shortest "${OUT}"`);
+
+// VO layer — REMOVABLE: default is music-only; set VO=1 to mix in the SAPI narration (per-line WAVs
+// placed at their beats, music DUCKED under speech via sidechaincompress). Music-only stays the fallback.
+let finalAudio = bed;
+if (process.env.VO) {
+  const starts = {}; let a2 = 0;
+  for (const s of SHOTS) { starts[s.id] = a2; a2 += s.t; }
+  const VO_IDS = ['fall', 'verb', 'turing', 'readkey', 'memory', 'imitation', 'halting', 'firstlight'];
+  const vo = VO_IDS.map((id) => ({ file: path.join(__dirname, 'vo', `vo_${id}.wav`), at: starts[id] }))
+    .filter((v) => v.at != null && fs.existsSync(v.file));
+  if (vo.length) {
+    const ins = vo.map((v) => `-i "${v.file}"`).join(' ');
+    const delayed = vo.map((v, i) => { const ms = Math.round((v.at + 0.35) * 1000); return `[${i + 1}:a]adelay=${ms}|${ms},volume=2.4[v${i}]`; });
+    const voMix = `${vo.map((_, i) => `[v${i}]`).join('')}amix=inputs=${vo.length}:normalize=0[vo]`;
+    const duck = `[0:a][vo]sidechaincompress=threshold=0.045:ratio=8:attack=6:release=320[duck]`;
+    const mix = `[duck][vo]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.97[aout]`;
+    const voOut = path.join(SEGS, 'bed_vo.m4a');
+    sh(`ffmpeg -y -loglevel error -i "${bed}" ${ins} -filter_complex "${[...delayed, voMix, duck, mix].join(';')}" -map "[aout]" -c:a aac -b:a 192k "${voOut}"`);
+    finalAudio = voOut;
+    console.log(`[edit] ✓ VO layer mixed (${vo.length} lines)`);
+  }
+}
+sh(`ffmpeg -y -loglevel error -i "${silent}" -i "${finalAudio}" -map 0:v -map 1:a -c:v copy -c:a copy -movflags +faststart -shortest "${OUT}"`);
 sh(`ffmpeg -y -loglevel error -i "${path.join(PRESS, 'firstlight-winframe.png')}" -vf "scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}" -frames:v 1 "${POSTER}"`);
 
 const mb = (fs.statSync(OUT).size / 1048576).toFixed(1);
