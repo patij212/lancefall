@@ -33,6 +33,9 @@ import type { DraftCard, EvolutionId } from './evolutions';
 import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
+import { isMobile, applyMobileClass } from './mobile/detect';
+import { mountMobileControls, type MobileControls } from './mobile/controls';
+import { boardEligible } from './mobile/withhold';
 import { hintFor, ONBOARDING_STEPS, beatTeachState, BEAT_HINT_TEXT, FIRST_DASH_PROMPT, verbTeachFor, enemyReadFor, bossReadFor } from './onboarding';
 import type { TeachHit } from './onboarding';
 import { tickOverdrive, chargeFromKill, chargeFromGraze, canActivate, activateOverdrive } from './overdrive';
@@ -130,6 +133,8 @@ export class Game {
 
   private world: World;
   private state: State = 'title';
+  mobile: MobileControls | null = null;
+  private runUsedStrongAssist = false;
   private mode: RunConfig = MODES[0];
   private trail: TrailDef = trailById('pulse');
   private seed = 1;
@@ -389,6 +394,17 @@ export class Game {
     this.world.height = h;
   }
 
+  /** Mount the touch overlay. Called from main.ts ONLY when isMobile() — desktop never
+   *  constructs it, so no mobile DOM/listener can exist there. `root` is the #ui-root. */
+  mountMobile(root: HTMLElement): void {
+    if (this.mobile) return;
+    this.mobile = mountMobileControls(this.canvas, root, {
+      mirror: this.settings.mirrorTouch,
+      scale: this.settings.touchScale,
+      assist: this.settings.assistMode,
+    });
+  }
+
   private applySettings(s: Settings): void {
     this.settings = s;
     saveSettings(s);
@@ -403,6 +419,9 @@ export class Game {
     this.world.particles.density = this.baseDensity * this.perfScale;
     // reduce-motion disables decorative UI animations/transitions (CSS)
     document.documentElement.classList.toggle('reduce-motion', s.reduceMotion);
+    // mobile: the single isolation switch + push live options to the overlay (no-op on desktop)
+    applyMobileClass(isMobile(s.inputMode));
+    this.mobile?.setOptions({ mirror: s.mirrorTouch, scale: s.touchScale, assist: s.assistMode });
     document.documentElement.classList.toggle('reduce-flashing', s.reduceFlashing); // a11y — soft cross-fades, no strobe (THE BOMBE decrypt flash etc.)
     document.documentElement.classList.toggle('clarity', s.clarity); // §5.4 a11y — high-contrast hook for the DOM UI (cockpit/sandbox/panels)
     document.documentElement.classList.toggle('colorblind', s.colorblind); // a11y — colorblind-safe accents for the DOM UI
@@ -862,6 +881,7 @@ export class Game {
     this.audio.ensure();
     this.ui.hideSoundHint();
     this.mode = cfg;
+    this.runUsedStrongAssist = false; // per-run; set true if strong aim-assist influences aim (→ off-board)
     const challenge = this.pendingChallenge;
     this.pendingChallenge = null;
     const pinnedSeed = this.pendingSeed; // 4.1 — CHALLENGE THE DEV: a fixed seed, no ghost
@@ -1555,6 +1575,16 @@ export class Game {
     if (this.state === 'playing') this.adaptPerf(realDt);
 
     this.input.poll(this.world.player.x, this.world.player.y);
+    if (this.mobile) {
+      // "controlling" = the player is actually flying the ship this frame: playing AND no modal
+      // pending (perk draft / run event). Hidden otherwise so menu/modal DOM stays tappable.
+      const controlling = this.state === 'playing' && !this.pendingDraft && this.pendingEvent === null;
+      this.mobile.setActive(controlling);
+      if (controlling) {
+        const strong = this.mobile.applyTo(this.input.state, this.world.player.x, this.world.player.y, this.world.enemies);
+        if (strong) this.runUsedStrongAssist = true;
+      }
+    }
     this.handleMeta();
 
     // re-arm the per-frame juice budget BEFORE the sim substeps emit their effects,
@@ -3418,7 +3448,7 @@ export class Game {
     // Boss Rush is ranked by cleartime; a cipher-OFF run is faster, so it stays OFF the board
     // (only the default cipher-armed experience is comparable). Pure read of mode + setting.
     const cipherOffBossRush = this.mode.bossrush && !this.settings.bossRushCiphers;
-    if (!this.inChallenge && modeRanked(this.mode) && !cipherOffBossRush) {
+    if (boardEligible(modeRanked(this.mode), this.inChallenge, cipherOffBossRush, this.runUsedStrongAssist)) {
       void submitScore({
         mode: this.mode.id,
         name: this.save.handle,

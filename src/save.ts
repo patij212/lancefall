@@ -8,6 +8,7 @@ import { TUNE } from './tune';
 import type { SoundtrackId } from './soundtracks';
 import { defaultKeyBindings, type KeyBindings } from './input';
 import { PORTED_KINDS, defaultSkinId } from './skins';
+import type { InputMode } from './mobile/detect';
 
 const SAVE_KEY = 'lancefall.save';
 const LEGACY_SAVE_KEY = 'lancefall.v1'; // pre-versioning key — read once, migrated forward
@@ -252,6 +253,12 @@ export interface Settings {
   chromAberration: number; // 0..1 scale on the chromatic-aberration effect (accessibility)
   rumble: boolean; // gamepad rumble on/off
   keymap: KeyBindings; // rebindable core actions (dash / overdrive / pause)
+  // ── mobile / touch (only meaningful on a touch device; inert on desktop) ──
+  inputMode: InputMode; // 'auto' detection override
+  assistMode: 'off' | 'subtle' | 'strong'; // touch aim-assist; 'strong' is off-board
+  haptics: boolean; // navigator.vibrate feedback
+  mirrorTouch: boolean; // left-handed mirror of the control layout
+  touchScale: 's' | 'm' | 'l'; // on-screen control size
 }
 
 function prefersReducedMotion(): boolean {
@@ -380,6 +387,11 @@ export function defaultSettings(): Settings {
     chromAberration: 1,
     rumble: true,
     keymap: defaultKeyBindings(),
+    inputMode: 'auto',
+    assistMode: 'subtle',
+    haptics: true,
+    mirrorTouch: false,
+    touchScale: 'm',
   };
 }
 
@@ -456,6 +468,11 @@ export function sanitizeSettings(raw: unknown): Settings {
       parry: keyList(km.parry, dk.parry),
       pause: keyList(km.pause, dk.pause),
     },
+    inputMode: oneOf(r.inputMode, ['auto', 'touch', 'desktop'] as const, d.inputMode),
+    assistMode: oneOf(r.assistMode, ['off', 'subtle', 'strong'] as const, d.assistMode),
+    haptics: bool(r.haptics, d.haptics),
+    mirrorTouch: bool(r.mirrorTouch, d.mirrorTouch),
+    touchScale: oneOf(r.touchScale, ['s', 'm', 'l'] as const, d.touchScale),
   };
 }
 

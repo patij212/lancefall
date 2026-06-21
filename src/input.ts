@@ -1,6 +1,7 @@
-// Unified input: keyboard + mouse + gamepad + basic touch → one snapshot per
-// frame. Aim is resolved to a world point using the player's position so mouse,
-// stick, and touch all feel consistent.
+// Unified input: keyboard + mouse + gamepad → one snapshot per frame. Aim is resolved to a
+// world point using the player's position so mouse and stick feel consistent. Touch is owned
+// by the mobile overlay (src/mobile/controls.ts), which writes onto this snapshot after
+// poll() — kept out of here so desktop play is completely untouched.
 
 import type { InputState } from './types';
 
@@ -46,15 +47,6 @@ export class InputManager {
   private startEdge = false;
   private confirmEdge = false;
 
-  // touch virtual sticks
-  private moveTouchId = -1;
-  private moveTX = 0;
-  private moveTY = 0;
-  private moveTStartX = 0;
-  private moveTStartY = 0;
-  private aimTouchId = -1;
-  private aimTX = 0;
-  private aimTY = 0;
   isCoarse = false;
 
   /** rebindable core-action key map (defaults match the legacy hard-coded keys). */
@@ -142,51 +134,6 @@ export class InputManager {
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseDown = false;
     });
-
-    // touch
-    this.canvas.addEventListener('touchstart', (e) => this.onTouch(e), { passive: false });
-    this.canvas.addEventListener('touchmove', (e) => this.onTouch(e), { passive: false });
-    this.canvas.addEventListener('touchend', (e) => this.onTouchEnd(e), { passive: false });
-    this.canvas.addEventListener('touchcancel', (e) => this.onTouchEnd(e), { passive: false });
-  }
-
-  private onTouch(e: TouchEvent): void {
-    e.preventDefault();
-    this.anyEdge = true;
-    const r = this.canvas.getBoundingClientRect();
-    const mid = r.width / 2;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const t = e.changedTouches[i];
-      const x = t.clientX - r.left;
-      const y = t.clientY - r.top;
-      if (x < mid) {
-        if (this.moveTouchId === -1) {
-          this.moveTouchId = t.identifier;
-          this.moveTStartX = x;
-          this.moveTStartY = y;
-        }
-        if (t.identifier === this.moveTouchId) {
-          this.moveTX = x;
-          this.moveTY = y;
-        }
-      } else {
-        if (this.aimTouchId === -1) this.aimTouchId = t.identifier;
-        if (t.identifier === this.aimTouchId) {
-          this.aimTX = x;
-          this.aimTY = y;
-        }
-      }
-    }
-  }
-
-  private onTouchEnd(e: TouchEvent): void {
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const t = e.changedTouches[i];
-      if (t.identifier === this.moveTouchId) this.moveTouchId = -1;
-      if (t.identifier === this.aimTouchId) {
-        this.aimTouchId = -1; // releasing the aim stick drops dashHeld → fires a dash
-      }
-    }
   }
 
   /** Sample all sources into the shared snapshot. Call once per frame. */
@@ -202,23 +149,6 @@ export class InputManager {
     let dashHeld = this.keymap.dash.some((k) => this.keys.has(k)) || this.mouseDown;
     let aimX = this.hasMouse ? this.mouseX : playerX + 1;
     let aimY = this.hasMouse ? this.mouseY : playerY;
-
-    // touch overrides
-    if (this.moveTouchId !== -1) {
-      const dx = this.moveTX - this.moveTStartX;
-      const dy = this.moveTY - this.moveTStartY;
-      const l = Math.hypot(dx, dy);
-      if (l > 8) {
-        const m = Math.min(1, l / 60);
-        s.moveX = (dx / l) * m;
-        s.moveY = (dy / l) * m;
-      }
-    }
-    if (this.aimTouchId !== -1) {
-      aimX = this.aimTX;
-      aimY = this.aimTY;
-      dashHeld = true;
-    }
 
     // gamepad
     const gp = this.pollGamepad();
@@ -269,8 +199,6 @@ export class InputManager {
     this.mouseDown = false;
     this.prevDash = false;
     this.dashTapEdge = false;
-    this.moveTouchId = -1;
-    this.aimTouchId = -1;
     this.startEdge = false;
     this.confirmEdge = false;
     this.selectEdge = -1;

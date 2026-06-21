@@ -6898,3 +6898,48 @@ body {
   line-height: 1.5;
 }
 .clarity .go-faces-names { color: #e6f4f1; }
+
+/* ── MOBILE TOUCH CONTROLS — only ever present when html.lf-mobile is set (desktop-isolated) ── */
+html.lf-mobile .lf-touch {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none; /* the layer is transparent; only the buttons opt back in */
+  touch-action: none;
+}
+html.lf-mobile .lf-stick {
+  position: absolute;
+  display: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+}
+html.lf-mobile .lf-move { border-color: rgba(34, 211, 238, 0.55); background: rgba(34, 211, 238, 0.08); }
+html.lf-mobile .lf-lance { border-color: rgba(245, 182, 66, 0.6); background: rgba(245, 182, 66, 0.08); }
+html.lf-mobile .lf-knob {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+}
+html.lf-mobile .lf-move .lf-knob { background: rgba(34, 211, 238, 0.9); }
+html.lf-mobile .lf-lance .lf-knob { background: rgba(245, 182, 66, 0.92); }
+html.lf-mobile .lf-tbtn {
+  position: absolute;
+  pointer-events: auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(167, 139, 250, 0.55);
+  background: rgba(167, 139, 250, 0.12);
+  color: #e8eefc;
+  font: 700 11px/1 'Rajdhani', sans-serif;
+  letter-spacing: 0.06em;
+}
+html.lf-mobile .lf-parry { right: 14px; bottom: 46%; }
+html.lf-mobile .lf-over { right: 14px; bottom: 64%; border-color: rgba(245, 215, 138, 0.5); background: rgba(245, 215, 138, 0.1); }
+html.lf-mobile .lf-pause { right: 16px; top: 14px; width: 44px; height: 44px; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.06); }
+html.lf-mobile .lf-touch.mirror .lf-parry,
+html.lf-mobile .lf-touch.mirror .lf-over { right: auto; left: 14px; }
+html.lf-mobile .lf-touch.mirror .lf-pause { right: auto; left: 16px; }

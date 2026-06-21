@@ -10,6 +10,7 @@ import { TRACKS, type SoundtrackId } from '../soundtracks';
 import type { Settings } from '../save';
 import { leaderboardEnabled } from '../api';
 import * as account from '../account';
+import { isMobile } from '../mobile/detect';
 
 type RebindAction = 'dash' | 'overdrive' | 'parry' | 'pause';
 
@@ -61,6 +62,18 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
     input.checked = val;
     input.addEventListener('change', () => on(input.checked));
     return el('label', { class: 'setting setting-toggle' }, el('span', {}, label), input);
+  };
+  // a labelled row of mutually-exclusive choice buttons (used by the mobile TOUCH group)
+  const btnGroup = <T extends string>(label: string, opts: readonly T[], cur: T, on: (v: T) => void) => {
+    const wrap = el('div', { class: 'setting' }, el('span', {}, label));
+    const btns: HTMLElement[] = [];
+    for (const o of opts) {
+      const b = el('button', { class: 'btn btn-ghost btn-sm' + (cur === o ? ' active' : '') }, o.toUpperCase());
+      b.addEventListener('click', () => { on(o); btns.forEach((x) => x.classList.remove('active')); b.classList.add('active'); });
+      btns.push(b);
+      wrap.append(b);
+    }
+    return wrap;
   };
 
   // ── the perf/fidelity dials the PRESETS drive (kept as refs so a preset re-syncs them) ──
@@ -247,6 +260,14 @@ export function buildSettingsPanel(deps: SettingsPanelDeps): SettingsPanel {
       toggle('Controller rumble', s.rumble, (v) => deps.patch({ rumble: v })),
       rebindRow('Dash', 'dash'), rebindRow('Overdrive', 'overdrive'), rebindRow('Parry', 'parry'), rebindRow('Pause', 'pause'),
       el('div', { class: 'setting' }, resetKeys)) },
+    // TOUCH — built ONLY on a touch device (isMobile); desktop never sees this tab.
+    ...(isMobile(s.inputMode)
+      ? [{ id: 'touch', name: 'TOUCH', el: sect('touch',
+          btnGroup('Aim assist', ['off', 'subtle', 'strong'] as const, s.assistMode, (v) => deps.patch({ assistMode: v })),
+          toggle('Mirror (left-handed)', s.mirrorTouch, (v) => deps.patch({ mirrorTouch: v })),
+          btnGroup('Control size', ['s', 'm', 'l'] as const, s.touchScale, (v) => deps.patch({ touchScale: v })),
+          toggle('Haptics', s.haptics, (v) => deps.patch({ haptics: v }))) }]
+      : []),
   ];
   const tabRow = el('div', { class: 'set-tabs' });
   const showSect = (id: string) => {
