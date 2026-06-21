@@ -279,6 +279,7 @@ export class Game {
       onHeatChange: (level) => this.setHeat(level),
       onArchetypeChange: (id) => this.setArchetype(id),
       onSelectMode: (id) => this.selectMode(id),
+      onSelectAvatar: (id) => { this.save.selectedAvatar = id; saveSave(this.save); this.ui.refreshTitle(this.save); },
       onToggleCityMemory: (v) => { this.save.cityMemoryMeter = v; saveSave(this.save); },
       onReplayTutorial: () => this.replayTutorial(),
       onMarkGloss: (id) => { if (!this.save.glossSeen.includes(id)) { this.save.glossSeen.push(id); saveSave(this.save); } },

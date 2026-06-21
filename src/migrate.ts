@@ -13,6 +13,7 @@ import { PORTED_KINDS, defaultSkinId, skinById, canUnlockSkin } from './skins';
 import { GLOSS_IDS } from './gloss';
 import { SHIP_SKINS } from './shipSkins';
 import { SHIPS } from './ships';
+import { AVATAR_IDS } from './render/avatars';
 
 export const SAVE_VERSION = 10;
 
@@ -90,6 +91,8 @@ export function migrateSave(raw: unknown, base: SaveData): SaveData {
   // selectedMode must be a REAL mode id (not just any string), or the title highlight
   // desyncs from the launch target (no card lit while PLAY falls back to endless).
   if (!MODES.some((m) => m.id === o.selectedMode)) o.selectedMode = b.selectedMode;
+  // selectedAvatar must be a real avatar id (render/avatars registry), else the default 'lance'.
+  if (!AVATAR_IDS.includes(o.selectedAvatar as string)) o.selectedAvatar = b.selectedAvatar;
   // 4.2 — playStreak is a count: clamp a hand-edited negative/fractional value to a
   // safe non-negative integer (the generic loop above only checks it's a finite number).
   if (typeof o.playStreak === 'number') o.playStreak = Math.max(0, Math.floor(o.playStreak));

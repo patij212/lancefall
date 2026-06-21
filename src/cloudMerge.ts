@@ -34,7 +34,7 @@ export const MERGE_CATEGORIES: Record<keyof SaveData, MergeCategory> = {
   meta: 'perKeyMax', bestByMode: 'perKeyMax', killsByKind: 'perKeyMax', nemesis: 'perKeyMax',
   runsByMode: 'perKeyMax', winsByMode: 'perKeyMax', playDays: 'perKeyMax', bombeBranches: 'perKeyMax',
   selectedShip: 'latest', selectedTheme: 'latest', selectedTrail: 'latest', selectedMode: 'latest',
-  selectedHeat: 'latest', selectedArchetype: 'latest', selectedSkins: 'latest',
+  selectedHeat: 'latest', selectedArchetype: 'latest', selectedAvatar: 'latest', selectedSkins: 'latest',
   selectedShipSkins: 'latest', handle: 'latest', cityMemoryMeter: 'latest', ngPlusActive: 'latest',
   baseShields: 'latest', stillpointChoice: 'latest', dailyMutators: 'latest', dailySeed: 'latest',
   dailyAttempts: 'latest', dailyAttemptDate: 'latest', lastPlayedDate: 'latest',

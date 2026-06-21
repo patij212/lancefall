@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { buildAccountPanel, type AccountPanelDeps } from './account';
 import * as account from '../account';
+import { defaultSave } from '../save';
 
 // Hoist the api mock so vi.mock can reference it.
 const { leaderboardEnabled } = vi.hoisted(() => ({
@@ -16,10 +17,12 @@ const makeDeps = (over: Partial<AccountPanelDeps> = {}): AccountPanelDeps => ({
   onSignIn: vi.fn(),
   onClose: vi.fn(),
   onDelete: vi.fn().mockResolvedValue(undefined),
+  onSignOut: vi.fn(),
+  onSelectAvatar: vi.fn(),
   ...over,
 });
 
-const mockSave = {} as import('../save').SaveData;
+const mockSave = defaultSave();
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -134,6 +137,46 @@ describe('buildAccountPanel', () => {
       (b) => b.textContent?.toLowerCase().includes('delete'),
     );
     expect(deleteBtn).toBeDefined();
+  });
+
+  it('linked state: shows a Log out button that calls deps.onSignOut', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true,
+      kind: 'linked',
+      name: 'ACE',
+      verified: true,
+    });
+    const d = makeDeps();
+    const panel = buildAccountPanel(d);
+    panel.open(mockSave);
+    const logoutBtn = [...panel.root.querySelectorAll('button')].find(
+      (b) => b.textContent?.toLowerCase().includes('log out'),
+    );
+    expect(logoutBtn).toBeDefined();
+    expect(d.onSignOut).not.toHaveBeenCalled();
+    (logoutBtn as HTMLButtonElement).click();
+    expect(d.onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('linked state: renders the avatar picker — free sigils selectable, locked ones disabled', () => {
+    vi.spyOn(account, 'accountState').mockReturnValue({
+      enabled: true, kind: 'linked', name: 'ACE', verified: true,
+    });
+    const d = makeDeps();
+    const panel = buildAccountPanel(d);
+    panel.open(mockSave); // a fresh save → only the 8 free sigils unlocked
+    const grid = panel.root.querySelector('.account-avatar-grid');
+    expect(grid).toBeTruthy();
+    const tiles = [...grid!.querySelectorAll('.account-avatar-tile')];
+    expect(tiles.length).toBe(24); // the whole registry is shown
+    const locked = tiles.filter((t) => t.classList.contains('locked'));
+    expect(locked.length).toBeGreaterThan(0); // earned sigils are locked on a fresh save
+    expect((locked[0] as HTMLButtonElement).disabled).toBe(true);
+    // a selectable (free) sigil invokes onSelectAvatar
+    const free = tiles.find((t) => t.getAttribute('aria-label')?.startsWith('Select')) as HTMLButtonElement;
+    expect(free).toBeTruthy();
+    free.click();
+    expect(d.onSelectAvatar).toHaveBeenCalledTimes(1);
   });
 
   it('linked state: delete button shows inline confirm, not immediate deletion', () => {

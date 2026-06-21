@@ -119,3 +119,25 @@ describe('account — mergeCloud (pure boot-merge step)', () => {
     expect(new Set(m.achievements)).toEqual(new Set(['a', 'b']));
   });
 });
+
+describe('account — signOut + onAccountChange (live login/logout reflection)', () => {
+  it('signOut returns to anonymous, opts out, and clears the session', () => {
+    account.optIn();
+    localStorage.setItem('lancefall.session', 'sometoken.sig');
+    account.signOut();
+    expect(account.optedIn()).toBe(false);
+    expect(account.getSession()).toBe('');
+    expect(account.accountState().kind).toBe('anon');
+    expect(account.accountState().name).toBe(null);
+  });
+  it('onAccountChange fires when the account state changes (e.g. signOut)', () => {
+    const spy = vi.fn();
+    account.onAccountChange(spy);
+    account.signOut();
+    expect(spy).toHaveBeenCalled();
+    account.onAccountChange(null); // unregister so it can't bleed into later tests
+  });
+  it('signOut never throws', () => {
+    expect(() => account.signOut()).not.toThrow();
+  });
+});

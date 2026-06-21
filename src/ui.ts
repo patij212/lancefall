@@ -61,6 +61,7 @@ import { cityCoherence, cityCoherenceTagline } from './cityCoherence';
 import { bombeCostMul } from './bombe';
 import { buildLeaderboardPanel, type LeaderboardPanel } from './panels/leaderboard';
 import { buildAccountPanel, type AccountPanel } from './panels/account';
+import { renderAvatar } from './render/avatars';
 import * as accountLib from './account';
 import type { Panel } from './panels/panel';
 import { buildCreditsPanel } from './panels/credits';
@@ -124,6 +125,8 @@ export interface UICallbacks {
   onHeatChange: (level: number) => void;
   onArchetypeChange: (id: string) => void;
   onSelectMode: (id: string) => void;
+  /** profile: the player chose an avatar id (persist + repaint the cockpit logo). */
+  onSelectAvatar: (id: string) => void;
   onToggleCityMemory: (v: boolean) => void;
   /** ACT TWO — replay the whole onboarding: clear the persisted teach flags so the next descent re-teaches. */
   onReplayTutorial: () => void;
@@ -1075,6 +1078,9 @@ export class UI {
   // MAIN PANEL (left MODE RAIL · center SELECTED RUN hero · right LOADOUT), and a
   // BOTTOM NAV of icon buttons wired to the existing modal openers. Every legacy ref
   // field is preserved (some repurposed, a few kept hidden so old read-sites stay valid).
+  private signInBtn!: HTMLButtonElement;
+  private signInLabel!: HTMLElement;
+  private logoSlot!: HTMLElement;
   private buildTitle(): void {
     // ── HEADER: brand mark + wordmark + sub + tagline ──
     const brand = el(
@@ -1084,7 +1090,23 @@ export class UI {
       el('div', { class: 'ck-wordmark-sub' }, 'THE LAST LANCE'),
       el('div', { class: 'ck-tagline' }, 'A CITY REMEMBERED. A FALL REVERSED.'),
     );
-    const hdrLeft = el('div', { class: 'ck-hdr-left' }, iconEl('ck-logo', LOGO_SVG), brand);
+    // SIGN IN entry — make the account reachable from the title (it was buried in SETTINGS →
+    // Cloud save → Manage account). Sits in a column UNDER the compass, beside the wordmark.
+    // Opens the existing account panel; label is state-aware (SIGN IN → your verified name when
+    // linked); hidden when no backend is configured (offline-first), refreshed in refreshTitle.
+    const SIGNIN_SVG =
+      '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7"/><path d="M5.2 19.6c0-3.7 3-6.2 6.8-6.2s6.8 2.5 6.8 6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+    this.signInLabel = el('span', { class: 'ck-signin-label' }, 'SIGN IN');
+    this.signInBtn = el(
+      'button',
+      { class: 'ck-signin', type: 'button', 'aria-label': 'Sign in to sync your progress and claim a verified name' },
+      iconEl('ck-signin-ico', SIGNIN_SVG),
+      this.signInLabel,
+    ) as HTMLButtonElement;
+    this.signInBtn.addEventListener('click', () => this.openAccount());
+    this.logoSlot = iconEl('ck-logo', LOGO_SVG); // compass by default; swapped to the chosen avatar when signed in
+    const logoCol = el('div', { class: 'ck-logo-col' }, this.logoSlot, this.signInBtn);
+    const hdrLeft = el('div', { class: 'ck-hdr-left' }, logoCol, brand);
 
     // CITY COHERENCE bar — REAL, save-derived (cityCoherence.ts): a decryption-led measure of how
     // much of the city you've brought back. Built once; the three dynamic nodes are refreshed every
@@ -2865,14 +2887,55 @@ export class UI {
       onSignIn: (p) => accountLib.startLink(p),
       onClose: () => this.closeModal(this.accountPanel),
       onDelete: () => accountLib.deleteAccount().then(() => this.openAccount()),
+      onSignOut: () => { accountLib.signOut(); if (this.saveRef) this.account.open(this.saveRef); },
+      onSelectAvatar: (id) => { this.cb.onSelectAvatar(id); if (this.saveRef) this.account.open(this.saveRef); },
     });
     this.accountPanel = this.account.root;
+    // Keep the title SIGN IN button + cockpit logo in sync the moment account state changes — e.g.
+    // when boot's /hello resolves after an OAuth return (the button flips to the verified name and
+    // the compass becomes the chosen avatar), or on sign-out/deletion (back to SIGN IN + compass).
+    // Both no-op safely if their elements aren't built yet.
+    accountLib.onAccountChange(() => { this.refreshSignIn(); this.refreshLogo(); });
   }
 
   openAccount(): void {
     if (!this.saveRef) return;
     this.account.open(this.saveRef);
     this.openModal(this.accountPanel);
+  }
+
+  /** Title sign-in button state: hidden with no backend; "SIGN IN" when anonymous, your
+   *  (verified) account name when linked. Cheap + idempotent; called on every title open. */
+  private refreshSignIn(): void {
+    if (!this.signInBtn) return;
+    const on = leaderboardEnabled();
+    this.signInBtn.classList.toggle('hidden', !on);
+    if (!on) return;
+    const st = accountLib.accountState();
+    const linked = st.kind === 'linked';
+    this.signInBtn.classList.toggle('is-linked', linked);
+    this.signInLabel.textContent = linked ? st.name || 'ACCOUNT' : 'SIGN IN';
+    this.signInBtn.setAttribute(
+      'aria-label',
+      linked
+        ? `Account${st.name ? ' — ' + st.name : ''}${st.verified ? ' (verified)' : ''}. Manage your account.`
+        : 'Sign in to sync your progress and claim a verified name',
+    );
+    this.signInBtn.title = linked ? 'Manage your account' : 'Sign in to sync across devices + claim a verified name';
+  }
+
+  /** Cockpit logo: the player's chosen avatar (a verified-profile flourish) when signed in, else
+   *  the compass. Reads the live save's selectedAvatar; cheap; called on title open + account change. */
+  private refreshLogo(): void {
+    if (!this.logoSlot) return;
+    const linked = leaderboardEnabled() && accountLib.accountState().kind === 'linked';
+    if (linked) {
+      this.logoSlot.innerHTML = renderAvatar(this.saveRef?.selectedAvatar || 'lance', { size: 54, animated: false });
+      this.logoSlot.classList.add('is-avatar');
+    } else {
+      this.logoSlot.innerHTML = LOGO_SVG;
+      this.logoSlot.classList.remove('is-avatar');
+    }
   }
 
   // ── screen control ──
@@ -2964,6 +3027,8 @@ export class UI {
 
   refreshTitle(save: SaveData): void {
     this.saveRef = save;
+    this.refreshSignIn();
+    this.refreshLogo();
 
     // THE BOMBE nav pip — glow (gold) when there's affordable decryption waiting; a discovery nudge.
     this.bombeNavBtn?.querySelector('.ck-nav-pip')

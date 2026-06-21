@@ -8,6 +8,8 @@
 import { el } from './dom';
 import * as account from '../account';
 import { leaderboardEnabled } from '../api';
+import { AVATAR_VISUALS, renderAvatar } from '../render/avatars';
+import { unlockedAvatarIds } from '../avatarUnlocks';
 import type { SaveData } from '../save';
 import type { Panel } from './panel';
 
@@ -18,6 +20,10 @@ export interface AccountPanelDeps {
   onClose: () => void;
   /** delete the account and cloud data, then repaint. */
   onDelete: () => Promise<void>;
+  /** sign out of the linked account on this device (the cloud account is kept), then repaint. */
+  onSignOut: () => void;
+  /** profile: the player picked an avatar id (persist + repaint the cockpit logo + this panel). */
+  onSelectAvatar: (id: string) => void;
 }
 
 export interface AccountPanel extends Panel {
@@ -31,6 +37,33 @@ function privacyNote(): HTMLElement {
     'across devices and show a verified name. No third-party analytics. ' +
     'You can delete your account anytime to wipe your cloud data.',
   );
+}
+
+/** Profile avatar picker — choose the sigil shown on the cockpit logo when signed in. The 8 free
+ *  sigils plus any you've earned are selectable; locked ones are dimmed and carry their unlock
+ *  hint. Selecting calls onSelect (the host persists + repaints the logo + this panel). */
+function avatarPicker(save: SaveData, onSelect: (id: string) => void): HTMLElement {
+  const unlocked = unlockedAvatarIds(save);
+  const current = unlocked.has(save.selectedAvatar) ? save.selectedAvatar : 'lance';
+  const wrap = el('div', { class: 'account-avatars' });
+  wrap.append(el('div', { class: 'account-avatars-lbl' }, 'YOUR SIGIL — shown on your cockpit logo'));
+  const grid = el('div', { class: 'account-avatar-grid' });
+  for (const v of AVATAR_VISUALS) {
+    const on = unlocked.has(v.id);
+    const tile = el('button', {
+      class: 'account-avatar-tile' + (v.id === current ? ' selected' : '') + (on ? '' : ' locked'),
+      type: 'button',
+      style: `--accent:${v.accent}`,
+      title: on ? v.name : `${v.name} — ${v.unlockHint}`,
+      'aria-label': on ? `Select ${v.name}` : `${v.name}, locked — ${v.unlockHint}`,
+    }) as HTMLButtonElement;
+    tile.innerHTML = renderAvatar(v.id, { size: 48, variant: 'tile', animated: false });
+    if (on) tile.addEventListener('click', () => onSelect(v.id));
+    else tile.disabled = true;
+    grid.append(tile);
+  }
+  wrap.append(grid);
+  return wrap;
 }
 
 export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
@@ -51,7 +84,7 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
     el('div', { class: 'panel' }, head, body, close),
   );
 
-  const open = (_save: SaveData): void => {
+  const open = (save: SaveData): void => {
     body.replaceChildren();
 
     // Offline-first gate: when no backend is configured, show a plain note and bail.
@@ -96,13 +129,18 @@ export function buildAccountPanel(deps: AccountPanelDeps): AccountPanel {
         deleteBtn.insertAdjacentElement('afterend', confirmRow);
       });
 
+      const logoutBtn = el('button', { class: 'btn btn-ghost account-logout-btn' }, 'Log out');
+      logoutBtn.addEventListener('click', () => deps.onSignOut());
+
       body.append(
         el('div', { class: 'account-status' },
           `Signed in as ${displayName} ✓ — your progress syncs across devices.`,
         ),
+        avatarPicker(save, deps.onSelectAvatar),
         el('div', { class: 'event-flavor account-note' },
           'Your save is backed up to the cloud. Sign in from another device to continue your run.',
         ),
+        logoutBtn,
         deleteBtn,
         privacyNote(),
       );

@@ -120,6 +120,9 @@ export interface SaveData {
   maxHeat: number;
   /** selected build archetype id (draft bias); 'none' = freestyle */
   selectedArchetype: string;
+  /** chosen profile avatar id (render/avatars registry); shown on the cockpit logo when signed in.
+   *  Defaults to 'lance'; coerced to a real avatar id by the sanitizer. */
+  selectedAvatar: string;
   /** player handle for online leaderboards ('' = anonymous / not set) */
   handle: string;
   // ── THE STILLPOINT (v5) — the meta-layer. All additive; the only writes are
@@ -309,6 +312,7 @@ export function defaultSave(): SaveData {
     selectedHeat: 0,
     maxHeat: 0,
     selectedArchetype: 'none',
+    selectedAvatar: 'lance',
     handle: '',
     stillpointFragments: [],
     fragmentsSpent: 0,

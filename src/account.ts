@@ -25,6 +25,15 @@ export interface AccountState {
 
 let _accountState: AccountState = { enabled: false, kind: 'anon', name: null, verified: false };
 
+let accountListener: (() => void) | null = null;
+/** Register a single callback fired whenever the account state changes (boot resolves, sign-out,
+ *  deletion) so the title sign-in button reflects login/logout immediately. Pass null to clear. */
+export function onAccountChange(fn: (() => void) | null): void { accountListener = fn; }
+function setAccountState(st: AccountState): void {
+  _accountState = st;
+  if (accountListener) { try { accountListener(); } catch { /* a listener must never break account flow */ } }
+}
+
 /** Adopt a server/merged save without re-triggering the noteChange flush timer. */
 export function adopt(save: SaveData): void { adopting = true; try { saveSave(save); } finally { adopting = false; } }
 
@@ -37,6 +46,17 @@ export function getSession(): string { return ls(SESSION_KEY); }
 export function optIn(): void { setLs(OPT_KEY, '1'); }
 export function optOut(): void { setLs(OPT_KEY, '0'); }
 export function accountEnabled(): boolean { return BASE.length > 0 && optedIn(); }
+
+/** Sign out of a linked account on THIS device: clears the session + stops cloud sync (returns to
+ *  anonymous/local play). The cloud account + its data REMAIN on the server — sign in again anytime
+ *  to restore them; re-enable Cloud save to resume anonymous backup. Never throws. */
+export function signOut(): void {
+  session = '';
+  rev = 0;
+  setLs(SESSION_KEY, '');
+  optOut();
+  setAccountState({ enabled: accountEnabled(), kind: 'anon', name: null, verified: false });
+}
 
 /** Pure boot-merge step (separately tested): local unchanged when there's no cloud save. */
 export function mergeCloud(local: SaveData, cloud: SaveData | null, localAt: number, cloudAt: number): SaveData {
@@ -58,12 +78,12 @@ export async function boot(): Promise<void> {
     if (typeof j.session === 'string') { session = j.session; setLs(SESSION_KEY, session); }
     rev = typeof j.rev === 'number' ? j.rev : 0;
     if (j.account && typeof j.account === 'object') {
-      _accountState = {
+      setAccountState({
         enabled: true,
         kind: j.account.kind === 'linked' ? 'linked' : 'anon',
         name: typeof j.account.name === 'string' ? j.account.name : null,
         verified: j.account.verified === true,
-      };
+      });
     }
     const cloud = (j.save && typeof j.save === 'object') ? (j.save as SaveData) : null;
     const cloudAt = typeof j.updatedAt === 'number' ? j.updatedAt : 0;
@@ -163,7 +183,7 @@ export async function deleteAccount(): Promise<boolean> {
     rev = 0;
     setLs(SESSION_KEY, '');
     optOut();
-    _accountState = { enabled: accountEnabled(), kind: 'anon', name: null, verified: false };
+    setAccountState({ enabled: accountEnabled(), kind: 'anon', name: null, verified: false });
     return true;
   } catch { return false; }
 }
