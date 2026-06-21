@@ -2947,7 +2947,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   padding: 0 6px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   flex-wrap: wrap;
@@ -3156,10 +3156,11 @@ body {
 .ck-coh {
   flex: 1;
   max-width: 400px;
-  min-width: 220px;
-  /* mock: 40px breathing room either side of the dial (relaxes toward 20px on narrow headers,
-     keeping the fluid-layout philosophy rather than a hard 40px that crowds small screens). */
-  margin: 0 clamp(20px, 4vw, 40px);
+  /* lower floor + slightly tighter side margins than the original (220px / 40px) so the
+     decorative dial absorbs the 4th STREAK stat's width and the header doesn't wrap — it
+     still sits comfortably wide (~270px) at normal widths. */
+  min-width: 170px;
+  margin: 0 clamp(14px, 3vw, 32px);
 }
 .ck-coh-row {
   display: flex;
@@ -3266,7 +3267,9 @@ body {
   align-items: stretch;
 }
 .ck-hstat {
-  padding: 4px 20px;
+  /* 15px (was 20) gives the 4th STREAK stat room without the header wrapping; a 5px trim that
+     reads the same but keeps BEST RUN/COMBO/SHARDS + STREAK on one line down to ~1060px. */
+  padding: 4px 15px;
   border-left: 1px solid rgba(255, 255, 255, 0.07);
   text-align: center;
 }
@@ -3293,21 +3296,19 @@ body {
 .ck-hstat-val.run { color: #22d3ee; }
 .ck-hstat-val.combo { color: #a78bfa; }
 .ck-hstat-val.shards { color: #4ade80; }
-/* 4.2 — daily-streak retention chip (header). Lives left of the stat columns. */
-.ck-streak {
+/* 4.2 — daily-streak nudge: a QUIET, compact amber 🔥N tucked after SHARDS (no label, so it adds
+   almost no width — keeps the header from wrapping). flex-end baselines it with the stat numbers;
+   only appears at a 2+ day streak. The .hidden rule follows so it wins over the flex display. */
+.ck-streak.ck-hstat {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  align-self: center;
-  margin-right: 14px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(251, 146, 60, 0.5);
-  background: rgba(251, 146, 60, 0.12);
+  align-items: flex-end;
+  justify-content: center;
+  padding: 4px 4px 4px 2px;
+}
+.ck-hstat-val.streak {
   color: #fdba74;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 18px;
+  margin-bottom: 1px;
   white-space: nowrap;
 }
 .ck-streak.hidden { display: none; }
@@ -4492,8 +4493,7 @@ body {
 .ck-change-ship:focus-visible,
 .ck-customize:focus-visible,
 .ck-step:focus-visible,
-.ck-nav-btn:focus-visible,
-.ck-streak:focus-visible {
+.ck-nav-btn:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 34, 211, 238), 0.9);

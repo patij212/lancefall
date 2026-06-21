@@ -613,7 +613,8 @@ export class UI {
   private cohTrack!: HTMLElement;
   private hsCombo!: HTMLElement;
   private hsShards!: HTMLElement;
-  private hsStreak!: HTMLElement; // 4.2 — "🔥 N day streak" header chip (hidden below 2)
+  private hsStreak!: HTMLElement; // 4.2 — quiet "STREAK 🔥N" header stat column (hidden below 2)
+  private hsStreakVal!: HTMLElement; // the streak stat's value node
   private cockpitSolstice!: HTMLElement;
   private heroSeedRow!: HTMLElement;
   private heroTitle!: HTMLElement;
@@ -1167,15 +1168,23 @@ export class UI {
     this.hsCombo = el('div', { class: 'ck-hstat-val combo' }, '—');
     this.shardLine = el('div', { class: 'ck-hstat-val shards' }, '—');
     this.hsShards = this.shardLine;
-    // 4.2 — daily-streak retention chip; hidden until the player has a 2+ day streak.
-    this.hsStreak = el('div', { class: 'ck-streak hidden', title: 'Consecutive days played — keep it alive!' }, '');
+    // 4.2 — daily-streak nudge as a QUIET, compact 🔥N stat tucked after SHARDS (no label, so it
+    // adds almost no width — the header doesn't get pushed into wrapping). Baseline-aligned with
+    // the stat numbers via CSS. Hidden until a 2+ day streak; after SHARDS so BEST RUN stays
+    // :first-child (keeps its borderless leading edge). The tooltip carries the full meaning.
+    this.hsStreakVal = el('div', { class: 'ck-hstat-val streak' }, '');
+    this.hsStreak = el(
+      'div',
+      { class: 'ck-hstat ck-streak hidden', title: 'Consecutive days played — keep it alive!' },
+      this.hsStreakVal,
+    );
     const hdrRight = el(
       'div',
       { class: 'ck-hdr-right' },
-      this.hsStreak,
       el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'BEST RUN'), this.hsBest),
       el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'BEST COMBO'), this.hsCombo),
       el('div', { class: 'ck-hstat' }, el('div', { class: 'ck-hstat-lbl' }, 'SHARDS'), this.hsShards),
+      this.hsStreak,
     );
     const header = el('div', { class: 'ck-header' }, hdrLeft, coherence, hdrRight);
 
@@ -1289,6 +1298,7 @@ export class UI {
       'div',
       { class: 'ck-col ck-col-center' },
       this.centerSec,
+      this.cockpitSolstice, // SOLSTICE event banner — slim line above the run hero (only shows on the solstice)
       hero,
       this.infoBar,
       this.rewardRow,
@@ -1524,7 +1534,7 @@ export class UI {
     this.title = el(
       'div',
       { class: 'screen screen-title screen-cockpit' },
-      el('div', { class: 'ck-frame' }, header, this.cockpitSolstice, this.mainPanel, bottomNav, this.soundHint, this.dailyCaption),
+      el('div', { class: 'ck-frame' }, header, this.mainPanel, bottomNav, this.soundHint, this.dailyCaption),
       this.lightLance,
     );
   }
@@ -3119,13 +3129,14 @@ export class UI {
     this.hsBest.textContent = save.highScore > 0 ? save.highScore.toLocaleString() : '—';
     this.hsCombo.textContent = save.bestCombo > 0 ? `×${save.bestCombo}` : '—';
     this.hsShards.textContent = `◆ ${save.shards.toLocaleString()}`;
-    // 4.2 — show the streak chip only once a 2+ day streak is alive
+    // 4.2 — show the quiet STREAK stat only once a 2+ day streak is alive
     const streaking = save.playStreak >= 2;
     this.hsStreak.classList.toggle('hidden', !streaking);
-    if (streaking) this.hsStreak.textContent = `🔥 ${save.playStreak} day streak`;
+    if (streaking) this.hsStreakVal.textContent = `🔥${save.playStreak}`;
 
-    // ── CITY COHERENCE bar — REAL now: a save-derived %, dynamic tagline, a11y-safe eased fill.
-    //    Agrees with the cockpit backdrop + the BOMBE master meter (all decryption-led). ──
+    // CITY COHERENCE bar — REAL now: a save-derived %, dynamic tagline, a11y-safe eased fill.
+    // Agrees with the cockpit backdrop + the BOMBE master meter (all decryption-led). Also
+    // refreshed on closeModal so decrypting in THE BOMBE lands on a current bar.
     this.refreshCoherence(save);
 
     // NG+ toggle — appears only once the Sovereign has been felled

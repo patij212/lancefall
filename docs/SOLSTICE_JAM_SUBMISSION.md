@@ -57,7 +57,7 @@ This is my entry for **Best Ode to Alan Turing**.
 
 The honest headline: this was built **from scratch, for the jam** — first commit 8 June 2026, **674 commits over 13 days** — and it's a real game engine, not a single HTML file.
 
-- **No framework, all by hand.** Vanilla TypeScript, Canvas 2D, and the Web Audio API — no game engine, no UI library. A fixed-timestep simulation holds a steady **60 fps**, decoupled from one global time-scale so slow-motion and hit-stop layer for free; object pools keep the hot path allocation-free; and the dash uses *swept* collision so even the fastest dash never tunnels through an enemy. About **125 KB** gzipped, in one browser tab.
+- **No framework, all by hand.** Vanilla TypeScript, Canvas 2D, and the Web Audio API — no game engine, no UI library. A fixed-timestep simulation holds a steady **60 fps**, decoupled from one global time-scale so slow-motion and hit-stop layer for free; object pools keep the hot path allocation-free; and the dash uses *swept* collision so even the fastest dash never tunnels through an enemy. About **290 KB** gzipped, in one browser tab.
 - **The cipher is pure — and it never touches chance.** The whole code-breaking layer is built to draw **zero** randomness from the game's scoring. That sounds small; it's the part I'm proudest of. It means the **daily challenge is identical for every player on earth** — same enemies, same bullets, same cipher — and that bolting a brand-new code-breaking system on top couldn't shift that shared world by a single bit. A deterministic machine, provably unchanged. That felt like the right way to honour Turing.
 - **I made the cipher real, not a quiz.** The first version printed the answer as numbers and highlighted the next target — so you were matching numbers, not breaking a code. I tore it out: now the symbols sit on the boss, the key sits on the HUD, and nothing is highlighted. You genuinely read, deduce, and decode under fire. A wrong step just fizzles, so it stays *cryptanalysis*, not a memory test.
 - **1,400+ automated tests** — the part I almost never see in a jam. The whole simulation is covered, including a test that plays a cipher from start to finish and a guard that runs the daily seed and checks the entire wave-by-wave stream still matches, exactly, so the shared challenge can never silently drift. Every change went through the tests, a type-check, a production build, and an in-browser smoke run before it shipped.
@@ -66,7 +66,7 @@ The honest headline: this was built **from scratch, for the jam** — first comm
 
 > *[Video — upload the ~83-second trailer to YouTube (unlisted is fine) and paste the URL on its own line; dev.to auto-embeds it. File: `press/lancefall-trailer.mp4`.]*
 
-> *[Screenshots — upload `press/gameplay-cipher.png` (a cipher mid-decode), `press/firstlight-winframe.png` (the daybreak win), `press/the-choice.png` (the ending).]*
+> *[Screenshots — retaken & ready in `press/`; drag each into the editor: `gameplay-cipher.png` (a boss cipher mid-decode — READ THE KEY), `gameplay-combat.png` (a mid-run bullet-hell — weaving through bullet-streams and a wave of enemies), `the-choice.png` (the ending — "no machine can decide it", over a flawless win).]*
 
 ## Code
 
@@ -115,9 +115,11 @@ PUBLISH CHECKLIST — the steps only you can do:
 4. VIDEO. Upload the ~83s trailer (press/lancefall-trailer.mp4) to YouTube and
    paste the URL on its own line under "Demo".
 
-5. SCREENSHOTS. Drag these into the editor where each placeholder sits (local
-   press/… paths will NOT resolve once published):
-     press/gameplay-cipher.png · press/firstlight-winframe.png · press/the-choice.png
+5. SCREENSHOTS — RETAKEN & READY (clean, no tooltips, well-framed). Drag these in
+   where each placeholder sits (local press/… paths will NOT resolve once published):
+     press/gameplay-cipher.png · press/gameplay-combat.png · press/the-choice.png
+   COVER IMAGE: set press/firstlight-winframe.png (the 1080p key-art hero) as the
+   dev.to article cover image (the "Add a cover image" button at the top of the editor).
 
 6. DELETE every remaining "[ … ]" placeholder line after uploading its media.
 

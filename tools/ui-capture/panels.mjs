@@ -35,7 +35,9 @@ const PANELS = [
     const g = window.__lf; if (!g) return;
     const s = g.save;
     try { const m = await import('/src/ships.ts'); if (m.SHIPS) s.unlockedShips = Object.keys(m.SHIPS); } catch {}
-    Object.assign(s, { seenSandbox: true, highScore: 184260, bestCombo: 52, shards: 4200, selectedHeat: 2, maxHeat: 7, deepestWave: 60, ngPlusLevel: 1, lifeKills: 15420, lifeBoss: 8, lifeWins: 3 });
+    Object.assign(s, { seenSandbox: true, highScore: 184260, bestCombo: 52, shards: 12340, selectedHeat: 2, maxHeat: 7, deepestWave: 60, ngPlusLevel: 1, lifeKills: 15420, lifeBoss: 8, lifeWins: 3 });
+    // mock's exact owned meta levels, so the tree renders in the same state for a fair polish diff.
+    s.meta = { recovery: 3, momentum: 2, reach: 1, edge: 4, grazer: 3, treasure: 2 };
     try { g.ui.refreshTitle(s); } catch {}
   });
   await sleep(1500);

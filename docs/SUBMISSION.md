@@ -9,7 +9,7 @@
 - **Jam:** June Solstice Game Jam (an ode to Alan Turing)
 - **Play (no download, ~60 fps, one browser tab):** https://lancefall.pages.dev
 - **Genre:** neon dash-combat bullet-hell roguelite
-- **Engine:** Vite + vanilla TypeScript · Canvas 2D · Web Audio · ~125 KB gzipped client · 1,400+ unit tests
+- **Engine:** Vite + vanilla TypeScript · Canvas 2D · Web Audio · ~290 KB gzipped client · 1,400+ unit tests
 - **Theme fit:** *solstice = the longest day*; the fall of the city was an **encryption** into grey
   noise, and you are the last **key** — break each boss's cipher-lock to decrypt the world back
   into light. The final choice is the one cipher no machine can solve, only choose.
@@ -96,7 +96,7 @@ mirror-boss is the imitation game).
 > assist highlights on. It's off the leaderboards so the boards stay honest.
 
 ### Made with (page body — footer)
-Vite + vanilla TypeScript, Canvas 2D, Web Audio — no engine, no framework, ~125 KB gzipped, 1,400+
+Vite + vanilla TypeScript, Canvas 2D, Web Audio — no engine, no framework, ~290 KB gzipped, 1,400+
 unit tests over the deterministic core. Built in a focused multi-agent session for the June
 Solstice Jam. CC0/CC-BY/Pixabay audio with a machine-checked license ledger. Source-available under the PolyForm Noncommercial License (commercial rights reserved by patij212).
 
@@ -161,7 +161,7 @@ an 8-level Heat ladder, 6 ships, evolving biomes, optional leaderboards, and a 7
 gallery. Plus a no-fail tutorial, a Casual mode for run 1, and a deep accessibility menu
 (reduce-flashing/-motion, colorblind shapes, Clarity high-contrast, rebindable keys).
 
-No engine, no framework — Vite + vanilla TypeScript, Canvas 2D, Web Audio, ~125 KB gzipped, 1,400+
+No engine, no framework — Vite + vanilla TypeScript, Canvas 2D, Web Audio, ~290 KB gzipped, 1,400+
 unit tests over the deterministic core. Plays in a browser tab, no download.
 
 ▶️ **Play:** https://lancefall.pages.dev

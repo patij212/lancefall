@@ -128,7 +128,7 @@ npm run audio:validate   # 48 kHz, integer-bar loops, ≤ 8 MB, + the provenance
 ```bash
 npm install
 npm run dev      # http://localhost:5197
-npm run build    # production bundle (~125 KB gzipped, excl. fonts)
+npm run build    # production bundle (~290 KB gzipped, excl. fonts)
 npm run preview
 ```
 
