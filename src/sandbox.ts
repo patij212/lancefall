@@ -82,8 +82,8 @@ export const SANDBOX_STEPS: readonly SandboxStepDef[] = [
   },
   {
     step: 'combo',
-    text: 'Line them up — spear SEVERAL in one dash to build a COMBO.',
-    sub: 'Killing without pausing climbs your combo multiplier and charges OVERDRIVE. Keep the chain alive by always lining up the next target before the last falls.',
+    text: 'The row sits off to the side — MOVE (W/A/S/D) to line it up, then dash through it.',
+    sub: 'Your dash flies straight, so drift onto the row line first — then one dash spears the whole chain, climbing your COMBO multiplier and charging OVERDRIVE.',
     advanceOn: 'comboDash',
   },
   {
@@ -139,9 +139,12 @@ export function sandboxBeatTargets(step: SandboxStep): SandboxTarget[] {
     case 'heavy':
       return [{ dx: 240, dy: 0, shielded: true }]; // a blocker the HEAVY thrust phases through
     case 'combo':
-      // collinear, dead ahead — a single straight dash skewers all three (a vertical spread
-      // would let a forward dash miss the flankers, stranding the beat on its cap).
-      return [{ dx: 200, dy: 0 }, { dx: 310, dy: 0 }, { dx: 420, dy: 0 }];
+      // a DIAGONAL row, OFF the player's start axis: from the (re-centred) anchor a straight
+      // dash clips at most one, so the player must DRIFT (W/A/S/D) diagonally onto the row's
+      // line, then dash along it to spear >=2. Teaches movement + the combo together. The
+      // perpendicular distance from the anchor to this line clears the dash hit-tolerance
+      // (asserted in sandbox.test.ts), which is what makes moving mandatory.
+      return [{ dx: 120, dy: -160 }, { dx: 250, dy: -235 }, { dx: 380, dy: -310 }];
     case 'bossparry':
       return [{ dx: 380, dy: 0, boss: true }]; // a stationary dummy boss whose GUARD you parry down
     default:

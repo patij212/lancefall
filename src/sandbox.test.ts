@@ -133,7 +133,7 @@ describe('deep sandbox — per-beat copy reads clearly', () => {
     expect(text('release')).toContain('release');
     expect(text('reach')).toContain('charge'); // charge depth — "long charge, long dash"
     expect(text('heavy')).toMatch(/heavy|overcharge/);
-    expect(text('combo')).toContain('combo');
+    expect(text('combo')).toContain('move'); // the combo beat now teaches MOVEMENT to line up the row
     expect(text('graze')).toMatch(/graze|skim/);
     expect(text('parry')).toContain('parry');
     expect(text('rhythm')).toContain('beat');
@@ -155,6 +155,7 @@ describe('deep sandbox — per-beat copy reads clearly', () => {
     expect(sub('rhythm')).toMatch(/coherence|city/); // what on-beat DOES
     expect(sub('graze')).toMatch(/stamina/); // why you graze
     expect(sub('heavy')).toMatch(/invuln|phas|through|armour|armor/); // the heavy payoff
+    expect(sub('combo')).toMatch(/combo|overdrive/);
   });
 });
 
@@ -174,8 +175,23 @@ describe('deep sandbox — per-beat target layouts (pure, deterministic, no rng)
     expect(t.length).toBe(1);
     expect(t[0].shielded).toBe(true);
   });
-  it('combo presents a cluster of three', () => {
-    expect(sandboxBeatTargets('combo').length).toBe(3);
+  it('combo is a DIAGONAL row, off the player start axis (movement is required to line up)', () => {
+    const t = sandboxBeatTargets('combo');
+    expect(t.length).toBe(3);
+    const [a, b, c] = t;
+    // collinear: all three lie on ONE line, so a single dash CAN spear them once aligned
+    const cross = (b.dx - a.dx) * (c.dy - a.dy) - (b.dy - a.dy) * (c.dx - a.dx);
+    expect(Math.abs(cross)).toBeLessThan(1e-6);
+    // ...but the player START (origin) is well OFF that line: the perpendicular distance from
+    // (0,0) to the row's line must clear the dash hit-tolerance, so a straight dash from the
+    // anchor cannot clip >=2 — the player MUST drift onto the line first.
+    const abx = c.dx - a.dx, aby = c.dy - a.dy;
+    const len = Math.hypot(abx, aby);
+    const perp = Math.abs(-a.dx * aby - -a.dy * abx) / len; // dist from (0,0) to line a..c
+    expect(perp).toBeGreaterThan(60);
+    // ...and it is a DIAGONAL (both axes change meaningfully — not a flat row, not a column)
+    expect(Math.abs(abx)).toBeGreaterThan(40);
+    expect(Math.abs(aby)).toBeGreaterThan(40);
   });
   it('graze/parry/rhythm/done spawn no dummies (they use bullets / the beat)', () => {
     for (const step of ['graze', 'parry', 'rhythm', 'done'] as SandboxStep[]) {
