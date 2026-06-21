@@ -51,6 +51,42 @@ export function canDash(stamina: number, cost: number = TUNE.stamina.dashCost): 
   return stamina >= cost - 1e-6;
 }
 
+/** State for the blocking-popup interrupt gate (perk draft / run event). Lives on the
+ *  game; advanced once per frame by {@link tickInterruptGate}. */
+export interface InterruptGate {
+  /** seconds of post-dash settle still owed before a popup may open (kept primed while busy) */
+  busyTimer: number;
+  /** seconds a popup has been queued-but-held (drives the anti-soft-lock cap) */
+  heldTime: number;
+}
+
+/** Advance the interrupt gate one frame and decide whether a queued blocking popup may
+ *  open NOW. While the player is `busy` (mid-charge or mid-dash) the settle grace is held
+ *  full, so a popup never slams in over a committed dash; after the dash it drains over
+ *  `grace` seconds ("right after it"). A popup held past `maxDefer` opens regardless, so a
+ *  perpetually-held charge can never soft-lock the queue. Pure — the caller freezes the
+ *  director while a popup is pending, so holding it shifts no seeded schedule. */
+export function tickInterruptGate(
+  gate: InterruptGate,
+  busy: boolean,
+  pending: boolean,
+  dt: number,
+  grace: number = TUNE.dash.interruptGrace,
+  maxDefer: number = TUNE.dash.interruptMaxDefer,
+): boolean {
+  gate.busyTimer = busy ? grace : Math.max(0, gate.busyTimer - dt);
+  if (!pending) {
+    gate.heldTime = 0;
+    return false;
+  }
+  if (gate.busyTimer <= 0) {
+    gate.heldTime = 0;
+    return true; // settled out of the dash → open
+  }
+  gate.heldTime += dt;
+  return gate.heldTime >= maxDefer; // held too long → force-open (never starve the queue)
+}
+
 /** Advance stamina by dt seconds given the regen lockout timer (also returned). */
 export function regenStamina(
   stamina: number,

@@ -52,7 +52,7 @@ import type { TrailDef } from './trails';
 import { shipSkinById, canUnlockShipSkin } from './shipSkins';
 import { skinById, canUnlockSkin, skinLockToast } from './skins';
 import { metaApplyFor, metaNode, nodeCost } from './meta';
-import { maxStamina, effectiveDashCost, cappedRefund } from './dash';
+import { maxStamina, effectiveDashCost, cappedRefund, tickInterruptGate, type InterruptGate } from './dash';
 import { createRng, seedFromDate, dateString, seedFromWeek } from './rng';
 import { evaluate as evalAchievements, metaAchContext } from './achievements';
 import { MODES, modeById, modeRanked, modeSeeded, MAX_DAILY_ATTEMPTS, rollDailyAttempt, RAIL_CARD_IDS, modeUnlocked } from './modes';
@@ -190,6 +190,9 @@ export class Game {
   private bossWarned = false; // edge-tracks the director's imminent-boss signal so the pre-warning cue fires once per window
   private draftCards: DraftCard[] = [];
   private pendingEvent: RunEventId | null = null;
+  // Holds a queued perk-draft / run-event modal open while the player is mid-charge or
+  // mid-dash (plus a short settle grace), so a committed dash is never interrupted.
+  private interruptGate: InterruptGate = { busyTimer: 0, heldTime: 0 };
   private eventChoices: EventChoice[] = [];
   private announcedEvos = new Set<EvolutionId>(); // evolutions we've already flagged as ready
   private activeMutators: MutatorId[] = []; // run mutators in effect this run
@@ -929,6 +932,8 @@ export class Game {
     this.accumulator = 0;
     this.dying = false;
     this.pendingDraft = false;
+    this.interruptGate.busyTimer = 0;
+    this.interruptGate.heldTime = 0;
     this.bossWarned = false;
     this.actTwoSeenKinds.clear(); // re-evaluate first-sighting reads each run (persisted gate still fires once ever)
     this.teachQueue.length = 0; this.teachCooldown = 0; // fresh teach queue per run
@@ -1512,6 +1517,13 @@ export class Game {
     this.shake.update(realDt);
 
     if (this.state === 'playing') {
+      // Hold a queued perk-draft / run-event modal while the player is mid-charge or
+      // mid-dash (plus a short settle grace) so a committed dash is never interrupted.
+      // The director is frozen while a popup is pending (see step()), so this hold shifts
+      // no seeded schedule — the Daily stays bit-identical. Ticked once per real frame.
+      const dashBusy = this.world.player.phase !== 'idle';
+      const popupPending = this.pendingDraft || this.pendingEvent !== null;
+      const mayOpenPopup = tickInterruptGate(this.interruptGate, dashBusy, popupPending, realDt);
       const simDt = this.scheduler.update(realDt);
       this.accumulator += simDt;
       let steps = 0;
@@ -1519,9 +1531,10 @@ export class Game {
         this.step(FIXED_DT);
         this.accumulator -= FIXED_DT;
         steps++;
-        // open a pending draft/event immediately so a scripted boss can't spawn
-        // in the same frame before the modal appears (Boss Rush inter-boss draft)
-        if ((this.pendingDraft || this.pendingEvent) && !this.dying && !this.winning) break;
+        // Stop substepping only once a queued popup will actually open THIS frame, so no
+        // extra sim runs before the modal appears. While it's merely HELD (dash in flight)
+        // keep substepping at full rate — the director is frozen, so nothing spawns anyway.
+        if (mayOpenPopup && (this.pendingDraft || this.pendingEvent) && !this.dying && !this.winning) break;
       }
       if (steps >= MAX_SUBSTEPS) this.accumulator = 0;
 
@@ -1585,10 +1598,13 @@ export class Game {
         this.winTimer -= realDt;
         if (this.winTimer <= 0) this.finishGameOver(true);
       }
-      if (this.pendingDraft && !this.dying && !this.winning) {
+      // Open a queued popup only once the dash has settled (mayOpenPopup) — never on top
+      // of a committed charge/dash. The director is frozen while pending, so deferring it a
+      // few frames spawns nothing in the gap (incl. the Boss Rush inter-boss boss).
+      if (mayOpenPopup && this.pendingDraft && !this.dying && !this.winning) {
         this.pendingDraft = false;
         this.openDraft();
-      } else if (this.pendingEvent && !this.dying && !this.winning && this.state === 'playing') {
+      } else if (mayOpenPopup && this.pendingEvent && !this.dying && !this.winning && this.state === 'playing') {
         const id = this.pendingEvent;
         this.pendingEvent = null;
         this.openEvent(id);
@@ -1758,6 +1774,12 @@ export class Game {
     const w = this.world;
     w.time += dt;
 
+    // Was a blocking popup ALREADY queued before this step? Captured at entry so the director
+    // freeze below only applies to the HELD/defer frames — the step where a popup is first
+    // queued (e.g. a dash-kill setting pendingDraft in resolveDashHits) still advances the
+    // director once, exactly as before, so the Boss Rush inter-boss sequence is unchanged.
+    const popupHeld = this.pendingDraft || this.pendingEvent !== null;
+
     // player
     resetEvents(this.ev);
     const wasCharging = w.player.phase === 'charging';
@@ -1845,8 +1867,13 @@ export class Game {
       this.checkBodyCollisions();
     }
 
-    // director
-    if (!this.dying && !this.winning && w.player.alive) {
+    // director — FROZEN on the frames a queued popup is being HELD open (see popupHeld at step
+    // entry). The popup is held until the player settles out of a dash (the interrupt gate);
+    // freezing the schedule here means that hold advances NO seeded timer/draw and spawns nothing
+    // in the gap — the Daily stays bit-identical and a Boss Rush boss can't appear before its
+    // inter-boss draft. The step that first queues the popup is NOT frozen (popupHeld was false
+    // at entry), so the director still advances once there, exactly as before.
+    if (!this.dying && !this.winning && w.player.alive && !popupHeld) {
       const liveEnemies = w.enemies.activeCount - (w.bossAlive ? 1 : 0);
       // pass the live bullet count so the event calm-gate (playtest: no events during high-
       // intensity) can defer a popup when the screen is dense with fire, not just crowded.

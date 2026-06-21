@@ -35,6 +35,12 @@ export const TUNE = {
     heavyOverchargeTime: 0.45, // s to keep holding AFTER full charge to arm the heavy (~2x normal charge time)
     heavyDamageBonus: 1, // additive dash damage on a heavy (modest — stacks with pierce/IMPALER)
     heavyIframeBonus: 0.2, // extra seconds of i-frame on a heavy — phase safely through the dense pattern
+    // A blocking popup (perk draft / run event) is HELD while the player is mid-charge or
+    // mid-dash, then for this settle grace afterwards — so a committed dash is never stolen
+    // by a modal slamming in on top of it. The director is frozen while a popup is queued,
+    // so the hold shifts no seeded schedule (the Daily stays bit-identical).
+    interruptGrace: 0.22, // s the popup waits after the player settles out of a dash
+    interruptMaxDefer: 2, // s hard cap — a perpetually-held charge can never starve the queue
   },
 
   stamina: {

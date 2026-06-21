@@ -9,6 +9,8 @@ import {
   regenStamina,
   cappedRefund,
   isHeavyArmed,
+  tickInterruptGate,
+  type InterruptGate,
 } from './dash';
 import { TUNE } from './tune';
 
@@ -114,6 +116,52 @@ describe('cappedRefund — per-dash refund budget (kills the perpetual-dash loop
   it('tracks the ACTUAL dash cost (a cheap HASTE dash tops up less, not a full segment)', () => {
     // a HASTE dash costs 60 → a refund can restore at most that 60, not a fixed 100
     expect(cappedRefund(100, 0, 60)).toBe(60);
+  });
+});
+
+describe('tickInterruptGate — hold blocking popups during a charge/dash', () => {
+  const grace = TUNE.dash.interruptGrace;
+  const cap = TUNE.dash.interruptMaxDefer;
+  const fresh = (): InterruptGate => ({ busyTimer: 0, heldTime: 0 });
+
+  it('holds a pending popup while the player is mid-charge / mid-dash', () => {
+    const g = fresh();
+    // busy (charging or dashing) → never opens, however long it is held (below the cap)
+    expect(tickInterruptGate(g, true, true, 1 / 60)).toBe(false);
+    expect(tickInterruptGate(g, true, true, 1 / 60)).toBe(false);
+    expect(g.busyTimer).toBeCloseTo(grace); // grace stays primed while busy
+  });
+
+  it('opens immediately when idle and nothing was mid-dash', () => {
+    const g = fresh();
+    expect(tickInterruptGate(g, false, true, 1 / 60)).toBe(true);
+  });
+
+  it('holds for the settle grace right after a dash, then opens', () => {
+    const g = fresh();
+    tickInterruptGate(g, true, true, 1 / 60); // dashing → primes the grace
+    // now idle, but within the grace → still held
+    expect(tickInterruptGate(g, false, true, grace / 2)).toBe(false);
+    // once the grace fully drains → opens
+    const opened = tickInterruptGate(g, false, true, grace);
+    expect(opened).toBe(true);
+  });
+
+  it('a held charge cannot soft-lock the popup forever (max-defer cap)', () => {
+    const g = fresh();
+    let opened = false;
+    // hold the charge well past the cap — the popup is force-opened so the queue never starves
+    for (let t = 0; t < cap + 1 && !opened; t += 1 / 60) {
+      opened = tickInterruptGate(g, true, true, 1 / 60);
+    }
+    expect(opened).toBe(true);
+  });
+
+  it('resets the held timer when there is no pending popup', () => {
+    const g = fresh();
+    tickInterruptGate(g, true, true, 0.5); // accrue some hold
+    expect(tickInterruptGate(g, true, false, 1 / 60)).toBe(false); // nothing pending
+    expect(g.heldTime).toBe(0);
   });
 });
 
