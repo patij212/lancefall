@@ -210,12 +210,18 @@ and on the author profile** — and **absent from every aggregated discovery sur
 | DEV search index | `/search/feed_content?...&search_fields=lancefall` | `{"result":[]}` — **not indexed** |
 | Author profile / direct URL | `/api/articles?username=patij212` | **present** (so it's live, just not distributed) |
 
-**Diagnosis:** Forem (DEV's platform) **article-score / new-author trust gating**. Feeds, the
-homepage, and the search index only include articles above a hidden score floor; brand-new
-accounts (joined 2026-05-29, this is the only post) start below it, and a long link-heavy first
-post can trip the spam/low-quality classifier. Registration and distribution are separate systems
-— the entry is *registered*, only *distribution* is blocked. Fix = get DEV staff to clear it +
-raise account trust.
+**Diagnosis:** Forem (DEV's platform) hides articles below a hidden **score** floor from feeds,
+the homepage, and search while keeping them live at their canonical URL. The post is score-zeroed.
+
+**It is NOT a generic new-account throttle — that was tested and ruled out.** Sampling authors who
+*are* in the `#gamechallenge` feed, two joined more recently than this account (which joined
+2026-05-29): `@tobethekey` joined **2026-06-21** — the same day it posted — and sits at the **top**
+of the feed; `@knightrider2070` joined **2026-06-19**. Newer accounts get distributed fine, so the
+exclusion is **specific to this post/account**, most likely an automated **spam / self-promotion
+flag**: a long first post, marketing tone, and many repeated outbound links to one external domain
+(`lancefall.pages.dev` throughout, plus GitHub) is the classic down-rank pattern. Registration and
+distribution are separate systems — the entry is *registered*, only *distribution* is blocked.
+Fix = get DEV staff to review/clear the flag.
 
 ### 5a · Appeal email to DEV (send to yo@dev.to)
 
@@ -233,9 +239,13 @@ raise account trust.
 > It's missing from the `#gamechallenge` and `#devchallenge` tag feeds, from the newest-first
 > feed, and from DEV search entirely (a search for "lancefall" returns no results), even though
 > other entries published in the same minute window appear normally. I paged through the entire
-> `#gamechallenge` tag (~210 articles, its full history) and the post is on none of them. That
-> pattern looks like a distribution/score limit on a new account rather than anything wrong with
-> the post.
+> `#gamechallenge` tag (~210 articles, its full history) and the post is on none of them.
+>
+> This isn't a generic new-account limit: other authors in that feed joined *more recently* than I
+> did (one created their account the same day they posted and is at the top of the feed), so newer
+> accounts are clearly being distributed. The exclusion appears specific to my post or account —
+> it looks like it was auto-flagged (possibly the spam / self-promotion filter), and I'd like it
+> reviewed and cleared if so.
 >
 > Could you review it and lift any limit? It's a genuine, hand-built jam entry (open source at
 > https://github.com/patij212/lancefall, playable at https://lancefall.pages.dev) and challenge
