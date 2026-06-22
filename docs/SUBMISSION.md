@@ -204,7 +204,7 @@ and on the author profile** — and **absent from every aggregated discovery sur
 
 | Surface | Endpoint checked | Result |
 |---|---|---|
-| `#gamechallenge` tag feed | `/api/articles?tag=gamechallenge&per_page=100` | 50 entries, **post absent** |
+| `#gamechallenge` tag feed | `/api/articles?tag=gamechallenge` paginated to exhaustion (pages 1–4 populated, 5+ empty) | **~210 articles across the tag's full 2024→2026 history, post absent from every page** |
 | `#devchallenge` tag feed | `/api/articles?tag=devchallenge&per_page=100` | 50 entries, **post absent** (incl. neighbours published in the same minute window) |
 | Newest-first feed | `/api/articles/latest?tag=gamechallenge` | other Jun 21–22 posts present, **post absent** |
 | DEV search index | `/search/feed_content?...&search_fields=lancefall` | `{"result":[]}` — **not indexed** |
@@ -232,8 +232,10 @@ raise account trust.
 >
 > It's missing from the `#gamechallenge` and `#devchallenge` tag feeds, from the newest-first
 > feed, and from DEV search entirely (a search for "lancefall" returns no results), even though
-> other entries published in the same minute window appear normally. That pattern looks like a
-> distribution/score limit on a new account rather than anything wrong with the post.
+> other entries published in the same minute window appear normally. I paged through the entire
+> `#gamechallenge` tag (~210 articles, its full history) and the post is on none of them. That
+> pattern looks like a distribution/score limit on a new account rather than anything wrong with
+> the post.
 >
 > Could you review it and lift any limit? It's a genuine, hand-built jam entry (open source at
 > https://github.com/patij212/lancefall, playable at https://lancefall.pages.dev) and challenge
