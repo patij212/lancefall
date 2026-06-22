@@ -129,6 +129,12 @@ export function mountMobileControls(
     overEdge = false,
     pauseEdge = false;
   let active = false;
+  // Persistent lance aim direction — like a mouse position, it survives between touches so a dash
+  // that fires on tap/release (after the touch has ENDED) still aims where the stick last pointed,
+  // instead of falling back to poll()'s mobile default of "right of the player" (the always-right bug).
+  let aimDirX = 1,
+    aimDirY = 0;
+  let lanceTapNoDir = false; // the last lance touch ended with no real direction → use the move vector
 
   const now = () => (typeof performance !== 'undefined' ? performance.now() : 0);
 
@@ -189,6 +195,17 @@ export function mountMobileControls(
       if (t.identifier === moveId) moveId = -1;
       else if (t.identifier === lanceId) {
         const g = classifyDash(now() - lanceDownAt, lanceMoved, TAP_MS, TAP_PX);
+        // Capture the FINAL lance direction now — the dash fires on a later frame when lanceId is
+        // already -1, so persist it here (the start/cur coords still hold this touch's last values).
+        const k = resolveStick(lanceSX, lanceSY, lanceCX, lanceCY, DEAD, FULL);
+        const len = Math.hypot(k.x, k.y);
+        if (len > 0.001) {
+          aimDirX = k.x / len;
+          aimDirY = k.y / len;
+          lanceTapNoDir = false;
+        } else {
+          lanceTapNoDir = true; // a pure tap with no direction
+        }
         if (g === 'tap') tapEdge = true;
         else releaseEdge = true;
         lanceId = -1;
@@ -276,30 +293,35 @@ export function mountMobileControls(
     },
     applyTo(state: InputState, px: number, py: number, enemies: AssistEnemies): boolean {
       // MOVE override (only while a move touch is down)
+      let mvX = 0,
+        mvY = 0;
       if (moveId !== -1) {
         const m = resolveStick(moveSX, moveSY, moveCX, moveCY, DEAD, FULL);
-        state.moveX = m.x;
-        state.moveY = m.y;
+        mvX = m.x;
+        mvY = m.y;
+        state.moveX = mvX;
+        state.moveY = mvY;
       }
-      // LANCE aim + dash
-      let usedStrong = false;
+      // LANCE held → charging; keep the persistent aim direction live while the stick deflects
       if (lanceId !== -1) {
-        // aim toward the stick direction at a fixed reach; charging while held
         const k = resolveStick(lanceSX, lanceSY, lanceCX, lanceCY, DEAD, FULL);
         const len = Math.hypot(k.x, k.y);
-        const dirX = len > 0.001 ? k.x / len : 1;
-        const dirY = len > 0.001 ? k.y / len : 0;
-        let ax = px + dirX * 300,
-          ay = py + dirY * 300;
-        const a = applyAssist(ax, ay, px, py, enemies, options.assist);
-        ax = a.x;
-        ay = a.y;
-        usedStrong = a.usedStrong;
-        state.aimX = ax;
-        state.aimY = ay;
+        if (len > 0.001) {
+          aimDirX = k.x / len;
+          aimDirY = k.y / len;
+        }
         state.dashHeld = true;
       }
+      // dash edges
       if (tapEdge) {
+        // a quick tap with no lance direction → dash toward MOVEMENT (intuitive); else keep last aim
+        if (lanceTapNoDir) {
+          const ml = Math.hypot(mvX, mvY);
+          if (ml > 0.05) {
+            aimDirX = mvX / ml;
+            aimDirY = mvY / ml;
+          }
+        }
         state.dashTapped = true;
         tapEdge = false;
       }
@@ -307,6 +329,13 @@ export function mountMobileControls(
         state.dashReleased = true;
         releaseEdge = false;
       }
+      // ALWAYS write the aim from the persisted lance direction so a tap/release (the touch has
+      // already ended) dashes where the stick last pointed — not toward poll()'s default-right aim.
+      const a = applyAssist(px + aimDirX * 300, py + aimDirY * 300, px, py, enemies, options.assist);
+      state.aimX = a.x;
+      state.aimY = a.y;
+      const dashing = state.dashHeld || state.dashTapped || state.dashReleased;
+      const usedStrong = dashing && a.usedStrong;
       // BUTTON edges (OR with whatever poll() set — usually false on mobile)
       if (parryEdge) {
         state.parryPressed = true;
