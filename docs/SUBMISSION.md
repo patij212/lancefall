@@ -185,3 +185,88 @@ Feedback very welcome — especially on the cipher-locks and difficulty.
       controls table; accessibility note; "made with" footer; jam tag.
 - [ ] Submit to the jam with the trailer/GIF as the cover, before the deadline.
 - [ ] Post §3 (micro + devlog) once the page is live.
+
+---
+
+## 5 · Post visibility — throttle diagnosis + recovery kit
+
+> **Symptom (observed 2026-06-22):** the dev.to post
+> (`https://dev.to/patij212/lancefall-crack-the-code-bring-back-the-day-bfj`, published 2026-06-21
+> 20:38 UTC) sat at **0 views / 0 reactions / 0 comments** a full day after posting.
+
+### What we checked (the post is fine — it's distribution-limited)
+
+The post is published, public, a registered jam entry (the "June Solstice Game Jam Submission"
+badge is present), correctly tagged `devchallenge, gamechallenge, gamedev, typescript`, with a
+cover GIF + embedded media and no leftover placeholders. The repo is public and the jam build is
+on `main`; `lancefall.pages.dev` loads. Despite that, the post is **reachable only by direct URL
+and on the author profile** — and **absent from every aggregated discovery surface**:
+
+| Surface | Endpoint checked | Result |
+|---|---|---|
+| `#gamechallenge` tag feed | `/api/articles?tag=gamechallenge&per_page=100` | 50 entries, **post absent** |
+| `#devchallenge` tag feed | `/api/articles?tag=devchallenge&per_page=100` | 50 entries, **post absent** (incl. neighbours published in the same minute window) |
+| Newest-first feed | `/api/articles/latest?tag=gamechallenge` | other Jun 21–22 posts present, **post absent** |
+| DEV search index | `/search/feed_content?...&search_fields=lancefall` | `{"result":[]}` — **not indexed** |
+| Author profile / direct URL | `/api/articles?username=patij212` | **present** (so it's live, just not distributed) |
+
+**Diagnosis:** Forem (DEV's platform) **article-score / new-author trust gating**. Feeds, the
+homepage, and the search index only include articles above a hidden score floor; brand-new
+accounts (joined 2026-05-29, this is the only post) start below it, and a long link-heavy first
+post can trip the spam/low-quality classifier. Registration and distribution are separate systems
+— the entry is *registered*, only *distribution* is blocked. Fix = get DEV staff to clear it +
+raise account trust.
+
+### 5a · Appeal email to DEV (send to yo@dev.to)
+
+> **Subject:** Published Game Jam entry not appearing in feeds or search — distribution review?
+>
+> Hi DEV team,
+>
+> My June Solstice Game Jam entry is published and registered (it shows the "June Solstice Game
+> Jam Submission" badge), but a day after posting it has 0 views and isn't discoverable anywhere
+> except its direct URL and my profile.
+>
+> Post: https://dev.to/patij212/lancefall-crack-the-code-bring-back-the-day-bfj
+> Author: @patij212 · Published: 2026-06-21 20:38 UTC · Tags: devchallenge, gamechallenge, gamedev, typescript
+>
+> It's missing from the `#gamechallenge` and `#devchallenge` tag feeds, from the newest-first
+> feed, and from DEV search entirely (a search for "lancefall" returns no results), even though
+> other entries published in the same minute window appear normally. That pattern looks like a
+> distribution/score limit on a new account rather than anything wrong with the post.
+>
+> Could you review it and lift any limit? It's a genuine, hand-built jam entry (open source at
+> https://github.com/patij212/lancefall, playable at https://lancefall.pages.dev) and challenge
+> judging is on July 9, so visibility before then matters a lot.
+>
+> Thank you!
+> patij212
+
+### 5b · Social share posts (drive traffic to the direct URL)
+
+**Bluesky / Mastodon / X (≤ 280):**
+> ⚔️🗝️ I built LANCEFALL for the June Solstice Jam (an ode to Turing): a neon dash-combat
+> bullet-hell where you don't shoot — you dash a momentum spear through the swarm, and every boss
+> is a live cipher you READ and break to decrypt the city back to light. Browser, 60fps, no
+> download 👉 https://lancefall.pages.dev
+
+**Reddit — r/WebGames / r/incremental_games (title + body):**
+> **Title:** LANCEFALL — a 60fps browser bullet-hell where you don't shoot, you dash, and every boss is a cipher you decode under fire
+>
+> **Body:** Solo jam project (vanilla TS, Canvas2D, no engine, ~290KB, 1,400+ tests). Your only
+> weapon is a charge-dash: hold to build it, release to spear through a wall of bullets, chain
+> kills before the combo decays. The twist — bosses are *cipher-locked*: a substitution legend on
+> the HUD, and you dash the boss's glyph-cores in the decoded order to break it open. Zero RNG in
+> the cipher, so the daily challenge is identical for everyone. Plays free in a browser tab, no
+> download: https://lancefall.pages.dev — feedback on the cipher-locks especially welcome.
+
+**Jam Discord / community channel:**
+> Just shipped my June Solstice Jam entry — **LANCEFALL**, a dash-combat bullet-hell where every
+> boss is a live cipher you read and break under fire (an ode to Turing). My dev.to post is being
+> throttled as a new account so it's getting no reach 😅 — if you want to play/react it'd mean a
+> lot: post → https://dev.to/patij212/lancefall-crack-the-code-bring-back-the-day-bfj · play free →
+> https://lancefall.pages.dev. Happy to play + give feedback on yours in return!
+
+> **Tip:** reactions on the post can lift its Forem score back into the feeds, and reactions are
+> the jam tiebreaker — so external traffic helps twice. Reciprocate genuinely on neighbour entries
+> (NOONFALL, Heliograph, Turing's Solstice, Solstice Cipher).
