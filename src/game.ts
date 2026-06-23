@@ -156,7 +156,6 @@ export class Game {
   private biomeGrazeMul = 1; // RULE: graze stamina-refund scale here (THE BLOOMGARDENS doubles it)
   private deathCause = 'a bullet';
   private deathKind = ''; // §v9 the killing blow's EnemyKind/boss-kind when known (LAST RUN "killed by")
-  private nudgedHandle = false; // show the "set a handle" leaderboard nudge once per session
   private lastOvernightCrack: string[] = []; // THE BOMBE — words it cracked at the last run-end (the "it ran overnight" readout)
 
   /** COHERENCE — the soul dial (cosmetic; computed in frame() on realDt, rng-free) */
@@ -3552,13 +3551,13 @@ export class Game {
         if (gif && this.state === 'gameover') this.ui.setGameOverClip(gif.blob);
       });
     }
-    // playtest (Nick): "work on the anon player name" — surface name entry after a scoring run
-    // with no handle (once per session). The handle also labels ghost replays, so prompt even
-    // when online boards are off; skip while THE CHOICE is pending (that screen takes priority).
-    // Fired AFTER showGameOver so the RANKS field overlays the gameover screen (no modal race).
-    if (!this.save.handle && w.score > 0 && !this.nudgedHandle && !info.choicePending) {
-      this.nudgedHandle = true;
-      this.ui.openLeaderboard(true);
+    // Every player now boots with an auto-assigned anonymous callsign (see ensureCallsign), so the
+    // old "set a handle" nudge is dead. Instead, surface their board name ONCE EVER on the first
+    // scoring run so they know it and that it's renameable in RANKS. Skip while THE CHOICE pends.
+    if (w.score > 0 && !this.save.taught.includes('callsign:intro') && !info.choicePending) {
+      this.save.taught.push('callsign:intro');
+      this.ui.toast(`◇ RACING AS ${this.save.handle} — RENAME IN RANKS`);
+      saveSave(this.save);
     }
   }
 
