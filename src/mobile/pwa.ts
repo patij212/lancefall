@@ -19,19 +19,32 @@ function registerServiceWorker(): void {
 }
 
 function setupFullscreenOnFirstTouch(): void {
-  window.addEventListener(
-    'touchend',
-    () => {
-      try {
-        const el = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
-        const p = el.requestFullscreen?.();
-        if (p && typeof p.then === 'function') p.then(lockLandscape).catch(() => {});
-      } catch {
-        /* fullscreen denied / unsupported */
-      }
-    },
-    { once: true, passive: true },
-  );
+  const stop = (): void => window.removeEventListener('touchend', tryFullscreen);
+  function tryFullscreen(): void {
+    if (document.fullscreenElement) {
+      stop();
+      return;
+    }
+    const el = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
+    if (!el.requestFullscreen) {
+      stop(); // unsupported (notably iOS in-browser) — the rotate-hint + installed PWA cover it
+      return;
+    }
+    try {
+      el.requestFullscreen()
+        .then(() => {
+          lockLandscape();
+          stop();
+        })
+        .catch(() => {
+          /* this gesture was rejected — keep listening and retry on the next touch */
+        });
+    } catch {
+      /* ignore */
+    }
+  }
+  // Retry on EVERY touch (not just the first) so one rejected attempt doesn't permanently give up.
+  window.addEventListener('touchend', tryFullscreen, { passive: true });
 }
 
 function lockLandscape(): void {

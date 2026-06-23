@@ -34,6 +34,7 @@ import { RELICS, describeRelics } from './relics';
 import { encodeBuildDna } from './buildDna';
 import { submitScore, submitAchievements } from './api';
 import { isMobile, applyMobileClass } from './mobile/detect';
+import { mobileViewZoom } from './mobile/viewport';
 import { mountMobileControls, type MobileControls } from './mobile/controls';
 import { boardEligible } from './mobile/withhold';
 import { haptics, setHapticsEnabled } from './mobile/haptics';
@@ -386,13 +387,31 @@ export class Game {
     this.ui.openDuelWithCode(code); // pre-filled; ACCEPT runs the same acceptChallenge() flow
   }
 
+  /** The renderer/world LOGICAL size. On mobile we render the arena LARGER than the viewport and
+   *  downscale the canvas (see resize) so the player sees more of the field — `mobileViewZoom`. On
+   *  desktop this is just the viewport at the ≤1.5 DPR cap. */
+  private logicalDims(): { w: number; h: number; dpr: number } {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const z = isMobile(this.settings.inputMode) ? mobileViewZoom(vh) : 1;
+    const w = Math.round(vw / z);
+    const h = Math.round(vh / z);
+    // a larger logical render is CSS-downscaled to the viewport, so a high DPR would only burn
+    // mobile fill-rate — drop it to 1 when zoomed out; desktop keeps the ≤1.5 cap.
+    const dpr = z < 1 ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+    return { w, h, dpr };
+  }
+
   private resize(): void {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5); // cap the backing store (≤1.5, tighter than the ~2 ceiling) for fill-rate headroom on hi-DPI / mobile
+    const { w, h, dpr } = this.logicalDims();
     this.renderer.resize(w, h, dpr);
     this.world.width = w;
     this.world.height = h;
+    // Render at a larger logical size on mobile, then pin the canvas CSS box to the REAL viewport
+    // so the browser downscales it — a wider field of view. On desktop w/h == the viewport, so this
+    // just re-asserts the native size (harmless).
+    this.canvas.style.width = window.innerWidth + 'px';
+    this.canvas.style.height = window.innerHeight + 'px';
   }
 
   /** Mount the touch overlay. Called from main.ts ONLY when isMobile() — desktop never
@@ -495,9 +514,10 @@ export class Game {
     this.sandboxCueTimer = 0;
     // a SEPARATE world on a throwaway, NON-seeded rng — it can never perturb the run.
     const sw = new World(createRng(0x5A4D_B0C5)); // "SANDBOX" — a fixed throwaway seed
-    sw.reset(window.innerWidth, window.innerHeight);
-    sw.player.x = window.innerWidth * 0.28;
-    sw.player.y = window.innerHeight * 0.5;
+    const sbx = this.logicalDims();
+    sw.reset(sbx.w, sbx.h);
+    sw.player.x = sbx.w * 0.28;
+    sw.player.y = sbx.h * 0.5;
     sw.player.iframe = 1e9; // truly unfailable for the whole teach
     this.sandboxWorld = sw;
     this.setupSandboxBeat(sw, currentStep(this.sandbox).step); // stage the first beat's targets
@@ -946,7 +966,8 @@ export class Game {
     this.runNgPlus = !modeSeeded(cfg) ? Math.max(0, Math.min(NG_PLUS.maxLoop, Math.round(ngLevel))) : 0;
     const runMul = ngPlusIntensityMul(effCfg.intensityMul, this.runNgPlus > 0, this.runNgPlus, cfg.seedKind, NG_PLUS.intensityPerLoop, NG_PLUS.maxLoop);
     const runCfg = runMul === effCfg.intensityMul ? effCfg : { ...effCfg, intensityMul: runMul };
-    this.world.reset(window.innerWidth, window.innerHeight);
+    const runDims = this.logicalDims();
+    this.world.reset(runDims.w, runDims.h);
     // §casual-softening — push the mode's difficulty scalars onto the world (default 1 for
     // every other mode). bulletSpeedScale is read in spawnBullet; fireCadenceMul at enemy/
     // boss fire-cadence resets. enemySpeedScale is read at the chaff spawn site (spawnWave).
