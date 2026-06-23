@@ -72,7 +72,12 @@ try {
   if (account.accountEnabled()) {
     account.adoptFragmentSession(); // absorb any OAuth return token before booting
     onSaveWrite(account.noteChange);
-    account.init();
+    // Assign the anonymous callsign AFTER the cloud merge settles, so a fresh device never clobbers
+    // a real chosen name (handle merges by 'latest' write-timestamp).
+    account.init(() => game.ensureCallsign());
+  } else {
+    // No cloud to reconcile against — assign immediately at boot.
+    game.ensureCallsign();
   }
 
   // Dev-only debug hook for automated playtesting.

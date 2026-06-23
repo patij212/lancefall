@@ -38,6 +38,20 @@ describe('account — opt-in gating', () => {
   });
 });
 
+describe('account — init', () => {
+  it('does not fire onSettled when accounts are disabled (no double-assign)', () => {
+    // BASE is '' in vitest ⇒ accountEnabled() is false ⇒ init early-returns before boot/.finally.
+    // main.ts relies on this contract: the disabled path must NOT run the callback (it assigns the
+    // callsign inline in its else-branch instead, so the callback firing here would double-run it).
+    let called = false;
+    account.init(() => { called = true; });
+    expect(called).toBe(false);
+  });
+  it('is callable with no argument (back-compat)', () => {
+    expect(() => account.init()).not.toThrow();
+  });
+});
+
 import { mergeCloud, adopt, noteChange } from './account';
 import { onSaveWrite } from './save';
 import * as accountMod from './account';

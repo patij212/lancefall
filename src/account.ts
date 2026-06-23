@@ -188,8 +188,10 @@ export async function deleteAccount(): Promise<boolean> {
   } catch { return false; }
 }
 
-/** One-time wiring: register the save listener + boot the session. Call once from main.ts. */
-export function init(): void {
+/** One-time wiring: register the save listener + boot the session. Call once from main.ts.
+ *  `onSettled` (optional) fires exactly once after the cloud sync settles — success, early
+ *  return, or offline error — so the caller can run a post-merge step (e.g. ensureCallsign). */
+export function init(onSettled?: () => void): void {
   if (!accountEnabled()) return;
-  void boot();
+  void boot().finally(() => { if (onSettled) { try { onSettled(); } catch { /* never break boot */ } } });
 }

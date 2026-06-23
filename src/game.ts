@@ -79,6 +79,7 @@ import {
   sanitizeHandle,
 } from './save';
 import type { SaveData, Settings } from './save';
+import { applyCallsign } from './callsign';
 import type { Enemy, EnemyKind, Bullet } from './types';
 import { newCoherence, resetCoherence, coherenceTarget, tickCoherence, comboTier, coherenceBeatKick, coherenceBeatFlash, coherenceEdges } from './coherence';
 import { BeatClock, makeGrid, gradeRelease } from './beat';
@@ -1495,6 +1496,17 @@ export class Game {
   private setHandle(name: string): void {
     this.save.handle = sanitizeHandle(name); // shared sanitizer: trims BEFORE the 16-cap (playtest fix)
     saveSave(this.save);
+  }
+
+  /** Boot step (called once from main.ts). Give a nameless save a unique anonymous callsign so the
+   *  player ranks individually instead of collapsing into the shared ANON board row. Re-reads the
+   *  save so a cloud-merged handle is honored, and never overwrites an existing (typed or cloud)
+   *  handle. For account users main.ts defers this until AFTER the cloud merge settles, so a fresh
+   *  device can't clobber a real chosen name. Math.random here is outside the seeded run RNG. */
+  public ensureCallsign(): void {
+    const s = loadSave();
+    if (applyCallsign(s)) saveSave(s);
+    this.save = s;
   }
 
   private copyBuildDna(): void {
