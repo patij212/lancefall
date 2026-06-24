@@ -8,7 +8,7 @@
     "deploy": "wrangler deploy",
     "schema": "wrangler d1 execute lancefall --remote --file=schema.sql",
     "stats": "node tools/stats.mjs",
-    "test": "node --test tools/"
+    "test": "node --test tools/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240909.0",

@@ -89,3 +89,10 @@ impostor-proof handle on the board (an unlinked entry reusing a verified name gr
 ```bash
 npx wrangler dev          # runs the worker locally with a local D1
 ```
+
+## Owner stats
+```bash
+npm run stats             # print a local analytics report of the LIVE leaderboard DB
+```
+Totals, per-mode, last-14-days, recent runs, and most-active players — read-only, using your
+wrangler login. The report formatter is pure and unit-tested: `npm test`.
